@@ -18757,7 +18757,281 @@
         "companions": 371,
         "unique_source_contracts": 2289
       },
-      "root_spec209_WB_amendment": "SEPARATE_NOT_TOUCHED"
+      "root_spec209_WB_amendment": "SEPARATE_NOT_TOUCHED",
+      "publication_history": [
+        {
+          "publication_id": "SHARED-DEPENDENCY146-SELF12-EFC2742D-ACK",
+          "publication_commit": "efc2742d185e4b5f1cfd86caf33d2d9f13115ef2",
+          "verified_remote_ref": "origin/gov_kernel",
+          "fresh_observed_remote_commit": "efc2742d185e4b5f1cfd86caf33d2d9f13115ef2",
+          "published_working_report_sha256": "f84337226b8e566c6ecf1344000bdafd70698e5a6de1211150d381c822313187",
+          "published_canonical_report_sha256": "f84337226b8e566c6ecf1344000bdafd70698e5a6de1211150d381c822313187",
+          "published_report_path": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/shared-team/preparation.json",
+          "published_owned_source_file_count": 92,
+          "published_owned_source_frozen_raw_aggregate_sha256": "e3a56dad2f96957152722e1ab1f210612fbf71e8eceb349558a7ff50c6df8669",
+          "indexed_alias_replacement_count": 602,
+          "verified_internal_own_id_edges_removed": 12,
+          "independent_native_owned92_raw_hashes_exact": true,
+          "independent_coordinator_reverse_preservation_verdict": "PASS",
+          "independent_coordinator_full_physical_graph_verdict": "PASS_ZERO_MISSING_ZERO_CYCLES",
+          "proof_input_reuse": "Prior canonical92 readback remains valid; only this report publication history changes",
+          "report_append_gameplan_check": "kernel_builder before_submit PASS48/48 @efc2742d185e; successful-exit guard",
+          "runtime_proof": "PENDING",
+          "source_release_proof": "PENDING",
+          "final_review": "PENDING",
+          "dispatch_authorized": false,
+          "source_contract_changes_in_this_append": 0,
+          "root_spec209_affected_source_changes": "NOT_AUTHORIZED_NOT_TOUCHED"
+        }
+      ]
+    },
+    "gui209_checkpoint": {
+      "authority_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "spec_version": "v02.209",
+      "spec_source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "spec_source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "status": "SOURCE_CONTRACTS_FROZEN_AWAITING_COORDINATOR_PUBLICATION",
+      "dispatch": false,
+      "runtime_executed": false,
+      "reference_inspection_status": "PENDING_NOT_INSPECTED",
+      "runtime_proof_status": "PENDING_NOT_RUN",
+      "files": [
+        {
+          "mt_id": "MT-34507",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34507.json",
+          "preimage_sha256": "66d248dc003674f35eab9e6166d5b78fab04675e1e59c7175913d4f37cfa4479",
+          "native_preimage_sha256": "66d248dc003674f35eab9e6166d5b78fab04675e1e59c7175913d4f37cfa4479",
+          "sha256": "7c15e974fd771705e44f1ee97d3bd10ca79090affa128f204241441a9e7388e6",
+          "new_acceptance_ids": [
+            "V209-AC-001",
+            "V209-AC-002"
+          ],
+          "source_body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3"
+        },
+        {
+          "mt_id": "MT-34508",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34508.json",
+          "preimage_sha256": "1c04affe8488aa4b4160563cd8fa1726b2d3d3889cdf759f57a7796cafb199dc",
+          "native_preimage_sha256": "1c04affe8488aa4b4160563cd8fa1726b2d3d3889cdf759f57a7796cafb199dc",
+          "sha256": "93589cf088aaf1db6adc3f7ff6824e8a6fd9cb3395569779980374bc9b864346",
+          "new_acceptance_ids": [
+            "V209-AC-001",
+            "V209-AC-002"
+          ],
+          "source_body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3"
+        },
+        {
+          "mt_id": "MT-34514",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34514.json",
+          "preimage_sha256": "a859ba5dad2e68b46f72dcac44980fdd0e46a1dc021486568d1eda512b845ddd",
+          "native_preimage_sha256": "a859ba5dad2e68b46f72dcac44980fdd0e46a1dc021486568d1eda512b845ddd",
+          "sha256": "b9f9b5728f8b6bd85f26cad8d0fa694094b580d6cdef22bb19d7df4b205bab18",
+          "new_acceptance_ids": [
+            "V209-AC-001",
+            "V209-AC-002"
+          ],
+          "source_body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33"
+        }
+      ],
+      "selected_closure": "Three existing Controls density/enumeration/spine contracts gain mandatory shared professional desktop visual acceptance and actual future Argus/reference/manual proof; original geometry, enumeration, eight identities, acceptance and source/host split retained.",
+      "preservation_proof": "All captured scope/AC/count, lifecycle/activation, preserved payload, original method/AC prefixes, legacy and later-host maps, dependencies and all52 HBR identities/assessments/statuses unchanged; current209 anchors retain exact prior records in amendment history.",
+      "host_adoption_mt_refs": [
+        "MT-36213"
+      ],
+      "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE",
+      "publication_owner": "COORDINATOR_ONLY",
+      "gameplan_check": "PASS 50/50 before_submit at ec1ffbd5; metadata authoring only",
+      "publication_history": []
+    },
+    "foundation_target_timing12_checkpoint": {
+      "authority_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "status": "LABEL_ONLY_FROZEN_AWAITING_COORDINATOR_PUBLICATION",
+      "files": [
+        {
+          "mt_id": "MT-35528",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+          "preimage_sha256": "02337521a617ec8316d921b7d979cd403a49e0757aca3d419ed74529c3e42e99",
+          "native_preimage_sha256": "1a4adf032d5201454a453a2f67cc3a9ca0f622906183f8a4f981383340876282",
+          "sha256": "6ae209b2dff6ae2beca3fadd9cd1442e46007736afdc32b379144184bd64f774"
+        },
+        {
+          "mt_id": "MT-35529",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
+          "preimage_sha256": "9c04048dc827555887d0e8754988f1c2f22f57d689a3747fbe4d4c91cc644100",
+          "native_preimage_sha256": "574cda95a17363c5fc3a81f43c7ab2c56027db5aeab0204538858166b7be949c",
+          "sha256": "a30809e03f5ac79b93c3501a5e8aea454a7c3c7dc69efe9f49c22005d161c691"
+        },
+        {
+          "mt_id": "MT-35530",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
+          "preimage_sha256": "dbccbe75ebabc15039c9b9bc0b12b218d612bcfdaad2cbeb7ff6350f15e7b544",
+          "native_preimage_sha256": "2cc2ab7d1dbd48df2510a911d8d39d03cd2fb928e1b7d73e527b39fe4cc91a14",
+          "sha256": "c0e909fec8aa05f8339225d8154eb4651c62fd106f746a9783d7044472e4a9ab"
+        },
+        {
+          "mt_id": "MT-35531",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
+          "preimage_sha256": "b95b63913f766f7549c5e8fdc6545db4cfd35b923ea4f0b136e029f13bbd5b02",
+          "native_preimage_sha256": "c0152a437c5a9c77d1575269f22a03da5d12b0ef3a03e7fc6a07d780b4230cfb",
+          "sha256": "8d5a3744ff94cd2e4297d4ee8700460b45b28800f6beacbb4dcc9ad3a68239b6"
+        },
+        {
+          "mt_id": "MT-35532",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
+          "preimage_sha256": "46e6fca55e0ba8032900fc2c97dec37d1edaaf474d271acd62fb1c44e96b84cf",
+          "native_preimage_sha256": "256db0829ae8a4ed9684fba9c965b47d00561a4fba46230fc60210026f396cd4",
+          "sha256": "da6f5ded82e218839f2b614ace0ed913a34e778d5543e25bfd4920b65fc460f9"
+        },
+        {
+          "mt_id": "MT-35533",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
+          "preimage_sha256": "fb3c74b0a1fdb78c3a6a2c842b3bf37a7e4dcabccb473dd36929f21f26730c1c",
+          "native_preimage_sha256": "8bb0310888fd32e6b977ed40fc47bb53f9b9fe58be6352be5ce00037691ece3a",
+          "sha256": "9e8f695a8559aa8c9dee7de5be47a6f9b3eb91349f7081e1d4533a0442a495a3"
+        },
+        {
+          "mt_id": "MT-35536",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
+          "preimage_sha256": "af31e350353352d284c72877534a1f82250015354be7c11d8b85128c665c2fb3",
+          "native_preimage_sha256": "39c71bc0c4a1c7d95f4926d73474a5ce78ec6f40826476ee6106a58933d73538",
+          "sha256": "70a8c303726774bdf94f73f347f9c35d0f6fc1596ef52d14754e3eb22a964e14"
+        },
+        {
+          "mt_id": "MT-35547",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json",
+          "preimage_sha256": "f830ba4d7f243f87adfaff5894788011d9b92d84c725ab61ebd83950c67069af",
+          "native_preimage_sha256": "1624022b46ad3ffa3c1e8adf11a46af218a5c69ff31bd95b38ed87f033d230a6",
+          "sha256": "616819cab91780e31fd4769bccd9c9f703549020f7e1f41923457f9038fe8980"
+        },
+        {
+          "mt_id": "MT-35553",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json",
+          "preimage_sha256": "65f70b82ee10f2cd85b63d2795a45cac9e43e357880c88a0348d86b2372a053b",
+          "native_preimage_sha256": "65f70b82ee10f2cd85b63d2795a45cac9e43e357880c88a0348d86b2372a053b",
+          "sha256": "74d0f82127138fe6d59ad66f6e050532da848a8dee367a16050281af7f14f4a9"
+        },
+        {
+          "mt_id": "MT-35554",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json",
+          "preimage_sha256": "ebaccdc650fb42b395906bd04b2a7844606c6fc44280f46c7eb2ba17e137fda4",
+          "native_preimage_sha256": "a9271f0a4f4182db5cb62d34385e872f554c0c1a8ef3e386c85d3832d04ba385",
+          "sha256": "e92052a893993cdc0a5a427606e1248aa687304fe55a9255578d5d64833e954f"
+        },
+        {
+          "mt_id": "MT-35555",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json",
+          "preimage_sha256": "16ea9f91bde1337db26c59efaaf474c9170fc0ae2b60911c06a03c25fc42fac3",
+          "native_preimage_sha256": "6751912aaff0f396128448fe2f524577229e35f2c0644b87877a7c9940f85ec3",
+          "sha256": "47315a4e868d9f8b49c00517321cb9a0d17f41c8bd63531221f504245ba62125"
+        },
+        {
+          "mt_id": "MT-35556",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+          "preimage_sha256": "79f36cf6bd6d33ca1a6317a6e641eceacad9516ed9403ccfca314a692c9f1d4b",
+          "native_preimage_sha256": "defc01369c5ddeb15723b19a892646a2a664a8223f0de1d7a3d9cbeed8487d83",
+          "sha256": "ae1d11557002cca08d250ba0673a16a271ba1ff3bd9320386829802c0d13d359"
+        }
+      ],
+      "only_changed_json_pointer": "/scope/proof_targets_materialization",
+      "original_label": "Required before new implementation session dispatch",
+      "replacement_label": "Foundation creates owned manifests/targets during coding; executable targets and real results are required before foundation handoff, never before creation.",
+      "preservation_proof": "Exact raw byte replacement of the sole selected field per file; reversing the replacement equals each complete original JSON and raw bytes. Every other field, revision, timestamp, AC, payload and proof method unchanged.",
+      "bootstrap_timing_inspected_mt_refs": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530"
+      ],
+      "bootstrap_finding": "35528 creates the virtual workspace manifest and registers materialized module manifests during coding; 35529/35530 create their owned implementation/proof targets during coding. Existing selected method/provider approval is before coding; actual executable target and independent result are before handoff. No runtime bootstrap or scratch product experiment was performed.",
+      "actual_blocker": "NONE_FOR_AUTHORIZED_PREPARATION; runtime bootstrap NOT_RUN and not claimed proven",
+      "dispatch": false,
+      "runtime_executed": false,
+      "publication_owner": "COORDINATOR_ONLY",
+      "publication_history": []
+    },
+    "foundation_method_remediation2_checkpoint": {
+      "authority_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "recorded_at_utc": "2026-10-10T06:40:53.102586Z",
+      "recorded_failure_authority": "Root exact recorded-failure remediation grant relayed by coordinator: only MT-35528/MT-35530 and existing Shared preparation report",
+      "status": "SOURCE_METHOD_REMEDIATION_FROZEN_AWAITING_ROOT_REVIEW_AND_COORDINATOR_PUBLICATION",
+      "previous_report_sha256": "743aaea708c6ebfa25312bc7c2be1779a4d199f81e5653cef7c768e8055385dc",
+      "previous15_file_freeze_retained": true,
+      "other13_files_unchanged": true,
+      "files": [
+        {
+          "mt_id": "MT-35528",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+          "working_preimage_sha256": "6ae209b2dff6ae2beca3fadd9cd1442e46007736afdc32b379144184bd64f774",
+          "ec1_native_sha256": "1a4adf032d5201454a453a2f67cc3a9ca0f622906183f8a4f981383340876282",
+          "sha256": "d778336b8646bb1d43944cee7f44305f0b04cb04074db26f72bd69e828d02f4d",
+          "changed_json_pointers": [
+            "/proof/checks/0/command_or_method",
+            "/proof/checks/0/expected",
+            "/proof/checks/0/method_recipe/consumer_assertion",
+            "/proof/checks/0/method_recipe/negative_path",
+            "/proof/checks/0/method_recipe/oracle",
+            "/proof/checks/0/method_recipe/feature_policy",
+            "/proof/checks/1/command_or_method",
+            "/proof/checks/1/expected",
+            "/proof/checks/1/method_recipe/consumer_assertion",
+            "/proof/checks/1/method_recipe/negative_path",
+            "/proof/checks/1/method_recipe/oracle",
+            "/proof/checks/1/method_recipe/feature_policy",
+            "/proof/checks/2/command_or_method",
+            "/proof/checks/2/expected",
+            "/proof/checks/2/method_recipe/consumer_assertion",
+            "/proof/checks/2/method_recipe/negative_path",
+            "/proof/checks/2/method_recipe/oracle",
+            "/proof/checks/2/method_recipe/feature_policy",
+            "/proof/checks/3/command_or_method",
+            "/proof/checks/3/expected",
+            "/proof/checks/3/method_recipe/consumer_assertion",
+            "/proof/checks/3/method_recipe/negative_path",
+            "/proof/checks/3/method_recipe/oracle",
+            "/proof/checks/3/method_recipe/feature_policy",
+            "/proof/checks/4/command_or_method",
+            "/proof/checks/4/expected",
+            "/proof/checks/4/method_recipe/consumer_assertion",
+            "/proof/checks/4/method_recipe/negative_path",
+            "/proof/checks/4/method_recipe/oracle",
+            "/proof/checks/4/method_recipe/feature_policy"
+          ]
+        },
+        {
+          "mt_id": "MT-35530",
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
+          "working_preimage_sha256": "c0e909fec8aa05f8339225d8154eb4651c62fd106f746a9783d7044472e4a9ab",
+          "ec1_native_sha256": "2cc2ab7d1dbd48df2510a911d8d39d03cd2fb928e1b7d73e527b39fe4cc91a14",
+          "sha256": "527f7daf94b461346f2dd2c4a4346d3456bd9f6763f43789926e480d069238df",
+          "changed_json_pointers": [
+            "/proof/checks/0/method_recipe/consumer_assertion",
+            "/proof/checks/1/method_recipe/consumer_assertion",
+            "/proof/checks/2/method_recipe/consumer_assertion",
+            "/proof/checks/3/method_recipe/consumer_assertion",
+            "/proof/checks/4/method_recipe/consumer_assertion",
+            "/proof/checks/4/expected"
+          ]
+        }
+      ],
+      "recorded_failures": [
+        {
+          "mt_id": "MT-35528",
+          "finding": "Scope already permits tools/workspace-probe.rs and closure requires a real bootstrap consumer without uncreated siblings, but all five checks prescribed only metadata with selected_packages=[] and an absent oracle.",
+          "remediation": "Existing methods/recipes/expected fields now require compiling and running that already-allowed standalone probe on actual candidate manifest/toolchain/lock/selection/provenance inputs, independent positive and negative output, and actual module/provider compilation at the final 36-foundation barrier."
+        },
+        {
+          "mt_id": "MT-35530",
+          "finding": "Observe-local input/step scope excludes Session, but five recipe consumer_assertion strings and check4 expected text still require Session.",
+          "remediation": "Only those six strings now name the declared Observe-local caller-owned sink consumer with Accord attribution and external collector. Commands, deps, scope, AC and every other field are unchanged."
+        }
+      ],
+      "focused_proof": "Complete parsed-field diff equals only the authorized30 workspace proof-method/recipe/expected leaves and six Observe strings; reverse those leaves to exact original parsed JSON and CRLF raw bytes. Frozen other13 hashes and all prior report history/freezes unchanged.",
+      "gameplan_check": "PASS53/53 before_submit at ec1ffbd5 before the scoped mutation",
+      "product_source_written": false,
+      "runtime_executed": false,
+      "runtime_proof_status": "PENDING_NOT_RUN",
+      "dispatch": false,
+      "publication_owner": "COORDINATOR_ONLY",
+      "publication_history": []
     }
   },
   "baseline_commit_observed": "d8608d992d3653dc2aa356ae67c688c2f37bb505",

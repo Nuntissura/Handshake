@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 69
+generation: 77
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -87,3 +87,11 @@ steps:
 - {id: GP-071, role: builder, at: before_submit, do: verify each self prerequisite is an internal owned contribution before removing only its own-ID edge, check: {type: confirm}, source: 'full6190graph:12 Shared companions already depend on themselves; explicit root self12 repair authorized', state: active}
 - {id: GP-072, role: builder, at: before_submit, do: compare dependency membership after canonical alias resolution and do not add parent-exclusion gates, check: {type: confirm}, source: 'coordinator:literal own-slice absence did not prove mapped child absence; root authorizes self edge only', state: active}
 - {id: GP-073, role: builder, at: before_submit, do: compare native report history with separately authorized working publication acknowledgements before mutation, check: {type: confirm}, source: 'Visual64:2dc native report has16history while authorized uncommitted6f acknowledgement makes17', state: active}
+- {id: GP-074, role: builder, at: before_submit, do: verify canonical assets origin and free new checkout paths while preserving all protected worktrees, check: {type: confirm}, source: 'human:newassetsworktree; oldHandshake Studio worktree is not canonicalassetscheckout', state: active}
+- {id: GP-075, role: builder, at: before_submit, do: verify fresh remote checkout identity after fetch rather than reusing an earlier remote HEAD observation, check: {type: confirm}, source: assets defaulthead advanced994fc->c6c993 onanotherdevice; prewriteassertheldallclone/worktree mutations, state: active}
+- {id: GP-076, role: builder, at: before_submit, do: verify absent Git branch refs using quiet show-ref exit semantics before worktree creation, check: {type: confirm}, source: 'assets:show-ref --verify absentref returns128 without --quiet; clone/fetch preserved, worktree notcreated', state: active}
+- {id: GP-077, role: builder, at: before_submit, do: compare spec normative bodies separately from version and regenerated body-hash frontmatter, check: {type: confirm}, source: '209reader:15 replacements matchedbody; generatedfrontmatter body_sha256 legitimately changed', state: active}
+- {id: GP-078, role: builder, at: before_submit, do: verify new clause boundaries stop at paragraph end; foundation target timing follows coding creation, check: {type: confirm}, source: 'allocation:PRO174 next-anchor span included unrelated sections; stale foundation label gated uncreated targets', state: active}
+- {id: GP-079, role: builder, at: before_submit, do: verify report counts versus row-list container types before length or membership operations, check: {type: confirm}, source: 'media:mt_changes integer treated as row list before report write; no mutation', state: active}
+- {id: GP-080, role: builder, at: before_submit, do: verify contextual anchors for insertion hunks and parse complete proposed JSON before writing, check: {type: confirm}, source: 'embedding36213:zero-context insertion appended six acceptance rows after root closing brace', state: active}
+- {id: GP-081, role: builder, at: before_submit, do: require confirmation notes single-line and at most120 characters before controller invocation, check: {type: confirm}, source: 'Visual:overlong confirmation note rejected before gate; controller TEXT_MAX=120', state: active}

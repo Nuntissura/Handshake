@@ -26,14 +26,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "DECLARED GAP — presentation and slide node kinds are out of scope here",
+  "clause": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here",
   "spec_anchor": [
     "STU-WB-130"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+    "summary": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -127,10 +127,10 @@
   "identity": {
     "mt_id": "MT-33604",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "DECLARED GAP — presentation and slide node kinds are out of scope here",
+    "title": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -142,18 +142,36 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WB-130",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22113",
-        "verbatim": "**[STU-WB-130] DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
-        "heading": "### 4. Declared gaps and obligations",
-        "section": "14.15",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22136",
+        "verbatim": "**[STU-WB-130] Resolved presentation disposition \u2014 fold into existing Studio modules.** The Operator selected folding all four captured kinds into the existing modules within the same `.handshake` document: `SLIDE`, `SLIDE_ROW`, `SLIDE_GRID` and `INTERACTIVE_SLIDE_ELEMENT`. [STU-PRO-167] through [STU-PRO-174] carry their concrete folded contracts. Folio retains identity and shared document references; Layout owns slides and ordered row/grid containers; Components owns interactive roles and transition descriptions; Pulse owns timing and presentation scheduling; Interop-Fig owns source mappings; Controls reuses shared panels and fields. The disposition MT MUST bind the actual owner MTs and their source contributions. These kinds MUST NOT become a separate app, document silo, presentation crate or whiteboard catch-all; Nib retains its whiteboard geometry scope.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 22113,
-            "end_line": 22114,
-            "body_sha256": "3cf2378db2aa3aafb931cae881df10967e23cf61f095d539d73b00fec35a3dcb",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 22136,
+            "end_line": 22136,
+            "body_sha256": "14dcf8c0f634bcb4282a597a25903a4c922c3349fe9fe7dc354c69499bafbd97",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges",
+        "heading": "### 4. Declared gaps and obligations",
+        "section": "14.15"
+      },
+      {
+        "id": "STU-WB-138",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22168",
+        "verbatim": "**[STU-WB-138] Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 22168,
+            "end_line": 22177,
+            "body_sha256": "a69cb7bb1a0a89c86bec510d7834e2469995ed52e16d3561985fde77670aa084",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -162,7 +180,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1254,7 +1272,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "MT-33604 board_presentation_scope_gap source public boundary: Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds. STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched. Source observations remain separate from MT-36195 host authorization/storage/events/UI adoption.",
+        "reason": "MT-33604 board_presentation_scope_gap source public boundary: Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds. STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched. Source observations remain separate from MT-36195 host authorization/storage/events/UI adoption.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": false,
@@ -1528,14 +1546,18 @@
     ],
     "prior_hbr_assessment_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33604.json#/context_capsule/pillar_refs",
     "relevant_code_refs": [
-      "handshake-studio-assets/crates/hsk-studio-nib/src/board_presentation_scope_gap.rs",
-      "handshake-studio-assets/crates/hsk-studio-nib/tests/board_presentation_scope_gap.rs",
-      "handshake-studio-assets/crates/hsk-studio-nib/Cargo.toml",
-      "handshake-studio-assets/Cargo.lock"
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36234.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36235.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36236.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36241.json"
     ]
   },
   "closure_unit": {
-    "outcome": "Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
+    "outcome": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
     "requirement_refs": [
       "STU-WB-130"
     ],
@@ -1545,12 +1567,12 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+        "text": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING. **[STU-WB-130] Resolved presentation disposition \u2014 fold into existing Studio modules.** The Operator selected folding all four captured kinds into the existing modules within the same `.handshake` document: `SLIDE`, `SLIDE_ROW`, `SLIDE_GRID` and `INTERACTIVE_SLIDE_ELEMENT`. [STU-PRO-167] through [STU-PRO-174] carry their concrete folded contracts. Folio retains identity and shared document references; Layout owns slides and ordered row/grid containers; Components owns interactive roles and transition descriptions; Pulse owns timing and presentation scheduling; Interop-Fig owns source mappings; Controls reuses shared panels and fields. The disposition MT MUST bind the actual owner MTs and their source contributions. These kinds MUST NOT become a separate app, document silo, presentation crate or whiteboard catch-all; Nib retains its whiteboard geometry scope.",
         "fulfillment_ref": "MT-33604#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1597,7 +1619,21 @@
       "MT-35560",
       "MT-35561",
       "MT-35562",
-      "MT-35563"
+      "MT-35563",
+      "MT-36242",
+      "MT-36243",
+      "MT-36244",
+      "MT-36245",
+      "MT-36246",
+      "MT-36247",
+      "MT-36234",
+      "MT-36235",
+      "MT-36236",
+      "MT-36237",
+      "MT-36238",
+      "MT-36239",
+      "MT-36240",
+      "MT-36241"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -1652,9 +1688,7 @@
       ],
       "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
     },
-    "allowed_write_paths": [
-      "handshake-studio-assets/crates/hsk-studio-nib/**"
-    ],
+    "allowed_write_paths": [],
     "forbidden_write_paths": [
       ".GOV/**",
       "src/**",
@@ -1667,32 +1701,32 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "typed_input": "Captured slide,slide-row,slide-grid,interactive-slide-element kind names; actual section14 absence of presentation domain and WB138 operator decision evidence created|folded_elsewhere|out_of_scope with canonical disposition reference.",
-        "source_contract": "Exact specification_anchor_refs and legacy acceptance retained; required unknowns remain explicit gaps.",
-        "public_consumer": "Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds.",
+        "typed_input": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
+        "source_contract": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22136; full209 clause range and exact immutable207 preimage retained",
+        "public_consumer": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
         "immutable_input_and_revision_required": true
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "First require recorded operator scope decision for all four kinds and its actual canonical disposition. Until available, return open scope dependency without admitting them to closed12 board kinds. Public boundary classifier routes explicitly authorized disposition to actual owner only after canonical authority exists; board source decoder rejects silent absorption. Preserve distinction ordered deckpages/transition/presenter versus board pagekind and retain original captured names without inventing domain or translation."
+        "step": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING."
       },
       {
         "n": 2,
-        "step": "Stage Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds. against unchanged revision with inverse data; no host event/database writes."
+        "step": "Consume current209 exact clause and preserved prior scope/AC without changing source identity; use existing typed owner ports, revision/inverse/cancel and explicit loss outcomes; no host storage/event writes or new product owner."
       },
       {
         "n": 3,
-        "step": "Positive consumer cases: Read actual scope decision/canonical disposition covering all four; independently verify no kind appears in board union and routed destination exists when authorized; out-of-scope result remains explicit and preserves provenance. Negative/recovery: No recordeddecision, partialkindcoverage, nonexistent destination or renamed boardkind rejects/blocks; canceled/stale disposition preserves original scope question. No conversion of deckpages into boards or manufactured authority from chat shorthand."
+        "step": "Read all eight actual owner source contracts and compare four kind plus transition/curve/style/timing bindings to published WB130/WB138; do not compile or implement presentation in Nib."
       },
       {
         "n": 4,
-        "step": "Independent oracle: Independent authority/board-union reader compares four kind dispositions to exact recorded operator decision. Host registration/import/manual/activation proof remains MT-36195; preparation does not claim missing decision resolved. Land canonical source and independent remote/proof reread before MT-36195 host adoption."
+        "step": "Independent reader compares canonical source/body hashes and actual output to209 requirements; no self-authored PASS. Source publication, actual source capability and qualified later host/manual/runtime proof remain required and PENDING."
       }
     ],
     "expected_outputs": [
-      "Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds.",
+      "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
       "Typed loss/error/inverse observations; independent source publication proof prerequisite."
     ],
     "stop_conditions": [
@@ -1742,11 +1776,11 @@
     "checks": [
       {
         "check_id": "MT-33604-ASSET-ASSET-AC-001",
-        "kind": "runtime",
+        "kind": "inspection",
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": "PLANNED only: cargo test --locked -p hsk-studio-nib --no-default-features --test board_presentation_scope_gap board_presentation_scope_gap -- --exact --nocapture; select the bound AC observation in this consumer target. Read actual scope decision/canonical disposition covering all four; independently verify no kind appears in board union and routed destination exists when authorized; out-of-scope result remains explicit and preserves provenance. No recordeddecision, partialkindcoverage, nonexistent destination or renamed boardkind rejects/blocks; canceled/stale disposition preserves original scope question. No conversion of deckpages into boards or manufactured authority from chat shorthand. Independent oracle: Independent authority/board-union reader compares four kind dispositions to exact recorded operator decision. Host registration/import/manual/activation proof remains MT-36195; preparation does not claim missing decision resolved. Host-only retained acceptance remains MT-36195 proof.",
+        "command_or_method": "PLANNED bounded actual canonical owner-contract/spec readback of eight source contributions and published fold decision; no cargo target or Nib implementation; all runtime remains PENDING.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1754,39 +1788,24 @@
           "Actual owner consumer plus negative path",
           "Independent actual output"
         ],
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+        "materialization_status": "PLANNED_NATIVE_CONTRACT_READBACK_NOT_RUNTIME",
+        "expected": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-nib"
-          ],
+          "selected_packages": [],
           "features": [],
           "default_features": false,
-          "planned_argv": [
-            "cargo",
-            "test",
-            "--locked",
-            "-p",
-            "hsk-studio-nib",
-            "--no-default-features",
-            "--test",
-            "board_presentation_scope_gap",
-            "board_presentation_scope_gap",
-            "--",
-            "--exact",
-            "--nocapture"
-          ],
-          "target_creation_prerequisite": "Create tests/board_presentation_scope_gap.rs/manifest registration and locked dependency/toolchain inputs; bind externally resolved artifact owner configuration before runtime. Planned argv NON_EXECUTABLE until those inputs exist.",
-          "consumer_assertion": "Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds.",
-          "positive_cases": "Read actual scope decision/canonical disposition covering all four; independently verify no kind appears in board union and routed destination exists when authorized; out-of-scope result remains explicit and preserves provenance.",
-          "negative_path": "No recordeddecision, partialkindcoverage, nonexistent destination or renamed boardkind rejects/blocks; canceled/stale disposition preserves original scope question. No conversion of deckpages into boards or manufactured authority from chat shorthand.",
-          "oracle": "Independent authority/board-union reader compares four kind dispositions to exact recorded operator decision. Host registration/import/manual/activation proof remains MT-36195; preparation does not claim missing decision resolved.",
+          "planned_argv": [],
+          "target_creation_prerequisite": "None: this retained disposition/mapping task creates no Nib presentation target; all actual source behavior belongs to the eight assigned owner contracts",
+          "consumer_assertion": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
+          "positive_cases": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
+          "negative_path": "Missing literal member, changed provenance/version, collapsed alias, hidden unsupported operation, partial owner mapping, repeated witness counted as independent, absent actual manual layer, stale/cancel or silently lost scope rejects without original mutation.",
+          "oracle": "Independent current209 source/capture reconciliation and affected actual source-output/host/manual proof; declaration, token preservation, synthetic rows or author metadata prove no fidelity.",
           "prior_method_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33604.json#/proof/checks",
           "host_proof_ref": "MT-36195#/proof"
         },
         "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
+          "before_coding": "No Nib code or target creation; bounded disposition/mapping inspection only",
+          "before_handoff": "Actual primary/owned-aspect contract readback and source contribution pin reconciliation; no runtime verdict",
           "existing_target_claimed": false
         }
       }
@@ -1868,14 +1887,14 @@
         "active": false,
         "validator_verdict": "PENDING"
       },
-      "clause": "DECLARED GAP — presentation and slide node kinds are out of scope here",
+      "clause": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here",
       "spec_anchor": [
         "STU-WB-130"
       ],
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "whiteboard",
       "scope": {
-        "summary": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+        "summary": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [],
@@ -1969,7 +1988,9 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec209_preimage_ref": "git:ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92:.GOV/task_packets/WP-KERNEL-STUDIO/MT-33604.json",
+    "spec209_preservation": "Full original payload/scope/AC/history and prior active preparation are retained in unchanged native legacy fields and this exact immutable preimage; only current209 scoped requirements supersede prior active assumptions"
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2028,11 +2049,11 @@
         "scope_basis": [
           {
             "anchor": "STU-WB-130",
-            "line": 22113,
+            "line": 22136,
             "section": "14.15",
             "heading": "### 4. Declared gaps and obligations",
-            "verbatim": "**[STU-WB-130] DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "verbatim": "**[STU-WB-130] Resolved presentation disposition \u2014 fold into existing Studio modules.** The Operator selected folding all four captured kinds into the existing modules within the same `.handshake` document: `SLIDE`, `SLIDE_ROW`, `SLIDE_GRID` and `INTERACTIVE_SLIDE_ELEMENT`. [STU-PRO-167] through [STU-PRO-174] carry their concrete folded contracts. Folio retains identity and shared document references; Layout owns slides and ordered row/grid containers; Components owns interactive roles and transition descriptions; Pulse owns timing and presentation scheduling; Interop-Fig owns source mappings; Controls reuses shared panels and fields. The disposition MT MUST bind the actual owner MTs and their source contributions. These kinds MUST NOT become a separate app, document silo, presentation crate or whiteboard catch-all; Nib retains its whiteboard geometry scope.",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
         ],
@@ -2101,7 +2122,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+        "semantic_fulfillment": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33604-ASSET-NIB"
@@ -2111,8 +2132,9 @@
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
-            "only_owner_root_may_change": true
+            "required_behavior": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+            "only_owner_root_may_change": true,
+            "spec209_requirement": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING."
           }
         ],
         "asset_proof_recipe": {
@@ -2120,17 +2142,18 @@
             "hsk-studio-nib"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+          "consumer_assertion": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
-        "later_embedding_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
-        ]
+        ],
+        "spec209_requirement": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING."
       }
     ],
     "later_kernel": {
@@ -2139,7 +2162,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+        "summary": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2154,7 +2177,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+          "semantic_fulfillment": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33604-ASSET-NIB"
@@ -2164,7 +2187,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+              "required_behavior": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2173,13 +2196,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+            "consumer_assertion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2193,7 +2216,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+          "semantic_fulfillment": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33604-ASSET-NIB"
@@ -2203,7 +2226,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+              "required_behavior": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2212,13 +2235,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+            "consumer_assertion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2241,13 +2264,196 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "spec209_requirements": {
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "clause_anchor": "STU-WB-130",
+      "requirement": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING.",
+      "runtime_proof": "PENDING_NOT_RUN",
+      "closed_captured_kinds": [
+        "SLIDE",
+        "SLIDE_ROW",
+        "SLIDE_GRID",
+        "INTERACTIVE_SLIDE_ELEMENT"
+      ],
+      "source_owner_bindings": [
+        {
+          "source_mt_ref": "MT-36234",
+          "module_ref": "STUDIO-MODULE-LAYOUT",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36234.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20640",
+          "clause_anchor": "STU-PRO-167",
+          "source_contribution": "**[STU-PRO-167] Slide role folded into Layout.** A slide is an ordinary Folio/StudioLayer frame role in the shared `.handshake` graph, with Layout authoring and Components/Pulse transition bindings; it creates no separate document model. Interop-Fig's pinned `SlideNode` projection has readonly `type = SLIDE`, `clone()`, `getSlideTransition()`, `setSlideTransition(...)` and `isSkippedSlide: boolean`, plus the complete `BaseFrameMixin` transitive capture. Its direct frame fields include nullable readonly `detachedInfo`, `layoutGrids`, `gridStyleId`, `setGridStyleIdAsync(...)`, `clipsContent`, `guides` and nullable `inferredAutoLayout`. The MT MUST consume its applicable thirty-declaration BaseFrame closure from the combined corpus and map each inherited field/method to its existing owner, preserving nullable, optional, mixed and readonly semantics rather than duplicating those engines. In the separately documented source compatibility profile, slides are fixed 1920\u00d71080, direct children of a slide row and not resizable, rotatable or transformable; these are source restrictions, not global restrictions on native Layout frames. Preserve any clone-parent/hierarchy conflict as typed unsupported until an original-runtime fixture resolves it. Author/select/reorder/copy/skip, undo and inspect use the shared command, Controls, Argus and manual surfaces; source-profile incompatibility must be visible.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/0"
+        },
+        {
+          "source_mt_ref": "MT-36235",
+          "module_ref": "STUDIO-MODULE-LAYOUT",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36235.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20642",
+          "clause_anchor": "STU-PRO-168",
+          "source_contribution": "**[STU-PRO-168] Slide-row role folded into Layout.** A row uses ordered Folio child references and Layout container operations in the same graph. The pinned `SlideRowNode` has readonly `type = SLIDE_ROW`, `clone()` and the complete `OpaqueNodeMixin` plus `ChildrenMixin` surfaces. `ChildrenMixin` has no extends clause; consume its actual captured child/traversal methods and nullable lookup results, not the earlier malformed research metadata. In the source profile, a row is a direct grid child and contains slides only; it is not directly selectable/editable in the source UI. Native authoring may expose row ordering through shared controls, but MUST distinguish that native extension from captured source behavior. Preserve child order, identity and metadata on conversion; a clone-parent conflict requires the same explicit fixture resolution as [STU-PRO-167].",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/1"
+        },
+        {
+          "source_mt_ref": "MT-36236",
+          "module_ref": "STUDIO-MODULE-LAYOUT",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36236.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20644",
+          "clause_anchor": "STU-PRO-169",
+          "source_contribution": "**[STU-PRO-169] Slide-grid role folded into Layout.** The pinned `SlideGridNode` has readonly `type = SLIDE_GRID`, a declared `clone()` and the complete `OpaqueNodeMixin` plus `ChildrenMixin` surfaces. Its source profile permits one top-level grid per source document, rows only, no API creation or direct UI editing, and `clone()` throws; the adapter MUST expose those restrictions as typed capability outcomes and test the negative clone case. This does not prohibit creating or editing native ordered Layout containers in `.handshake`. Map the source grid/row/slide hierarchy onto existing Folio/Layout containers with explicit provenance and stable ordering; frame-grid layout fields are a distinct inherited capability and MUST NOT be conflated with slide-grid hierarchy. Unavailable decoding or source operations are visible limitations, never a substitute document, silent rasterization or parity claim.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/2"
+        },
+        {
+          "source_mt_ref": "MT-36237",
+          "module_ref": "STUDIO-MODULE-COMPONENTS",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20646",
+          "clause_anchor": "STU-PRO-170",
+          "source_contribution": "**[STU-PRO-170] Interactive-slide role folded into Components.** The pinned `InteractiveSlideElementNode` extends `OpaqueNodeMixin`, has readonly `type = INTERACTIVE_SLIDE_ELEMENT`, `clone()` and readonly `interactiveSlideElementType` with exactly `POLL`, `EMBED`, `FACEPILE`, `ALIGNMENT`, `YOUTUBE`. Components represents the interactive role on an ordinary shared layer; Layout positions it, existing media/embed capabilities supply supported content, and Controls reuses role-specific descriptors on the same assets. The declaration does not specify poll questions/results, facepile participants, alignment rules, embed controls or YouTube payloads. The affected MT's first acceptance criterion MUST recover and pin the complete payload and interaction contract required for working authoring/playback; it MUST NOT invent vendor fields from the role name. Before that proof, preserve unavailable source payloads opaquely within existing bounded import/CKC surfaces and expose a typed limitation, without treating preservation as full parity. No new plugin registry, database, document silo or network entitlement is implied.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/3"
+        },
+        {
+          "source_mt_ref": "MT-36238",
+          "module_ref": "STUDIO-MODULE-COMPONENTS",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20648",
+          "clause_anchor": "STU-PRO-171",
+          "source_contribution": "**[STU-PRO-171] Slide-transition record folded into Components.** The pinned `SlideTransition` record has exactly the required readonly fields `style`, `duration: number`, `curve` and `timing`; `duration` is explicitly in seconds. Retain the exact source record, numeric presence, token identity and source/version provenance separately from the native transition/easing representation. Its declaration provides no default, hard/soft bounds, precision or step values; [STU-PRO-121]'s 300 ms default and 30 000 ms native bound MUST NOT be applied to this capture. Reject non-finite or unrepresentable values with typed diagnostics and preserve an explicit loss decision, never silently clamp. Components owns the transition description, Pulse owns checked scheduling conversion, and Interop-Fig owns the source mapping. Shared Controls/Argus/manual expose all four fields and mapping outcomes. Source record preservation alone does not prove rendering equivalence.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/4"
+        },
+        {
+          "source_mt_ref": "MT-36239",
+          "module_ref": "STUDIO-MODULE-COMPONENTS",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20650",
+          "clause_anchor": "STU-PRO-172",
+          "source_contribution": "**[STU-PRO-172] Closed slide-transition style vocabulary.** The source record's `style` is exactly one of these twenty-three tokens: `NONE`, `DISSOLVE`, `SLIDE_FROM_LEFT`, `SLIDE_FROM_RIGHT`, `SLIDE_FROM_BOTTOM`, `SLIDE_FROM_TOP`, `PUSH_FROM_LEFT`, `PUSH_FROM_RIGHT`, `PUSH_FROM_BOTTOM`, `PUSH_FROM_TOP`, `MOVE_FROM_LEFT`, `MOVE_FROM_RIGHT`, `MOVE_FROM_TOP`, `MOVE_FROM_BOTTOM`, `SLIDE_OUT_TO_LEFT`, `SLIDE_OUT_TO_RIGHT`, `SLIDE_OUT_TO_TOP`, `SLIDE_OUT_TO_BOTTOM`, `MOVE_OUT_TO_LEFT`, `MOVE_OUT_TO_RIGHT`, `MOVE_OUT_TO_TOP`, `MOVE_OUT_TO_BOTTOM`, `SMART_ANIMATE`. Components MUST preserve every token and supply its working native transition behavior through existing compositing/animation owners; unknown or not-yet-supported mapping is explicit and is not accepted as feature parity. The MT carries the complete list and tests its affected distinct direction/entry/exit semantics rather than treating similar names as aliases; `NONE` creates no invented source duration default.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/5"
+        },
+        {
+          "source_mt_ref": "MT-36240",
+          "module_ref": "STUDIO-MODULE-COMPONENTS",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20652",
+          "clause_anchor": "STU-PRO-173",
+          "source_contribution": "**[STU-PRO-173] Closed slide-transition curve vocabulary and explicit mapping.** The source record's `curve` is exactly `EASE_IN`, `EASE_OUT`, `EASE_IN_AND_OUT`, `LINEAR`, `GENTLE`, `QUICK`, `BOUNCY`, `SLOW`. These source names MUST remain distinct from [STU-PRO-120]'s Studio-declared preset identities. Native evaluation stores the actual four-number B\u00e9zier/spring tuple required by [STU-PRO-119]/[STU-PRO-120] while the import projection retains its original source token and version. The captured declaration supplies no numeric tuple, and similarly named Studio presets do not prove source equivalence. The affected MT's FIRST acceptance criterion MUST pin the numeric mapping or original-produced curve/appearance oracle and its tolerance before accepting faithful source rendering. Until then, preserve the source token with an explicit unavailable or approved approximation/loss outcome; do not silently claim identical easing. `Hold` remains timeline-only and is not added to this eight-token union.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/6"
+        },
+        {
+          "source_mt_ref": "MT-36241",
+          "module_ref": "STUDIO-MODULE-PULSE",
+          "source_contract_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36241.json",
+          "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+          "clause_anchor": "STU-PRO-174",
+          "source_contribution": "**[STU-PRO-174] Slide timing folded into Pulse.** The source `timing` record has required `type` exactly `ON_CLICK` or `AFTER_DELAY`, and optional `delay: number` explicitly in seconds. Raw source absence and zero are different and MUST round-trip distinctly. Any source runtime normalization that ignores/resets delay for `ON_CLICK` is separate from the preserved raw projection and must cite its profile; an example value is not a default. Pulse converts source duration/delay into the existing integer 254 016 000 000-ticks-per-second time base using checked range/conversion and explicit rounding/loss metadata, retains raw seconds and provenance, and never inherits prototype-millisecond bounds. Native playback/manual advance, skipped-slide traversal, timer cancellation and deterministic ordering reuse the existing presentation/interaction scheduler and bounded admission path; realtime callbacks must not perform blocking diagnostics or database work. Shared Controls, typed commands, Argus snapshots and both manual layers expose authored timing, effective timing and cancellation outcomes. No feature implementation is accepted until its affected timing and overflow cases are proven.",
+          "materialization": "PENDING_ASSIGNED_AUTHOR",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/7"
+        }
+      ],
+      "existing_owner_foundations": {
+        "Folio": "MT-35531",
+        "Layout": "MT-35537",
+        "Components": "MT-35539",
+        "Pulse": "MT-35540",
+        "Interop-Fig": "MT-35550",
+        "Controls": "MT-35553"
+      },
+      "mapping_only": true,
+      "nib_presentation_implementation_allowed": false,
+      "additional_owned_source_aspects": [
+        {
+          "source_mt_ref": "MT-36242",
+          "module_ref": "STUDIO-MODULE-INTEROP_FIG",
+          "source_parent_refs": [
+            "MT-36234",
+            "MT-36235",
+            "MT-36236"
+          ],
+          "owned_scope": "Implement versioned SlideNode/SlideRowNode/SlideGridNode source projections and bidirectional graph mapping to existing Folio/Layout roles; complete BaseFrame/Opaque/Children capture, stable source identities/order and metadata; native frames retain native capabilities.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/0",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        },
+        {
+          "source_mt_ref": "MT-36243",
+          "module_ref": "STUDIO-MODULE-INTEROP_FIG",
+          "source_parent_refs": [
+            "MT-36237"
+          ],
+          "owned_scope": "Implement source object/payload projection and loss-aware mapping for POLL/EMBED/FACEPILE/ALIGNMENT/YOUTUBE into the existing Components role; reuse bounded opaque/CKC import when unavailable.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/1",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        },
+        {
+          "source_mt_ref": "MT-36244",
+          "module_ref": "STUDIO-MODULE-INTEROP_FIG",
+          "source_parent_refs": [
+            "MT-36238",
+            "MT-36239",
+            "MT-36240",
+            "MT-36241"
+          ],
+          "owned_scope": "Implement raw source SlideTransition/style/curve/timing record encode/decode and explicit mapping envelope to Components/Pulse ports; source seconds, token identity, delay absence versus zero, and loss metadata remain distinct from native schedule/easing.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/2",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        },
+        {
+          "source_mt_ref": "MT-36245",
+          "module_ref": "STUDIO-MODULE-CONTROLS",
+          "source_parent_refs": [
+            "MT-36234",
+            "MT-36235",
+            "MT-36236"
+          ],
+          "owned_scope": "Implement shared role descriptors/actions for select/reorder/copy/skip and native row/container ordering; expose source-profile restrictions and clone conflict/unsupported outcomes using existing Layout/Folio command and transaction owners.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/3",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        },
+        {
+          "source_mt_ref": "MT-36246",
+          "module_ref": "STUDIO-MODULE-CONTROLS",
+          "source_parent_refs": [
+            "MT-36237"
+          ],
+          "owned_scope": "Implement one role-dispatched shared descriptor/action projection for actual recovered interactive payloads; use Components schema instead of five invented widgets or vendor fields.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/4",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        },
+        {
+          "source_mt_ref": "MT-36247",
+          "module_ref": "STUDIO-MODULE-CONTROLS",
+          "source_parent_refs": [
+            "MT-36238",
+            "MT-36239",
+            "MT-36240",
+            "MT-36241"
+          ],
+          "owned_scope": "Configure shared style/curve/timing descriptors and seconds fields; display raw/effective value, delay-presence and mapping/loss/cancel state; route authoring/playback/manualadvance through Components/Pulse owners.",
+          "scope": "OWNED_ASPECT_ONLY; no primary full-completion credit",
+          "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units/5",
+          "materialization": "PENDING_ASSIGNED_AUTHOR"
+        }
+      ]
     }
   },
-  "updated_at_utc": "2026-10-10T03:33:56.959Z",
+  "updated_at_utc": "2026-10-10T05:47:17+00:00",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "DECLARED GAP — presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+      "criterion": "First acceptance records the published Operator fold decision for SLIDE, SLIDE_ROW, SLIDE_GRID, INTERACTIVE_SLIDE_ELEMENT in the same .handshake graph and binds all eight actual source contributions36234..36241, transition/timing, existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners. This MT owns disposition and mapping only, no Nib presentation implementation, separate app/crate/document silo or whiteboard catch-all. Source materialization, source publication, shipped manual and runtime fidelity remain PENDING. **[STU-WB-130] Resolved presentation disposition \u2014 fold into existing Studio modules.** The Operator selected folding all four captured kinds into the existing modules within the same `.handshake` document: `SLIDE`, `SLIDE_ROW`, `SLIDE_GRID` and `INTERACTIVE_SLIDE_ELEMENT`. [STU-PRO-167] through [STU-PRO-174] carry their concrete folded contracts. Folio retains identity and shared document references; Layout owns slides and ordered row/grid containers; Components owns interactive roles and transition descriptions; Pulse owns timing and presentation scheduling; Interop-Fig owns source mappings; Controls reuses shared panels and fields. The disposition MT MUST bind the actual owner MTs and their source contributions. These kinds MUST NOT become a separate app, document silo, presentation crate or whiteboard catch-all; Nib retains its whiteboard geometry scope.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],

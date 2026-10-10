@@ -173,13 +173,33 @@
           }
         ],
         "verbatim_scope": "COMPLETE_SCOPED_DEFINITION"
+      },
+      {
+        "id": "STU-PRO-145",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20529",
+        "verbatim": "**[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list. The same GUI, typed Argus inspection/action, quiet visual capture and dual-audience manual obligation applies to every field, enumeration, source-profile restriction, mapping limitation and presentation state in [STU-PRO-167] through [STU-PRO-174]; Controls exposes these through existing reusable assets rather than parallel widgets or panel implementations.\n\n---\n",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20529,
+            "end_line": 20532,
+            "body_sha256": "36dfbc6fce12650eddc3df19f7647b8c678b72ccf8190283db539633b7c6d340",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
       }
     ],
     "read_context": [
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
-      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
+      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -1542,7 +1562,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "6bdf5c1dd3ba0779e8810abeb7af436397f066cecd82c1d7708c2829266c3f4a",
+    "context_digest": "3e3235154b201cc1edde6523815613f959b21b1cc4f6723409ebf17002db7f30",
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/10/maintenance"
     ]
@@ -1558,12 +1578,13 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11. Current complete task scope: **[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list.\n\n---",
+        "text": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11. Current complete task scope: **[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list.\n\n--- Current v02.209 amendment (prior wording retained as history): **[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list. The same GUI, typed Argus inspection/action, quiet visual capture and dual-audience manual obligation applies to every field, enumeration, source-profile restriction, mapping limitation and presentation state in [STU-PRO-167] through [STU-PRO-174]; Controls exposes these through existing reusable assets rather than parallel widgets or panel implementations.\n\n---\n Verification: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
         "fulfillment_ref": "MT-33261#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1734,6 +1755,34 @@
           }
         ],
         "host_authority_rule": "Canonical source has no kernel/native/database dependency. Host binds resource/Principal/AccessSpace/actor/revision intents; SurrealDB/EventLedger is its only durable database authority, never SQLite/libSQL/Turso/PostgreSQL. No own media store, parallel panels or router."
+      },
+      {
+        "scope": "v02.209 current normative amendment; existing207 input retained as historical capture, current209 governs changed requirements",
+        "immutable_input_and_revision_required": true,
+        "source_definition": "**[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list. The same GUI, typed Argus inspection/action, quiet visual capture and dual-audience manual obligation applies to every field, enumeration, source-profile restriction, mapping limitation and presentation state in [STU-PRO-167] through [STU-PRO-174]; Controls exposes these through existing reusable assets rather than parallel widgets or panel implementations.\n\n---\n",
+        "normative_records": [
+          {
+            "id": "STU-PRO-145",
+            "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20529",
+            "verbatim": "**[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list. The same GUI, typed Argus inspection/action, quiet visual capture and dual-audience manual obligation applies to every field, enumeration, source-profile restriction, mapping limitation and presentation state in [STU-PRO-167] through [STU-PRO-174]; Controls exposes these through existing reusable assets rather than parallel widgets or panel implementations.\n\n---\n",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "verified_source_ranges": [
+              {
+                "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+                "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+                "start_line": 20529,
+                "end_line": 20532,
+                "body_sha256": "36dfbc6fce12650eddc3df19f7647b8c678b72ccf8190283db539633b7c6d340",
+                "hash_encoding": "UTF8 line text joined LF, no final LF",
+                "range_kind": "current209_scoped_normative_clause"
+              }
+            ],
+            "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+            "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
+          }
+        ],
+        "implementation_obligation": "Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
+        "new_physical_unit_allocation": "PENDING_COORDINATOR; no IDs or aliases invented"
       }
     ],
     "implementation_steps": [
@@ -1743,7 +1792,7 @@
       },
       {
         "n": 2,
-        "step": "Produce Current typed inspectable/manual/capture descriptors from literal enum/bound/command descriptors and dual-audience manual entries. The complete source_definition and normative_records retain every required field, token, unit, unknown bound and Studio-declared default. Provider/kernel/native/database handles never escape public schema."
+        "step": "Produce Current typed inspectable/manual/capture descriptors from literal enum/bound/command descriptors and dual-audience manual entries. The complete source_definition and normative_records retain every required field, token, unit, unknown bound and Studio-declared default. Provider/kernel/native/database handles never escape public schema. Current v02.209 requirement: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels."
       },
       {
         "n": 3,
@@ -1816,7 +1865,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_prototype_mt_33261 components_prototype_mt_33261_ac_1 -- --exact --nocapture.. Public consumer Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned. Negative Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Current typed inspectable/manual/capture descriptors. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.. Independent oracle Independent descriptor token equality and actual headless capture; host Argus/manual conformance separate. Planned target only; no executable or run claimed.",
-        "expected": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.",
+        "expected": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11. Current v02.209: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1829,7 +1878,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned",
+          "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned Current v02.209: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
           "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Current typed inspectable/manual/capture descriptors. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
           "oracle": "Independent descriptor token equality and actual headless capture; host Argus/manual conformance separate",
           "features": [
@@ -2175,7 +2224,7 @@
         "original_text": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.",
         "original_row_sha256": "6ecf4fc5d60bd66cc0cc0744582038197b4a2c3cb0d36351c357e55e88a29170",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11. Complete current scope: **[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list.\n\n---",
+        "semantic_fulfillment": "Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11. Complete current scope: **[STU-PRO-145] GUI / Argus / UserManual obligation.** [STU-PRO-045] remains in force unchanged and additionally covers every field, enumeration, bound and command introduced by [STU-PRO-100] through [STU-PRO-144], EXCLUDING the motion clauses named in [STU-PRO-100], whose obligation is carried by the motion module. Every enumeration here MUST appear in the model-facing UserManual as its literal token list.\n\n--- Current v02.209 amendment: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33261-ASSET-COMPONENTS"
@@ -2194,7 +2243,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned",
+          "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned Current v02.209: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
           "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Current typed inspectable/manual/capture descriptors. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
           "oracle": "Independent descriptor token equality and actual headless capture; host Argus/manual conformance separate",
           "features": [
@@ -2270,7 +2319,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned",
+            "consumer_assertion": "Exact acceptance AC-001: Every enumeration here MUST appear in the model-facing UserManual as its literal token list. --- ### 11.. Compare every PRO100..144 field/token/bound against same command/UI/manual source; motion exclusions remain motion-owned Current v02.209: Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
             "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Current typed inspectable/manual/capture descriptors. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
             "oracle": "Independent descriptor token equality and actual headless capture; host Argus/manual conformance separate",
             "features": [
@@ -2305,7 +2354,18 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "current_spec_amendment": {
+      "spec_version": "v02.209",
+      "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "anchor": "STU-PRO-145",
+      "requirement": "Cover every STU-PRO-167..174 field, enumeration, source-profile restriction, mapping limitation and presentation state through existing reusable Controls assets, typed Argus inspect/action, quiet capture and dual-audience manual; compare literal tokens and descriptor coverage, never create parallel widgets/panels.",
+      "proof_status": "PENDING_NOT_RUN",
+      "dispatch_allowed": false,
+      "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T03:20:44.002Z"
+  "updated_at_utc": "2026-10-10T05:34:14.548Z"
 }

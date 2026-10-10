@@ -1682,8 +1682,8 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
-        "expected": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
+        "command_or_method": "Future foundation handoff method: create the already-allowed standalone probe during coding, then compile and run handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain and owner-isolated output under the existing bounded proof policy; independently inspect its actual positive/negative results without loading uncreated sibling Cargo members. The concrete invocation is materialized only after this owned probe exists. Final 36-foundation barrier after actual members materialize retains the existing metadata command: cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
+        "expected": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1693,10 +1693,10 @@
         ],
         "method_recipe": {
           "selected_packages": [],
-          "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=",
-          "consumer_assertion": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
-          "negative_path": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
-          "oracle": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict"
+          "feature_policy": "Bootstrap selected_packages=[] means no Cargo package is required to compile the standalone owned probe, not an empty proof. The probe uses the pinned Rust toolchain without uncreated sibling or native-provider dependencies; --no-default-features and optional features=[] apply only to actual materialized selected-package compilation at the final 36-foundation barrier.",
+          "consumer_assertion": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
+          "negative_path": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
+          "oracle": "Independent direct reread of actual manifest/toolchain/lock/selected package and dependency/provenance inputs plus actual standalone probe output for positive and negative cases. No NONE/no-op/skipped oracle is allowed. All actual module/provider compilation remains mandatory at the final 36-foundation barrier after their manifests and sources are materialized."
         },
         "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
         "materialization_timing": {
@@ -1711,8 +1711,8 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
-        "expected": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
+        "command_or_method": "Future foundation handoff method: create the already-allowed standalone probe during coding, then compile and run handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain and owner-isolated output under the existing bounded proof policy; independently inspect its actual positive/negative results without loading uncreated sibling Cargo members. The concrete invocation is materialized only after this owned probe exists. Final 36-foundation barrier after actual members materialize retains the existing metadata command: cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
+        "expected": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1722,10 +1722,10 @@
         ],
         "method_recipe": {
           "selected_packages": [],
-          "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=",
-          "consumer_assertion": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
-          "negative_path": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
-          "oracle": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict"
+          "feature_policy": "Bootstrap selected_packages=[] means no Cargo package is required to compile the standalone owned probe, not an empty proof. The probe uses the pinned Rust toolchain without uncreated sibling or native-provider dependencies; --no-default-features and optional features=[] apply only to actual materialized selected-package compilation at the final 36-foundation barrier.",
+          "consumer_assertion": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
+          "negative_path": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
+          "oracle": "Independent direct reread of actual manifest/toolchain/lock/selected package and dependency/provenance inputs plus actual standalone probe output for positive and negative cases. No NONE/no-op/skipped oracle is allowed. All actual module/provider compilation remains mandatory at the final 36-foundation barrier after their manifests and sources are materialized."
         },
         "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
         "materialization_timing": {
@@ -1740,8 +1740,8 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": "cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
-        "expected": "Selected locked metadata/dependency inspection plus cargo check --locked --tests for only materialized selected packages; classify as compile/static",
+        "command_or_method": "Future foundation handoff method: create the already-allowed standalone probe during coding, then compile and run handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain and owner-isolated output under the existing bounded proof policy; independently inspect its actual positive/negative results without loading uncreated sibling Cargo members. The concrete invocation is materialized only after this owned probe exists. Final 36-foundation barrier after actual members materialize retains the existing metadata command: cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
+        "expected": "Compile/run the actual standalone bootstrap probe without uncreated sibling sources; independently inspect its selected manifest/toolchain/lock/dependency closure. At the final 36-foundation barrier after members materialize: Selected locked metadata/dependency inspection plus cargo check --locked --tests for only materialized selected packages; classify as compile/static. Every actual module/provider compile remains mandatory; bootstrap metadata/probe output cannot substitute for those actual compile results.",
         "timeout_seconds": 600,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1751,10 +1751,10 @@
         ],
         "method_recipe": {
           "selected_packages": [],
-          "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=",
-          "consumer_assertion": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
-          "negative_path": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
-          "oracle": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict"
+          "feature_policy": "Bootstrap selected_packages=[] means no Cargo package is required to compile the standalone owned probe, not an empty proof. The probe uses the pinned Rust toolchain without uncreated sibling or native-provider dependencies; --no-default-features and optional features=[] apply only to actual materialized selected-package compilation at the final 36-foundation barrier.",
+          "consumer_assertion": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
+          "negative_path": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
+          "oracle": "Independent direct reread of actual manifest/toolchain/lock/selected package and dependency/provenance inputs plus actual standalone probe output for positive and negative cases. No NONE/no-op/skipped oracle is allowed. All actual module/provider compilation remains mandatory at the final 36-foundation barrier after their manifests and sources are materialized."
         },
         "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
         "materialization_timing": {
@@ -1769,8 +1769,8 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": "cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
-        "expected": "Publication excludes .GOV/private state/credentials; canonical GitHub subtree and lock independently compared",
+        "command_or_method": "Future foundation handoff method: create the already-allowed standalone probe during coding, then compile and run handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain and owner-isolated output under the existing bounded proof policy; independently inspect its actual positive/negative results without loading uncreated sibling Cargo members. The concrete invocation is materialized only after this owned probe exists. Final 36-foundation barrier after actual members materialize retains the existing metadata command: cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
+        "expected": "Publication excludes .GOV/private state/credentials; canonical GitHub subtree and lock independently compared Independently compare actual probe provenance output with the real candidate manifest/lock/source roots and canonical publication; the already-allowed standalone bootstrap probe is the real source consumer.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1780,10 +1780,10 @@
         ],
         "method_recipe": {
           "selected_packages": [],
-          "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=",
-          "consumer_assertion": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
-          "negative_path": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
-          "oracle": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict"
+          "feature_policy": "Bootstrap selected_packages=[] means no Cargo package is required to compile the standalone owned probe, not an empty proof. The probe uses the pinned Rust toolchain without uncreated sibling or native-provider dependencies; --no-default-features and optional features=[] apply only to actual materialized selected-package compilation at the final 36-foundation barrier.",
+          "consumer_assertion": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
+          "negative_path": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
+          "oracle": "Independent direct reread of actual manifest/toolchain/lock/selected package and dependency/provenance inputs plus actual standalone probe output for positive and negative cases. No NONE/no-op/skipped oracle is allowed. All actual module/provider compilation remains mandatory at the final 36-foundation barrier after their manifests and sources are materialized."
         },
         "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
         "materialization_timing": {
@@ -1798,8 +1798,8 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": "cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
-        "expected": "Workspace selected manifest/toolchain/lock instructions and unknown-member recovery",
+        "command_or_method": "Future foundation handoff method: create the already-allowed standalone probe during coding, then compile and run handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain and owner-isolated output under the existing bounded proof policy; independently inspect its actual positive/negative results without loading uncreated sibling Cargo members. The concrete invocation is materialized only after this owned probe exists. Final 36-foundation barrier after actual members materialize retains the existing metadata command: cargo metadata --manifest-path handshake-studio-assets/Cargo.toml --locked --format-version 1; inspect selected package closure",
+        "expected": "Workspace selected manifest/toolchain/lock instructions and unknown-member recovery The truthful descriptor/manual identifies the actual standalone bootstrap probe, positive and negative inputs, output, selection/toolchain/lock/provenance semantics and failure/recovery steps; independently match those descriptors to the actual probe. Sibling package compilation is a final 36-foundation barrier proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1809,10 +1809,10 @@
         ],
         "method_recipe": {
           "selected_packages": [],
-          "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=",
-          "consumer_assertion": "Cargo metadata/check selected manifests and independently inspect package graph; workspace coordination does not duplicate a domain runtime",
-          "negative_path": "Unknown package, duplicate member, absent optional host path or pure-leaf GPU dependency must fail selection/closure proof",
-          "oracle": "NONE for manifest-only rows; foundation barrier separately consumes every module runtime verdict"
+          "feature_policy": "Bootstrap selected_packages=[] means no Cargo package is required to compile the standalone owned probe, not an empty proof. The probe uses the pinned Rust toolchain without uncreated sibling or native-provider dependencies; --no-default-features and optional features=[] apply only to actual materialized selected-package compilation at the final 36-foundation barrier.",
+          "consumer_assertion": "Compile and run the already-allowed standalone bootstrap consumer handshake-studio-assets/tools/workspace-probe.rs with the pinned Rust toolchain, independently of Cargo workspace member compilation. Drive it against the actual candidate workspace manifest, toolchain, lock, materialized package-selection/dependency and publication provenance inputs; a valid selection produces a real independently read result without requiring uncreated Accord or other sibling sources. Metadata with selected_packages=[] alone cannot pass.",
+          "negative_path": "Drive that actual standalone probe through unknown package, duplicate member, unsupported toolchain or provider selection, absent selected optional host path, unreadable input and forbidden pure-leaf GPU dependency cases; independently read rejection/error output and verify no invalid selection reports success. Declared but uncreated, unselected siblings do not become a bootstrap dependency.",
+          "oracle": "Independent direct reread of actual manifest/toolchain/lock/selected package and dependency/provenance inputs plus actual standalone probe output for positive and negative cases. No NONE/no-op/skipped oracle is allowed. All actual module/provider compilation remains mandatory at the final 36-foundation barrier after their manifests and sources are materialized."
         },
         "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
         "materialization_timing": {
@@ -1972,7 +1972,7 @@
       "handshake-studio-assets"
     ],
     "source_status": "PLANNED_NOT_IMPLEMENTED",
-    "proof_targets_materialization": "Required before new implementation session dispatch"
+    "proof_targets_materialization": "Foundation creates owned manifests/targets during coding; executable targets and real results are required before foundation handoff, never before creation."
   },
   "hbr_obligations": [
     "HBR-PRIV-001",

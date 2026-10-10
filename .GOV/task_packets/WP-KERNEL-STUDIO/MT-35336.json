@@ -172,6 +172,25 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-PRO-147",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20549",
+        "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20549,
+            "end_line": 20550,
+            "body_sha256": "38deff4368939968fce043028b5b2189de859584528ccb3618d1a0e689705780",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
       }
     ],
     "read_context": [
@@ -180,7 +199,8 @@
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
       ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -1543,7 +1563,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "50a65fb4ba7ceabfe1e5fc8f001aeb94477b26873c6e28f1ed77b03be0e7b32e"
+    "context_digest": "f39d60077adc6249ac360a16d840bcd816cca95e3e8b5fc0223e861559366c7d"
   },
   "closure_unit": {
     "outcome": "Prepare standalone Components contribution for Open items and blocked dependencies (2): Resolved unit declaration or named first blocker. Full original behavior retained; source runtime proof and distinct native host adoption remain PENDING.",
@@ -1557,17 +1577,18 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+        "text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "fulfillment_ref": "MT-35336#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+        "text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "fulfillment_ref": "MT-35336#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1855,6 +1876,34 @@
         "source_repository_url": "https://github.com/Nuntissura/assets",
         "source_root": "handshake-studio-assets/crates/hsk-studio-components",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "scope": "v02.209 current normative amendment; existing207 input retained as historical capture, current209 governs changed requirements",
+        "immutable_input_and_revision_required": true,
+        "source_definition": "**[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n",
+        "normative_records": [
+          {
+            "id": "STU-PRO-147",
+            "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20549",
+            "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "verified_source_ranges": [
+              {
+                "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+                "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+                "start_line": 20549,
+                "end_line": 20550,
+                "body_sha256": "38deff4368939968fce043028b5b2189de859584528ccb3618d1a0e689705780",
+                "hash_encoding": "UTF8 line text joined LF, no final LF",
+                "range_kind": "current209_scoped_normative_clause"
+              }
+            ],
+            "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+            "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
+          }
+        ],
+        "implementation_obligation": "Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "new_physical_unit_allocation": "PENDING_COORDINATOR; no IDs or aliases invented"
       }
     ],
     "implementation_steps": [
@@ -1864,7 +1913,7 @@
       },
       {
         "n": 2,
-        "step": "Consume exact published shared owner capability and materialize PRO147 resolved milliseconds and explicit future named dependency; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Resolved unit declaration or named first blocker; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency."
+        "step": "Consume exact published shared owner capability and materialize PRO147 resolved milliseconds and explicit future named dependency; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Resolved unit declaration or named first blocker; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency. Current v02.209 requirement: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner."
       },
       {
         "n": 3,
@@ -1935,7 +1984,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.; no target/run claimed.",
-        "expected": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+        "expected": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1949,7 +1998,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
           "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -1991,7 +2040,7 @@
           "AC-002"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.; no target/run claimed.",
-        "expected": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+        "expected": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2005,7 +2054,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
           "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2368,7 +2417,7 @@
         "original_text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
         "original_row_sha256": "0834d2cc1bdae5c51fab0d98205a4ed865f6dd4b4f6810e3cbbe1ec6210eda89",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+        "semantic_fulfillment": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35336-ASSET-COMPONENTS"
@@ -2387,7 +2436,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
           "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2431,7 +2480,7 @@
         "original_text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
         "original_row_sha256": "c596e108c4307ae56bfea4024e953aad42a2525842d25a2cbb87d51a6c8d1c1f",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+        "semantic_fulfillment": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35336-ASSET-COMPONENTS"
@@ -2450,7 +2499,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
           "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2544,7 +2593,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+            "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
             "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
             "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
             "features": [
@@ -2607,7 +2656,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+            "consumer_assertion": "Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
             "negative_path": "For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
             "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
             "features": [
@@ -2657,7 +2706,18 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "current_spec_amendment": {
+      "spec_version": "v02.209",
+      "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "anchor": "STU-PRO-147",
+      "requirement": "Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+      "proof_status": "PENDING_NOT_RUN",
+      "dispatch_allowed": false,
+      "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T03:22:33.275Z"
+  "updated_at_utc": "2026-10-10T05:34:14.564Z"
 }

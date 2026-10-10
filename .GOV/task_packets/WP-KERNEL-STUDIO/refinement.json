@@ -19,7 +19,7 @@
   },
   "wp_id": "WP-KERNEL-STUDIO",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-10-10T00:39:30.168332+00:00",
+  "updated_at_utc": "2026-10-10T05:41:58.979551+00:00",
   "authority_files": {
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
@@ -6138,7 +6138,40 @@
     "business_event_proof": "CON014: all22 exact wire/family/FR business ID mappings, tagged payload/schema/version and actual business-category producer/ingestion/permissions/restart reconciliation proof; planned catalog is not implemented.",
     "source_hash_policy": "Bound exact inspected substantive snapshot. Root version/manifest/frontmatter publication refresh may change hashes; activation must rebind published identity without claiming a new substantive/runtime verdict.",
     "final_source_reread": "Observed hashes match root final reindexed snapshot. ARC016 requires35 modules plus workspace; DOC001 one authored containment/typed-operation graph; CON013 differentiates mutation promotion acceptance from typed durable selection/proposal/rejection audit acceptance; MOT258 assigns production parser/AST/lowering/checkpoint owner, fresh evaluation/reset, pinned trusted cache and bounded result conversion. HSKPLG020 explicitly separates portable foundation from later host plugin/embedding proof.",
-    "migration_boundary": "Root reports original5484 migration and36 new foundation records finished,55 amendments appending toward5575 total. This is coordination status only, not independently inspected MT acceptance or exact payload-preservation verdict; final stable _MT_INDEX/foundation mapping and root independent comparison remain authoritative prerequisites."
+    "migration_boundary": "Root reports original5484 migration and36 new foundation records finished,55 amendments appending toward5575 total. This is coordination status only, not independently inspected MT acceptance or exact payload-preservation verdict; final stable _MT_INDEX/foundation mapping and root independent comparison remain authoritative prerequisites.",
+    "scoped_spec209_adoption": {
+      "version": "v02.209",
+      "commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "path": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "changed_clause_refs": [
+        "STU-WB-105",
+        "STU-WB-129",
+        "STU-WB-130",
+        "STU-WB-131",
+        "STU-WB-138",
+        "STU-WB-139",
+        "STU-PRO-145",
+        "STU-PRO-146",
+        "STU-PRO-147",
+        "STU-PRO-148",
+        "STU-PRO-149",
+        "STU-PRO-150",
+        "STU-SHL-072",
+        "STU-SHL-078",
+        "STU-PRO-167",
+        "STU-PRO-168",
+        "STU-PRO-169",
+        "STU-PRO-170",
+        "STU-PRO-171",
+        "STU-PRO-172",
+        "STU-PRO-173",
+        "STU-PRO-174"
+      ],
+      "scope": "15 existing source contracts and eight additional primary CLAUSE units; necessary exact owned source contributions and host claims reconciled after actual source freeze",
+      "status": "PUBLISHED_SPEC_SCOPED_CONTRACT_AUTHORING_IN_PROGRESS",
+      "preservation": "Unchanged original spec anchors/payload and original5484/21145AC preserved; no whole-corpus repin; source/runtime/vendor-payload evidence limits explicit"
+    }
   },
   "reuse_binding": {
     "packet_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse",
@@ -6159,11 +6192,44 @@
     "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
     "source_preparation": "RECONCILED_NO_IMPLEMENTATION_OR_RUNTIME_VERDICT",
     "checkpoint_boundary": "This source preparation awaits the scoped Git-byte and remote checkpoint proof. Next session must freshly verify the committed SPEC_CURRENT and declared origin/gov_kernel ancestry; this record is not sole proof of publication.",
-    "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required."
+    "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required.",
+    "scoped_spec209_candidate": {
+      "version": "v02.209",
+      "baseline_preserved": true,
+      "mt_index_sha256": "6d943ddbd35094170ec363e448d1107a8abf7e93fc9dfb2bed3d5ab3c1b59ac9",
+      "ordered_mt_corpus_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+      "hash_basis": "numeric ascending MT-ID|rawSHA LFjoined nofinalLF; exact canonical current file read",
+      "source_preparation": "INDEPENDENT_PREPARATION_REVIEW_READY_PENDING_PUBLICATION_AND_ROOT_LEASE",
+      "implementation_authority": "PENDING_ROOT_FRESH_PUBLICATION_READ_AND_EXPLICIT_LEASE_RELEASE",
+      "runtime": "NOT_RUN",
+      "final_review_binding": {
+        "candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION",
+        "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336",
+        "source_manifest_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+        "review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/review-team/review.json#/final_review",
+        "review_raw_sha256": "44d1172601fe6fc5b96e2b235a858419e814f2d27ff9a01da71ab3fa4378c8dc",
+        "verdict": "PREPARATION_CONTRACT_READY_FOR_NEW_KB_TRANSFER_SOURCE_FOUNDATIONS_ONLY",
+        "open_preparation_findings": 0,
+        "runtime": "NOT_RUN",
+        "host_activation": "NOT_AUTHORIZED",
+        "whole_wp_activation": "NOT_AUTHORIZED"
+      }
+    }
   },
   "pre_pack38_authoring_history": {
     "checkpoint": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
-    "execution_contract": null
+    "execution_contract": null,
+    "prepared_source_publication_pre_spec209": {
+      "spec_current_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "version": "v02.207",
+      "signature": "ilja091020261912",
+      "source_reconstruction_sha256": "34c15e58e408dfa7b8060dbf9177808fb43a3cb32f1910c80c5847fc07e031ef",
+      "mt_index_sha256": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+      "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
+      "source_preparation": "RECONCILED_NO_IMPLEMENTATION_OR_RUNTIME_VERDICT",
+      "checkpoint_boundary": "This source preparation awaits the scoped Git-byte and remote checkpoint proof. Next session must freshly verify the committed SPEC_CURRENT and declared origin/gov_kernel ancestry; this record is not sole proof of publication.",
+      "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required."
+    }
   },
   "module_lifecycle_authoring": {
     "checkpoint": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
@@ -6175,7 +6241,7 @@
     "source_repository_url": "https://github.com/Nuntissura/assets",
     "source_first_condition": "Independent canonical assets remote revision and standalone contract proof before any host write",
     "runtime_authorized": false,
-    "authoring_state": "IN_PROGRESS_NOT_IMPLEMENTATION_READY",
+    "authoring_state": "SPEC209_SCOPED_AMENDMENTS_AND_ADDITIONAL_SOURCE_UNITS_IN_PROGRESS",
     "original_scope_ac_preservation": "Original5484 IDs/21145 captured AC and all36 foundations/55 amendments remain immutable lineage; original host semantics map to distinct adoption MTs, never source-local PASS.",
     "spec_text_drift": [
       {

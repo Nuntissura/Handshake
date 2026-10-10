@@ -2064,7 +2064,7 @@
       "handshake-studio-assets/crates/hsk-studio-develop"
     ],
     "source_status": "PLANNED_NOT_IMPLEMENTED",
-    "proof_targets_materialization": "Required before new implementation session dispatch"
+    "proof_targets_materialization": "Foundation creates owned manifests/targets during coding; real executable results required before handoff, never before creation."
   },
   "hbr_obligations": [
     "HBR-PRIV-001",

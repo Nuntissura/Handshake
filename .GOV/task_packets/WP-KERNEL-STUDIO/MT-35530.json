@@ -1696,7 +1696,7 @@
             "hsk-studio-observe"
           ],
           "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=accord",
-          "consumer_assertion": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+          "consumer_assertion": "Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package",
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
@@ -1727,7 +1727,7 @@
             "hsk-studio-observe"
           ],
           "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=accord",
-          "consumer_assertion": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+          "consumer_assertion": "Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package",
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
@@ -1758,7 +1758,7 @@
             "hsk-studio-observe"
           ],
           "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=accord",
-          "consumer_assertion": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+          "consumer_assertion": "Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package",
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
@@ -1789,7 +1789,7 @@
             "hsk-studio-observe"
           ],
           "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=accord",
-          "consumer_assertion": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+          "consumer_assertion": "Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package",
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
@@ -1807,7 +1807,7 @@
           "AC-005"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-observe --no-default-features --test foundation_contract -- --nocapture",
-        "expected": "Descriptor for Session operation drives real sink callbacks and external collector independently reads emitted bytes; manual/model consumers share input/output, operation and failure/recovery meaning",
+        "expected": "Descriptor for Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package; manual/model consumers share input/output, operation and failure/recovery meaning",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1820,7 +1820,7 @@
             "hsk-studio-observe"
           ],
           "feature_policy": "--no-default-features; optional features=[]; direct dependency closure=accord",
-          "consumer_assertion": "Session operation drives real sink callbacks and external collector independently reads emitted bytes",
+          "consumer_assertion": "Observe-local caller-owned sink consumer drives real callbacks using Accord attribution and an external collector independently reads emitted bytes without the Session package",
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
@@ -1976,7 +1976,7 @@
       "handshake-studio-assets/crates/hsk-studio-observe"
     ],
     "source_status": "PLANNED_NOT_IMPLEMENTED",
-    "proof_targets_materialization": "Required before new implementation session dispatch"
+    "proof_targets_materialization": "Foundation creates owned manifests/targets during coding; executable targets and real results are required before foundation handoff, never before creation."
   },
   "hbr_obligations": [
     "HBR-PRIV-001",

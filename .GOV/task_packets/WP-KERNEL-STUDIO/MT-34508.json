@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | \u2014 | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
+    "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,13 +45,13 @@
     },
     {
       "id": "AC-002",
-      "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 2"
     },
     {
       "id": "AC-003",
-      "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 3"
     },
@@ -69,7 +69,7 @@
     },
     {
       "id": "AC-006",
-      "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 6"
     },
@@ -180,7 +180,7 @@
     "title": "Panel density model (normative) - enumeration",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -195,18 +195,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-SHL-072",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31382",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:31503",
         "verbatim": "**[STU-SHL-072] Panel density model (normative).** Derived from measured vendor declarations, not estimated.",
         "heading": "#### 4.2 Density",
         "section": "14.30",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 31382,
-            "end_line": 31393,
-            "body_sha256": "4ff3ed5adcc96139170d6f698502971661bf566e545f4072a544d231d756ec39",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 31503,
+            "end_line": 31516,
+            "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -218,7 +218,8 @@
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
-      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
+      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -659,7 +660,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder. v02.209 GUI rendering/state/resize evidence remains correlated with the existing Controls/Observe diagnostic ports and privacy-safe three-tier proof; no native diagnostic ownership is transferred to Controls.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -672,7 +673,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
         "proof_status": "PENDING_NOT_RUN",
@@ -848,7 +850,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -861,7 +863,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
         "proof_status": "PENDING_NOT_RUN",
@@ -875,7 +878,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -888,7 +891,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "renderer_console_error_report",
         "proof_status": "PENDING_NOT_RUN",
@@ -902,7 +906,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item). v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -915,7 +919,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "capture_matrix",
         "proof_status": "PENDING_NOT_RUN",
@@ -929,7 +934,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -942,7 +947,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "trace_projection_inspection",
         "proof_status": "PENDING_NOT_RUN",
@@ -983,7 +989,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window. v02.209 reference/render comparison reuses the existing bounded headless/non-intrusive Argus surface without foreground attention or focus capture; actual provider bindings remain pending.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -996,7 +1002,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "headless_run_with_focus_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1010,7 +1017,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking. v02.209 reference/render comparison reuses the existing bounded headless/non-intrusive Argus surface without foreground attention or focus capture; actual provider bindings remain pending.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1023,7 +1030,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "automation_path_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1091,7 +1099,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1104,7 +1112,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "user_manual_diff_in_same_commit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1118,7 +1127,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1131,7 +1140,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "no_context_model_operation_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1145,7 +1155,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1158,7 +1168,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "manual_self_consistency_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1172,7 +1183,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1185,7 +1196,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
         "proof_status": "PENDING_NOT_RUN",
@@ -1307,7 +1319,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1388,7 +1400,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail. v02.209 requires the single configurable shared panel/control asset and semantic theme; reuse/configure/extend that existing owner instead of adding a near-identical widget or panel.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1401,7 +1413,8 @@
         "scope_evidence_refs": [
           "MT-34508#/scope",
           "MT-34508#/execution",
-          "MT-34508#/context_capsule/specification_anchor_refs"
+          "MT-34508#/context_capsule/specification_anchor_refs",
+          "MT-34508#/proof/checks/7"
         ],
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
         "proof_status": "PENDING_NOT_RUN",
@@ -1716,10 +1729,23 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-34508#/execution",
       "host_proof_pending": true
+    },
+    "spec_amendment_basis": {
+      "spec_version": "v02.209",
+      "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "requirement_ref": "STU-SHL-072",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "start_line": 31503,
+      "end_line": 31516,
+      "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
+      "status": "PENDING_NOT_IMPLEMENTED",
+      "reference_inspection_status": "PENDING_NOT_INSPECTED",
+      "runtime_proof_status": "PENDING_NOT_RUN"
     }
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately. The v02.209 visual acceptance is mandatory: implement the shared configurable professional desktop theme without altering original geometry, enumeration or panel identities, and retain actual Studio visual proof for the existing later host adoption.",
     "requirement_refs": [
       "STU-SHL-072"
     ],
@@ -1730,7 +1756,9 @@
       "AC-004",
       "AC-005",
       "AC-006",
-      "AC-007"
+      "AC-007",
+      "V209-AC-001",
+      "V209-AC-002"
     ],
     "materialized_acceptance": [
       {
@@ -1740,12 +1768,12 @@
       },
       {
         "id": "AC-002",
-        "text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-34508#/fulfillment/legacy_acceptance_map/1"
       },
       {
         "id": "AC-003",
-        "text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-34508#/fulfillment/legacy_acceptance_map/2"
       },
       {
@@ -1760,17 +1788,28 @@
       },
       {
         "id": "AC-006",
-        "text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-34508#/fulfillment/legacy_acceptance_map/5"
       },
       {
         "id": "AC-007",
         "text": "The enumeration accepts the member `row budget at 300px` with the exact meaning the spec states: 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-34508#/fulfillment/legacy_acceptance_map/6"
+      },
+      {
+        "id": "V209-AC-001",
+        "text": "All seven captured density enumeration members, literal values, units and meanings remain independent and unchanged when applied by the single shared panel/control asset and configurable semantic theme; theme styling cannot rename, coerce, estimate or weaken geometry/accessibility, and it must not create an enumeration-specific duplicate widget/panel.",
+        "fulfillment_ref": "MT-34508#/fulfillment/spec_amendment_acceptance/0"
+      },
+      {
+        "id": "V209-AC-002",
+        "text": "Inspect actual themed dense field/row rendering through Argus at the declared 72 x 24px, 28px, 260px, 300px and 266px boundaries, including compact behavior, readable labels, discoverable scrub interaction and selection/focus/error/disabled states at supported display scales. Compare to inspected professional Adobe workflow references, retain Handshake identity without Adobe branding and reject overlap, hidden fields or a third scalar at 300px. Retain exact literal enumeration proof independently and record the actual visual evidence and reference metadata in the existing MT proof/manual surface.",
+        "fulfillment_ref": "MT-34508#/fulfillment/spec_amendment_acceptance/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1921,6 +1960,30 @@
         "refinement_mapping": "Existing inputs/steps/proof retained cumulatively; exact source-specific actions below refine generic methods without dropping prior constraints.",
         "actual_consumer": "Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
         "source_revision_required": true
+      },
+      {
+        "spec_amendment_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-072",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31503,
+          "end_line": 31516,
+          "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "shared_asset_visual_system": "Use the single configurable shared panel/control asset and semantic theme tokens for coherent typography, neutral workspace chrome, icon treatment, spacing, visual hierarchy and selection/focus/error/disabled states. Extend the existing owner when a capability is missing instead of introducing a near-identical widget/panel; retain Handshake identity, professional Adobe desktop workflow look and feel without Adobe branding, and existing accessibility obligations. SaaS page layouts do not substitute for the working desktop workspace.",
+        "actual_rendered_visual_proof": "Inspect representative professional Adobe desktop workflow references before comparison, recording product/version, workflow/view, source or capture provenance and inspection observations. Then use the existing Argus/visual-debugging surface to drive and inspect actual rendered output, with stable author_id and agent attribution. Record readable typography/content, discoverable controls, coherent docking/navigation, visible states, no text overlap and responsive resize at supported display scales against the inspected references. Declared themes, copied Handshake palette values, component assertions, uninspected screenshots and process exit codes alone cannot pass the visual acceptance.",
+        "manual_and_evidence_surface": "Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
+        "reference_selection": {
+          "status": "PENDING_NOT_INSPECTED",
+          "selected_references": [],
+          "selection_timing": "Inspect actual professional reference artifacts before runtime comparison; no reference inspection claimed during preparation."
+        },
+        "activation_bindings": "Owning package/provider/features, executable renderer/Argus route, supported scale matrix, actor and owner artifact binding resolved from the actual implementation before proof; no target is claimed to exist."
       }
     ],
     "implementation_steps": [
@@ -1951,6 +2014,14 @@
       {
         "n": 7,
         "step": "Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection."
+      },
+      {
+        "n": 8,
+        "step": "Keep the seven captured density members as exact typed inputs to the shared configurable panel/control asset and semantic theme. Extend the existing asset for absent capability; do not add a parallel enumeration renderer or let theme styling change units, values, row budget or accessibility."
+      },
+      {
+        "n": 9,
+        "step": "Prove literal enumeration independently, then inspect actual rendered themed rows/fields and compact boundaries through Argus at supported scales against inspected professional references. Cover focus/error/disabled/selection state, readable labels and no overlap/third field; record the same evidence in the existing MT proof/manual surface for later host adoption."
       }
     ],
     "expected_outputs": [
@@ -1958,11 +2029,15 @@
       "Drive source-declared valid layout/panel/profile/document request and inspect actual registry, region tree and projection changes. Keep document/selection/history/color identity untouched for presentation changes; profile/binding/occupancy constraints and persistence cascade follow the complete source excerpt in inputs.",
       "Reject unknown key, duplicate occupancy, forbidden region/kind, stale revision, denied grant or cancelled move without dropping a panel/document. Failed preference/save adapter preserves accepted layout and reports recovery; native shell/SurrealDB authority and restart proof remain distinct host adoption.",
       "Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
-      "Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection."
+      "Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
+      "One reused configurable Controls panel/control visual system with semantic theme tokens and preserved source-specific geometry/enumeration/panel identities.",
+      "Actual inspected reference metadata, Argus rendered observations and truthful manual/descriptor evidence in existing MT proof/manual surfaces; source and full Studio host proof remain separately PENDING until actually executed."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping"
+      "Scope expansion requires owning contract; no capacity stopping",
+      "Do not pass visual acceptance from declared themes, copied palette values, synthetic fixtures, uninspected screenshots or component/static checks; absence of actual rendered output, inspected references, supported-scale coverage or reliable Argus observation is a proof blocker.",
+      "Do not introduce another panel identity, near-identical panel/widget implementation, Adobe branding or SaaS page-layout substitute; do not relax measured geometry/accessibility to make a theme fit."
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2047,7 +2122,7 @@
           "AC-002"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34508 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-072/AC-002 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
-        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2060,7 +2135,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2083,7 +2158,7 @@
           "AC-003"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34508 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-072/AC-003 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
-        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2096,7 +2171,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2191,7 +2266,7 @@
           "AC-006"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34508 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-072/AC-006 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
-        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Panel density model (normative) - enumeration output obeys The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2204,7 +2279,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2255,6 +2330,69 @@
           "consumer": "Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection."
         }
+      },
+      {
+        "check_id": "MT-34508-V209-GUI",
+        "kind": "runtime",
+        "claim_refs": [
+          "V209-AC-001",
+          "V209-AC-002"
+        ],
+        "command_or_method": "Future bounded actual Argus drive/inspect/capture and independent professional-reference comparison on the exact candidate. Use the existing visual-debugging surface and source consumer; actual Studio default-layout proof occurs through existing host adoption MT-36213. Materialize the concrete method from verified package/provider/features and routes before execution; no runtime was run during preparation.",
+        "expected": "All new v02.209 criteria pass with inspected actual rendered evidence, exact original behavior retained and truthful manual/descriptor proof. Actual Studio embedding is independently proven by the existing host adoption; none of these results are inferred from source authoring.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate identity, actual renderer/provider/features, Argus routes/author_id and agent attribution, supported scale and resize matrix, bounded timeout and observed result.",
+          "Actually inspected professional Adobe reference provenance and observations; actual Argus snapshots plus inspected rendered output and comparison observations for typography/content, discovery, docking/navigation, state, overlap and resize.",
+          "Independent accessibility and exact geometry/enumeration/eight-panel identity evidence as applicable; source asset rendering and full Studio host results separately identified.",
+          "Existing canonical UserManual/host-neutral descriptor diff, no-context operation and route/surface self-consistency; references and rendered evidence linked through the existing MT proof/manual surface without a duplicated screenshot suite."
+        ],
+        "method_recipe": {
+          "selected_packages": [
+            "hsk-studio-controls"
+          ],
+          "feature_policy": "Retain declared owning Controls+Accord+Observe closure and approved egui0.33 headless component path; actual render provider/features and host profile/scale bindings remain activation-resolved. Static/headless component proof cannot replace inspected actual rendered Studio proof.",
+          "consumer_assertion": "Prove literal enumeration independently, then inspect actual rendered themed rows/fields and compact boundaries through Argus at supported scales against inspected professional references. Cover focus/error/disabled/selection state, readable labels and no overlap/third field; record the same evidence in the existing MT proof/manual surface for later host adoption.",
+          "negative_path": "Inspect actual missing/hidden/clipped content, invalid or compact/over-budget layout, required selection/focus/error/disabled states and resize boundaries; reject duplicate ownership, altered identities/geometry, uninspected references or missing actual rendered evidence.",
+          "oracle": "Independent direct inspection of actual rendered Argus evidence against directly inspected professional references and the pinned v02.209 clause; exact source literals and accessibility are checked independently. Full Studio acceptance remains with the existing host adoption.",
+          "reference_comparison": "Inspect representative professional Adobe desktop workflow references before comparison, recording product/version, workflow/view, source or capture provenance and inspection observations. Then use the existing Argus/visual-debugging surface to drive and inspect actual rendered output, with stable author_id and agent attribution. Record readable typography/content, discoverable controls, coherent docking/navigation, visible states, no text overlap and responsive resize at supported display scales against the inspected references. Declared themes, copied Handshake palette values, component assertions, uninspected screenshots and process exit codes alone cannot pass the visual acceptance.",
+          "manual_and_evidence_surface": "Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
+          "asset_and_embedding_proof_split": {
+            "source_asset": "Actual rendered reusable Controls consumer and descriptor proof, within existing standalone source write scope.",
+            "actual_studio_host": "Existing MT-36213 must prove actual Studio default profile layouts; source authoring does not authorize host/native/kernel writes.",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE"
+          }
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "before_coding": "Approve the focused method and verified owning package/provider/features; existing implementation may create its owned target during coding.",
+          "before_handoff": "Actual target/routes must exist and execute on the exact candidate; inspect the actual rendered result and selected professional references and record independent evidence.",
+          "existing_target_claimed": false
+        },
+        "source_specific_refinement_mapping": {
+          "prior_actions_retained": true,
+          "spec_amendment_basis": {
+            "spec_version": "v02.209",
+            "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+            "requirement_ref": "STU-SHL-072",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 31503,
+            "end_line": 31516,
+            "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
+            "status": "PENDING_NOT_IMPLEMENTED",
+            "reference_inspection_status": "PENDING_NOT_INSPECTED",
+            "runtime_proof_status": "PENDING_NOT_RUN"
+          },
+          "actual_consumer": "Prove literal enumeration independently, then inspect actual rendered themed rows/fields and compact boundaries through Argus at supported scales against inspected professional references. Cover focus/error/disabled/selection state, readable labels and no overlap/third field; record the same evidence in the existing MT proof/manual surface for later host adoption.",
+          "negative_path": "No declared-theme or palette-only substitute; reject geometry/identity/accessibility changes, invisible state, unreadable content, overlap and failed resize."
+        },
+        "proof_status": "PENDING_NOT_RUN",
+        "reference_inspection_status": "PENDING_NOT_INSPECTED"
       }
     ],
     "independent_review_required": true,
@@ -2348,7 +2486,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | \u2014 | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
+        "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2360,13 +2498,13 @@
         },
         {
           "id": "AC-002",
-          "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 2"
         },
         {
           "id": "AC-003",
-          "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 3"
         },
@@ -2384,7 +2522,7 @@
         },
         {
           "id": "AC-006",
-          "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 6"
         },
@@ -2485,7 +2623,46 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec_amendment_history": [
+      {
+        "spec_version": "v02.209",
+        "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "working_preimage_sha256": "1c04affe8488aa4b4160563cd8fa1726b2d3d3889cdf759f57a7796cafb199dc",
+        "native_preimage_sha256": "1c04affe8488aa4b4160563cd8fa1726b2d3d3889cdf759f57a7796cafb199dc",
+        "prior_contract_revision": 3,
+        "prior_specification_anchor_ref": {
+          "id": "STU-SHL-072",
+          "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31382",
+          "verbatim": "**[STU-SHL-072] Panel density model (normative).** Derived from measured vendor declarations, not estimated.",
+          "heading": "#### 4.2 Density",
+          "section": "14.30",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "verified_source_ranges": [
+            {
+              "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+              "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+              "start_line": 31382,
+              "end_line": 31393,
+              "body_sha256": "4ff3ed5adcc96139170d6f698502971661bf566e545f4072a544d231d756ec39",
+              "hash_encoding": "UTF8 line text joined LF, no final LF",
+              "range_kind": "normative_clause"
+            }
+          ],
+          "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+        },
+        "prior_closure_outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+        "prior_context_digest": "6843b9bbf7daab4a9605375f1dc508bd3c920a453b3984eb3418158d84a89ba7",
+        "context_digest_policy": "Original captured context digest retained as historical context; current exact source pin is spec_amendment_basis.",
+        "original_acceptance_retained": true,
+        "source_phase_and_host_boundary_retained": true,
+        "new_acceptance_ids": [
+          "V209-AC-001",
+          "V209-AC-002"
+        ],
+        "runtime_status": "PENDING_NOT_RUN"
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2657,10 +2834,10 @@
       {
         "acceptance_id": "AC-002",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/1",
-        "original_text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+        "original_text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "5b95ab5c9a1bd7e88a5b7bc6713994d2be6779bda0b6ef6ddfc0c265a0041a81",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34508-ASSET-CONTROLS"
@@ -2670,7 +2847,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2679,13 +2856,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34508-KERNEL-AC-002",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2694,10 +2871,10 @@
       {
         "acceptance_id": "AC-003",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/2",
-        "original_text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+        "original_text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "9d89c5b287a12198985a4e426a697b71a1e75d1d1619348a44c588c0d7b1403c",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34508-ASSET-CONTROLS"
@@ -2707,7 +2884,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2716,13 +2893,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34508-KERNEL-AC-003",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2805,10 +2982,10 @@
       {
         "acceptance_id": "AC-006",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/5",
-        "original_text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+        "original_text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "5417b199c97d29e4c138310832ef3c2ebf5caab423346467ffffeb622d5456c2",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34508-ASSET-CONTROLS"
@@ -2818,7 +2995,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2827,13 +3004,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
+          "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another. Inspect actual density descriptors and render boundaries for72x24field,28rowpitch,260/300width and266usable budget against canonical record.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown/missing sizing token or conflicting compact threshold fails; no dropping measured constraints during typed projection.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34508-KERNEL-AC-006",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2898,13 +3075,13 @@
         },
         {
           "id": "AC-002",
-          "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 2"
         },
         {
           "id": "AC-003",
-          "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 3"
         },
@@ -2922,7 +3099,7 @@
         },
         {
           "id": "AC-006",
-          "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+          "criterion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-072 enumeration row 6"
         },
@@ -2934,7 +3111,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | \u2014 | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
+        "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2980,10 +3157,10 @@
         {
           "acceptance_id": "AC-002",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/1",
-          "original_text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+          "original_text": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "5b95ab5c9a1bd7e88a5b7bc6713994d2be6779bda0b6ef6ddfc0c265a0041a81",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34508-ASSET-CONTROLS"
@@ -2993,7 +3170,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3002,22 +3179,22 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
+            "consumer_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34508-KERNEL-AC-002",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 \u00d7 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `ScrubValue field body minimum` with the exact meaning the spec states: 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         },
         {
           "acceptance_id": "AC-003",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/2",
-          "original_text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+          "original_text": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "9d89c5b287a12198985a4e426a697b71a1e75d1d1619348a44c588c0d7b1403c",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34508-ASSET-CONTROLS"
@@ -3027,7 +3204,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3036,13 +3213,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another.",
+            "consumer_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34508-KERNEL-AC-003",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body \u2248 56px; the grab minimum adds \u224816px per field. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `scrub allowance` with the exact meaning the spec states: +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         },
         {
@@ -3116,10 +3293,10 @@
         {
           "acceptance_id": "AC-006",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/5",
-          "original_text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+          "original_text": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "5417b199c97d29e4c138310832ef3c2ebf5caab423346467ffffeb622d5456c2",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34508-ASSET-CONTROLS"
@@ -3129,7 +3306,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3138,13 +3315,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another.",
+            "consumer_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34508-KERNEL-AC-006",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | \u2014. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `row pitch` with the exact meaning the spec states: 24 + 4 = 28px | —. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         },
         {
@@ -3216,7 +3393,61 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
-    }
+    },
+    "spec_amendment_acceptance": [
+      {
+        "acceptance_id": "V209-AC-001",
+        "requirement_ref": "STU-SHL-072",
+        "source_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-072",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31503,
+          "end_line": 31516,
+          "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "semantic_fulfillment": "All seven captured density enumeration members, literal values, units and meanings remain independent and unchanged when applied by the single shared panel/control asset and configurable semantic theme; theme styling cannot rename, coerce, estimate or weaken geometry/accessibility, and it must not create an enumeration-specific duplicate widget/panel.",
+        "asset_phase": "STANDALONE_SOURCE",
+        "asset_proof_check_ref": "MT-34508#/proof/checks/7",
+        "later_embedding_required": true,
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ],
+        "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE",
+        "status": "PENDING_NOT_IMPLEMENTED"
+      },
+      {
+        "acceptance_id": "V209-AC-002",
+        "requirement_ref": "STU-SHL-072",
+        "source_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-072",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31503,
+          "end_line": 31516,
+          "body_sha256": "a2f1d92f11e4101baad19fc64ae788b36f9bc4b3ed07706f80a7d1a33af248b3",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "semantic_fulfillment": "Inspect actual themed dense field/row rendering through Argus at the declared 72 x 24px, 28px, 260px, 300px and 266px boundaries, including compact behavior, readable labels, discoverable scrub interaction and selection/focus/error/disabled states at supported display scales. Compare to inspected professional Adobe workflow references, retain Handshake identity without Adobe branding and reject overlap, hidden fields or a third scalar at 300px. Retain exact literal enumeration proof independently and record the actual visual evidence and reference metadata in the existing MT proof/manual surface.",
+        "asset_phase": "STANDALONE_SOURCE",
+        "asset_proof_check_ref": "MT-34508#/proof/checks/7",
+        "later_embedding_required": true,
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ],
+        "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE",
+        "status": "PENDING_NOT_IMPLEMENTED"
+      }
+    ]
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T05:44:05.513657Z"
 }

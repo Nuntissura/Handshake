@@ -3,7 +3,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "generated_at_utc": "2026-07-09T00:00:00Z",
   "state_source": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
-  "verdict": "AUTHORING_IN_PROGRESS_NOT_READY_FOR_DEV",
+  "verdict": "SOURCE_FOUNDATION_CONTRACT_READY_PENDING_PUBLICATION_AND_LEASE",
   "ready_for_downstream_launch": "NO",
   "ready_for_downstream_launch_reason": "Source/split/host MT authoring and exact proof bindings incomplete; no canonical source release/runtime proof exists.",
   "user_signature": "ilja040920261532",
@@ -24,11 +24,11 @@
     "published_source_companions": 241,
     "remaining_allocated_source_companions": 329
   },
-  "local_branch": null,
-  "local_worktree_dir": null,
+  "local_branch": "codex/handshake-studio-assets",
+  "local_worktree_dir": "../wt-studio-assets",
   "gov_kernel_link": "DIRECT HANDSHAKE_GOV_ROOT; no junction",
-  "remote_backup_branch": null,
-  "backup_push_status": "NOT_VERIFIED_THIS_AUTHORING_PASS",
+  "remote_backup_branch": "origin/codex/handshake-studio-assets",
+  "backup_push_status": "NOT_YET_PUBLISHED_NO_SOURCE_IMPLEMENTATION",
   "health_checks": {
     "status": "NOT_RUN",
     "reason": "No launch/build/runtime authorized this preparation"
@@ -479,7 +479,7 @@
     }
   ],
   "next_orchestrator_action": "Complete authorized source/split preparation, reconcile frozen contracts/index/full graph and independent authoring acceptance. Unresolved canonical assets checkout/owner/pins are execution bindings; preparation continues without launch.",
-  "updated_at_utc": "2026-10-09T23:35:53.045821+00:00",
+  "updated_at_utc": "2026-10-10T05:41:58.979551+00:00",
   "historical_readiness_before_2026_10_09": {
     "record_id": "STUDIO-READINESS-HISTORY-20261009",
     "note": "Prior dated assertions retained as historical inputs, not fresh verified proof.",
@@ -499,7 +499,7 @@
     "state_source": "RECOMPUTED_FROM_GREENROOM_SPEC_DERIVATION"
   },
   "preparation_repass_2026_10_09": {
-    "status": "CURRENT_TYPED_PREPARATION_NON_EXECUTABLE",
+    "status": "SOURCE_FOUNDATION_PREPARATION_REVIEW_READY_PENDING_ROOT_PUBLICATION_AND_LEASE",
     "approval": {
       "original_signature": "ilja040920261532",
       "approved_enrichment_signature": "ilja091020261912",
@@ -507,7 +507,19 @@
       "implementation_timing": "NEXT_SESSION_ONLY",
       "preparation_does_not_authorize_coding": true
     },
-    "preservation_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#preservation"
+    "preservation_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#preservation",
+    "final_review_binding": {
+      "candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION",
+      "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336",
+      "source_manifest_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+      "review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/review-team/review.json#/final_review",
+      "review_raw_sha256": "44d1172601fe6fc5b96e2b235a858419e814f2d27ff9a01da71ab3fa4378c8dc",
+      "verdict": "PREPARATION_CONTRACT_READY_FOR_NEW_KB_TRANSFER_SOURCE_FOUNDATIONS_ONLY",
+      "open_preparation_findings": 0,
+      "runtime": "NOT_RUN",
+      "host_activation": "NOT_AUTHORIZED",
+      "whole_wp_activation": "NOT_AUTHORIZED"
+    }
   },
   "historical_microtask_metadata_before_2026_10_09": {
     "count": 509,
@@ -771,10 +783,10 @@
   },
   "execution_contract": {
     "phase": "PREPARATION_NON_EXECUTABLE",
-    "product_branch": null,
-    "product_worktree_locator": "UNRESOLVED_CANONICAL_ASSETS_SOURCE_CHECKOUT; see canonical_source_checkout_binding and retained historical_preparation_checkout_binding",
-    "verified_baseline": null,
-    "worktree_path_policy": "Resolve existing attached worktree by branch; no hardcoded profile/drive requirement and no new worktree. HANDSHAKE_GOV_ROOT resolves direct live gov_kernel.",
+    "product_branch": "codex/handshake-studio-assets",
+    "product_worktree_locator": "../wt-studio-assets",
+    "verified_baseline": "c6c993da23d17073f491f04712f2fa4b8ad90f77",
+    "worktree_path_policy": "Resolve configured assets source checkout relative to live governance kernel; verify origin/branch/candidate/clean state. HANDSHAKE_GOV_ROOT resolves direct live gov_kernel; no governance copy/junction.",
     "product_root": "handshake-studio-assets",
     "governance_root": "HANDSHAKE_GOV_ROOT; direct kernel reads, no .GOV copy/junction",
     "mirror": {
@@ -798,7 +810,7 @@
       "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
     },
     "implementation_authorization": "No product execution in this preparation; canonical source and distinct host tasks require concrete owner/worktree, proof, publication/adoption bindings and independent acceptance.",
-    "verified_worktree_state": "Historical Handshake preparation checkout retained separately; canonical assets source checkout state not inspected/claimed.",
+    "verified_worktree_state": "Clean actual assets checkout at candidate commit/tree; subtree handshake-studio-assets absent; no product code created and source branch not published.",
     "artifact_policy": "Resolve sole Handshake Worktrees/Handshake_Artifacts from canonical live kernel/enclosing Handshake project under CX-984-001/012/013, never from managed asset worktree. Verify existing root before output; pass absolute resolved root to subprocesses. Owned WP/MT/batch/owner children, disjoint mutable Cargo targets. Shared files use portable root references.",
     "canonical_source_repository_url": "https://github.com/Nuntissura/assets",
     "module_change_stages": [
@@ -814,12 +826,20 @@
     "canonical_source_checkout_binding": {
       "repository_url": "https://github.com/Nuntissura/assets",
       "subtree": "handshake-studio-assets",
-      "source_branch": null,
-      "source_root": null,
-      "source_owner": null,
-      "activation_condition": "Separately authorized source implementation resolves actual canonical assets repository checkout/root/branch/owner and clean candidate identity before writes. Historical Handshake Studio checkout is preparation lineage, not independently verified canonical assets source execution.",
-      "status": "UNRESOLVED_PREPARATION_CONTINUES_NO_EXECUTION",
-      "forbidden": "No second writable canonical module owner or assumed copied/junctioned governance."
+      "source_branch": "codex/handshake-studio-assets",
+      "source_root": "../wt-studio-assets",
+      "source_root_base": "live governance kernel root; optional operator-controlled configured source root must resolve same verified repository/branch",
+      "source_owner": "STUDIO-WORKSPACE",
+      "module_root": "../wt-studio-assets/handshake-studio-assets",
+      "candidate_commit": "c6c993da23d17073f491f04712f2fa4b8ad90f77",
+      "candidate_tree": "c520e5641b395138c29c18117b5d07349a002bf4",
+      "checkout_condition": "Origin, branch, candidate commit/tree and clean status independently reread in this preparation; reverify before implementation writes",
+      "activation_condition": "NEW Kernel Builder chat after final preparation publication and independent readiness; scoped standalone source implementation only; no whole-WP or Handshake host activation",
+      "status": "CHECKOUT_VERIFIED_PREPARATION_ONLY_SUBTREE_NOT_CREATED",
+      "source_release_status": "NOT_IMPLEMENTED_NOT_PUBLISHED_NO_RUNTIME_PROOF",
+      "remote_source_branch_status": "NOT_YET_PUBLISHED_NO_UPSTREAM",
+      "forbidden": "No second writable canonical module owner, Handshake branch-name lookup, governance copy/junction, or changes outside handshake-studio-assets/**",
+      "runtime_owner_claim": "PENDING_NEW_KERNEL_BUILDER_CHAT"
     }
   },
   "history_policy": {
@@ -867,7 +887,40 @@
     "business_event_proof": "CON014: all22 exact wire/family/FR business ID mappings, tagged payload/schema/version and actual business-category producer/ingestion/permissions/restart reconciliation proof; planned catalog is not implemented.",
     "source_hash_policy": "Bound exact inspected substantive snapshot. Root version/manifest/frontmatter publication refresh may change hashes; activation must rebind published identity without claiming a new substantive/runtime verdict.",
     "final_source_reread": "Observed hashes match root final reindexed snapshot. ARC016 requires35 modules plus workspace; DOC001 one authored containment/typed-operation graph; CON013 differentiates mutation promotion acceptance from typed durable selection/proposal/rejection audit acceptance; MOT258 assigns production parser/AST/lowering/checkpoint owner, fresh evaluation/reset, pinned trusted cache and bounded result conversion. HSKPLG020 explicitly separates portable foundation from later host plugin/embedding proof.",
-    "migration_boundary": "Root reports original5484 migration and36 new foundation records finished,55 amendments appending toward5575 total. This is coordination status only, not independently inspected MT acceptance or exact payload-preservation verdict; final stable _MT_INDEX/foundation mapping and root independent comparison remain authoritative prerequisites."
+    "migration_boundary": "Root reports original5484 migration and36 new foundation records finished,55 amendments appending toward5575 total. This is coordination status only, not independently inspected MT acceptance or exact payload-preservation verdict; final stable _MT_INDEX/foundation mapping and root independent comparison remain authoritative prerequisites.",
+    "scoped_spec209_adoption": {
+      "version": "v02.209",
+      "commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "path": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "changed_clause_refs": [
+        "STU-WB-105",
+        "STU-WB-129",
+        "STU-WB-130",
+        "STU-WB-131",
+        "STU-WB-138",
+        "STU-WB-139",
+        "STU-PRO-145",
+        "STU-PRO-146",
+        "STU-PRO-147",
+        "STU-PRO-148",
+        "STU-PRO-149",
+        "STU-PRO-150",
+        "STU-SHL-072",
+        "STU-SHL-078",
+        "STU-PRO-167",
+        "STU-PRO-168",
+        "STU-PRO-169",
+        "STU-PRO-170",
+        "STU-PRO-171",
+        "STU-PRO-172",
+        "STU-PRO-173",
+        "STU-PRO-174"
+      ],
+      "scope": "15 existing source contracts and eight additional primary CLAUSE units; necessary exact owned source contributions and host claims reconciled after actual source freeze",
+      "status": "PUBLISHED_SPEC_SCOPED_CONTRACT_AUTHORING_IN_PROGRESS",
+      "preservation": "Unchanged original spec anchors/payload and original5484/21145AC preserved; no whole-corpus repin; source/runtime/vendor-payload evidence limits explicit"
+    }
   },
   "reuse_binding": {
     "packet_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse",
@@ -888,7 +941,29 @@
     "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
     "source_preparation": "RECONCILED_NO_IMPLEMENTATION_OR_RUNTIME_VERDICT",
     "checkpoint_boundary": "This source preparation awaits the scoped Git-byte and remote checkpoint proof. Next session must freshly verify the committed SPEC_CURRENT and declared origin/gov_kernel ancestry; this record is not sole proof of publication.",
-    "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required."
+    "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required.",
+    "scoped_spec209_candidate": {
+      "version": "v02.209",
+      "baseline_preserved": true,
+      "mt_index_sha256": "6d943ddbd35094170ec363e448d1107a8abf7e93fc9dfb2bed3d5ab3c1b59ac9",
+      "ordered_mt_corpus_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+      "hash_basis": "numeric ascending MT-ID|rawSHA LFjoined nofinalLF; exact canonical current file read",
+      "source_preparation": "INDEPENDENT_PREPARATION_REVIEW_READY_PENDING_PUBLICATION_AND_ROOT_LEASE",
+      "implementation_authority": "PENDING_ROOT_FRESH_PUBLICATION_READ_AND_EXPLICIT_LEASE_RELEASE",
+      "runtime": "NOT_RUN",
+      "final_review_binding": {
+        "candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION",
+        "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336",
+        "source_manifest_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+        "review_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/review-team/review.json#/final_review",
+        "review_raw_sha256": "44d1172601fe6fc5b96e2b235a858419e814f2d27ff9a01da71ab3fa4378c8dc",
+        "verdict": "PREPARATION_CONTRACT_READY_FOR_NEW_KB_TRANSFER_SOURCE_FOUNDATIONS_ONLY",
+        "open_preparation_findings": 0,
+        "runtime": "NOT_RUN",
+        "host_activation": "NOT_AUTHORIZED",
+        "whole_wp_activation": "NOT_AUTHORIZED"
+      }
+    }
   },
   "pre_pack38_authoring_history": {
     "checkpoint": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
@@ -921,6 +996,76 @@
         "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
       },
       "implementation_authorization": "Next session only, after current pointer/spec/MT contracts and exact ownership bindings are reconciled; this preparation authorizes no build, product write or launch."
+    },
+    "execution_contract_before_assets_checkout_binding": {
+      "phase": "PREPARATION_NON_EXECUTABLE",
+      "product_branch": null,
+      "product_worktree_locator": "UNRESOLVED_CANONICAL_ASSETS_SOURCE_CHECKOUT; see canonical_source_checkout_binding and retained historical_preparation_checkout_binding",
+      "verified_baseline": null,
+      "worktree_path_policy": "Resolve existing attached worktree by branch; no hardcoded profile/drive requirement and no new worktree. HANDSHAKE_GOV_ROOT resolves direct live gov_kernel.",
+      "product_root": "handshake-studio-assets",
+      "governance_root": "HANDSHAKE_GOV_ROOT; direct kernel reads, no .GOV copy/junction",
+      "mirror": {
+        "repository": "https://github.com/Nuntissura/assets",
+        "destination_prefix": "handshake-studio-assets/",
+        "role": "Canonical standalone source publication in Nuntissura/assets handshake-studio-assets; any Handshake checkout is a governed preparation/execution checkout or immutable consumer, not a second canonical module owner.",
+        "status": "NOT_MATERIALIZED_NO_PRODUCT_CODE_YET",
+        "prohibited": [
+          ".GOV",
+          "source-cache",
+          "runtime state",
+          "credentials",
+          "build/proof output",
+          "original private production imports"
+        ],
+        "preserve_existing": [
+          "handpick/",
+          ".gitignore",
+          ".gitattributes"
+        ],
+        "proof": "Fresh destination branch/content census, source commit/tree/subtree path hashes, independent destination read equality; no force overwrite"
+      },
+      "implementation_authorization": "No product execution in this preparation; canonical source and distinct host tasks require concrete owner/worktree, proof, publication/adoption bindings and independent acceptance.",
+      "verified_worktree_state": "Historical Handshake preparation checkout retained separately; canonical assets source checkout state not inspected/claimed.",
+      "artifact_policy": "Resolve sole Handshake Worktrees/Handshake_Artifacts from canonical live kernel/enclosing Handshake project under CX-984-001/012/013, never from managed asset worktree. Verify existing root before output; pass absolute resolved root to subprocesses. Owned WP/MT/batch/owner children, disjoint mutable Cargo targets. Shared files use portable root references.",
+      "canonical_source_repository_url": "https://github.com/Nuntissura/assets",
+      "module_change_stages": [
+        "standalone_source",
+        "host_adoption"
+      ],
+      "historical_preparation_checkout_binding": {
+        "product_branch": "codex/handshake-studio-assets",
+        "product_worktree_locator": "git worktree list --porcelain -> refs/heads/codex/handshake-studio-assets",
+        "verified_baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "verified_worktree_state": "2026-10-09 fresh git status --short empty; existing assigned worktree at recorded baseline. Reverify branch/path/dirty state next session before writes."
+      },
+      "canonical_source_checkout_binding": {
+        "repository_url": "https://github.com/Nuntissura/assets",
+        "subtree": "handshake-studio-assets",
+        "source_branch": null,
+        "source_root": null,
+        "source_owner": null,
+        "activation_condition": "Separately authorized source implementation resolves actual canonical assets repository checkout/root/branch/owner and clean candidate identity before writes. Historical Handshake Studio checkout is preparation lineage, not independently verified canonical assets source execution.",
+        "status": "UNRESOLVED_PREPARATION_CONTINUES_NO_EXECUTION",
+        "forbidden": "No second writable canonical module owner or assumed copied/junctioned governance."
+      }
+    },
+    "source_locator_before_assets_checkout_binding": {
+      "local_branch": null,
+      "local_worktree_dir": null,
+      "remote_backup_branch": null,
+      "backup_push_status": "NOT_VERIFIED_THIS_AUTHORING_PASS"
+    },
+    "prepared_source_publication_pre_spec209": {
+      "spec_current_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "version": "v02.207",
+      "signature": "ilja091020261912",
+      "source_reconstruction_sha256": "34c15e58e408dfa7b8060dbf9177808fb43a3cb32f1910c80c5847fc07e031ef",
+      "mt_index_sha256": "e91b68b06cfdb209b57dac790cad07484c5654084685b1618c4c977660bc4596",
+      "ordered_mt_corpus_sha256": "ed58a91b4def08aa68d32f5cf0cbc4b4a3c5a93c061c167700cddd42ec187621",
+      "source_preparation": "RECONCILED_NO_IMPLEMENTATION_OR_RUNTIME_VERDICT",
+      "checkpoint_boundary": "This source preparation awaits the scoped Git-byte and remote checkpoint proof. Next session must freshly verify the committed SPEC_CURRENT and declared origin/gov_kernel ancestry; this record is not sole proof of publication.",
+      "implementation_authority": "NON_EXECUTION_STUB; next-session activation, exact owner/recipe/artifact bindings and independent foundation/feature/host proof remain required."
     }
   },
   "module_lifecycle_authoring": {

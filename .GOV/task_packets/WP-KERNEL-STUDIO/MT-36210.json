@@ -50,7 +50,7 @@
     "title": "Adopt pinned hsk-studio-interop-fig through native Handshake services",
     "group": "HOST_ADOPTION",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": 2,
@@ -58,7 +58,141 @@
   },
   "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
   "context_capsule": {
-    "specification_anchor_refs": [],
+    "specification_anchor_refs": [
+      {
+        "id": "STU-PRO-170",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20646",
+        "verbatim": "**[STU-PRO-170] Interactive-slide role folded into Components.** The pinned `InteractiveSlideElementNode` extends `OpaqueNodeMixin`, has readonly `type = INTERACTIVE_SLIDE_ELEMENT`, `clone()` and readonly `interactiveSlideElementType` with exactly `POLL`, `EMBED`, `FACEPILE`, `ALIGNMENT`, `YOUTUBE`. Components represents the interactive role on an ordinary shared layer; Layout positions it, existing media/embed capabilities supply supported content, and Controls reuses role-specific descriptors on the same assets. The declaration does not specify poll questions/results, facepile participants, alignment rules, embed controls or YouTube payloads. The affected MT's first acceptance criterion MUST recover and pin the complete payload and interaction contract required for working authoring/playback; it MUST NOT invent vendor fields from the role name. Before that proof, preserve unavailable source payloads opaquely within existing bounded import/CKC surfaces and expose a typed limitation, without treating preservation as full parity. No new plugin registry, database, document silo or network entitlement is implied.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20646,
+            "end_line": 20647,
+            "body_sha256": "d3487020e8d5e4c4400cf301c5ddbde133fdef255a492ab66a280c3335bfd8ea",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-171",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20648",
+        "verbatim": "**[STU-PRO-171] Slide-transition record folded into Components.** The pinned `SlideTransition` record has exactly the required readonly fields `style`, `duration: number`, `curve` and `timing`; `duration` is explicitly in seconds. Retain the exact source record, numeric presence, token identity and source/version provenance separately from the native transition/easing representation. Its declaration provides no default, hard/soft bounds, precision or step values; [STU-PRO-121]'s 300 ms default and 30 000 ms native bound MUST NOT be applied to this capture. Reject non-finite or unrepresentable values with typed diagnostics and preserve an explicit loss decision, never silently clamp. Components owns the transition description, Pulse owns checked scheduling conversion, and Interop-Fig owns the source mapping. Shared Controls/Argus/manual expose all four fields and mapping outcomes. Source record preservation alone does not prove rendering equivalence.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20648,
+            "end_line": 20649,
+            "body_sha256": "2523e4168a1902fe39fc3811a3c055b228606b357dd0796ac47b04d40bc9029b",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-172",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20650",
+        "verbatim": "**[STU-PRO-172] Closed slide-transition style vocabulary.** The source record's `style` is exactly one of these twenty-three tokens: `NONE`, `DISSOLVE`, `SLIDE_FROM_LEFT`, `SLIDE_FROM_RIGHT`, `SLIDE_FROM_BOTTOM`, `SLIDE_FROM_TOP`, `PUSH_FROM_LEFT`, `PUSH_FROM_RIGHT`, `PUSH_FROM_BOTTOM`, `PUSH_FROM_TOP`, `MOVE_FROM_LEFT`, `MOVE_FROM_RIGHT`, `MOVE_FROM_TOP`, `MOVE_FROM_BOTTOM`, `SLIDE_OUT_TO_LEFT`, `SLIDE_OUT_TO_RIGHT`, `SLIDE_OUT_TO_TOP`, `SLIDE_OUT_TO_BOTTOM`, `MOVE_OUT_TO_LEFT`, `MOVE_OUT_TO_RIGHT`, `MOVE_OUT_TO_TOP`, `MOVE_OUT_TO_BOTTOM`, `SMART_ANIMATE`. Components MUST preserve every token and supply its working native transition behavior through existing compositing/animation owners; unknown or not-yet-supported mapping is explicit and is not accepted as feature parity. The MT carries the complete list and tests its affected distinct direction/entry/exit semantics rather than treating similar names as aliases; `NONE` creates no invented source duration default.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20650,
+            "end_line": 20651,
+            "body_sha256": "ce5285a25d4653d5b9584488cf712889db126b8fa6d7bfc79f3f08091a52c283",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-173",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20652",
+        "verbatim": "**[STU-PRO-173] Closed slide-transition curve vocabulary and explicit mapping.** The source record's `curve` is exactly `EASE_IN`, `EASE_OUT`, `EASE_IN_AND_OUT`, `LINEAR`, `GENTLE`, `QUICK`, `BOUNCY`, `SLOW`. These source names MUST remain distinct from [STU-PRO-120]'s Studio-declared preset identities. Native evaluation stores the actual four-number Bézier/spring tuple required by [STU-PRO-119]/[STU-PRO-120] while the import projection retains its original source token and version. The captured declaration supplies no numeric tuple, and similarly named Studio presets do not prove source equivalence. The affected MT's FIRST acceptance criterion MUST pin the numeric mapping or original-produced curve/appearance oracle and its tolerance before accepting faithful source rendering. Until then, preserve the source token with an explicit unavailable or approved approximation/loss outcome; do not silently claim identical easing. `Hold` remains timeline-only and is not added to this eight-token union.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20652,
+            "end_line": 20653,
+            "body_sha256": "01ee4099ad4e2f960a7836f51d64e04e211428a7298b878ada394c87ae3650bc",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-174",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+        "verbatim": "**[STU-PRO-174] Slide timing folded into Pulse.** The source `timing` record has required `type` exactly `ON_CLICK` or `AFTER_DELAY`, and optional `delay: number` explicitly in seconds. Raw source absence and zero are different and MUST round-trip distinctly. Any source runtime normalization that ignores/resets delay for `ON_CLICK` is separate from the preserved raw projection and must cite its profile; an example value is not a default. Pulse converts source duration/delay into the existing integer 254 016 000 000-ticks-per-second time base using checked range/conversion and explicit rounding/loss metadata, retains raw seconds and provenance, and never inherits prototype-millisecond bounds. Native playback/manual advance, skipped-slide traversal, timer cancellation and deterministic ordering reuse the existing presentation/interaction scheduler and bounded admission path; realtime callbacks must not perform blocking diagnostics or database work. Shared Controls, typed commands, Argus snapshots and both manual layers expose authored timing, effective timing and cancellation outcomes. No feature implementation is accepted until its affected timing and overflow cases are proven.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "start_line": 20654,
+        "end_line": 20654,
+        "body_sha256": "a7757b10a85df41708ea4ff1c439c60563d1af89d411d2f1f15e07d1b3713c16",
+        "hash_encoding": "UTF8 exact paragraph, no final LF"
+      },
+      {
+        "id": "STU-PRO-167",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20640",
+        "verbatim": "**[STU-PRO-167] Slide role folded into Layout.** A slide is an ordinary Folio/StudioLayer frame role in the shared `.handshake` graph, with Layout authoring and Components/Pulse transition bindings; it creates no separate document model. Interop-Fig's pinned `SlideNode` projection has readonly `type = SLIDE`, `clone()`, `getSlideTransition()`, `setSlideTransition(...)` and `isSkippedSlide: boolean`, plus the complete `BaseFrameMixin` transitive capture. Its direct frame fields include nullable readonly `detachedInfo`, `layoutGrids`, `gridStyleId`, `setGridStyleIdAsync(...)`, `clipsContent`, `guides` and nullable `inferredAutoLayout`. The MT MUST consume its applicable thirty-declaration BaseFrame closure from the combined corpus and map each inherited field/method to its existing owner, preserving nullable, optional, mixed and readonly semantics rather than duplicating those engines. In the separately documented source compatibility profile, slides are fixed 1920×1080, direct children of a slide row and not resizable, rotatable or transformable; these are source restrictions, not global restrictions on native Layout frames. Preserve any clone-parent/hierarchy conflict as typed unsupported until an original-runtime fixture resolves it. Author/select/reorder/copy/skip, undo and inspect use the shared command, Controls, Argus and manual surfaces; source-profile incompatibility must be visible.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20640,
+            "end_line": 20640,
+            "body_sha256": "c44722927198c81ac5e64d064948c3df2fad5f014819a6a198e47d6949ef51fd",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-168",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20642",
+        "verbatim": "**[STU-PRO-168] Slide-row role folded into Layout.** A row uses ordered Folio child references and Layout container operations in the same graph. The pinned `SlideRowNode` has readonly `type = SLIDE_ROW`, `clone()` and the complete `OpaqueNodeMixin` plus `ChildrenMixin` surfaces. `ChildrenMixin` has no extends clause; consume its actual captured child/traversal methods and nullable lookup results, not the earlier malformed research metadata. In the source profile, a row is a direct grid child and contains slides only; it is not directly selectable/editable in the source UI. Native authoring may expose row ordering through shared controls, but MUST distinguish that native extension from captured source behavior. Preserve child order, identity and metadata on conversion; a clone-parent conflict requires the same explicit fixture resolution as [STU-PRO-167].",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20642,
+            "end_line": 20642,
+            "body_sha256": "0a17fae4b3dc23464a71676ded4cdf2b1a6de369960a17cf422916fdf567f045",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ]
+      },
+      {
+        "id": "STU-PRO-169",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20644",
+        "verbatim": "**[STU-PRO-169] Slide-grid role folded into Layout.** The pinned `SlideGridNode` has readonly `type = SLIDE_GRID`, a declared `clone()` and the complete `OpaqueNodeMixin` plus `ChildrenMixin` surfaces. Its source profile permits one top-level grid per source document, rows only, no API creation or direct UI editing, and `clone()` throws; the adapter MUST expose those restrictions as typed capability outcomes and test the negative clone case. This does not prohibit creating or editing native ordered Layout containers in `.handshake`. Map the source grid/row/slide hierarchy onto existing Folio/Layout containers with explicit provenance and stable ordering; frame-grid layout fields are a distinct inherited capability and MUST NOT be conflated with slide-grid hierarchy. Unavailable decoding or source operations are visible limitations, never a substitute document, silent rasterization or parity claim.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20644,
+            "end_line": 20644,
+            "body_sha256": "f7a8a67ba0c677bd291b5d7b0c22addfd914198b36ab69fad087fb1f9fe9269c",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ]
+      }
+    ],
     "read_context": [
       ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/21",
       ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/21/original_scope_refs",
@@ -70,7 +204,53 @@
       "src/backend/handshake_core/src/api/mod.rs:35",
       "src/backend/handshake_core/src/api/authority.rs:1322",
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "./MT-36237.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36237.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36240.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36240.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36237.json#/fulfillment/source_contribution_bindings",
+      "./MT-36238.json#/fulfillment/source_contribution_bindings",
+      "./MT-36239.json#/fulfillment/source_contribution_bindings",
+      "./MT-36240.json#/fulfillment/source_contribution_bindings",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/media-team/preparation.json#/spec209_pulse_preparation/qualified_owned_aspect_source_contributions",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/0",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/1",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/2",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/3",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6",
+      "./MT-36242.json#/lineage/owned_parent_acceptance_bindings",
+      "./MT-36243.json#/lineage/owned_parent_acceptance_bindings",
+      "./MT-36244.json#/lineage/owned_parent_acceptance_bindings"
     ],
     "pillar_refs": [
       "INT",
@@ -121,7 +301,33 @@
       "MT-35567/AC-001",
       "MT-35573/AC-001",
       "MT-35575/AC-001",
-      "MT-35587/AC-001"
+      "MT-35587/AC-001",
+      "MT-36237/AC-002",
+      "MT-36237/AC-003",
+      "MT-36238/AC-001",
+      "MT-36238/AC-002",
+      "MT-36238/AC-003",
+      "MT-36238/AC-004",
+      "MT-36239/AC-001",
+      "MT-36239/AC-003",
+      "MT-36239/AC-004",
+      "MT-36240/AC-002",
+      "MT-36240/AC-004",
+      "MT-36241/AC-001",
+      "MT-36241/AC-002",
+      "MT-36241/AC-003",
+      "MT-36234/AC-001",
+      "MT-36234/AC-002",
+      "MT-36234/AC-003",
+      "MT-36234/AC-004",
+      "MT-36235/AC-001",
+      "MT-36235/AC-002",
+      "MT-36235/AC-003",
+      "MT-36235/AC-004",
+      "MT-36236/AC-001",
+      "MT-36236/AC-002",
+      "MT-36236/AC-003",
+      "MT-36236/AC-004"
     ],
     "materialized_acceptance": [
       {
@@ -135,11 +341,123 @@
       {
         "id": "MT-36210/AC-HOST-003",
         "text": "Source remote revision and standalone proof independently observed before host writes; exact release/schema/API/ABI/toolchain/dependency locks admitted; real host negative, upgrade and rollback outcomes verified with retained authority."
+      },
+      {
+        "id": "MT-36237/AC-002",
+        "text": "Preserve readonly type INTERACTIVE_SLIDE_ELEMENT, readonly five-token interactiveSlideElementType and clone(); consume the full nine-declaration Opaque closure with each inherited member routed to its existing owner, nullable/optional/readonly semantics intact; use one shared Folio layer and Layout position."
+      },
+      {
+        "id": "MT-36237/AC-003",
+        "text": "Implement supported role creation/edit/action/clone/undo/playback through published Components contracts and existing media/embed owners; source-profile/version mismatches and unsupported payloads yield typed loss/unavailable with opaque bytes retained in bounded Interop-Fig/CKC, never fabricated payloads or parity."
+      },
+      {
+        "id": "MT-36238/AC-001",
+        "text": "Materialize the exact required readonly style, duration:number, curve and timing record with source/version provenance and numeric presence; duration is seconds. Preserve optional delay absence versus zero separately from any source-runtime normalization."
+      },
+      {
+        "id": "MT-36238/AC-002",
+        "text": "Keep native PRO121 milliseconds and source seconds as separate parameter families; source default, hard/soft bounds, precision and step are NOT DECLARED IN SOURCE. Do not inherit native300ms default or30000ms bound; finite representable input is preserved, non-finite/unrepresentable conversion rejects typed without clamping."
+      },
+      {
+        "id": "MT-36238/AC-003",
+        "text": "Components supplies the working transition description through existing native owners; Interop-Fig owns projection/mapping and Pulse checked scheduling conversion with explicit rounding/loss. Unknown style/curve and unavailable oracle remain explicit and do not prove rendering equivalence."
+      },
+      {
+        "id": "MT-36238/AC-004",
+        "text": "Existing Controls/Argus/UserManual expose four fields, raw/effective timing and source/native/loss outcomes; independent source roundtrip, checked conversion boundary and real consumer render proof are required before feature acceptance."
+      },
+      {
+        "id": "MT-36239/AC-001",
+        "text": "Preserve exactly23 source style tokens with source version and typed rejection for unknown tokens; no aliases collapse direction, entry or exit semantics. NONE does not invent a source duration default."
+      },
+      {
+        "id": "MT-36239/AC-003",
+        "text": "Prove DISSOLVE and SMART_ANIMATE behavior with independently inspected output, layer pairing and unmatched-layer loss behavior; unsupported/not-yet-supported mapping retains source token with typed unavailable/loss and is never accepted as parity."
+      },
+      {
+        "id": "MT-36239/AC-004",
+        "text": "Existing Controls/typed Argus/manual list all23 literals and source/native mapping outcomes using shared assets; source roundtrip and quiet normal/constrained/error captures preserve token identity and show limitations."
+      },
+      {
+        "id": "MT-36240/AC-002",
+        "text": "Preserve exactly EASE_IN, EASE_OUT, EASE_IN_AND_OUT, LINEAR, GENTLE, QUICK, BOUNCY, SLOW separately from native preset identities; native evaluation stores the actual four-number Bézier or spring tuple under PRO119/120 while import retains source token/version."
+      },
+      {
+        "id": "MT-36240/AC-004",
+        "text": "Until faithful mapping proof, retain source token with typed unavailable or operator-approved approximation/loss carrying mapping revision and affected fields. Public owner evaluation and actual renderer comparison must prove numeric samples and appearance, including overshoot/settling; explicit preservation alone cannot pass parity."
+      },
+      {
+        "id": "MT-36241/AC-001",
+        "text": "Pin the actual SlideTransition/timing declaration and affected source runtime profile/fixture before a version-specific normalization or fidelity claim. Required type is exactly ON_CLICK or AFTER_DELAY; delay is optional number in seconds. Keep the Plugin API 1.141.0 commit 07157d96c58add71d234b13bfd55b53abdce76b8 declaration provenance separate from current 2026-10-10 documentation normalization whose pinned-version applicability is UNVERIFIED until the original runtime fixture resolves it. Missing runtime proof remains NOT_PROVEN; an example is never a default."
+      },
+      {
+        "id": "MT-36241/AC-002",
+        "text": "Round-trip raw authored timing with exact type token, presence of delay, numeric seconds and source/version provenance. Missing delay, explicit zero and explicit nonzero remain distinct; ON_CLICK raw delay survives even when a separately identified runtime profile ignores or resets its effective value. No new default, invented precision/step or prototype-millisecond bound is applied."
+      },
+      {
+        "id": "MT-36241/AC-003",
+        "text": "Convert source duration and effective delay seconds using the existing canonical integer tick field at exactly 254016000000 ticks/second. Check finite numeric input, representable range, intermediate multiplication/addition and destination deadline before conversion; emit deterministic explicit rounding/loss metadata and preserve raw seconds. Reject unrepresentable inputs without clamp, wrapping, widened stored schema or float timing authority. Resolve the existing stored type and approved rounding policy before implementation rather than inventing a sign/range."
+      },
+      {
+        "id": "MT-36234/AC-001",
+        "text": "Implement the ordinary Folio/StudioLayer slide frame role in the shared .handshake graph through existing Layout ports. Carry and route the complete thirty-declaration BaseFrame closure including readonly/nullable detachedInfo, layoutGrids, gridStyleId/setGridStyleIdAsync, clipsContent, guides and nullable inferredAutoLayout; map every captured inherited field/method to an existing owner before accepting the feature, never duplicate those engines."
+      },
+      {
+        "id": "MT-36234/AC-002",
+        "text": "Keep the imported source compatibility profile fixed1920x1080, direct-row child, not resizable/rotatable/transformable, separately from editable native Layout frames. Source readonly typeSLIDE and exact clone hierarchy conflict stay typed unsupported until an original-runtime fixture resolves it; no source parity from declarations or synthetic fixtures."
+      },
+      {
+        "id": "MT-36234/AC-003",
+        "text": "Implement author/select/reorder/copy/skip and skip-state round trip with existing Folio/Accord commands and Components/Pulse transition ports; getSlideTransition/setSlideTransition and isSkippedSlide preserve source/version projection and actual supplied transition/timing outcomes."
+      },
+      {
+        "id": "MT-36234/AC-004",
+        "text": "Retain identity/order/metadata, inverse undo, stale/cancel/revoked outcomes and visible source-profile incompatibility; shared Controls/Argus plus actual human/model manual paths expose the same state. Independent actual source and later host proof are separate."
+      },
+      {
+        "id": "MT-36235/AC-001",
+        "text": "Implement an ordered Layout row on existing Folio child references in the shared graph. Carry the complete captured OpaqueNodeMixin plus ChildrenMixin declaration closure, every actual child/traversal method and nullable lookup result; ChildrenMixin has no extends clause; do not consume the malformed earlier metadata or duplicate hierarchy owners."
+      },
+      {
+        "id": "MT-36235/AC-002",
+        "text": "Source readonly typeSLIDE_ROW is a direct grid child containing slides only and is not directly selectable/editable in the source UI. Native row ordering uses shared controls as an explicit native extension with provenance, never presents this extension as captured source behavior."
+      },
+      {
+        "id": "MT-36235/AC-003",
+        "text": "Preserve child order/identity/metadata on conversion and copy. The declared clone and source parent conflict require original-runtime fixture resolution; until then retain typed unsupported/loss information without fabricating a source clone result."
+      },
+      {
+        "id": "MT-36235/AC-004",
+        "text": "Existing commands, inverse undo, inspection and bounded stale/cancel/revoked outcomes operate on injected Folio/Layout owners; Controls/Argus/manual show native/source differences. Independent actual mapping/edited reopen and later host evidence remain pending until performed."
+      },
+      {
+        "id": "MT-36236/AC-001",
+        "text": "Implement a native ordered Layout grid/container role in the same Folio graph with complete captured OpaqueNodeMixin and ChildrenMixin declarations. Stable provenance/order map source grid/row/slide hierarchy to existing containers; never introduce another document or duplicate graph engine."
+      },
+      {
+        "id": "MT-36236/AC-002",
+        "text": "Source readonly typeSLIDE_GRID permits one top-level grid per source document and rows only, no API creation/direct UI editing, and clone throws despite its declaration. The adapter must expose typed capability outcomes and prove the negative clone case; native ordered Layout containers remain creatable/editable."
+      },
+      {
+        "id": "MT-36236/AC-003",
+        "text": "Keep inherited frame-grid layout capability distinct from slide-grid hierarchy. Unavailable decoding/source operations produce visible typed limitations and exact preservation/loss decisions; no silent rasterization, substitute document or token/declaration-only parity."
+      },
+      {
+        "id": "MT-36236/AC-004",
+        "text": "Shared authoring/ordering/undo and inspection use existing Folio/Layout/Controls ports with identity/order/metadata, bounded stale/cancel/revoked recovery and human/model manual/Argus consistency. Independently compare supported actual source mapping and separate host adoption."
       }
     ],
     "spec_basis_refs": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/21"
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/21",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20646",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20648",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20650",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20652",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20640",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20642",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20644"
     ],
     "operator_decision_refs": [
       ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/scope"
@@ -216,7 +534,10 @@
       "MT-36231",
       "MT-36232",
       "MT-36233",
-      "MT-36216"
+      "MT-36216",
+      "MT-36242",
+      "MT-36243",
+      "MT-36244"
     ],
     "start_precondition": "PENDING NONEXECUTION preparation. Activate assigned host worktree/branch, actual target/config/entrypoint, scope locks and immutable release pins first. Independent assets remote revision and source proof must pass before any host write.",
     "allowed_write_paths": [
@@ -233,7 +554,48 @@
       "Offline FIG source bytes, version and component/constraint mapping",
       ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/21/qualified_ac_refs: read each original acceptance payload at source_ref and verify semantic_sha256 before constructing cases",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance"
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance",
+      "./MT-36237.json#/closure_unit/materialized_acceptance/1: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36237.json#/closure_unit/materialized_acceptance/2: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/0: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/1: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/2: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36238.json#/closure_unit/materialized_acceptance/3: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/0: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/2: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36239.json#/closure_unit/materialized_acceptance/3: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36240.json#/closure_unit/materialized_acceptance/1: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36240.json#/closure_unit/materialized_acceptance/3: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/0: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/1: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36241.json#/closure_unit/materialized_acceptance/2: exact current209 row; discharge only canonical mapped host ownership in existing embedding report",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/0: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/1: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/2: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36234.json#/closure_unit/materialized_acceptance/3: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36234.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/0: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/1: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/2: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36235.json#/closure_unit/materialized_acceptance/3: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36235.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/0: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/0: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/1: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/2: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/2: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/4: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36236.json#/closure_unit/materialized_acceptance/3: exact primary row; discharge only assigned primary Layout or narrow owned aspect",
+      "./MT-36236.json#/fulfillment/later_kernel/qualified_owned_aspect_to_host/6: OWNED_ASPECT_ONLY; no full primary completion credit",
+      "./MT-36242.json#/lineage/owned_parent_acceptance_bindings: exact owned source contribution before host admission; source public proof does not discharge whole parent algorithms",
+      "./MT-36243.json#/lineage/owned_parent_acceptance_bindings: exact owned source contribution before host admission; source public proof does not discharge whole parent algorithms",
+      "./MT-36244.json#/lineage/owned_parent_acceptance_bindings: exact owned source contribution before host admission; source public proof does not discharge whole parent algorithms"
     ],
     "implementation_steps": [
       {
@@ -246,7 +608,7 @@
       },
       {
         "n": 3,
-        "step": "Resolve selected decoder and sandbox evidence; map source-qualified object/component/variable IDs into existing Folio/Components owners Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding."
+        "step": "Resolve selected decoder and sandbox evidence; map source-qualified object/component/variable IDs into existing Folio/Components owners Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding. Current v02.209 FIG host claims are OWNED_ASPECT_ONLY for the mapped parent rows; preserve exact parent criterion text but discharge only its authoritative source projection/encode/decode/roundtrip/provenance/loss contribution from each parent source_contribution_bindings and the Pulse owned-aspect report. No primary full-parent completion or native transition/easing/tick/scheduler implementation is assigned to FIG. Consume recovered interactive payload proof MT-36237/AC-001 and curve numeric/original oracle+tolerance MT-36240/AC-001 at published ports before faithful editable/render mapping. Through the actual native FIG import/export adapter, compare independently original-produced supported objects and edited reopen roundtrip, readonly/Opaque semantics, five roles, four transition fields,23 styles/8 curves/2 timing tokens, raw seconds and delay absent/zero/profile normalization provenance. Preserve source token/version, exact bounded opaque bytes and typed loss/unavailable on unsupported profile/payload/decoder/mapping; opaque retention never proves parity. Delegate native tuple/render to Components and checked ticks/scheduling to Pulse, retaining their public result/loss provenance. Independently re-read actual canonical objects/head/events/current grants and exported/reopened bytes; each mapped parent aspect is individually keyed and cannot discharge the primary whole criterion. Final v02.209 Layout parent host additions are exactly12 OWNED_ASPECT_ONLY FIG rows at each source fulfillment.later_kernel.qualified_owned_aspect_to_host pointer. Source MT-36242 proves source hierarchy/BaseFrame/Opaque/Children projection, version/qualifiers/provenance, source1920x1080/direct-parent/no-transform/one-grid/rows-only restrictions and original-produced edited reopen mapping; no native Layout frame/order/undo engine or full primary completion credit. Consume only the actual source decoder/original-profile fixture/public Layout/Folio ports. Clone-parent conflict stays typed unsupported until original-runtime proof; source grid clone-throws negative remains distinct from editable native containers. Current child source dependencies MT-36242/36243/36244 admit independently verified canonical assets releases and their own18-subset source criteria, keeping recovered interactive payload MT-36237/AC-001 and curve MT-36240/AC-001 oracle/tolerance as consumed proof artifacts, never full-parent predecessor edges. Exercise actual native FIG adapter decode/map/export/edited reopen bytes and canonical identity/order/metadata/version/loss readback for each exact mapped aspect. Existing Components/Pulse rendering/conversion/scheduling remains owned there; no whole Layout, Components or Pulse feature credit from an imported record or child criterion."
       },
       {
         "n": 4,
@@ -258,17 +620,19 @@
       },
       {
         "n": 6,
-        "step": "Add src/frontend/handshake_native/tests/test_studio_interop_fig_host.rs as a planned owning test target; bind exact HBR test_entrypoint/config/filter at activation. Verify selected build closure and real host original criteria, failure/recovery, two agents plus operator, bounded stop/drain and privacy; real native visual proof where applicable, unsupported provider remains blocked."
+        "step": "Add src/frontend/handshake_native/tests/test_studio_interop_fig_host.rs as a planned owning test target; bind exact HBR test_entrypoint/config/filter at activation. Verify selected build closure and real host original criteria, failure/recovery, two agents plus operator, bounded stop/drain and privacy; real native visual proof where applicable, unsupported provider remains blocked. Exercise the new mapped current209 cases in the same planned owning natural selectors with real native behavior and per-criterion/owned-aspect evidence; no new proof suite. Add exact current209 Layout primary/aspect cases to the same owning planned natural selectors; actual native GUI/readback/command owner proof and keyed per-criterion results remain required, no new suite."
       },
       {
         "n": 7,
-        "step": "Update canonical UserManual and existing diagnostic/inspection descriptors with behavior and recovery. Rehearse incompatible upgrade denial and rollback to previous admitted pin after settling in-flight operations; preserve accepted authority and immutable provenance."
+        "step": "Update canonical UserManual and existing diagnostic/inspection descriptors with behavior and recovery. Rehearse incompatible upgrade denial and rollback to previous admitted pin after settling in-flight operations; preserve accepted authority and immutable provenance. Update both canonical asset and host manual projections from the same actual descriptor for current209 inputs, raw/effective units/presence/loss and failures/recovery. Both canonical asset/internal-host manual projections expose actual native/source role/property/action restrictions, limitations and recovery through the same descriptors."
       }
     ],
     "expected_outputs": [
       "Unknown proprietary version stays blocked/opaque/loss; preserved bytes do not certify editable FIG round-trip",
       "Planned adapter and owning test target: src/frontend/handshake_native/src/studio/adapters/interop_fig.rs, src/frontend/handshake_native/tests/test_studio_interop_fig_host.rs",
-      "Per-original-case host output/proof bound to immutable source revision and exact host candidate; no runtime result authored during preparation"
+      "Per-original-case host output/proof bound to immutable source revision and exact host candidate; no runtime result authored during preparation",
+      "Current209 individually keyed mapped host role/transition/timing/owned-aspect outcomes, independent source/profile/oracle and actual native/manual evidence; no current runtime/parity/closure claim",
+      "Current209 Layout primary12 or exact assigned12 owned aspects plus independently admitted owned source contributions; actual native/source/manual proof pending, no whole-parent credit from aspect projection"
     ],
     "stop_conditions": [
       "Unresolved activation/worktree/test entrypoint or immutable release/lock/schema/API/toolchain pin",
@@ -336,7 +700,10 @@
         "MT-36012",
         "MT-36059",
         "MT-36094",
-        "MT-36136"
+        "MT-36136",
+        "MT-36242",
+        "MT-36243",
+        "MT-36244"
       ],
       "canonical_repository_url": "https://github.com/Nuntissura/assets",
       "source_subdirectory": "handshake-studio-assets",
@@ -392,7 +759,13 @@
         "./MT-36012.json#/submissions",
         "./MT-36059.json#/submissions",
         "./MT-36094.json#/submissions",
-        "./MT-36136.json#/submissions"
+        "./MT-36136.json#/submissions",
+        "./MT-36242.json#/submissions",
+        "./MT-36242.json#/verdicts",
+        "./MT-36243.json#/submissions",
+        "./MT-36243.json#/verdicts",
+        "./MT-36244.json#/submissions",
+        "./MT-36244.json#/verdicts"
       ],
       "embedding_adapter_ref": "src/frontend/handshake_native/src/studio/adapters/interop_fig.rs",
       "compatibility_proof_refs": [
@@ -435,16 +808,44 @@
           "MT-35567/AC-001",
           "MT-35573/AC-001",
           "MT-35575/AC-001",
-          "MT-35587/AC-001"
+          "MT-35587/AC-001",
+          "MT-36237/AC-002",
+          "MT-36237/AC-003",
+          "MT-36238/AC-001",
+          "MT-36238/AC-002",
+          "MT-36238/AC-003",
+          "MT-36238/AC-004",
+          "MT-36239/AC-001",
+          "MT-36239/AC-003",
+          "MT-36239/AC-004",
+          "MT-36240/AC-002",
+          "MT-36240/AC-004",
+          "MT-36241/AC-001",
+          "MT-36241/AC-002",
+          "MT-36241/AC-003",
+          "MT-36234/AC-001",
+          "MT-36234/AC-002",
+          "MT-36234/AC-003",
+          "MT-36234/AC-004",
+          "MT-36235/AC-001",
+          "MT-36235/AC-002",
+          "MT-36235/AC-003",
+          "MT-36235/AC-004",
+          "MT-36236/AC-001",
+          "MT-36236/AC-002",
+          "MT-36236/AC-003",
+          "MT-36236/AC-004"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Offline FIG source bytes, version and component/constraint mapping. Method: Resolve selected decoder and sandbox evidence; map source-qualified object/component/variable IDs into existing Folio/Components owners Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: supported FIG object IDs, component properties, source version and loss ledger. Negative assertions: Unknown proprietary version stays blocked/opaque/loss; preserved bytes do not certify editable FIG round-trip. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
-        "expected": "Unknown proprietary version stays blocked/opaque/loss; preserved bytes do not certify editable FIG round-trip",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Offline FIG source bytes, version and component/constraint mapping. Method: Resolve selected decoder and sandbox evidence; map source-qualified object/component/variable IDs into existing Folio/Components owners Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: supported FIG object IDs, component properties, source version and loss ledger. Negative assertions: Unknown proprietary version stays blocked/opaque/loss; preserved bytes do not certify editable FIG round-trip. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output. Current v02.209 FIG host claims are OWNED_ASPECT_ONLY for the mapped parent rows; preserve exact parent criterion text but discharge only its authoritative source projection/encode/decode/roundtrip/provenance/loss contribution from each parent source_contribution_bindings and the Pulse owned-aspect report. No primary full-parent completion or native transition/easing/tick/scheduler implementation is assigned to FIG. Consume recovered interactive payload proof MT-36237/AC-001 and curve numeric/original oracle+tolerance MT-36240/AC-001 at published ports before faithful editable/render mapping. Through the actual native FIG import/export adapter, compare independently original-produced supported objects and edited reopen roundtrip, readonly/Opaque semantics, five roles, four transition fields,23 styles/8 curves/2 timing tokens, raw seconds and delay absent/zero/profile normalization provenance. Preserve source token/version, exact bounded opaque bytes and typed loss/unavailable on unsupported profile/payload/decoder/mapping; opaque retention never proves parity. Delegate native tuple/render to Components and checked ticks/scheduling to Pulse, retaining their public result/loss provenance. Independently re-read actual canonical objects/head/events/current grants and exported/reopened bytes; each mapped parent aspect is individually keyed and cannot discharge the primary whole criterion. Final v02.209 Layout parent host additions are exactly12 OWNED_ASPECT_ONLY FIG rows at each source fulfillment.later_kernel.qualified_owned_aspect_to_host pointer. Source MT-36242 proves source hierarchy/BaseFrame/Opaque/Children projection, version/qualifiers/provenance, source1920x1080/direct-parent/no-transform/one-grid/rows-only restrictions and original-produced edited reopen mapping; no native Layout frame/order/undo engine or full primary completion credit. Consume only the actual source decoder/original-profile fixture/public Layout/Folio ports. Clone-parent conflict stays typed unsupported until original-runtime proof; source grid clone-throws negative remains distinct from editable native containers. Current child source dependencies MT-36242/36243/36244 admit independently verified canonical assets releases and their own18-subset source criteria, keeping recovered interactive payload MT-36237/AC-001 and curve MT-36240/AC-001 oracle/tolerance as consumed proof artifacts, never full-parent predecessor edges. Exercise actual native FIG adapter decode/map/export/edited reopen bytes and canonical identity/order/metadata/version/loss readback for each exact mapped aspect. Existing Components/Pulse rendering/conversion/scheduling remains owned there; no whole Layout, Components or Pulse feature credit from an imported record or child criterion.",
+        "expected": "Unknown proprietary version stays blocked/opaque/loss; preserved bytes do not certify editable FIG round-trip; current209 individually keyed actual mapped owner behavior and independent proof, missing prerequisites remain PENDING/BLOCKED; each exact current209 Layout primary or assigned owned-aspect result independently proven; missing source/original/native proof remains pending",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact activated host candidate, HBR entrypoint/config, test case inputs and individually keyed original AC outputs",
           "Canonical authority re-read after success, stale/revoked denial, cancellation and acknowledgement reconciliation",
-          "Actual source release and schema/profile/provider/actor/document/grant revision"
+          "Actual source release and schema/profile/provider/actor/document/grant revision",
+          "Each mapped current209 criterion/owned aspect, exact source/profile/oracle/candidate/actor/revision/grant, real native readback and same-descriptor manual evidence; preparation/runtime/reference inspection remains PENDING",
+          "Exact source clause/parent aspect and source-owned contribution proof with immutable source/host candidate, object/actor/grant/revision, actual native/Argus readback and same-descriptor manual; no runtime proof claimed now"
         ]
       },
       {
@@ -453,8 +854,8 @@
         "claim_refs": [
           "MT-36210/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare supported FIG object IDs, component properties, source version and loss ledger and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight supported FIG object IDs, component properties, source version and loss ledger, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare supported FIG object IDs, component properties, source version and loss ledger plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
-      "expected": "Prior/candidate compatible release preserves supported FIG object IDs, component properties, source version and loss ledger; incompatible candidate is denied before authority mutation; rollback reopens/replays prior supported FIG object IDs, component properties, source version and loss ledger with accepted authority and provenance intact.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare supported FIG object IDs, component properties, source version and loss ledger and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight supported FIG object IDs, component properties, source version and loss ledger, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare supported FIG object IDs, component properties, source version and loss ledger plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider. Reuse the same mapped current209 role/transition/timing/aspect inputs on prior/candidate/rollback pins; retain source bytes, token/seconds/presence, mapping/profile/loss and accepted object/history identity across admitted upgrade and drain/rollback. Source first and mapped ownership remain required; no separate suite. Reuse exact current209 slide/row/grid source and native/owned-aspect cases across admitted prior/candidate/rollback pins; preserve identity/order/metadata/provenance/source restrictions and typed limitation/clone/loss state. Settle in-flight commands before rollback; accepted authority is never rewritten. Keep owning natural selectors and scoped owner credit.",
+        "expected": "Prior/candidate compatible release preserves supported FIG object IDs, component properties, source version and loss ledger; incompatible candidate is denied before authority mutation; rollback reopens/replays prior supported FIG object IDs, component properties, source version and loss ledger with accepted authority and provenance intact.",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -478,16 +879,44 @@
           "MT-35567/AC-001",
           "MT-35573/AC-001",
           "MT-35575/AC-001",
-          "MT-35587/AC-001"
+          "MT-35587/AC-001",
+          "MT-36237/AC-002",
+          "MT-36237/AC-003",
+          "MT-36238/AC-001",
+          "MT-36238/AC-002",
+          "MT-36238/AC-003",
+          "MT-36238/AC-004",
+          "MT-36239/AC-001",
+          "MT-36239/AC-003",
+          "MT-36239/AC-004",
+          "MT-36240/AC-002",
+          "MT-36240/AC-004",
+          "MT-36241/AC-001",
+          "MT-36241/AC-002",
+          "MT-36241/AC-003",
+          "MT-36234/AC-001",
+          "MT-36234/AC-002",
+          "MT-36234/AC-003",
+          "MT-36234/AC-004",
+          "MT-36235/AC-001",
+          "MT-36235/AC-002",
+          "MT-36235/AC-003",
+          "MT-36235/AC-004",
+          "MT-36236/AC-001",
+          "MT-36236/AC-002",
+          "MT-36236/AC-003",
+          "MT-36236/AC-004"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and supported FIG object IDs, component properties, source version and loss ledger for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-interop-fig through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
-        "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_interop_fig_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and supported FIG object IDs, component properties, source version and loss ledger for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-interop-fig through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only. Current v02.209 FIG host claims are OWNED_ASPECT_ONLY for the mapped parent rows; preserve exact parent criterion text but discharge only its authoritative source projection/encode/decode/roundtrip/provenance/loss contribution from each parent source_contribution_bindings and the Pulse owned-aspect report. No primary full-parent completion or native transition/easing/tick/scheduler implementation is assigned to FIG. Consume recovered interactive payload proof MT-36237/AC-001 and curve numeric/original oracle+tolerance MT-36240/AC-001 at published ports before faithful editable/render mapping. Through the actual native FIG import/export adapter, compare independently original-produced supported objects and edited reopen roundtrip, readonly/Opaque semantics, five roles, four transition fields,23 styles/8 curves/2 timing tokens, raw seconds and delay absent/zero/profile normalization provenance. Preserve source token/version, exact bounded opaque bytes and typed loss/unavailable on unsupported profile/payload/decoder/mapping; opaque retention never proves parity. Delegate native tuple/render to Components and checked ticks/scheduling to Pulse, retaining their public result/loss provenance. Independently re-read actual canonical objects/head/events/current grants and exported/reopened bytes; each mapped parent aspect is individually keyed and cannot discharge the primary whole criterion. Final v02.209 Layout parent host additions are exactly12 OWNED_ASPECT_ONLY FIG rows at each source fulfillment.later_kernel.qualified_owned_aspect_to_host pointer. Source MT-36242 proves source hierarchy/BaseFrame/Opaque/Children projection, version/qualifiers/provenance, source1920x1080/direct-parent/no-transform/one-grid/rows-only restrictions and original-produced edited reopen mapping; no native Layout frame/order/undo engine or full primary completion credit. Consume only the actual source decoder/original-profile fixture/public Layout/Folio ports. Clone-parent conflict stays typed unsupported until original-runtime proof; source grid clone-throws negative remains distinct from editable native containers. Current child source dependencies MT-36242/36243/36244 admit independently verified canonical assets releases and their own18-subset source criteria, keeping recovered interactive payload MT-36237/AC-001 and curve MT-36240/AC-001 oracle/tolerance as consumed proof artifacts, never full-parent predecessor edges. Exercise actual native FIG adapter decode/map/export/edited reopen bytes and canonical identity/order/metadata/version/loss readback for each exact mapped aspect. Existing Components/Pulse rendering/conversion/scheduling remains owned there; no whole Layout, Components or Pulse feature credit from an imported record or child criterion.",
+        "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked; current209 individually keyed actual mapped owner behavior and independent proof, missing prerequisites remain PENDING/BLOCKED; each exact current209 Layout primary or assigned owned-aspect result independently proven; missing source/original/native proof remains pending",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Current native screenshots/readback and stable action IDs where GUI applies",
           "Two-client isolation/fairness and cancellation/privacy outcomes",
-          "Canonical UserManual descriptors and actual three-tier captures/ingestion when native"
+          "Canonical UserManual descriptors and actual three-tier captures/ingestion when native",
+          "Each mapped current209 criterion/owned aspect, exact source/profile/oracle/candidate/actor/revision/grant, real native readback and same-descriptor manual evidence; preparation/runtime/reference inspection remains PENDING",
+          "Exact source clause/parent aspect and source-owned contribution proof with immutable source/host candidate, object/actor/grant/revision, actual native/Argus readback and same-descriptor manual; no runtime proof claimed now"
         ]
       }
     ],
@@ -551,10 +980,14 @@
     "same_change_update_required": true,
     "manual_version_bump_required": true,
     "target_entries": [
-      "handshake_native::studio: Adopt pinned hsk-studio-interop-fig through native Handshake services"
+      "handshake_native::studio: Adopt pinned hsk-studio-interop-fig through native Handshake services",
+      "Current209 mapped role/transition/timing fields/actions, raw/effective units/presence/provenance/loss and recovery; same asset/internal-host descriptor",
+      "Current209 mapped slide/row/grid native/source roles, hierarchy/qualifiers/action/clone restrictions, loss and recovery via same asset/internal-host descriptor"
     ],
     "expected_evidence": [
-      "Canonical UserManual behavior, inputs/outputs, error and recovery entries agree with actual host descriptors"
+      "Canonical UserManual behavior, inputs/outputs, error and recovery entries agree with actual host descriptors",
+      "Both canonical manual layers reflect exact current209 mapped native command and visible state; missing payload/oracle/profile proof stays unavailable",
+      "Actual admitted native/source capability and state agree with both manual layers, shared Controls/Argus/accessibility descriptor, source restrictions remain distinct from native authoring"
     ],
     "location": "src/backend/handshake_core/src/user_manual/registry.rs",
     "reason": "No-context model can operate adopted behavior and recover through actual host routes",
@@ -565,11 +998,15 @@
     "profile": "host_adoption",
     "risks": [
       "Resolve selected decoder and sandbox evidence; map source-qualified object/component/variable IDs into existing Folio/Components owners Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding. can be falsely accepted through portable fixture or generic facade result",
-      "Stale grant/revision, missing provider, incompatible pin or unknown acknowledgement can hide authority failure"
+      "Stale grant/revision, missing provider, incompatible pin or unknown acknowledgement can hide authority failure",
+      "Current209 payload-name guesses, source/native unit/token/default conflation or aspect-only projection accepted as full working feature parity",
+      "Source slide/grid constraints or clone declaration inferred as native-wide law; narrow FIG/Controls projection or source child count accepted as whole Layout engine completion"
     ],
     "minimum_controls": [
       "Independent remote source-first proof and every preserved original host criterion",
-      "Canonical authority reconciliation, fail-closed provider/pin denial and rollback after drain"
+      "Canonical authority reconciliation, fail-closed provider/pin denial and rollback after drain",
+      "First independently pin affected payload/curve/timing profile proof; exact mapped owner-only outcomes, canonical native reread and shared descriptor/manual; unknown proof cannot satisfy parity",
+      "Independent source/version/clone oracle, exact24 narrow Layout parent aspect records and primary12 separately proven on actual owning host; preserve all prior claims/source-first/foundations/pillars"
     ]
   },
   "lifecycle": {
@@ -595,5 +1032,5 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "created_at_utc": "2026-10-10T00:00:00Z",
-  "updated_at_utc": "2026-10-10T00:00:00Z"
+  "updated_at_utc": "2026-10-10T06:28:53.594683+00:00"
 }

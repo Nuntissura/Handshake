@@ -28,7 +28,7 @@
   ],
   "runtime_proof": "PENDING_NOT_RUN",
   "dispatch_authorized": false,
-  "updated_at": "2026-10-10T03:27:50.960Z",
+  "updated_at": "2026-10-10T05:47:36.276Z",
   "count": 300,
   "frozen_rows": [
     {
@@ -10967,5 +10967,965 @@
     "Canonical Nuntissura/assets immutable source/release/lock publication and independent remote/source proof before separately qualified host adoption",
     "Actual authorized Handshake native AppState/auth/ResourceBroker/CKC/SurrealDB/EventLedger/Argus/visual/diagnostic/manual/FlightRecorder/Palmistry/swarm recovery proof in distinct host contracts"
   ],
-  "next_actor": "Coordinator sole canonical publisher; author files remain immutable until actual publication ACK"
+  "next_actor": "Coordinator sole canonical publisher; author files remain immutable until actual publication ACK",
+  "spec209_existing_contract_update": {
+    "status": "FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "canonical_spec_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+    "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+    "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+    "count": 6,
+    "frozen_files": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33261.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35335.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35336.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35337.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35338.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35339.json"
+    ],
+    "frozen_rows": [
+      {
+        "mt_id": "MT-33261",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33261.json",
+        "preimage_sha256": "67187c44df3fc5c3f37511b655de64982e2c60a051d66e7cde62e1f0a311f4ca",
+        "current_sha256": "caa9cc7c4af03f45fc2cfd6eb9f16aeeefd0c1df6be404f7aed52870f433584c",
+        "spec_anchor": "STU-PRO-145",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20529,
+            "end_line": 20532,
+            "body_sha256": "36dfbc6fce12650eddc3df19f7647b8c678b72ccf8190283db539633b7c6d340",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-33261/AC-001": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-35335",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35335.json",
+        "preimage_sha256": "df35ad27bb2d7d88fa979362235f1defbd1533765dad956d23a95128ec3ea579",
+        "current_sha256": "1a9bea058fff0a269e7bf3bcaf37f88e1074a728251f8a3d5ff220549ce364e0",
+        "spec_anchor": "STU-PRO-146",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20535,
+            "end_line": 20548,
+            "body_sha256": "88fa81e482fe3917ec1471e26707e86977792cc91cad5b35b34a35a81f675387",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-35335/ASSET-AC-001": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-35336",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35336.json",
+        "preimage_sha256": "9312420bb777ee52d3a42aa2baaa10f6849a117c34eedd855c077ced73bc9556",
+        "current_sha256": "7ffad5b5e4131c7f6ffe425bf507b80b56e1749b14cfa1997db56e17c313ed8c",
+        "spec_anchor": "STU-PRO-147",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20549,
+            "end_line": 20550,
+            "body_sha256": "38deff4368939968fce043028b5b2189de859584528ccb3618d1a0e689705780",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-35336/AC-001": [
+            "MT-36199"
+          ],
+          "MT-35336/AC-002": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-35337",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35337.json",
+        "preimage_sha256": "7a10d000e2b974747ed1bd9757c8bacb72e3c381b31bf349e455e4559907564e",
+        "current_sha256": "e248353952811b07557eae40c4b0b48598df0a7b744b1e8629717c5ce466d624",
+        "spec_anchor": "STU-PRO-148",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20551,
+            "end_line": 20552,
+            "body_sha256": "557acb5e4d7520a072469f3922dc21bd05609efe4ac6ac4b6d54aa48d0cbb447",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-35337/AC-001": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-35338",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35338.json",
+        "preimage_sha256": "6d24e4263b31d889a07e7a152360a21bd495e704cac0f4b50eaebb86c4062022",
+        "current_sha256": "fc459167bf4b0eddcddc2918ddaaf10cdca83b2373863c8bc4ac5b536c4b0a8c",
+        "spec_anchor": "STU-PRO-149",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20553,
+            "end_line": 20574,
+            "body_sha256": "9a25c96dc301b433d4243f256cad0db811738a8d807bad896267e53b3ccf58db",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-35338/ASSET-AC-001": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-35339",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35339.json",
+        "preimage_sha256": "33191f470fb373efc0811712870bcc25d1ab065fa578219c2c21bbf9d937b123",
+        "current_sha256": "a22b5c0d60c03d5a300943fd02cd17813411f6f52d60143aa3d8038bea344695",
+        "spec_anchor": "STU-PRO-150",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20575,
+            "end_line": 20578,
+            "body_sha256": "915964bbd0f1a3971de11a490da6fb05884119f443f4a3cecb756625322c27cb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-35339/AC-001": [
+            "MT-36199"
+          ],
+          "MT-35339/AC-002": [
+            "MT-36199"
+          ]
+        },
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      }
+    ],
+    "freeze": {
+      "sha256": "d00bf4a64ceacf3bbca1f3dde1729df757fb1af3e16b517c706e05fedc2228b8",
+      "encoding": "SHA256 UTF8 compact recursively sorted keys JSON frozen_rows ascending numeric MT; no final LF"
+    },
+    "prior_300_freeze": {
+      "publication_commit": "75ea4cda0e9a50ba73f4a8261d408d3d5f9c2cb2",
+      "sha256": "4ac4dbf567fd42c3828aa1c9ca01e6e55ba421f44d61f1b68fd7ce5c025deafc",
+      "disposition": "Retained historical published300 freeze. Current six listed files are superseded only by this explicit209 delta; all other294 unchanged."
+    },
+    "new_167_174_physical_allocation": "PENDING_COORDINATOR; no new physical MTs or aliases authored",
+    "verification": {
+      "json_parse": "PASS",
+      "canonical209_native_git_bytes_equal_working_source": "PASS",
+      "original_payload_scope_acceptance_history_preserved": "PASS",
+      "source_ranges_and_hashes": "PASS",
+      "qualified_host_bindings_preserved": "PASS",
+      "runtime_proof": "PENDING_NOT_RUN",
+      "dispatch_allowed": false
+    }
+  },
+  "spec209_new_components_units": {
+    "status": "FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/3",
+    "canonical_spec_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+    "count": 4,
+    "acceptance_count": 17,
+    "frozen_files": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json"
+    ],
+    "frozen_rows": [
+      {
+        "mt_id": "MT-36237",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+        "current_sha256": "541f7ad749274d7e1fa012945c0936b48774bbaa72ec5f9b6aa326149633df0a",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20646,
+            "end_line": 20647,
+            "body_sha256": "d3487020e8d5e4c4400cf301c5ddbde133fdef255a492ab66a280c3335bfd8ea",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20519,
+            "end_line": 20519,
+            "body_sha256": "d34a3585387f78a92c2fb39f20012b967c795e334c6393cc45ef9ae332d8afe7",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-36237/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36237/AC-002": [
+            "MT-36199"
+          ],
+          "MT-36237/AC-003": [
+            "MT-36199"
+          ],
+          "MT-36237/AC-004": [
+            "MT-36199"
+          ]
+        },
+        "unit_kind": "clause",
+        "spec_version": "v02.209",
+        "first_acceptance": {
+          "id": "AC-001",
+          "text": "Recover and pin complete payload and interaction contracts for POLL, EMBED, FACEPILE, ALIGNMENT and YOUTUBE before working authoring/playback parity; immutable source revision, actual original-produced fixture/output and independently verified behavior are required. Do not infer payload fields from role names; an unavailable discriminator-only capture cannot pass this first criterion."
+        },
+        "hbr_rule_count": 52,
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36238",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+        "current_sha256": "64967a36bddd04b063d1838f679059396be910699b6745f3f3f142e71a645d43",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20648,
+            "end_line": 20649,
+            "body_sha256": "2523e4168a1902fe39fc3811a3c055b228606b357dd0796ac47b04d40bc9029b",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20414,
+            "end_line": 20418,
+            "body_sha256": "081058254cc27128bfab69e7d7ebd8169099416c85d43e36d881640ee7362157",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20420,
+            "end_line": 20420,
+            "body_sha256": "928b604f3e3c50a62b53d257fc85471ccae413f65f422feca6f8c7486bf08108",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20422,
+            "end_line": 20422,
+            "body_sha256": "588eb894a2e3f301952d6cfecc891eb9704279055733e776ec3b60facd90e699",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20424,
+            "end_line": 20429,
+            "body_sha256": "6f3b121135aaa16225bebc1d8a488db8dba408d9a39efec27e5ba6e675f3ffdb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20431,
+            "end_line": 20431,
+            "body_sha256": "94c9af213386a7a9c9415838a445b8f68f89e5b6a9485ea12cad29bca55b7701",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20433,
+            "end_line": 20451,
+            "body_sha256": "71f3a68fc28edb632725bec2ce95dc5ad60115084805d17fd66ce6bad0f6b25a",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-36238/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36238/AC-002": [
+            "MT-36199"
+          ],
+          "MT-36238/AC-003": [
+            "MT-36199"
+          ],
+          "MT-36238/AC-004": [
+            "MT-36199"
+          ]
+        },
+        "unit_kind": "clause",
+        "spec_version": "v02.209",
+        "first_acceptance": {
+          "id": "AC-001",
+          "text": "Materialize the exact required readonly style, duration:number, curve and timing record with source/version provenance and numeric presence; duration is seconds. Preserve optional delay absence versus zero separately from any source-runtime normalization."
+        },
+        "hbr_rule_count": 52,
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36239",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+        "current_sha256": "f6a229f658a6c94877c91c6bb3a34ed49075cae0cb439930053d81e2b2151ea2",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20650,
+            "end_line": 20651,
+            "body_sha256": "ce5285a25d4653d5b9584488cf712889db126b8fa6d7bfc79f3f08091a52c283",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20414,
+            "end_line": 20418,
+            "body_sha256": "081058254cc27128bfab69e7d7ebd8169099416c85d43e36d881640ee7362157",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20420,
+            "end_line": 20420,
+            "body_sha256": "928b604f3e3c50a62b53d257fc85471ccae413f65f422feca6f8c7486bf08108",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20422,
+            "end_line": 20422,
+            "body_sha256": "588eb894a2e3f301952d6cfecc891eb9704279055733e776ec3b60facd90e699",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20424,
+            "end_line": 20429,
+            "body_sha256": "6f3b121135aaa16225bebc1d8a488db8dba408d9a39efec27e5ba6e675f3ffdb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20431,
+            "end_line": 20431,
+            "body_sha256": "94c9af213386a7a9c9415838a445b8f68f89e5b6a9485ea12cad29bca55b7701",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20433,
+            "end_line": 20451,
+            "body_sha256": "71f3a68fc28edb632725bec2ce95dc5ad60115084805d17fd66ce6bad0f6b25a",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-36239/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36239/AC-002": [
+            "MT-36199"
+          ],
+          "MT-36239/AC-003": [
+            "MT-36199"
+          ],
+          "MT-36239/AC-004": [
+            "MT-36199"
+          ]
+        },
+        "unit_kind": "clause",
+        "spec_version": "v02.209",
+        "first_acceptance": {
+          "id": "AC-001",
+          "text": "Preserve exactly23 source style tokens with source version and typed rejection for unknown tokens; no aliases collapse direction, entry or exit semantics. NONE does not invent a source duration default."
+        },
+        "hbr_rule_count": 52,
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36240",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json",
+        "current_sha256": "c30eb8d9d6f1fe499cd2488c8e313421b3b575d428a7aba9b1a02147ed12dd8f",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20652,
+            "end_line": 20653,
+            "body_sha256": "01ee4099ad4e2f960a7836f51d64e04e211428a7298b878ada394c87ae3650bc",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_primary_clause"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20414,
+            "end_line": 20418,
+            "body_sha256": "081058254cc27128bfab69e7d7ebd8169099416c85d43e36d881640ee7362157",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20420,
+            "end_line": 20420,
+            "body_sha256": "928b604f3e3c50a62b53d257fc85471ccae413f65f422feca6f8c7486bf08108",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20422,
+            "end_line": 20422,
+            "body_sha256": "588eb894a2e3f301952d6cfecc891eb9704279055733e776ec3b60facd90e699",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20424,
+            "end_line": 20429,
+            "body_sha256": "6f3b121135aaa16225bebc1d8a488db8dba408d9a39efec27e5ba6e675f3ffdb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20431,
+            "end_line": 20431,
+            "body_sha256": "94c9af213386a7a9c9415838a445b8f68f89e5b6a9485ea12cad29bca55b7701",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          },
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20433,
+            "end_line": 20451,
+            "body_sha256": "71f3a68fc28edb632725bec2ce95dc5ad60115084805d17fd66ce6bad0f6b25a",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "supporting_native_definition"
+          }
+        ],
+        "qualified_ac_host_map": {
+          "MT-36240/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-002": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-003": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-004": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-005": [
+            "MT-36199"
+          ]
+        },
+        "unit_kind": "clause",
+        "spec_version": "v02.209",
+        "first_acceptance": {
+          "id": "AC-001",
+          "text": "FIRST: pin numeric mapping or an original-produced curve/appearance oracle and tolerance for every affected source token before faithful rendering acceptance. Record immutable source/version, source-produced samples/frames, measured tolerance and independent comparison; the captured declaration supplies no tuple, so similarly named Studio presets and self-authored fixtures do not prove source equivalence."
+        },
+        "hbr_rule_count": 52,
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      }
+    ],
+    "freeze": {
+      "sha256": "850d3967e6899cdb6c6961bc69c3db9295b492a1f98f4bed0eb736244f849f7c",
+      "encoding": "SHA256 UTF8 compact recursively sorted keys JSON frozen_rows ascending numeric MT; no final LF"
+    },
+    "research_basis": {
+      "source_declarations": "Plugin API1.141.0;07157d96c58add71d234b13bfd55b53abdce76b8",
+      "raw_vendor_sha256": "7102bde6771033114711975b1184210fbd9164c4616ebbaf6f11a7c281858bea",
+      "raw_vendor_bytes_independently_fetched_and_verified": true,
+      "complete_opaque_inheritance_declarations": 9,
+      "source_style_tokens": 23,
+      "source_curve_tokens": 8,
+      "current_spec_native_source_equal": true,
+      "selected_approach": "Full primary clause implementation contracts; existing owners supply inherited/shared behaviors; source pin/provenance and native units remain separate",
+      "rejected_options": [
+        "Enum-only duplicate units",
+        "Invented role payloads or guessed easing tuples",
+        "Discriminator preservation presented as feature parity",
+        "Native milliseconds default/bounds silently applied to source seconds"
+      ],
+      "risks_and_mitigations": [
+        "Role170 firstAC must recover complete payload/interaction evidence",
+        "Curve173 firstAC pins numerical mapping or source-produced appearance oracle/tolerance",
+        "Current official source profile applicability to immutable pin remains UNVERIFIED until affected fixture",
+        "Each source release/lock independently verified before MT36199 actual host adoption"
+      ]
+    },
+    "verification": {
+      "json_identity_parse_readback": "PASS",
+      "source_boundaries_and_hashes": "PASS",
+      "current52_hbr_registry_coverage": "PASS",
+      "literal_tokens_and_opaque9_capture": "PASS",
+      "source_proof_selectors_and_disjoint_owner_templates": "PASS",
+      "studio_gameplan": "PASS50/50",
+      "runtime": "PENDING_NOT_RUN",
+      "dispatch_allowed": false
+    },
+    "host_qualified_mapping": "Coordinator adds these actual17 qualifiedAC refs to existing36199/index/catalog; no newhostMT or aliases created",
+    "next_actor": "Coordinator independent contract review and exact scoped publication"
+  },
+  "spec209_components_ownership_binding": {
+    "status": "FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units",
+    "count": 4,
+    "acceptance_count": 17,
+    "frozen_files": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json"
+    ],
+    "frozen_rows": [
+      {
+        "mt_id": "MT-36237",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36237.json",
+        "preimage_sha256": "541f7ad749274d7e1fa012945c0936b48774bbaa72ec5f9b6aa326149633df0a",
+        "current_sha256": "582927ad515cb3fcb986db98f07d8a547571a4ef6074d4735472f2a224f6baf3",
+        "acceptance_count": 4,
+        "qualified_ac_host_map": {
+          "MT-36237/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36237/AC-002": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36237/AC-003": [
+            "MT-36199",
+            "MT-36210",
+            "MT-36213"
+          ],
+          "MT-36237/AC-004": [
+            "MT-36199",
+            "MT-36213"
+          ]
+        },
+        "source_contribution_bindings": [
+          {
+            "source_slice_id": "MT-36237-ASSET-INTEROP_FIG",
+            "source_mt": "MT-36237",
+            "source_parent_refs": [
+              "MT-36237"
+            ],
+            "producer_mt_ref": "MT-36243",
+            "source_slice_pointer": "./MT-36237.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-INTEROP_FIG",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36237/AC-002",
+              "MT-36237/AC-003"
+            ],
+            "owned_aspect": "Source object/payload projection, readonly/clone and Opaque inheritance preservation and loss-aware role mapping; consumes primary AC-001 complete payload proof, no invented payloads",
+            "consumed_primary_acceptance_proof_refs": [
+              "MT-36237/AC-001"
+            ],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36243#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36210"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          },
+          {
+            "source_slice_id": "MT-36237-ASSET-CONTROLS",
+            "source_mt": "MT-36237",
+            "source_parent_refs": [
+              "MT-36237"
+            ],
+            "producer_mt_ref": "MT-36246",
+            "source_slice_pointer": "./MT-36237.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36237/AC-003",
+              "MT-36237/AC-004"
+            ],
+            "owned_aspect": "Shared role-dispatched author/action descriptors and Controls/Argus/manual projection; consumes primary AC-001 payload schema; no separate widgets or domain engines",
+            "consumed_primary_acceptance_proof_refs": [
+              "MT-36237/AC-001"
+            ],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36246#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          }
+        ],
+        "status": "PENDING",
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36238",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36238.json",
+        "preimage_sha256": "64967a36bddd04b063d1838f679059396be910699b6745f3f3f142e71a645d43",
+        "current_sha256": "d2ffaa01d74cb4c504f7e7981f10732f5ba77df290c679ae9616923c2f237a51",
+        "acceptance_count": 4,
+        "qualified_ac_host_map": {
+          "MT-36238/AC-001": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36238/AC-002": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36238/AC-003": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36238/AC-004": [
+            "MT-36199",
+            "MT-36210",
+            "MT-36213"
+          ]
+        },
+        "source_contribution_bindings": [
+          {
+            "source_slice_id": "MT-36238-ASSET-INTEROP_FIG",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36244",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-INTEROP_FIG",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36238/AC-001",
+              "MT-36238/AC-002",
+              "MT-36238/AC-003",
+              "MT-36238/AC-004"
+            ],
+            "owned_aspect": "Raw four-field source transition encode/decode, seconds/presence/version/loss envelope; native transition evaluation and Pulse checked scheduling consumed from their owners",
+            "consumed_primary_acceptance_proof_refs": [],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36244#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36210"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          },
+          {
+            "source_slice_id": "MT-36238-ASSET-CONTROLS",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36247",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36238/AC-004"
+            ],
+            "owned_aspect": "Shared four-field, literal token, seconds/presence and raw/effective/loss Controls descriptor/action/Argus/manual projection",
+            "consumed_primary_acceptance_proof_refs": [],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36247#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          }
+        ],
+        "status": "PENDING",
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36239",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36239.json",
+        "preimage_sha256": "f6a229f658a6c94877c91c6bb3a34ed49075cae0cb439930053d81e2b2151ea2",
+        "current_sha256": "e6e401ec03f66b41d79ece6b2fb191a4fbd3845ffdf11a39683b6c52fee80892",
+        "acceptance_count": 4,
+        "qualified_ac_host_map": {
+          "MT-36239/AC-001": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36239/AC-002": [
+            "MT-36199"
+          ],
+          "MT-36239/AC-003": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36239/AC-004": [
+            "MT-36199",
+            "MT-36210",
+            "MT-36213"
+          ]
+        },
+        "source_contribution_bindings": [
+          {
+            "source_slice_id": "MT-36238-ASSET-INTEROP_FIG",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36244",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-INTEROP_FIG",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36239/AC-001",
+              "MT-36239/AC-003",
+              "MT-36239/AC-004"
+            ],
+            "owned_aspect": "Raw23-style identity/source projection and explicit unsupported/loss mapping; AC-002 native direction/entry/exit algorithm is excluded",
+            "consumed_primary_acceptance_proof_refs": [],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36244#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36210"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          },
+          {
+            "source_slice_id": "MT-36238-ASSET-CONTROLS",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36247",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36239/AC-004"
+            ],
+            "owned_aspect": "Shared23-style selector and source/native/mapping outcome Controls/Argus/manual descriptor projection; no transition algorithm",
+            "consumed_primary_acceptance_proof_refs": [],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36247#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          }
+        ],
+        "status": "PENDING",
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      },
+      {
+        "mt_id": "MT-36240",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36240.json",
+        "preimage_sha256": "c30eb8d9d6f1fe499cd2488c8e313421b3b575d428a7aba9b1a02147ed12dd8f",
+        "current_sha256": "44a45512a271a53873b7ceacd7c7b1e837ef71592e69ccd95a4748e4dc4f8a81",
+        "acceptance_count": 5,
+        "qualified_ac_host_map": {
+          "MT-36240/AC-001": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-002": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36240/AC-003": [
+            "MT-36199"
+          ],
+          "MT-36240/AC-004": [
+            "MT-36199",
+            "MT-36210"
+          ],
+          "MT-36240/AC-005": [
+            "MT-36199",
+            "MT-36213"
+          ]
+        },
+        "source_contribution_bindings": [
+          {
+            "source_slice_id": "MT-36238-ASSET-INTEROP_FIG",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36244",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-INTEROP_FIG",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36240/AC-002",
+              "MT-36240/AC-004"
+            ],
+            "owned_aspect": "Raw8-curve token/version/preservation/loss mapping projection; consumes primary AC-001 oracle/tolerance; AC-003 native tuple validation excluded",
+            "consumed_primary_acceptance_proof_refs": [
+              "MT-36240/AC-001"
+            ],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/21/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36244#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36210"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          },
+          {
+            "source_slice_id": "MT-36238-ASSET-CONTROLS",
+            "source_mt": "MT-36238",
+            "source_parent_refs": [
+              "MT-36238",
+              "MT-36239",
+              "MT-36240",
+              "MT-36241"
+            ],
+            "producer_mt_ref": "MT-36247",
+            "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "owned_parent_qualified_ac_refs": [
+              "MT-36240/AC-005"
+            ],
+            "owned_aspect": "Shared actual tuple/source token/version/tolerance/fidelity/loss Controls/Argus/manual descriptor; consumes primary numerical/appearance mapping evidence",
+            "consumed_primary_acceptance_proof_refs": [
+              "MT-36240/AC-001"
+            ],
+            "public_owner_port_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/24/maintenance_contracts/public_behavior",
+            "public_port_symbol_binding_status": "PENDING_VERIFIED_PUBLIC_CONTRACT_SELECTION; no new capability owner implied",
+            "aspect_proof_ref": "MT-36247#/proof/checks",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "status": "PENDING",
+            "dependency_kind": "consumes_published_contract",
+            "parent_full_completion_required": false
+          }
+        ],
+        "status": "PENDING",
+        "runtime_proof_status": "PENDING_NOT_RUN",
+        "dispatch_allowed": false
+      }
+    ],
+    "freeze": {
+      "sha256": "354f5709f43d621bfcaf70240f6f3afd57da63492cda407edf8b5d4ce45cc5e0",
+      "encoding": "SHA256 UTF8 compact recursively sorted keys JSON frozen_rows ascending numeric MT; no final LF"
+    },
+    "prior_freeze_history": [
+      {
+        "ref": "#/spec209_new_components_units",
+        "freeze_sha256": "850d3967e6899cdb6c6961bc69c3db9295b492a1f98f4bed0eb736244f849f7c",
+        "disposition": "Unchanged historical new4 authoring freeze; current4 bytes superseded by this ownership-only additive freeze"
+      }
+    ],
+    "verification": {
+      "all17_acceptance_text_and_source_payloads": "UNCHANGED",
+      "all36_foundation_dependencies": "UNCHANGED",
+      "new_full_parent_completion_or_self_dependency_edges": 0,
+      "source_owned_algorithms": "Components retained; FIG/Controls aspect-only",
+      "public_owner_port_and_aspect_proof_refs": "BOUND_TO_EXISTING_MODULE_CONTRACTS_AND_ALLOCATED_SOURCE_MTS; actual runtime proof PENDING",
+      "qualified_ac_host_mapping": "Exact actual granted aspects only; coordinator canonical map update pending",
+      "studio_gameplan": "PASS50/50",
+      "runtime": "PENDING_NOT_RUN",
+      "dispatch_allowed": false
+    }
+  }
 }

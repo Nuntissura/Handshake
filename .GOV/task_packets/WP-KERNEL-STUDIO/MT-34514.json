@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver \u2014 not in the panels \u2014 so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+    "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -144,7 +144,7 @@
     "title": "The eight-panel spine ships FIRST",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "parent": {
     "wp_contract_revision": null,
@@ -159,18 +159,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-SHL-078",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31415",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:31538",
         "verbatim": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout:",
         "heading": "#### 4.3 The panel inventory and the shipping spine",
         "section": "14.30",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 31415,
-            "end_line": 31420,
-            "body_sha256": "03cbf114103eb9efdcc587cd54c545ed9c8814c9e354e0876f440631226c02e1",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 31538,
+            "end_line": 31545,
+            "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -182,7 +182,8 @@
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
-      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
+      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -623,7 +624,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder. v02.209 GUI rendering/state/resize evidence remains correlated with the existing Controls/Observe diagnostic ports and privacy-safe three-tier proof; no native diagnostic ownership is transferred to Controls.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -636,7 +637,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
         "proof_status": "PENDING_NOT_RUN",
@@ -812,7 +814,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -825,7 +827,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
         "proof_status": "PENDING_NOT_RUN",
@@ -839,7 +842,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -852,7 +855,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "renderer_console_error_report",
         "proof_status": "PENDING_NOT_RUN",
@@ -866,7 +870,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item). v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -879,7 +883,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "capture_matrix",
         "proof_status": "PENDING_NOT_RUN",
@@ -893,7 +898,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion. v02.209 requires directly inspected actual Argus rendering and professional-reference comparison for typography, control discovery, docking/navigation, visible state, overlap and supported-scale resize; palette/theme declarations and uninspected screenshots do not satisfy it.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -906,7 +911,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "trace_projection_inspection",
         "proof_status": "PENDING_NOT_RUN",
@@ -947,7 +953,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window. v02.209 reference/render comparison reuses the existing bounded headless/non-intrusive Argus surface without foreground attention or focus capture; actual provider bindings remain pending.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -960,7 +966,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "headless_run_with_focus_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -974,7 +981,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking. v02.209 reference/render comparison reuses the existing bounded headless/non-intrusive Argus surface without foreground attention or focus capture; actual provider bindings remain pending.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -987,7 +994,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "automation_path_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1055,7 +1063,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1068,7 +1076,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "user_manual_diff_in_same_commit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1082,7 +1091,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1095,7 +1104,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "no_context_model_operation_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1109,7 +1119,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1122,7 +1132,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "manual_self_consistency_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1136,7 +1147,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1149,7 +1160,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
         "proof_status": "PENDING_NOT_RUN",
@@ -1271,7 +1283,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1352,7 +1364,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail. v02.209 requires the single configurable shared panel/control asset and semantic theme; reuse/configure/extend that existing owner instead of adding a near-identical widget or panel.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1365,7 +1377,8 @@
         "scope_evidence_refs": [
           "MT-34514#/scope",
           "MT-34514#/execution",
-          "MT-34514#/context_capsule/specification_anchor_refs"
+          "MT-34514#/context_capsule/specification_anchor_refs",
+          "MT-34514#/proof/checks/1"
         ],
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
         "proof_status": "PENDING_NOT_RUN",
@@ -1680,25 +1693,51 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-34514#/execution",
       "host_proof_pending": true
+    },
+    "spec_amendment_basis": {
+      "spec_version": "v02.209",
+      "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "requirement_ref": "STU-SHL-078",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "start_line": 31538,
+      "end_line": 31545,
+      "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
+      "status": "PENDING_NOT_IMPLEMENTED",
+      "reference_inspection_status": "PENDING_NOT_INSPECTED",
+      "runtime_proof_status": "PENDING_NOT_RUN"
     }
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately. The v02.209 visual acceptance is mandatory: implement the shared configurable professional desktop theme without altering original geometry, enumeration or panel identities, and retain actual Studio visual proof for the existing later host adoption.",
     "requirement_refs": [
       "STU-SHL-078"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "V209-AC-001",
+      "V209-AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored.",
         "fulfillment_ref": "MT-34514#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "V209-AC-001",
+        "text": "Every actual rendered Studio default profile layout contains exactly the existing eight invariant panel identities: context-bar, tools, properties, layers, colour, swatches, history, info. The spine must pass its existing accessibility inspector proof and the v02.209 actual rendered professional-workflow comparison before any further panel is authored; the remaining 82-panel scope, stable registry API and centre tree/scrub/slot resolver proof remain unchanged.",
+        "fulfillment_ref": "MT-34514#/fulfillment/spec_amendment_acceptance/0"
+      },
+      {
+        "id": "V209-AC-002",
+        "text": "Inspect actual Studio layouts against inspected representative Adobe professional-workflow references using Argus snapshots and the existing visual-debugging surface. Verify readable typography/content, discoverable controls, coherent docking/navigation, visible state, no text overlap and responsive resizing at supported display scales; preserve the eight identities and use the single configurable shared panel/control asset and semantic theme. Copying palette values or declaring a theme does not prove visual quality. Record selected references and rendered evidence in the existing MT proof/manual surface without a separate GUI ceremony or duplicate screenshot suite.",
+        "fulfillment_ref": "MT-34514#/fulfillment/spec_amendment_acceptance/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1823,7 +1862,7 @@
         "requirement_refs": [
           "STU-SHL-078"
         ],
-        "current_normative_instructions": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver \u2014 not in the panels \u2014 so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+        "current_normative_instructions": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
         "declared_table_keys": [],
         "source_fields": [
           "context-bar",
@@ -1848,6 +1887,30 @@
         "refinement_mapping": "Existing inputs/steps/proof retained cumulatively; exact source-specific actions below refine generic methods without dropping prior constraints.",
         "actual_consumer": "Inspect actual accessibility trees and centre/scrub/slot interactions across every default profile with all8present; collect independent inspector evidence, not metadata-only membership.",
         "source_revision_required": true
+      },
+      {
+        "spec_amendment_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-078",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31538,
+          "end_line": 31545,
+          "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "shared_asset_visual_system": "Use the single configurable shared panel/control asset and semantic theme tokens for coherent typography, neutral workspace chrome, icon treatment, spacing, visual hierarchy and selection/focus/error/disabled states. Extend the existing owner when a capability is missing instead of introducing a near-identical widget/panel; retain Handshake identity, professional Adobe desktop workflow look and feel without Adobe branding, and existing accessibility obligations. SaaS page layouts do not substitute for the working desktop workspace.",
+        "actual_rendered_visual_proof": "Inspect representative professional Adobe desktop workflow references before comparison, recording product/version, workflow/view, source or capture provenance and inspection observations. Then use the existing Argus/visual-debugging surface to drive and inspect actual rendered output, with stable author_id and agent attribution. Record readable typography/content, discoverable controls, coherent docking/navigation, visible states, no text overlap and responsive resize at supported display scales against the inspected references. Declared themes, copied Handshake palette values, component assertions, uninspected screenshots and process exit codes alone cannot pass the visual acceptance.",
+        "manual_and_evidence_surface": "Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
+        "reference_selection": {
+          "status": "PENDING_NOT_INSPECTED",
+          "selected_references": [],
+          "selection_timing": "Inspect actual professional reference artifacts before runtime comparison; no reference inspection claimed during preparation."
+        },
+        "activation_bindings": "Owning package/provider/features, executable renderer/Argus route, supported scale matrix, actor and owner artifact binding resolved from the actual implementation before proof; no target is claimed to exist."
       }
     ],
     "implementation_steps": [
@@ -1878,6 +1941,14 @@
       {
         "n": 7,
         "step": "Unproven spine or unstable registry blocks dependent panel implementation; no downstream dispatch based on authored contracts alone. Preserve existing all36foundation gate."
+      },
+      {
+        "n": 8,
+        "step": "Apply the shared configurable panel/control asset and semantic theme to the existing eight-panel spine, retaining exact panel IDs, all default profile layouts, stable registry and centre tree/scrub/slot resolver scope; do not author the remaining panels before spine acceptance."
+      },
+      {
+        "n": 9,
+        "step": "Use the existing accessibility inspector and Argus visual-debugging surface to drive actual rendered Studio layouts across every default profile and supported display scales. Inspect professional Adobe references before comparison; verify typography/content, control discovery, docking/navigation, state, no overlap and responsive resizing. Store selected references and rendered observations in the existing MT proof/manual surface, reusing captures; preserve the source/host split and require the existing host adoption MT to prove actual Studio embedding."
       }
     ],
     "expected_outputs": [
@@ -1885,11 +1956,16 @@
       "Drive source-declared valid layout/panel/profile/document request and inspect actual registry, region tree and projection changes. Keep document/selection/history/color identity untouched for presentation changes; profile/binding/occupancy constraints and persistence cascade follow the complete source excerpt in inputs.",
       "Reject unknown key, duplicate occupancy, forbidden region/kind, stale revision, denied grant or cancelled move without dropping a panel/document. Failed preference/save adapter preserves accepted layout and reports recovery; native shell/SurrealDB authority and restart proof remain distinct host adoption.",
       "Inspect actual accessibility trees and centre/scrub/slot interactions across every default profile with all8present; collect independent inspector evidence, not metadata-only membership.",
-      "Unproven spine or unstable registry blocks dependent panel implementation; no downstream dispatch based on authored contracts alone. Preserve existing all36foundation gate."
+      "Unproven spine or unstable registry blocks dependent panel implementation; no downstream dispatch based on authored contracts alone. Preserve existing all36foundation gate.",
+      "One reused configurable Controls panel/control visual system with semantic theme tokens and preserved source-specific geometry/enumeration/panel identities.",
+      "Actual inspected reference metadata, Argus rendered observations and truthful manual/descriptor evidence in existing MT proof/manual surfaces; source and full Studio host proof remain separately PENDING until actually executed."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping"
+      "Scope expansion requires owning contract; no capacity stopping",
+      "Do not pass visual acceptance from declared themes, copied palette values, synthetic fixtures, uninspected screenshots or component/static checks; absence of actual rendered output, inspected references, supported-scale coverage or reliable Argus observation is a proof blocker.",
+      "Do not introduce another panel identity, near-identical panel/widget implementation, Adobe branding or SaaS page-layout substitute; do not relax measured geometry/accessibility to make a theme fit.",
+      "Any missing default-profile spine panel, failed accessibility or actual rendered visual comparison blocks authoring further panels."
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -1966,6 +2042,69 @@
           "consumer": "Inspect actual accessibility trees and centre/scrub/slot interactions across every default profile with all8present; collect independent inspector evidence, not metadata-only membership.",
           "negative_path": "Unproven spine or unstable registry blocks dependent panel implementation; no downstream dispatch based on authored contracts alone. Preserve existing all36foundation gate."
         }
+      },
+      {
+        "check_id": "MT-34514-V209-GUI",
+        "kind": "runtime",
+        "claim_refs": [
+          "V209-AC-001",
+          "V209-AC-002"
+        ],
+        "command_or_method": "Future bounded actual Argus drive/inspect/capture and independent professional-reference comparison on the exact candidate. Use the existing visual-debugging surface and source consumer; actual Studio default-layout proof occurs through existing host adoption MT-36213. Materialize the concrete method from verified package/provider/features and routes before execution; no runtime was run during preparation.",
+        "expected": "All new v02.209 criteria pass with inspected actual rendered evidence, exact original behavior retained and truthful manual/descriptor proof. Actual Studio embedding is independently proven by the existing host adoption; none of these results are inferred from source authoring.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate identity, actual renderer/provider/features, Argus routes/author_id and agent attribution, supported scale and resize matrix, bounded timeout and observed result.",
+          "Actually inspected professional Adobe reference provenance and observations; actual Argus snapshots plus inspected rendered output and comparison observations for typography/content, discovery, docking/navigation, state, overlap and resize.",
+          "Independent accessibility and exact geometry/enumeration/eight-panel identity evidence as applicable; source asset rendering and full Studio host results separately identified.",
+          "Existing canonical UserManual/host-neutral descriptor diff, no-context operation and route/surface self-consistency; references and rendered evidence linked through the existing MT proof/manual surface without a duplicated screenshot suite."
+        ],
+        "method_recipe": {
+          "selected_packages": [
+            "hsk-studio-controls"
+          ],
+          "feature_policy": "Retain declared owning Controls+Accord+Observe closure and approved egui0.33 headless component path; actual render provider/features and host profile/scale bindings remain activation-resolved. Static/headless component proof cannot replace inspected actual rendered Studio proof.",
+          "consumer_assertion": "Use the existing accessibility inspector and Argus visual-debugging surface to drive actual rendered Studio layouts across every default profile and supported display scales. Inspect professional Adobe references before comparison; verify typography/content, control discovery, docking/navigation, state, no overlap and responsive resizing. Store selected references and rendered observations in the existing MT proof/manual surface, reusing captures; preserve the source/host split and require the existing host adoption MT to prove actual Studio embedding.",
+          "negative_path": "Inspect actual missing/hidden/clipped content, invalid or compact/over-budget layout, required selection/focus/error/disabled states and resize boundaries; reject duplicate ownership, altered identities/geometry, uninspected references or missing actual rendered evidence.",
+          "oracle": "Independent direct inspection of actual rendered Argus evidence against directly inspected professional references and the pinned v02.209 clause; exact source literals and accessibility are checked independently. Full Studio acceptance remains with the existing host adoption.",
+          "reference_comparison": "Inspect representative professional Adobe desktop workflow references before comparison, recording product/version, workflow/view, source or capture provenance and inspection observations. Then use the existing Argus/visual-debugging surface to drive and inspect actual rendered output, with stable author_id and agent attribution. Record readable typography/content, discoverable controls, coherent docking/navigation, visible states, no text overlap and responsive resize at supported display scales against the inspected references. Declared themes, copied Handshake palette values, component assertions, uninspected screenshots and process exit codes alone cannot pass the visual acceptance.",
+          "manual_and_evidence_surface": "Use the existing canonical Handshake UserManual and existing MT proof/manual surface: publish truthful host-neutral asset descriptors during the source phase; at host adoption expose actual navigation, theme/configuration, compact/resize behavior, Argus routes, input/output, failure and recovery steps through the built-in manual, with self-consistency and no-context operation proof. Record selected reference metadata and actual rendered evidence here, using the same captures rather than a duplicate screenshot suite or separate GUI ceremony.",
+          "asset_and_embedding_proof_split": {
+            "source_asset": "Actual rendered reusable Controls consumer and descriptor proof, within existing standalone source write scope.",
+            "actual_studio_host": "Existing MT-36213 must prove actual Studio default profile layouts; source authoring does not authorize host/native/kernel writes.",
+            "host_adoption_mt_refs": [
+              "MT-36213"
+            ],
+            "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE"
+          }
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "before_coding": "Approve the focused method and verified owning package/provider/features; existing implementation may create its owned target during coding.",
+          "before_handoff": "Actual target/routes must exist and execute on the exact candidate; inspect the actual rendered result and selected professional references and record independent evidence.",
+          "existing_target_claimed": false
+        },
+        "source_specific_refinement_mapping": {
+          "prior_actions_retained": true,
+          "spec_amendment_basis": {
+            "spec_version": "v02.209",
+            "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+            "requirement_ref": "STU-SHL-078",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 31538,
+            "end_line": 31545,
+            "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
+            "status": "PENDING_NOT_IMPLEMENTED",
+            "reference_inspection_status": "PENDING_NOT_INSPECTED",
+            "runtime_proof_status": "PENDING_NOT_RUN"
+          },
+          "actual_consumer": "Use the existing accessibility inspector and Argus visual-debugging surface to drive actual rendered Studio layouts across every default profile and supported display scales. Inspect professional Adobe references before comparison; verify typography/content, control discovery, docking/navigation, state, no overlap and responsive resizing. Store selected references and rendered observations in the existing MT proof/manual surface, reusing captures; preserve the source/host split and require the existing host adoption MT to prove actual Studio embedding.",
+          "negative_path": "No declared-theme or palette-only substitute; reject geometry/identity/accessibility changes, invisible state, unreadable content, overlap and failed resize."
+        },
+        "proof_status": "PENDING_NOT_RUN",
+        "reference_inspection_status": "PENDING_NOT_INSPECTED"
       }
     ],
     "independent_review_required": true,
@@ -2059,7 +2198,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver \u2014 not in the panels \u2014 so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+        "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2160,7 +2299,46 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec_amendment_history": [
+      {
+        "spec_version": "v02.209",
+        "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "working_preimage_sha256": "a859ba5dad2e68b46f72dcac44980fdd0e46a1dc021486568d1eda512b845ddd",
+        "native_preimage_sha256": "a859ba5dad2e68b46f72dcac44980fdd0e46a1dc021486568d1eda512b845ddd",
+        "prior_contract_revision": 3,
+        "prior_specification_anchor_ref": {
+          "id": "STU-SHL-078",
+          "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31415",
+          "verbatim": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout:",
+          "heading": "#### 4.3 The panel inventory and the shipping spine",
+          "section": "14.30",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "verified_source_ranges": [
+            {
+              "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+              "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+              "start_line": 31415,
+              "end_line": 31420,
+              "body_sha256": "03cbf114103eb9efdcc587cd54c545ed9c8814c9e354e0876f440631226c02e1",
+              "hash_encoding": "UTF8 line text joined LF, no final LF",
+              "range_kind": "normative_clause"
+            }
+          ],
+          "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+        },
+        "prior_closure_outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+        "prior_context_digest": "f156b16d8cf005e383a82e062bba862a66b6314b74b31a5f8155605bc93fec47",
+        "context_digest_policy": "Original captured context digest retained as historical context; current exact source pin is spec_amendment_basis.",
+        "original_acceptance_retained": true,
+        "source_phase_and_host_boundary_retained": true,
+        "new_acceptance_ids": [
+          "V209-AC-001",
+          "V209-AC-002"
+        ],
+        "runtime_status": "PENDING_NOT_RUN"
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2339,7 +2517,7 @@
         }
       ],
       "original_scope": {
-        "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver \u2014 not in the panels \u2014 so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+        "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2399,7 +2577,61 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
-    }
+    },
+    "spec_amendment_acceptance": [
+      {
+        "acceptance_id": "V209-AC-001",
+        "requirement_ref": "STU-SHL-078",
+        "source_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-078",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31538,
+          "end_line": 31545,
+          "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "semantic_fulfillment": "Every actual rendered Studio default profile layout contains exactly the existing eight invariant panel identities: context-bar, tools, properties, layers, colour, swatches, history, info. The spine must pass its existing accessibility inspector proof and the v02.209 actual rendered professional-workflow comparison before any further panel is authored; the remaining 82-panel scope, stable registry API and centre tree/scrub/slot resolver proof remain unchanged.",
+        "asset_phase": "STANDALONE_SOURCE",
+        "asset_proof_check_ref": "MT-34514#/proof/checks/1",
+        "later_embedding_required": true,
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ],
+        "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE",
+        "status": "PENDING_NOT_IMPLEMENTED"
+      },
+      {
+        "acceptance_id": "V209-AC-002",
+        "requirement_ref": "STU-SHL-078",
+        "source_basis": {
+          "spec_version": "v02.209",
+          "published_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+          "requirement_ref": "STU-SHL-078",
+          "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+          "start_line": 31538,
+          "end_line": 31545,
+          "body_sha256": "b81147273b3ff53928b0a33db9ee1685a9a39a7d21714ed2a9996131ebc3fe33",
+          "status": "PENDING_NOT_IMPLEMENTED",
+          "reference_inspection_status": "PENDING_NOT_INSPECTED",
+          "runtime_proof_status": "PENDING_NOT_RUN"
+        },
+        "semantic_fulfillment": "Inspect actual Studio layouts against inspected representative Adobe professional-workflow references using Argus snapshots and the existing visual-debugging surface. Verify readable typography/content, discoverable controls, coherent docking/navigation, visible state, no text overlap and responsive resizing at supported display scales; preserve the eight identities and use the single configurable shared panel/control asset and semantic theme. Copying palette values or declaring a theme does not prove visual quality. Record selected references and rendered evidence in the existing MT proof/manual surface without a separate GUI ceremony or duplicate screenshot suite.",
+        "asset_phase": "STANDALONE_SOURCE",
+        "asset_proof_check_ref": "MT-34514#/proof/checks/1",
+        "later_embedding_required": true,
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ],
+        "host_claim_reconciliation_status": "PENDING_COORDINATOR_HOST_CONTRACT_UPDATE",
+        "status": "PENDING_NOT_IMPLEMENTED"
+      }
+    ]
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T05:44:05.513657Z"
 }

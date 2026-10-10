@@ -137,7 +137,7 @@
     "title": "Open items and blocked dependencies (5)",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -149,18 +149,36 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WB-138",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22145",
-        "verbatim": "**[STU-WB-138] Open items and blocked dependencies.** This module declares three, and every one of them YIELDS a microtask whose FIRST acceptance criterion is resolving the named dependency:",
-        "heading": "### 5. Microtask Derivation",
-        "section": "14.15",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22168",
+        "verbatim": "**[STU-WB-138] Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 22145,
-            "end_line": 22154,
-            "body_sha256": "401cbb6953289c9bb7cb86fb40ee790ee26cafd3a5a18b8d6ed6a5b7af0a75ce",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 22168,
+            "end_line": 22177,
+            "body_sha256": "a69cb7bb1a0a89c86bec510d7834e2469995ed52e16d3561985fde77670aa084",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges",
+        "heading": "### 5. Microtask Derivation",
+        "section": "14.15"
+      },
+      {
+        "id": "STU-WB-105",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22056",
+        "verbatim": "**[STU-WB-105] Shape-with-text contract.** Additional fields: `shape_type` (a provenance-qualified diagram-shape token), `text` (a text sublayer), `corner_radius` (number, optional), plus the fill, stroke and blend surfaces of an ordinary layer. It resizes around its text. `shape_type` MUST distinguish its vocabulary origin from its literal token. The `studio_declared` vocabulary retains all twelve native shapes: rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator. The pinned Figma Plugin API 1.141.0 `shapeType` vocabulary is independently closed over these thirty source tokens: `SQUARE`, `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`, `ENG_DATABASE`, `ENG_QUEUE`, `ENG_FILE`, `ENG_FOLDER`, `TRAPEZOID`, `PREDEFINED_PROCESS`, `SHIELD`, `DOCUMENT_SINGLE`, `DOCUMENT_MULTIPLE`, `MANUAL_INPUT`, `HEXAGON`, `CHEVRON`, `PENTAGON`, `OCTAGON`, `STAR`, `PLUS`, `ARROW_LEFT`, `ARROW_RIGHT`, `SUMMING_JUNCTION`, `OR`, `SPEECH_BUBBLE`, `INTERNAL_STORAGE`. Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them. Nib owns native geometry; the existing shared enum control exposes the selected vocabulary and token. Source-compatible geometry and text resizing require their affected fixture proof; preserving a token alone proves no visual parity.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 22056,
+            "end_line": 22056,
+            "body_sha256": "4453f5496b7ad0356242a89096cd1133c361b03ec4f57f0899084fd0e7a6fece",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -169,7 +187,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1542,7 +1560,7 @@
     ]
   },
   "closure_unit": {
-    "outcome": "WB138 gap routing: WB129/130/131 remain first-acceptance blockers on actual gap MTs; no shape/scope/evidence decision fabricated. WHOLE reference-only non-yielding authority/context under WB137; no executable Rust observer/checker/helper/feature/compiled selector/dispatcher/runtime PASS. Original scope/AC/history and all current qualified identities retained as information. WB129/130/131 gaps and WB138/139/141 real-feature obligations are not waived.",
+    "outcome": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies.",
     "requirement_refs": [
       "STU-WB-138"
     ],
@@ -1552,12 +1570,12 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "WB138 gap routing: WB129/130/131 remain first-acceptance blockers on actual gap MTs; no shape/scope/evidence decision fabricated. WHOLE reference-only non-yielding authority/context under WB137; no executable Rust observer/checker/helper/feature/compiled selector/dispatcher/runtime PASS. Original scope/AC/history and all current qualified identities retained as information. WB129/130/131 gaps and WB138/139/141 real-feature obligations are not waived.",
+        "text": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies. **[STU-WB-138] Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result.",
         "fulfillment_ref": "MT-35362#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1593,7 +1611,8 @@
           "STU-WB-138"
         ],
         "scope": "WB138 gap routing: WB129/130/131 remain first-acceptance blockers on actual gap MTs; no shape/scope/evidence decision fabricated. WHOLE reference-only non-yielding authority/context under WB137; no executable Rust observer/checker/helper/feature/compiled selector/dispatcher/runtime PASS. Original scope/AC/history and all current qualified identities retained as information. WB129/130/131 gaps and WB138/139/141 real-feature obligations are not waived.",
-        "fulfillment_ref": "MT-35362#/fulfillment"
+        "fulfillment_ref": "MT-35362#/fulfillment",
+        "spec209_requirement": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies."
       }
     ],
     "implementation_steps": [],
@@ -1836,7 +1855,9 @@
         "text": "These four node kinds MUST NOT be silently absorbed into whiteboard mode. | | The whole domain rests on one source object model with no corroborating capture | [STU-WB-131] | Either obtain a second capture that corroborates the twelve board node kinds and their fields, or record operator acceptance of the single-witness basis with its reliability stated in the UserManual. | A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently and is rediscovered at implementation time.",
         "fulfillment_ref": "MT-35362#/fulfillment/legacy_acceptance_map/0"
       }
-    ]
+    ],
+    "spec209_preimage_ref": "git:ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35362.json",
+    "spec209_preservation": "Full original payload/scope/AC/history and prior active preparation are retained in unchanged native legacy fields and this exact immutable preimage; only current209 scoped requirements supersede prior active assumptions"
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -1858,11 +1879,11 @@
         "scope_basis": [
           {
             "anchor": "STU-WB-138",
-            "line": 22145,
+            "line": 22168,
             "section": "14.15",
             "heading": "### 5. Microtask Derivation",
-            "verbatim": "**[STU-WB-138] Open items and blocked dependencies.** This module declares three, and every one of them YIELDS a microtask whose FIRST acceptance criterion is resolving the named dependency:",
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "verbatim": "**[STU-WB-138] Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result.",
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
         ],
@@ -1945,7 +1966,7 @@
         "asset_proof_recipe": {
           "selected_packages": [],
           "feature_policy": "NOT_APPLICABLE_RETAINED_AUTHORITY_CONTEXT_NO_COMPILED_PROOF",
-          "consumer_assertion": "WB138 gap routing: WB129/130/131 remain first-acceptance blockers on actual gap MTs; no shape/scope/evidence decision fabricated. WHOLE reference-only non-yielding authority/context under WB137; no executable Rust observer/checker/helper/feature/compiled selector/dispatcher/runtime PASS. Original scope/AC/history and all current qualified identities retained as information. WB129/130/131 gaps and WB138/139/141 real-feature obligations are not waived.",
+          "consumer_assertion": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies.",
           "negative_path": "No dispatch for non-yielding reference.",
           "oracle": "NOT_APPLICABLE_RETAINED_AUTHORITY_CONTEXT_NO_RUNTIME_VERDICT"
         },
@@ -1956,7 +1977,8 @@
         "host_adoption_mt_refs": [],
         "later_embedding_refs": [],
         "source_closure_gate": false,
-        "host_adoption_closure_gate": false
+        "host_adoption_closure_gate": false,
+        "spec209_requirement": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies."
       }
     ],
     "later_kernel": {
@@ -2026,9 +2048,80 @@
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     },
-    "authority_reference_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22131"
+    "authority_reference_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22168",
+    "spec209_requirements": {
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "clause_anchor": "STU-WB-138",
+      "requirement": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies.",
+      "runtime_proof": "NONE_NONEXECUTABLE_REFERENCE;FEATURE_RUNTIME_PENDING",
+      "shape_vocabularies": {
+        "studio_declared": {
+          "origin": "studio_declared",
+          "spec_version": "v02.209",
+          "tokens": [
+            "rectangle",
+            "rounded rectangle",
+            "ellipse",
+            "diamond",
+            "triangle",
+            "parallelogram",
+            "hexagon",
+            "cylinder",
+            "cloud",
+            "document",
+            "predefined-process",
+            "terminator"
+          ]
+        },
+        "source": {
+          "origin": "Figma Plugin API",
+          "version": "1.141.0",
+          "declaration_commit": "07157d96c58add71d234b13bfd55b53abdce76b8",
+          "field": "shapeType",
+          "tokens": [
+            "SQUARE",
+            "ELLIPSE",
+            "ROUNDED_RECTANGLE",
+            "DIAMOND",
+            "TRIANGLE_UP",
+            "TRIANGLE_DOWN",
+            "PARALLELOGRAM_RIGHT",
+            "PARALLELOGRAM_LEFT",
+            "ENG_DATABASE",
+            "ENG_QUEUE",
+            "ENG_FILE",
+            "ENG_FOLDER",
+            "TRAPEZOID",
+            "PREDEFINED_PROCESS",
+            "SHIELD",
+            "DOCUMENT_SINGLE",
+            "DOCUMENT_MULTIPLE",
+            "MANUAL_INPUT",
+            "HEXAGON",
+            "CHEVRON",
+            "PENTAGON",
+            "OCTAGON",
+            "STAR",
+            "PLUS",
+            "ARROW_LEFT",
+            "ARROW_RIGHT",
+            "SUMMING_JUNCTION",
+            "OR",
+            "SPEECH_BUBBLE",
+            "INTERNAL_STORAGE"
+          ],
+          "basis": "LATER_PINNED_EVIDENCE_NOT_ORIGINAL_CAPTURE_RECONSTRUCTION"
+        },
+        "rules": [
+          "Keep origin and literal token separate; retain exact source token/version separately from native rendering mapping",
+          "No guessed aliases, token collapse, relabelling of native shapes as source-derived, or loss of cloud/terminator",
+          "Affected native geometry/text resize and source compatibility fixture proof remain separately PENDING; token preservation proves no visual parity"
+        ]
+      }
+    }
   },
-  "updated_at_utc": "2026-10-10T04:10:54.911Z",
+  "updated_at_utc": "2026-10-10T05:47:17+00:00",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2071,7 +2164,7 @@
   "active_acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "WB138 gap routing: WB129/130/131 remain first-acceptance blockers on actual gap MTs; no shape/scope/evidence decision fabricated. WHOLE reference-only non-yielding authority/context under WB137; no executable Rust observer/checker/helper/feature/compiled selector/dispatcher/runtime PASS. Original scope/AC/history and all current qualified identities retained as information. WB129/130/131 gaps and WB138/139/141 real-feature obligations are not waived.",
+      "criterion": "Retained WHOLE authority reference: three actual gap MTs33603/33604/33605 remain in the yields index and preserve first-acceptance identity/history. Their current first criteria bind dual shape vocabularies, actual folded owner source contributions, accepted single-witness basis and actual future shipped human/model manual obligations. Published decisions alone complete no manual/runtime proof; unrelated foundations are not blocked by feature-specific fidelity/import dependencies. **[STU-WB-138] Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result.",
       "evidence_kind": "retained_authority_context"
     }
   ]

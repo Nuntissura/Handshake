@@ -166,6 +166,25 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-PRO-148",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20551",
+        "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20551,
+            "end_line": 20552,
+            "body_sha256": "557acb5e4d7520a072469f3922dc21bd05609efe4ac6ac4b6d54aa48d0cbb447",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
       }
     ],
     "read_context": [
@@ -174,7 +193,8 @@
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
       ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -1537,7 +1557,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "56efa908d47661d5b5d4c04062aefcfbe903d6c9a2ec28ad5fd6da8c59bfd256"
+    "context_digest": "d6baba4d9f4d33ddd64a18091e5090b6ce201cdc40c50b9661437abf85f5eb6c"
   },
   "closure_unit": {
     "outcome": "Prepare standalone Components contribution for Microtask content obligation (2): Full no-context prototype task descriptor. Full original behavior retained; source runtime proof and distinct native host adoption remain PENDING.",
@@ -1550,12 +1570,13 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+        "text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209 amendment (prior wording retained as history): **[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n Verification: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "fulfillment_ref": "MT-35337#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1843,6 +1864,34 @@
         "source_repository_url": "https://github.com/Nuntissura/assets",
         "source_root": "handshake-studio-assets/crates/hsk-studio-components",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "scope": "v02.209 current normative amendment; existing207 input retained as historical capture, current209 governs changed requirements",
+        "immutable_input_and_revision_required": true,
+        "source_definition": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n",
+        "normative_records": [
+          {
+            "id": "STU-PRO-148",
+            "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20551",
+            "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "verified_source_ranges": [
+              {
+                "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+                "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+                "start_line": 20551,
+                "end_line": 20552,
+                "body_sha256": "557acb5e4d7520a072469f3922dc21bd05609efe4ac6ac4b6d54aa48d0cbb447",
+                "hash_encoding": "UTF8 line text joined LF, no final LF",
+                "range_kind": "current209_scoped_normative_clause"
+              }
+            ],
+            "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+            "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
+          }
+        ],
+        "implementation_obligation": "Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
+        "new_physical_unit_allocation": "PENDING_COORDINATOR; no IDs or aliases invented"
       }
     ],
     "implementation_steps": [
@@ -1852,7 +1901,7 @@
       },
       {
         "n": 2,
-        "step": "Consume exact published shared owner capability and materialize PRO148 literal17 triggers17 actions5 navigation9 overlay and numeric records; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Full no-context prototype task descriptor; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency."
+        "step": "Consume exact published shared owner capability and materialize PRO148 literal17 triggers17 actions5 navigation9 overlay and numeric records; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Full no-context prototype task descriptor; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency. Current v02.209 requirement: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets."
       },
       {
         "n": 3,
@@ -1923,7 +1972,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35337 components_mt_35337 -- --exact --nocapture. Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]; no target/run claimed.",
-        "expected": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+        "expected": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1937,7 +1986,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
           "negative_path": "For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2293,7 +2342,7 @@
         "original_text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
         "original_row_sha256": "09df4370941c463c7c9aee20348ece722c99e0ea9375313232d1a90ec8405f2b",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+        "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209 amendment: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35337-ASSET-COMPONENTS"
@@ -2312,7 +2361,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
           "negative_path": "For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2400,7 +2449,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+            "consumer_assertion": "Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
             "negative_path": "For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
             "oracle": "Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
             "features": [
@@ -2450,7 +2499,18 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "current_spec_amendment": {
+      "spec_version": "v02.209",
+      "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "anchor": "STU-PRO-148",
+      "requirement": "Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
+      "proof_status": "PENDING_NOT_RUN",
+      "dispatch_allowed": false,
+      "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T03:22:33.276Z"
+  "updated_at_utc": "2026-10-10T05:34:14.573Z"
 }

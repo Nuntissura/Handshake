@@ -172,6 +172,25 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-PRO-150",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20575",
+        "verbatim": "**[STU-PRO-150] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor defined in this module — [STU-PRO-033], or [STU-PRO-100] through [STU-PRO-174] — clears that status. A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated.\n\n---\n",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "start_line": 20575,
+            "end_line": 20578,
+            "body_sha256": "915964bbd0f1a3971de11a490da6fb05884119f443f4a3cecb756625322c27cb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "current209_scoped_normative_clause"
+          }
+        ],
+        "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+        "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
       }
     ],
     "read_context": [
@@ -180,7 +199,8 @@
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
       ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "pillar_refs": [
       {
@@ -1543,7 +1563,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "90a7bc314ea9a05ad5b09734a7bf6f174efe67fdf834c789d9b9cdbc3c712208"
+    "context_digest": "9528314224d6d7cf57611439e7f61b42092d93c0cac1487bbc42928ea2ef9020"
   },
   "closure_unit": {
     "outcome": "Prepare standalone Components contribution for Anchor binding (2): Resolved exact scope binding or blocked activation. Full original behavior retained; source runtime proof and distinct native host adoption remain PENDING.",
@@ -1557,17 +1577,18 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12.",
+        "text": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-150] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor defined in this module — [STU-PRO-033], or [STU-PRO-100] through [STU-PRO-174] — clears that status. A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated.\n\n---\n Verification: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "fulfillment_ref": "MT-35339#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name.",
+        "text": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-150] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor defined in this module — [STU-PRO-033], or [STU-PRO-100] through [STU-PRO-174] — clears that status. A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated.\n\n---\n Verification: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "fulfillment_ref": "MT-35339#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1855,6 +1876,34 @@
         "source_repository_url": "https://github.com/Nuntissura/assets",
         "source_root": "handshake-studio-assets/crates/hsk-studio-components",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "scope": "v02.209 current normative amendment; existing207 input retained as historical capture, current209 governs changed requirements",
+        "immutable_input_and_revision_required": true,
+        "source_definition": "**[STU-PRO-150] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor defined in this module — [STU-PRO-033], or [STU-PRO-100] through [STU-PRO-174] — clears that status. A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated.\n\n---\n",
+        "normative_records": [
+          {
+            "id": "STU-PRO-150",
+            "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20575",
+            "verbatim": "**[STU-PRO-150] Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor defined in this module — [STU-PRO-033], or [STU-PRO-100] through [STU-PRO-174] — clears that status. A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated.\n\n---\n",
+            "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+            "verified_source_ranges": [
+              {
+                "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+                "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+                "start_line": 20575,
+                "end_line": 20578,
+                "body_sha256": "915964bbd0f1a3971de11a490da6fb05884119f443f4a3cecb756625322c27cb",
+                "hash_encoding": "UTF8 line text joined LF, no final LF",
+                "range_kind": "current209_scoped_normative_clause"
+              }
+            ],
+            "verbatim_scope": "COMPLETE_SCOPED_DEFINITION",
+            "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92"
+          }
+        ],
+        "implementation_obligation": "Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
+        "new_physical_unit_allocation": "PENDING_COORDINATOR; no IDs or aliases invented"
       }
     ],
     "implementation_steps": [
@@ -1864,7 +1913,7 @@
       },
       {
         "n": 2,
-        "step": "Consume exact published shared owner capability and materialize PRO150 anchor or explicitly fenced motion anchor; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Resolved exact scope binding or blocked activation; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency."
+        "step": "Consume exact published shared owner capability and materialize PRO150 anchor or explicitly fenced motion anchor; immutable StudioDocument/StudioLayerGraph input, canonical resource/Principal/AccessSpace linkage, actor/session identity, expected document/provider revision, bounded cancellation context -> Resolved exact scope binding or blocked activation; typed outcome/diagnostic/loss receipt with actor and exact input/revision attribution. Preserve the full original native clauses/parameters/constraints and every inherited dependency. Current v02.209 requirement: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch."
       },
       {
         "n": 3,
@@ -1937,7 +1986,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35339 components_mt_35339 -- --exact --nocapture. Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12.; no target/run claimed.",
-        "expected": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12.",
+        "expected": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1951,7 +2000,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
           "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -1993,7 +2042,7 @@
           "AC-002"
         ],
         "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35339 components_mt_35339 -- --exact --nocapture. Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name.; no target/run claimed.",
-        "expected": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name.",
+        "expected": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2007,7 +2056,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
           "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2370,7 +2419,7 @@
         "original_text": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12.",
         "original_row_sha256": "51ac738ef5e318cadc265fdd9600d1c1082343e7664bbf1793621f869d2ac276",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12.",
+        "semantic_fulfillment": "A microtask that cannot cite an anchor here, and is not derived from the motion module fenced out by [STU-PRO-100], is out of scope for the prototyping domain and MUST be re-derived or retired, not activated. --- ### 12. Current v02.209 amendment: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35339-ASSET-COMPONENTS"
@@ -2389,7 +2438,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
           "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2433,7 +2482,7 @@
         "original_text": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name.",
         "original_row_sha256": "b4eb38983580cebe564b5c010be08c234659c7bf67b3c5ad881fe79d34712c4c",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name.",
+        "semantic_fulfillment": "names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name. Current v02.209 amendment: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35339-ASSET-COMPONENTS"
@@ -2452,7 +2501,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+          "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
           "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
           "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
           "features": [
@@ -2546,7 +2595,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+            "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
             "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
             "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
             "features": [
@@ -2609,7 +2658,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion.",
+            "consumer_assertion": "Verify anchor exists in actual source; never silently activate out-of-domain/provisional scope. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Current v02.209: Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
             "negative_path": "For Anchor binding (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes.",
             "oracle": "Independent public consumer of StudioPrototypeFlow compares Resolved exact scope binding or blocked activation against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity.",
             "features": [
@@ -2659,7 +2708,18 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "current_spec_amendment": {
+      "spec_version": "v02.209",
+      "canonical_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "anchor": "STU-PRO-150",
+      "requirement": "Clear PROVISIONAL only with STU-PRO-033 or current100..174 binding. Unbound/non-motion out-of-scope tasks must be re-derived or retired rather than activated. Preserve original acceptance/history and independently verify exact anchor/motion disposition; this preparation grants no dispatch.",
+      "proof_status": "PENDING_NOT_RUN",
+      "dispatch_allowed": false,
+      "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T03:22:33.278Z"
+  "updated_at_utc": "2026-10-10T05:34:14.588Z"
 }

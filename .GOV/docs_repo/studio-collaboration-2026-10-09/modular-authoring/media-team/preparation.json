@@ -21218,5 +21218,375 @@
     "originals": 578,
     "genuine_splits": 74
   },
-  "blocking_questions_status": "Initial report questions retained for history. Exact allocation/template authoring authority and source-contribution bindings were subsequently supplied; callable ports, actual proof targets/providers and runtime/editable parity remain implementation prerequisites, not unfinished preparation."
+  "blocking_questions_status": "Initial report questions retained for history. Exact allocation/template authoring authority and source-contribution bindings were subsequently supplied; callable ports, actual proof targets/providers and runtime/editable parity remain implementation prerequisites, not unfinished preparation.",
+  "spec209_pulse_preparation": {
+    "status": "COMPLETE_AUTHORING_NEW_PULSE_AND_9_LABEL_ONLY_CORRECTIONS_FROZEN_NONEXECUTION",
+    "updated_at_utc": "2026-10-10T05:52:13Z",
+    "authority": {
+      "spec_version": "v02.209",
+      "canonical_spec_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/7",
+      "source_contribution_allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units",
+      "current_template_sha256": "5425dea613b04c412bb93b8c91bdf351e3ee02edc490618486312256a4f13b45",
+      "HBR_version": "1.16.0",
+      "HBR_registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43"
+    },
+    "scope": {
+      "new_contracts": 1,
+      "field_only_amendments": 9,
+      "new_owned_unique_mt_count": 1474,
+      "prior_owned_unique_mt_count": 1473,
+      "foundation_membership": "Exact9 IDs resolve inside prior authoring_checkpoint.reviewed_rows; no new unit count for label amendments.",
+      "handshake_product": "NONE",
+      "repo_governance": "Exact MT-36241 preparation, nine scope.proof_targets_materialization labels, this owned report section; coordinator publication only."
+    },
+    "prior_history_preservation": {
+      "prior_report_raw_sha256": "25a3f4ab70cfbbdb89ab6ecae6605db9cce25dee103fe4a359d12860fc08592f",
+      "prior_report_semantic_sha256": "912a5d57cd775344549f05bf7d52f80a193d1768a3d89bff65e6220f6e84176e",
+      "prior_governance_publication": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "all_prior_report_fields": "Retained exactly, including prior timestamp/status,821 cohort and652 history/frozen rows. New section records subsequent authorized scope-field deltas; old hashes remain historical, not silently updated.",
+      "field_only_rule": "Every field other than scope.proof_targets_materialization, including revisions, timestamps, AC, payloads and methods, is unchanged on all nine."
+    },
+    "new_contract": {
+      "mt_id": "MT-36241",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36241.json",
+      "sha256": "223fd77acd01e982bbd92680c2bc845539eba9bb109e125047c5bb4d396ee63a",
+      "git_normalized_sha256": "223fd77acd01e982bbd92680c2bc845539eba9bb109e125047c5bb4d396ee63a",
+      "bytes": 172274,
+      "HBR": 52,
+      "acceptance_count": 7,
+      "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+      "clause_sha256": "a7757b10a85df41708ea4ff1c439c60563d1af89d411d2f1f15e07d1b3713c16",
+      "source_range": [
+        20654,
+        20654
+      ],
+      "host_map": {
+        "MT-36241/AC-001": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "MT-36241/AC-002": [
+          "MT-36200",
+          "MT-36210",
+          "MT-36213"
+        ],
+        "MT-36241/AC-003": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "MT-36241/AC-004": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "MT-36241/AC-005": [
+          "MT-36200"
+        ],
+        "MT-36241/AC-006": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "MT-36241/AC-007": [
+          "MT-36200"
+        ]
+      },
+      "source_contribution_refs": [
+        "MT-36244",
+        "MT-36247"
+      ],
+      "status": "PENDING",
+      "dispatch_allowed": false
+    },
+    "foundation_field_deltas": [
+      {
+        "mt_id": "MT-35540",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+        "sha256": "425e2c4a470e515312700445d89cd04677be126cfdadb101c77ab8100ca79350",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "af1293909f15f9eab6b5ea1fc0fb6283bea8059f966edb690677e74352e6d395",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "b6b48fcc7ad17a15f111fb258a60b4e13568ab4fc0a0d8dfc0aa96a3ccba9dd9",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35541",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json",
+        "sha256": "88cff2a5aa3bf94a32f6a4638fe6bbfef3d214b6ebbda5c739ecb4b27de8f2ed",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "2bffaa72ea2c46634f456a9283acbed092e4a5643cb71af70a3197f444fe5d61",
+        "revision": 2,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+        "new_sha256": "b6a6b7404056647da9c166712aa8dbbd48481164f7a87167e4cda749ab89b540",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35542",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json",
+        "sha256": "a8d68b1d06b72b4b975f7b5b7f32a26a23e5012d04d485536493a903beb27858",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "24bc5ebec17fd3bbe6ba898bced1aea49ce5cfa16d884d7a4a4873b50659cffa",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "0e070668ab61135a5d6c2b1f89fca90afc8dbea18b746a3c6e5b143fecc0b63a",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35543",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json",
+        "sha256": "572c8793ccbf95ea8b678c73e5af9e8b106a4d7fec9a70019d3ae50734bab54b",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "66b19d3cb08e418e1422ae1c2b91d3f8c806f27d1ff16f188255b5c212224099",
+        "revision": 4,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T22:28:28.447931+00:00",
+        "new_sha256": "b988462713e74aff26bb13701349e161139ae17977544053bcbbbc5e6f320795",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35552",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json",
+        "sha256": "65d04908199f89b5de45baf8154987efcf12a32e78891c1d209acead346ac52d",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "8a7994a0e9076cd5cc79c5670f2b395cfb71d295548f18a46610d33a01f4f029",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "82ee595ca44bffa39c8b69c98ebfc4dd021a4dbe4375832f9c8c36ab1c4e781d",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35559",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json",
+        "sha256": "a7168dccf78b0e2e77d3c98519d045c867aca6dbbea490b73d4bcc9f743763eb",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "5871d71413aef007dc98f95042120ae4809e3accba5ba192d8a03ccfd6f72242",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "d03421e9cbd997b416c184bacb098cb8340cd738e2bd8fabce3bb1db294797aa",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35560",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json",
+        "sha256": "201d4ec6ee0ce4d35d5c33e836c26e13a2f5df5ac7a18ffb656168a57195978d",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "4c533a30214fc94cce5db72bb6bce3faafcf831b33886ac677c86f5149263742",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "a4b6c5ad8e6be9983b72e0d758b9b104e6a74d843d721da93edf80bb78f11b9a",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35561",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json",
+        "sha256": "4f7f4056da3a2bcdc9bb68129378eb0a8da97152511ca253cb5424376b7aca20",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "386be293aa02cd70a4a97abd8fbabf57cccb9336b41d20c4545bbba9fe169ebd",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "9e656baf202106e80bff2d0557c4b9c58ba92df3f0a0ffdcd8776f6919362b92",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      },
+      {
+        "mt_id": "MT-35563",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+        "sha256": "1308e83963989a784a22f857bcb7dbeb656d1768d30f89ec8e83c549fc994abc",
+        "field": "Required before new implementation session dispatch",
+        "other_fields_sha256": "84c15a517d98bd178479ec7528f70e8bbcdfe344e6250f47742992591e13bb05",
+        "revision": 3,
+        "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
+        "updated_at_utc": "2026-10-09T23:18:37Z",
+        "new_sha256": "e05be8daac68179f6772d4066af7e4d456ebb8333adef5344cd021103300f5f3",
+        "new_field": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+        "proof": "ONLY_SCOPE_PROOF_TARGETS_MATERIALIZATION_CHANGED_ALL_OTHER_FIELDS_REVISION_TIMESTAMPS_EQUAL"
+      }
+    ],
+    "fixed_author_freeze": {
+      "files": [
+        {
+          "mt_id": "MT-35540",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+          "sha256": "b6b48fcc7ad17a15f111fb258a60b4e13568ab4fc0a0d8dfc0aa96a3ccba9dd9"
+        },
+        {
+          "mt_id": "MT-35541",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json",
+          "sha256": "b6a6b7404056647da9c166712aa8dbbd48481164f7a87167e4cda749ab89b540"
+        },
+        {
+          "mt_id": "MT-35542",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json",
+          "sha256": "0e070668ab61135a5d6c2b1f89fca90afc8dbea18b746a3c6e5b143fecc0b63a"
+        },
+        {
+          "mt_id": "MT-35543",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json",
+          "sha256": "b988462713e74aff26bb13701349e161139ae17977544053bcbbbc5e6f320795"
+        },
+        {
+          "mt_id": "MT-35552",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json",
+          "sha256": "82ee595ca44bffa39c8b69c98ebfc4dd021a4dbe4375832f9c8c36ab1c4e781d"
+        },
+        {
+          "mt_id": "MT-35559",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json",
+          "sha256": "d03421e9cbd997b416c184bacb098cb8340cd738e2bd8fabce3bb1db294797aa"
+        },
+        {
+          "mt_id": "MT-35560",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json",
+          "sha256": "a4b6c5ad8e6be9983b72e0d758b9b104e6a74d843d721da93edf80bb78f11b9a"
+        },
+        {
+          "mt_id": "MT-35561",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json",
+          "sha256": "9e656baf202106e80bff2d0557c4b9c58ba92df3f0a0ffdcd8776f6919362b92"
+        },
+        {
+          "mt_id": "MT-35563",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+          "sha256": "e05be8daac68179f6772d4066af7e4d456ebb8333adef5344cd021103300f5f3"
+        },
+        {
+          "mt_id": "MT-36241",
+          "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36241.json",
+          "sha256": "223fd77acd01e982bbd92680c2bc845539eba9bb109e125047c5bb4d396ee63a"
+        }
+      ],
+      "file_count": 10,
+      "aggregate_sha256": "68d4e0c9194029d8c2a1718af89dcf39674e74cd1be5759348540721600599be",
+      "encoding": "UTF8 sorted filepath SPACE rawsha LF finalLF",
+      "status": "FROZEN_PENDING_COORDINATOR_CANONICAL_PUBLICATION",
+      "no_author_writes_after_handoff": true
+    },
+    "qualified_owned_aspect_source_contributions": {
+      "MT-36244": [
+        {
+          "parent_acceptance_ref": "MT-36241/AC-001",
+          "contribution_acceptance_refs": [
+            "MT-36244/AC-001",
+            "MT-36244/AC-003"
+          ],
+          "owned_aspect": "Raw source timing declaration, presence/unit/version provenance and original source timing/profile fixture capture only; Pulse owns conversion and native scheduler."
+        },
+        {
+          "parent_acceptance_ref": "MT-36241/AC-002",
+          "contribution_acceptance_refs": [
+            "MT-36244/AC-001",
+            "MT-36244/AC-002",
+            "MT-36244/AC-003"
+          ],
+          "owned_aspect": "Interop-Fig timing record encode/decode and round-trip raw seconds, optional delay absence versus zero, ON_CLICK raw/effective normalization provenance and explicit mapping/loss envelope."
+        },
+        {
+          "parent_acceptance_ref": "MT-36241/AC-003",
+          "contribution_acceptance_refs": [
+            "MT-36244/AC-002"
+          ],
+          "owned_aspect": "Preserved raw seconds/provenance and mapping/loss envelope delivered to/from the Pulse public conversion port only; no arithmetic, stored tick law or scheduler duplication."
+        }
+      ],
+      "MT-36247": [
+        {
+          "parent_acceptance_ref": "MT-36241/AC-002",
+          "contribution_acceptance_refs": [
+            "MT-36247/AC-001"
+          ],
+          "owned_aspect": "Controls seconds field and explicit unset/zero/raw timing display; record serialization remains Interop-Fig and effective conversion remains Pulse."
+        },
+        {
+          "parent_acceptance_ref": "MT-36241/AC-004",
+          "contribution_acceptance_refs": [
+            "MT-36247/AC-003"
+          ],
+          "owned_aspect": "Typed shared action/descriptor consumers route manual advance, skip and cancel to the bounded admitted Pulse owner and display its actual outcomes; no scheduler/conversion implementation."
+        },
+        {
+          "parent_acceptance_ref": "MT-36241/AC-006",
+          "contribution_acceptance_refs": [
+            "MT-36247/AC-001",
+            "MT-36247/AC-002",
+            "MT-36247/AC-003"
+          ],
+          "owned_aspect": "Shared UI/model/accessibility descriptors and authoring/playback actions expose raw/effective seconds/ticks, presence, profile, rounding/loss and cancellation state; Argus/manual consume the same projection."
+        }
+      ]
+    },
+    "actual_qualified_host_map": {
+      "MT-36241/AC-001": [
+        "MT-36200",
+        "MT-36210"
+      ],
+      "MT-36241/AC-002": [
+        "MT-36200",
+        "MT-36210",
+        "MT-36213"
+      ],
+      "MT-36241/AC-003": [
+        "MT-36200",
+        "MT-36210"
+      ],
+      "MT-36241/AC-004": [
+        "MT-36200",
+        "MT-36213"
+      ],
+      "MT-36241/AC-005": [
+        "MT-36200"
+      ],
+      "MT-36241/AC-006": [
+        "MT-36200",
+        "MT-36213"
+      ],
+      "MT-36241/AC-007": [
+        "MT-36200"
+      ]
+    },
+    "proof": {
+      "status": "PASS_CANONICAL_FRESH_READ",
+      "kind": "Preparation JSON/source/pin/typed-rule-set/field-preservation canonical fresh read, not product runtime",
+      "gameplan_path": ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml",
+      "gameplan": "PASS 51/51 before report write; GP078 exact paragraph/timing and GP079 container type confirmed",
+      "new_contract_requirements": [
+        "Exact paragraph20654, sourceSHA/clauseSHA/commit",
+        "All52 unique typed currentHBR rules with concrete scope reasons and PENDING runtime proof",
+        "Seven concrete AC/proof recipes with independent source/profile/numeric/scheduler oracle needs",
+        "Only Pulse source root writable; existing actual foundational edges; no parent-full or self-cycle edges",
+        "FIG36244 andControls36247 own only mapped aspects; primaryPulse36200 andactualFIG36210/Controls36213 host links",
+        "PENDING lifecycle and dispatchfalse"
+      ],
+      "foundation_verification": "Canonical parsed JSON minus the one field has identical deterministic SHA256 per preimage; revisions and created/updated timestamps equal; scoped Git diff exactly9 one-line replacements.",
+      "report_verification": "After append, removing only this new section must recover prior report semantic SHA256; each prior field/history remains unchanged.",
+      "read_failure_and_recovery": {
+        "failure": "Read-only report membership query assumed mt_changes was a list; actual value is integer652. No files were mutated by that query.",
+        "recovery": "Inspected actual types, verified reviewed_rows list578 and all9 members; coordinator addedGP079 and current51 gate passed."
+      }
+    },
+    "runtime_or_source_publication_claim": false,
+    "builds_tests_runtime_launches": 0,
+    "product_code_writes": 0,
+    "git_mutation": false,
+    "dispatch_allowed": false,
+    "all_runtime_and_host_verdicts": "PENDING",
+    "publication_acknowledgement": {
+      "status": "PENDING_COORDINATOR_COMMIT_PUSH_INDEPENDENT_CANONICAL_REREAD",
+      "coordinator_thread": "01a122a7-3a48-72e0-9837-8c3ab6d23ae9",
+      "author_thread": "01a122a7-6148-7da1-8d2e-ecdf039e3ce9"
+    }
+  }
 }
