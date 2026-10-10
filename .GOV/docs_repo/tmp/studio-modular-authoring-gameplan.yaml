@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 78
+generation: 80
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -96,3 +96,5 @@ steps:
 - {id: GP-080, role: builder, at: before_submit, do: verify contextual anchors for insertion hunks and parse complete proposed JSON before writing, check: {type: confirm}, source: 'embedding36213:zero-context insertion appended six acceptance rows after root closing brace', state: active}
 - {id: GP-081, role: builder, at: before_submit, do: require confirmation notes single-line and at most120 characters before controller invocation, check: {type: confirm}, source: 'Visual:overlong confirmation note rejected before gate; controller TEXT_MAX=120', state: active}
 - {id: GP-082, role: orchestrator, at: before_submit, do: verify clause replacement preimages occur exactly once, check: {type: confirm}, source: 'infra: patch context matched part of a long clause; use unique complete preimages', state: active}
+- {id: GP-083, role: orchestrator, at: before_submit, do: verify actual source path via file inventory before Prism port read, check: {type: confirm}, source: 'infra: assumed studio-prism path absent; resolve actual crate path first', state: active}
+- {id: GP-084, role: orchestrator, at: before_submit, do: verify inserted spec clauses use canonical LF before manifest hashing and Git staging, check: {type: confirm}, source: 'infra: inserted CRLF clauses normalized by Git; native blob hash differed', state: active}
