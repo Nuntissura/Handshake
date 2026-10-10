@@ -1516,6 +1516,41 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35533#/execution",
       "host_proof_pending": true
+    },
+    "prism_linear_inspection_field_binding": {
+      "publication_commit": "5ed3911b09f2d789f81ca70b76d8fe2592539652",
+      "version": "v02.212",
+      "clauses": [
+        {
+          "id": "STU-CON-028",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22502,
+          "end_line": 22509,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "747eb3179f1d96aa7e60fae67e057e119ecfde35814b483c53c0dab673788808",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-029",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22510,
+          "end_line": 22517,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "a3ef9a8087f9a3bdef1279aeda147c4e0c102fc307b79f4b26737a9c9af35b08",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-031",
+          "source_ref": ".GOV/spec/master-spec-v02.212/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22524,
+          "end_line": 22527,
+          "source_sha256": "370ae7c37aefff1bc30d72cd2bfce601b86fdff5dddaf03a9c3b4b1078e44cf4",
+          "body_sha256": "9e777f2c3858e4fd6b2932c8862c427f4e040ee3411027241a0ac219ffc24491",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ],
+      "dependent_mt": "MT-35534",
+      "scope": "Existing Prism parser/ColorEngine opaque exact-ID/hash transfer inspection and actual cross-linear profile conversion only"
     }
   },
   "closure_unit": {
@@ -2048,7 +2083,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T09:33:11.468434+00:00",
+  "updated_at_utc": "2026-10-10T10:09:29.509848+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2350,7 +2385,23 @@
       "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\prism-policy-evidence.json"
     ],
     "candidate_commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
-    "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a"
+    "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+    "linear_profile_prerequisite_extension": {
+      "status": "AUTHORIZED_NOT_IMPLEMENTED",
+      "dependency": "MT-35534 canonical transfer gate",
+      "preserved_prior_verdict": "MT-35533-SOURCE-FOUNDATION-V1",
+      "source_candidate": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+      "next_actor": "workspace scoped Prism extension after Chronicle independent source freeze releases",
+      "selected_package": "hsk-studio-prism",
+      "feature_policy": "Existing exact moxcms0.9.1 extended_range +sha2 0.11.0 explicitfeatures/defaultfalse; no pin/library changes",
+      "public_surface": "Extend existing ColorEngine profile inspection and same consumer descriptor; no sibling tool or Pigment ICC parser",
+      "descriptor_contract": "Opaque profileID/actualSHA/engine/version; exact three matching type0 parametric [1.0] =>linear_light, supported other curves=>encoded; malformed/hash/unsupported/cancel reject",
+      "fixtures": "Documented deterministic derivatives of existing pinned480byte CC0 sRGB-v4/DisplayP3-v4, sharedTRC type0gamma1/taglength16/clearedprofileID, original bytes retained; derivativehash provenance required",
+      "proof_plan": "Focused owning tests/examples then independent descriptor negatives + actual both-direction linear conversion vs independent f64matrix oracle tolerance1e-4/nonidentity/unclamped output; pre/post exact candidate identities",
+      "runtime": "NOT_RUN",
+      "source_mutation": "NOT_STARTED",
+      "full_acceptance": "PENDING; existing source verdict retained, host/materialization unchanged"
+    }
   },
   "validation": {
     "proof_records": [
