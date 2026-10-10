@@ -1628,7 +1628,7 @@
       "MT-35530"
     ],
     "start_precondition": {
-      "dispatch_allowed": false,
+      "dispatch_allowed": true,
       "required_conditions": [
         "SPEC207_PUBLICATION",
         "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
@@ -1641,7 +1641,17 @@
       ],
       "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
       "foundation_members": [],
-      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
+      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+      "verified_conditions": {
+        "SPEC207_PUBLICATION": "Original207 pinned lineage retained; supporting v02.213 CON032-036 published098f8fab77db18bc644f8f93066e19a7d6c58c5e",
+        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED": "Existing all36 KernelBuilder live coordinator authorization continues same session; c66eddd4 is research lineage, not execution lease producer",
+        "FOCUSED_RECIPE_OWNER_FEATURE_SELECTION_AND_TIMEOUT_APPROVED_BEFORE_CODING": "Exact owning Nib no-default-features; exact SHA2force-soft/Kurbostd private line provider; originaltwo30sfilters unchanged; independent bounded recipe PREPARATION_READY",
+        "INDEPENDENT_CONTRACT_REVIEW": "foundation_validator actual currentCON032-036 and all14 archive/source/license independently inspected; source-only PREPARATION_READY, not runtimePASS",
+        "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING": "ActualcatalogNib existingowner; actualassets7532834 scopedsource/host292d7a1 inspected; consumeAccord/Observe, no new primitive/owner",
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND": "Verified sole external Handshake_Artifacts root; MT35535/studio-assets-kernel-builder isolated owner paths/env;4jobs; actuallockedtoolchain1.97.1",
+        "COORDINATOR_MAINTENANCE_CONTRACT_RESOLVES": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/6/maintenance currentexisting standalone-source Nib with separatehostadoptionMT36195",
+        "PROVIDER_LOCK_AND_REQUIRED_ORIGINAL_ORACLE_RESOLVED": "14exactregistry pins/licenses/source closure bound; actual minimal source lock created duringcoding checkedbeforehandoff; CON036 analyticrectangle oracle authorized; originalIllustratorcurve/fullparity remains pending"
+      }
     },
     "allowed_write_paths": [
       "handshake-studio-assets/crates/hsk-studio-nib/**"
@@ -2001,7 +2011,7 @@
       "uuid_generation": false,
       "parked_ai": false
     },
-    "current_dispatch_authorized": false
+    "current_dispatch_authorized": true
   },
   "submissions": [],
   "verdicts": [],
@@ -2060,19 +2070,19 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T12:39:54.399716+00:00",
+  "updated_at_utc": "2026-10-10T13:01:26.878862+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "preparation",
+    "phase": "implementation",
     "status": "PENDING",
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "contract_preparation_only": true,
-    "blocked_on": "NIB_BOUNDED_ADAPTATION_RECIPE_AND_INDEPENDENT_PREPARATION_REVIEW",
+    "contract_preparation_only": false,
+    "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
     "completed_by": null
   },
@@ -2229,7 +2239,7 @@
     "session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
     "runtime": "NOT_RUN",
     "compile": "NOT_RUN",
-    "preparation_status": "CANONICAL_FIELDS_RESOLVED_PENDING_ADAPTATION_RECIPE_REVIEW",
+    "preparation_status": "PREPARATION_READY_SOURCE_IMPLEMENTATION_ONLY",
     "predecessor_verdicts": [
       "MT-35528-SOURCE-PIGMENT-REGISTRY-EXTENSION-V6",
       "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
@@ -2264,6 +2274,201 @@
       ],
       "validation_plan": "Existingtwoexact30sowning filters + realexternalconsumer/directedNetwork analyticshoelace/winding + actualrequestedallocator/lifetime/cancel/delivery tests; implementercheck/clippy only"
     },
-    "next_actor": "Parent binds concrete bounded line-only adaptation recipe and obtains independent preparation review before coding"
+    "next_actor": "Parent and disjoint owned-source agents implement Nib/required Observe/workspace extension; parent static check then pushed source handoff to independent validator",
+    "independent_preparation_review": {
+      "executor": "foundation_validator",
+      "disposition": "PREPARATION_READY_NOT_RUNTIME_PASS",
+      "source_basis": "Actual CON032-036, source-derived collection bounds and all14 independently registry/archive/license matched pins",
+      "conditions": [
+        "Eight original identities, no synthetic coordinate/subdivision/epsilon/refit route",
+        "Unique-needed bitset and coordinate dedup before insertion",
+        "Each fixed capacity guarded before mutation; work/epoch/cancel per bounded unit",
+        "No allocating Accord constructors in borrowed decoder",
+        "Actual minimal lock/selected features and compiler/runtime proof still required before handoff"
+      ]
+    },
+    "provider_binding": {
+      "source_reference": {
+        "vectorcraft_commit": "825d4fdb8b527c597855d273fb4bcc1971855b6a",
+        "linesweeper_version": "0.4.0",
+        "linesweeper_vcs": "7e735ff3eae44fb6580e92a2ff4f67a34b12e75c",
+        "linesweeper_archive_sha256": "9c19728333c060c6569a53c9a0e56c4be0df52cb4e6e07a8fbe16084cecce769",
+        "runtime": "Private smallest exact-axis line specialization in existing Nib; not whole upstream package/app"
+      },
+      "direct_dependencies": [
+        {
+          "default_features": false,
+          "name": "sha2",
+          "features": [
+            "force-soft"
+          ],
+          "version": "=0.10.9"
+        },
+        {
+          "default_features": false,
+          "name": "kurbo",
+          "features": [
+            "std"
+          ],
+          "version": "=0.13.1"
+        }
+      ],
+      "selected_registry_pins": [
+        {
+          "name": "sha2",
+          "version": "0.10.9",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "digest",
+          "version": "0.10.7",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "block-buffer",
+          "version": "0.10.4",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "crypto-common",
+          "version": "0.1.7",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "generic-array",
+          "version": "0.14.7",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+          "license": "MIT"
+        },
+        {
+          "name": "typenum",
+          "version": "1.20.1",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "cfg-if",
+          "version": "1.0.5",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "cpufeatures",
+          "version": "0.2.17",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "libc",
+          "version": "0.2.189",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "version_check",
+          "version": "0.9.5",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+          "license": "MIT/Apache-2.0"
+        },
+        {
+          "name": "kurbo",
+          "version": "0.13.1",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "4b60dfc32f652b926df6192e55525b16d186c69d47876c3ead4da5cc9f8450e2",
+          "license": "Apache-2.0 OR MIT"
+        },
+        {
+          "name": "arrayvec",
+          "version": "0.7.8",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "polycool",
+          "version": "0.4.0",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "50596ddc09eb5ad5f75cacd40209568e66df71baf86e1499a0e99c4cff12a5a6",
+          "license": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "smallvec",
+          "version": "1.16.2",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e",
+          "license": "MIT OR Apache-2.0"
+        }
+      ],
+      "evidence_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\research\\sha2-kurbo-source-preparation.json",
+      "evidence_sha256": "0e4c412cb872ec95f7a706b12f9b7e30929a0ab796e0363c67c91d5f1595485b",
+      "actual_cargo_lock": "CREATED_DURING_CODING_PENDING_ACTUAL_CLOSURE_CHECK",
+      "original_oracle_disposition": "CON036 analytic rectangle source proof; original Illustrator editable curves/full fidelity stay existing pending owners"
+    },
+    "bounded_adaptation_recipe": {
+      "input_subset": "Exactly two closed four-anchor axis-aligned rectangles with zero relative handles; reject unsupported before provider",
+      "capacities": {
+        "original_records_tags_orientation_prev_next_enter_exit_cursors_each": 8,
+        "pair_table": 28,
+        "cuts_per_original": 16,
+        "cut_references_total": 128,
+        "atomic_pieces": 120,
+        "unique_coordinate_vertices": 64,
+        "directed_halfedges_and_endpoint_actions": 240,
+        "comparison_policies": 2,
+        "comparison_entries_per_policy": 28,
+        "comparison_orders_per_entry": 2,
+        "source_identity_scratch_each": 8,
+        "horizontal_identity_scratch_each": 4,
+        "open_piece_queues_per_original": 3,
+        "changed_intervals_premerge": 20,
+        "exact_source_y_levels": 4,
+        "processed_ranges_and_scan_after": 80,
+        "per_range_output_events": 240,
+        "parallel_output_piece_arrays_each": 120,
+        "endpoint_and_neighbor_arrays_each": 240,
+        "contour_visited_segment_owner_walk_flat_loop_refs_each": 120,
+        "last_visit": 64,
+        "contours_parents_children_regions_forest_stack_each": 120
+      },
+      "derivation": [
+        "Each original edge has2 own endpoints plus atmost2 cuts from each7 partner edges =>16 refs,15 atomic pieces;8edges=>128refs/120pieces",
+        "8 original corners plus2*28pair endpoints=>64 unique coordinate points;dedup required",
+        "Each atomic piece has2 directed endpoints=>240;128 cuts is not event capacity",
+        "Horizontal4 + unique-needed adjacent8 + changed8 =>20 intervals before decreasing in-place merge;4 exact source y levels =>80 ranges;scan_after atmostone/range",
+        "Each visited boundary piece appears once in flat contour refs=>120;parent/scanwest chains bounded120,neighbor hops240 and cycle guards"
+      ],
+      "source_anchors": [
+        "linesweeper-0.4.0/src/sweep/sweep_line.rs:308-327,405-411,909-953,969-1025,1034-1117,1485-1498",
+        "linesweeper-0.4.0/src/sweep/sweep_line.rs:1552,1594,1624",
+        "linesweeper-0.4.0/src/topology.rs:644-705,708-825,1287-1424,2177-2195"
+      ],
+      "guards": "Try-insert/identity/range checks before every mutation; explicit source original identity preserved, dedup unique positions/points; typed refusal not truncation",
+      "work": "Checked count/cancel/epoch before pair/cut/sort comparison/move/event/range/winding/link/coincidence/neighbor/scanwest/contour/forest/canonical unit;80ranges not80workunits;iterative cycle/hop caps",
+      "unreachable": [
+        "Autoclose",
+        "Cubic/quadratic/AlmostHorizontalDecomposition recursive subdivision",
+        "epsilon snap/perturbation/general compute_positions",
+        "TreeVec/BTreeSet/FxHashMap/SmallVec/Metrics dynamic growth",
+        "segs_to_path/can_merge/snap_horizontals/sliver/tiny drop/tidy/sample fit/endpoint substitution",
+        "recursive grouped traversal"
+      ],
+      "allocation": "Stack fixed arena; checked pinned Rust Arc header+actual RetainedInner Layout with pad_to_align reserved before creation; immutable borrow/precharged source lease; last Arc::into_inner frees control before inline retirement; no Weak or mutable lease escape; bounded inline pending token retains same owner",
+      "decoder": "Private borrowed strict matcher; fixed known-record key bitsets; escaped decoded keys/values compare prevalidated Accord identities; no owned tree/constructors; exact numeric f64 equality after strictJSON finite conversion, -0 equals0 while original byte fingerprint retained; structural max depth5 enforced before scan; scan all original bytes and SHA hash chunks with shared work/cancel meter",
+      "validation": "Retain exact2 path_boolean filters30seconds; independent analytic winding/shoelace/topology/style, private actualallocator lifetime and public failure/delivery proof; parent compile/static only"
+    }
   }
 }
