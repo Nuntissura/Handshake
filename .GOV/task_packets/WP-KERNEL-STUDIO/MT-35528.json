@@ -1891,7 +1891,19 @@
     },
     "current_dispatch_authorized": false
   },
-  "submissions": [],
+  "submissions": [
+    {
+      "candidate_commit": "dde2be4075c502316320da8baa6592dff7b764af",
+      "candidate_tree": "e5248262181415040f54883c64ff906b6656376e",
+      "status": "READY_FOR_VALIDATION",
+      "source_published": true,
+      "proof_refs": [
+        "validation.proof_records/0"
+      ],
+      "runtime": "NOT_RUN",
+      "host": "PENDING_NOT_AUTHORIZED"
+    }
+  ],
   "verdicts": [],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
@@ -1955,8 +1967,8 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "implementation",
-    "status": "PENDING",
+    "phase": "validation",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2120,8 +2132,110 @@
       "MT-35528"
     ],
     "scope": "standalone_source",
-    "runtime": "NOT_RUN",
-    "compile": "PENDING_SOURCE_MATERIALIZATION",
-    "next_actor": "workspace coding lane; parent compile/static; independent runtime validator"
+    "runtime": "PENDING_INDEPENDENT_VALIDATOR",
+    "compile": "STATIC_PASS_INPUTS_UNCHANGED",
+    "next_actor": "foundation_validator",
+    "materialized_commands": {
+      "compiler_static": {
+        "argv": [
+          "rustc",
+          "+1.97.1",
+          "--edition=2024",
+          "--emit=metadata",
+          "-D",
+          "warnings",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+          "-o",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\cargo-target\\workspace-probe.rmeta"
+        ],
+        "inputs": [
+          "handshake-studio-assets/tools/workspace-probe.rs"
+        ],
+        "runtime": false
+      },
+      "independent_runtime": {
+        "compiler_argv": [
+          "rustc",
+          "+1.97.1",
+          "--edition=2024",
+          "-D",
+          "warnings",
+          "-C",
+          "debuginfo=line-tables-only",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+          "-o",
+          "{VALIDATOR_OWNER}/cargo-target/workspace-probe.exe"
+        ],
+        "consumer_argv": [
+          "{VALIDATOR_OWNER}/cargo-target/workspace-probe.exe",
+          "--root",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+          "--provenance",
+          "{VALIDATOR_OWNER}/provenance.toml",
+          "--revision",
+          "{PUSHED_CANDIDATE_COMMIT}",
+          "--tree",
+          "{PUSHED_CANDIDATE_TREE}"
+        ],
+        "bounded_cases": [
+          "actual_candidate_positive",
+          "unknown_package",
+          "duplicate_member",
+          "unsupported_toolchain",
+          "unsupported_provider",
+          "absent_selected_optional_host_path",
+          "unreadable_input",
+          "forbidden_pure_leaf_gpu_dependency"
+        ],
+        "per_case_timeout_seconds": 30,
+        "runtime": "PENDING_INDEPENDENT_VALIDATOR",
+        "fixture_policy": "Positive uses actual committed canonical input bytes; rejection mutations confined to validator owner artifacts; independently reconcile provenance against source Git"
+      }
+    },
+    "candidate_commit": "dde2be4075c502316320da8baa6592dff7b764af",
+    "candidate_tree": "e5248262181415040f54883c64ff906b6656376e",
+    "source_published": true,
+    "validator_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator",
+    "validator_session": "foundation_validator"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35528"
+        ],
+        "command": [
+          "rustc",
+          "+1.97.1",
+          "--edition=2024",
+          "--emit=metadata",
+          "-D",
+          "warnings",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+          "-o",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\cargo-target\\workspace-probe.rmeta"
+        ],
+        "result": "PASS",
+        "exit_code": 0,
+        "candidate_commit": "dde2be4075c502316320da8baa6592dff7b764af",
+        "candidate_tree": "e5248262181415040f54883c64ff906b6656376e",
+        "input_hashes_before": {
+          "handshake-studio-assets/Cargo.toml": "3946803882d0bad7cb9a96ceeae7a230eb57dc7ef682b658dedc37b7d85fe199",
+          "handshake-studio-assets/Cargo.lock": "5ed1dc0bb439a128401da242e5ce96a212f817456e05d3889803bb246af9eb0a",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/tools/workspace-probe.rs": "eeb4ded8ef25a43718ea5c281bf20515b2fc63f55875cf27f84e5e224f978492"
+        },
+        "input_hashes_after": {
+          "handshake-studio-assets/Cargo.toml": "3946803882d0bad7cb9a96ceeae7a230eb57dc7ef682b658dedc37b7d85fe199",
+          "handshake-studio-assets/Cargo.lock": "5ed1dc0bb439a128401da242e5ce96a212f817456e05d3889803bb246af9eb0a",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/tools/workspace-probe.rs": "eeb4ded8ef25a43718ea5c281bf20515b2fc63f55875cf27f84e5e224f978492"
+        },
+        "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\logs\\compiler-static.log",
+        "proof_kind": "compile_static_only",
+        "observed_at": "2026-10-10T07:19:11.538120+00:00"
+      }
+    ]
   }
 }
