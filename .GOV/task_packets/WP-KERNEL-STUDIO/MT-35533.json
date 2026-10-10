@@ -1955,7 +1955,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T09:06:17.127243+00:00",
+  "updated_at_utc": "2026-10-10T09:21:32.464996+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2202,7 +2202,20 @@
         ],
         "validation_plan": "Focused selected dependency static compile/Clippy; independent checked-in30s cases and actual external-input consumer converting sRGB-v4 toDisplayP3-v4; f64 ICC oracle eachchannel\u00b10.0001 with explicitnonidentity and pinned realprofile hashes; malformed/unsupported/CICP/singular/wronghash/nonfinite/depth/cancel/stale/sinkreject preserveoriginalinput"
       }
-    }
+    },
+    "resolved_registry_pin_evidence": {
+      "metadata_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\logs\\resolved-registry-metadata.json",
+      "cargo_metadata_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\logs\\resolved-cargo-metadata.json",
+      "registry_lock_records": 13,
+      "selected_windows_compiled_registry_records": 12,
+      "conditional_libc": "Lock closure includes libc platformconditional dependency; Windows focused check didnotcompile libc",
+      "classification_boundary": "Ownerapproved pure-Rust selectionpolicy and linksnone metadata do not alone independentlycertify implementationpurity",
+      "candidate": "5a7acd8554c3a016c39c615320321b81bdbc7019"
+    },
+    "dependency_static_evidence": [
+      "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\logs\\workspace-policy-compile-evidence.json",
+      "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\logs\\dependency-compile-evidence.json"
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2229,15 +2242,19 @@
     ],
     "scope": "standalone_source",
     "predecessor_verdicts": [
-      "MT-35528-SOURCE-FOLIO-REGISTRY-EXTENSION-V3",
+      "MT-35528-SOURCE-PRISM-REGISTRY-EXTENSION-V4",
       "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
       "MT-35530-SOURCE-FOUNDATION-V1"
     ],
     "source_owner_search": "Catalog registers STUDIO-MODULE-PRISM; actualassetsworkspace has3members, Prism directory absent; canonical specColorEngine owner reused, no newcatalog orprofile primitive",
     "source_feature_policy": "Exact moxcms0.9.1 extended_range defaultsfalse; sha2 0.11.0 defaultsfalse; Accord+Observe module deps; no platform CMM/native/provider",
     "runtime": "NOT_RUN",
-    "compile": "NOT_RUN",
-    "next_actor": "Parent workspace approved Prism owner policy/pin materialization after Folio proof freeze release",
-    "per_test_timeout": "Checked-in foundation_contract bounded_case30s before handoff; no outer timeout"
+    "compile": "DEPENDENCY_TARGET_ONLY_NOT_FOUNDATION",
+    "next_actor": "workspace scoped real Prism ColorEngine implementation",
+    "per_test_timeout": "Checked-in foundation_contract bounded_case30s before handoff; no outer timeout",
+    "prerequisite_candidate": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+    "prerequisite_proof_refs": [
+      "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\prism-policy-evidence.json"
+    ]
   }
 }

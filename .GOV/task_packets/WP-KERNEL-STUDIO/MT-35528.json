@@ -2912,6 +2912,68 @@
       ],
       "full_acceptance": "PENDING; source prerequisite extension only",
       "observed_at": "2026-10-10T08:41:39.280372+00:00"
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-PRISM-REGISTRY-EXTENSION-V4",
+      "mt_id": "MT-35528",
+      "verdict": "PASS_V4",
+      "scope": "standalone_source_prerequisite_extension_only",
+      "candidate_commit": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+      "candidate_tree": "e959f77a2032ccd27a76a618648f4bcada45951f",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-PRISM-REGISTRY-EXTENSION-V4"
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Owner match allowlist and per-owner direct table cardinality",
+        "Actual expanded root manifest/lock sourcechecksum closure",
+        "Preserved Folio selection and disjoint Prism/serialization registry policy"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Independent changed probe compiler with pinned1.97.1 and -Dwarnings; actual emitted JSON/descriptor inspected",
+        "Prism13lock and Folio17lock emitted registry identities independently equal canonical metadata/lock",
+        "Exact14nativeSHA andGitfilter identity pre/post, live pushedbranch clean",
+        "Seven unchanged Folio compiler/runtime source inputs reconciled; affected workspace selection refreshed"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing owner match would admit rejected Folio moxcms or Prism serde direct dependencies",
+        "Using shared union policy instead of per-owner approved set would admit rejected directtable contamination",
+        "Removing version/default/features/source/checksum/pin/cycle guards would admit their corresponding rejected fixture"
+      ],
+      "BOUNDARY_PROBES": [
+        "Canonical actual files -> independent standalone executable -> actualPrism3module/13registry andFolio2module/17registry JSON",
+        "Actual descriptor describes two explicit owner allowlists and no compiler/purity claim"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "prism-policy-exact-version",
+        "prism-policy-defaults",
+        "prism-policy-features",
+        "prism-policy-git",
+        "prism-policy-alternate-registry",
+        "prism-policy-missing-transitive-pin",
+        "prism-policy-checksum-drift",
+        "prism-policy-missing-checksum",
+        "prism-policy-source-drift",
+        "prism-policy-missing-source",
+        "prism-policy-ambiguous-lock",
+        "prism-policy-cycle",
+        "prism-policy-host-closure",
+        "prism-policy-native-closure",
+        "prism-policy-folio-moxcms",
+        "prism-policy-prism-serde",
+        "prism-policy-folio-policy-contamination",
+        "prism-policy-prism-policy-contamination"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Probe walks cross-platform Cargo.lock and includes conditional libc; this13record inspection is distinct from actualWindows compiler12registry closure",
+        "Registry pure-rust remains approved policy classification, no independent13librarypurity/runtime claim",
+        "Prism currently dependency target only; no Prism foundation/colortransform/render/kernel/native proof",
+        "Original finalfoundation barrier and laterkernel/host fullacceptance PENDING"
+      ],
+      "full_acceptance": "PENDING; source prerequisite extension only",
+      "observed_at": "2026-10-10T09:14:58.661261+00:00"
     }
   ],
   "blockers": [],
@@ -2977,9 +3039,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "PASS_V2",
+    "status": "PASS_V4",
     "active": true,
-    "validator_verdict": "PASS_V2",
+    "validator_verdict": "PASS_V4",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -4356,6 +4418,446 @@
         "full_acceptance": "PENDING; original contracts and later kernel unchanged",
         "binary_sha256": "45fe43fadb43fca5e94288fbeeea11fcd706a8f719372128f279cd554543eeb5",
         "registry_identity_reconciliation": "Actual emitted17 entries equal canonical Cargo.lock and owner metadata source/checksum/name/version; pure-rust is approved metadata classification, not independent source purity or selected feature compiler proof."
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-PRISM-REGISTRY-EXTENSION-V4",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35528"
+        ],
+        "candidate_commit": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+        "candidate_tree": "e959f77a2032ccd27a76a618648f4bcada45951f",
+        "result": "PASS",
+        "scope": "owner-scoped workspace allowlist/pin selection extension only",
+        "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\prism-policy-evidence.json",
+        "commands": [
+          [
+            "rustc",
+            "+1.97.1",
+            "--edition=2024",
+            "-D",
+            "warnings",
+            "-C",
+            "debuginfo=line-tables-only",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+            "-o",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\positive-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\folio-regression-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--descriptor"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-exact-version",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\exact-version-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-defaults",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\defaults-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-features",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\features-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-git",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\git-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-alternate-registry",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\alternate-registry-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-missing-transitive-pin",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\missing-transitive-pin-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-checksum-drift",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\checksum-drift-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-missing-checksum",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\missing-checksum-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-source-drift",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\source-drift-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-missing-source",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\missing-source-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-ambiguous-lock",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\ambiguous-lock-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-cycle",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\cycle-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-host-closure",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\host-closure-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-native-closure",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\native-closure-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-folio-moxcms",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\folio-moxcms-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-prism-serde",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-serde-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-folio-policy-contamination",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\folio-policy-contamination-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-prism-policy-contamination",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\prism-policy-contamination-provenance.toml",
+            "--revision",
+            "5a7acd8554c3a016c39c615320321b81bdbc7019",
+            "--tree",
+            "e959f77a2032ccd27a76a618648f4bcada45951f",
+            "--package",
+            "hsk-studio-prism"
+          ]
+        ],
+        "input_identity_before": {
+          "commit": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+          "tree": "e959f77a2032ccd27a76a618648f4bcada45951f",
+          "remote": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+          "status": "",
+          "inputs": {
+            "Cargo.toml": {
+              "sha256": "ddccb58343ad6f939b4f6b81b03fb386b07c4fd055df3976b31819f9299e6a31",
+              "blob": "9ba7722d52cad097b4d2d1b24edaa0dad9b89f70"
+            },
+            "Cargo.lock": {
+              "sha256": "293e9b64d77c1d4303ab18f79ab8a743172b980e48d37e6fdedb1c305807c148",
+              "blob": "71748897c8be861cb7944bbe9121f96b0531849d"
+            },
+            "rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "tools/workspace-probe.rs": {
+              "sha256": "0c5fbf1e089d8ae5e77ce8a5733d82f398be706f6f1d9c0eb163cbdb6770c0c1",
+              "blob": "3f8e66516ede294158d52dc7caa5fc58d41c7489"
+            },
+            "crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "crates/hsk-studio-observe/Cargo.toml": {
+              "sha256": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+              "blob": "6ac479ca23509bf97df71f1e7c5969285dcf7e61"
+            },
+            "crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            },
+            "crates/hsk-studio-prism/Cargo.toml": {
+              "sha256": "f56703fb7c1ff76f35351532eb2bcd5abad629cbcab5c6235d09549532935260",
+              "blob": "bd54e7667c180fb499b379549c2208e4fc9964aa"
+            },
+            "crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "crates/hsk-studio-observe/src/lib.rs": {
+              "sha256": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+              "blob": "067b65b90922c41a8b4a48d8519ab4bcd5da6571"
+            },
+            "crates/hsk-studio-folio/src/lib.rs": {
+              "sha256": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+              "blob": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+            },
+            "crates/hsk-studio-prism/src/lib.rs": {
+              "sha256": "102304213a8e8953e6825543e704891f839c25cc8242da217a26efe1433a68ef",
+              "blob": "d0790d141c47c866d591f561393d8cbd7ef987d4"
+            },
+            "crates/hsk-studio-folio/tests/foundation_contract.rs": {
+              "sha256": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56",
+              "blob": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+            },
+            "crates/hsk-studio-folio/examples/folio-consumer.rs": {
+              "sha256": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+              "blob": "fc440187c553869565f79629bb024f06ca4c2387"
+            }
+          }
+        },
+        "input_identity_after": {
+          "commit": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+          "tree": "e959f77a2032ccd27a76a618648f4bcada45951f",
+          "remote": "5a7acd8554c3a016c39c615320321b81bdbc7019",
+          "status": "",
+          "inputs": {
+            "Cargo.toml": {
+              "sha256": "ddccb58343ad6f939b4f6b81b03fb386b07c4fd055df3976b31819f9299e6a31",
+              "blob": "9ba7722d52cad097b4d2d1b24edaa0dad9b89f70"
+            },
+            "Cargo.lock": {
+              "sha256": "293e9b64d77c1d4303ab18f79ab8a743172b980e48d37e6fdedb1c305807c148",
+              "blob": "71748897c8be861cb7944bbe9121f96b0531849d"
+            },
+            "rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "tools/workspace-probe.rs": {
+              "sha256": "0c5fbf1e089d8ae5e77ce8a5733d82f398be706f6f1d9c0eb163cbdb6770c0c1",
+              "blob": "3f8e66516ede294158d52dc7caa5fc58d41c7489"
+            },
+            "crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "crates/hsk-studio-observe/Cargo.toml": {
+              "sha256": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+              "blob": "6ac479ca23509bf97df71f1e7c5969285dcf7e61"
+            },
+            "crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            },
+            "crates/hsk-studio-prism/Cargo.toml": {
+              "sha256": "f56703fb7c1ff76f35351532eb2bcd5abad629cbcab5c6235d09549532935260",
+              "blob": "bd54e7667c180fb499b379549c2208e4fc9964aa"
+            },
+            "crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "crates/hsk-studio-observe/src/lib.rs": {
+              "sha256": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+              "blob": "067b65b90922c41a8b4a48d8519ab4bcd5da6571"
+            },
+            "crates/hsk-studio-folio/src/lib.rs": {
+              "sha256": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+              "blob": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+            },
+            "crates/hsk-studio-prism/src/lib.rs": {
+              "sha256": "102304213a8e8953e6825543e704891f839c25cc8242da217a26efe1433a68ef",
+              "blob": "d0790d141c47c866d591f561393d8cbd7ef987d4"
+            },
+            "crates/hsk-studio-folio/tests/foundation_contract.rs": {
+              "sha256": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56",
+              "blob": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+            },
+            "crates/hsk-studio-folio/examples/folio-consumer.rs": {
+              "sha256": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+              "blob": "fc440187c553869565f79629bb024f06ca4c2387"
+            }
+          }
+        },
+        "binary_sha256": "fe57398b0f5b411c1c369c494e3871c088dd66d4675ef6e34241d95971743ee8",
+        "negative_case_count": 18,
+        "folio_source_reuse": {
+          "unchanged_native_inputs": {
+            "rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+            "crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+            "crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+            "crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+            "crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+            "crates/hsk-studio-folio/examples/folio-consumer.rs": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+            "crates/hsk-studio-folio/tests/foundation_contract.rs": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56"
+          },
+          "historical_proof_ref": "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1",
+          "changed_inputs": [
+            "rootCargo.toml",
+            "rootCargo.lock",
+            "workspace-probe.rs"
+          ],
+          "current_affected_selection": "Folio accepted Accord+Folio with same17registry identities; source field behavior unchanged; no duplicate runtime"
+        },
+        "observed_at": "2026-10-10T09:14:58.661261+00:00"
       }
     ],
     "source_only_diagnostic_tiers": [

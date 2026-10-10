@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 25
+generation: 27
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -47,3 +47,5 @@ steps:
 - {id: GP-029, role: builder, at: before_dispatch, do: require Folio unknown-field condition collapsed before lint retry, check: {type: confirm}, source: 'lint: extension nested conditional triggers collapsible_if', state: active}
 - {id: GP-030, role: builder, at: before_submit, do: require Git tree path separators forward-slash, check: {type: confirm}, source: 'proof: native Path string backslash invalid in Git revision path', state: active}
 - {id: GP-031, role: integration_validator, at: before_round, do: require confirmation note length <=120chars, check: {type: confirm}, source: 'prep: Folio confirmation note exceeded controller120char limit before runtime', state: active}
+- {id: GP-032, role: builder, at: before_dispatch, do: require spec publication file-count scope from committed diff, check: {type: confirm}, source: 'prep:43publication paths include archive; current211bundle alone has21files', state: active}
+- {id: GP-033, role: builder, at: before_dispatch, do: require typed JSON reads explicit UTF8 encoding, check: {type: confirm}, source: 'prep: Windows defaultcp1252 decode rejected MTverdict Unicode; noGitaction started', state: active}

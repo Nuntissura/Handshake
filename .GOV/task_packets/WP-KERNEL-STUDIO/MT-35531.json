@@ -1171,7 +1171,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-FOLIO scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-FOLIO scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1993,7 +1993,153 @@
       "host": "PENDING_NOT_AUTHORIZED"
     }
   ],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-35531-SOURCE-FOUNDATION-V1",
+      "mt_id": "MT-35531",
+      "verdict": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+      "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+      ],
+      "check_results": [
+        {
+          "check_id": "MT-35531-ASSET-AC-001",
+          "result": "PASS",
+          "scope": "current CON015-021 source field foundation only",
+          "proof_refs": [
+            "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35531-ASSET-AC-002",
+          "result": "PASS",
+          "scope": "current CON015-021 source field foundation only",
+          "proof_refs": [
+            "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35531-ASSET-AC-003",
+          "result": "PASS",
+          "scope": "current CON015-021 source field foundation only",
+          "proof_refs": [
+            "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35531-ASSET-AC-004",
+          "result": "PASS",
+          "scope": "current CON015-021 source field foundation only",
+          "proof_refs": [
+            "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35531-ASSET-AC-005",
+          "result": "PASS",
+          "scope": "current CON015-021 source field foundation only",
+          "proof_refs": [
+            "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+          ]
+        }
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Typed schema/wire fields and required explicit null bindings",
+        "Unknown fields/duplicate keys/incompatible schema read-only retention",
+        "Two distinct graph relations, scoped ports/ordered edge identities, prospective immutable revisions",
+        "Caller-declared budgets/cancellation and typed unresolved external references"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "15 actual bounded foundation cases passed; external consumer37 observations and independent API consumer9 observations passed",
+        "Generated draft2020-12 schema root/support required fields and closed domains inspected against currentCON015-021",
+        "Nine exact native SHA256/Git clean-filter blobs reconciled; immutable pre/post candidate/tree/remote and clean status",
+        "Actual source manifest only Accord+three pinned pure registry libraries; unchanged prerequisite policy proofs retained on their exact candidate"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing required explicit-null deserialization admits missing parent/profile fixtures rejected MissingField",
+        "Removing UniqueValue permits duplicate revision overwrite rejected DuplicateField",
+        "Removing separate containment/render cycle checks admits corresponding independent rejected graph",
+        "Removing checked successor/cancel/budgets breaks retained-original proof and independently rejected cases",
+        "Removing immutable read-only retention would make API original-byte equality or mutation-refusal fail",
+        "Sorting composition by storage order rather than input_ordinal yields3->2 and fails independent2->3 API observation"
+      ],
+      "BOUNDARY_PROBES": [
+        "Independently supplied mixed document with artboard/page spread/group/raster/vector/text -> actual file consumer -> byte-identical known reopen and distinct checked successor",
+        "Generated schema and actual descriptor emitted by owning consumer",
+        "Independent actual public API collector -> exact unknown/schema original-byte retention, ordered projection and5typed resolver dispositions"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "missing-working_space_rgb",
+        "missing-working_space_cmyk",
+        "missing-working_space_gray",
+        "missing-working_space_spot",
+        "missing-blending_space",
+        "missing-layers-parent",
+        "missing-artboards-parent",
+        "missing-page_spreads-parent",
+        "duplicate-id",
+        "invalid-id",
+        "dangling",
+        "containment-cycle",
+        "render-cycle",
+        "mixed-unit",
+        "bitmap-invalid",
+        "payload-mismatch",
+        "edge-type",
+        "cardinality-gap",
+        "stale",
+        "successor-invalid",
+        "revision-overflow",
+        "canceled",
+        "budget-max-bytes",
+        "budget-max-nodes",
+        "budget-max-edges",
+        "budget-max-payload-bytes",
+        "unknown-readonly",
+        "schema-readonly",
+        "opaque-mutation-refused",
+        "duplicate-fields",
+        "api-depth",
+        "api-unknown-readonly",
+        "api-schema-readonly",
+        "api-resolution-Absent",
+        "api-resolution-HashMismatch",
+        "api-resolution-Unauthorized",
+        "api-resolution-Unsupported"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "This is a source field foundation; no painting/path edit/text layout/compositor/placed-asset/fullvendor parity proof",
+        "Injected resolver dispositions do not prove actual profile/tile/CKC/ArtifactManifest bytes, grants or integrity",
+        "Chronicle/Package concrete adopters, kernel DB/EventLedger/CRDT promotion, rendered Argus and host UserManual/diagnostic wiring remain PENDING",
+        "Source-local caller revision is not authenticated host authority"
+      ],
+      "diagnostic_tiers": [
+        {
+          "tier": "flight_recorder",
+          "status": "DEFERRED",
+          "reason": "Actual descriptor exposes typed codes for caller adaptation through existing Observe/host owners; no host-service proof"
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "DEFERRED",
+          "reason": "Actual descriptor exposes typed codes for caller adaptation through existing Observe/host owners; no host-service proof"
+        },
+        {
+          "tier": "palmistry",
+          "status": "DEFERRED",
+          "reason": "Actual descriptor exposes typed codes for caller adaptation through existing Observe/host owners; no host-service proof"
+        }
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "observed_at": "2026-10-10T09:09:41.829520+00:00"
+    }
+  ],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-35531",
@@ -2056,10 +2202,10 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "implementation",
-    "status": "READY_FOR_VALIDATION",
+    "phase": "validation",
+    "status": "PASS_V1",
     "active": true,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
@@ -2413,9 +2559,123 @@
         },
         "runtime": "NOT_RUN",
         "candidate_binding": "Post-check native hashes unchanged and Git clean-filter blobs reconcile exact pushed candidate"
+      },
+      {
+        "proof_id": "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35531"
+        ],
+        "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+        "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+        "result": "PASS",
+        "proof_kind": "independent_actual_source_runtime",
+        "scope": "currentCON015-021 field foundation only",
+        "artifact_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\logs\\foundation-tests.result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\logs\\external-consumer-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\logs\\independent-api-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\logs\\schema.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\logs\\descriptor.stdout"
+        ],
+        "inputs_before": {
+          "commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+          "tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+          "remote": "34f5f818a807ba1b9231b1d941947a7adc351898",
+          "status": "",
+          "files": {
+            "handshake-studio-assets/Cargo.toml": {
+              "sha256": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+              "blob": "1242ce0c32377cc78f01d5ca2830cf3782eaf8c8"
+            },
+            "handshake-studio-assets/Cargo.lock": {
+              "sha256": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+              "blob": "7975dfd69f73d40f485c374b9038f6a773ff8de3"
+            },
+            "handshake-studio-assets/rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": {
+              "sha256": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+              "blob": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": {
+              "sha256": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+              "blob": "fc440187c553869565f79629bb024f06ca4c2387"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": {
+              "sha256": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56",
+              "blob": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+            }
+          }
+        },
+        "inputs_after": {
+          "commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+          "tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+          "remote": "34f5f818a807ba1b9231b1d941947a7adc351898",
+          "status": "",
+          "files": {
+            "handshake-studio-assets/Cargo.toml": {
+              "sha256": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+              "blob": "1242ce0c32377cc78f01d5ca2830cf3782eaf8c8"
+            },
+            "handshake-studio-assets/Cargo.lock": {
+              "sha256": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+              "blob": "7975dfd69f73d40f485c374b9038f6a773ff8de3"
+            },
+            "handshake-studio-assets/rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": {
+              "sha256": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+              "blob": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": {
+              "sha256": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+              "blob": "fc440187c553869565f79629bb024f06ca4c2387"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": {
+              "sha256": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56",
+              "blob": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+            }
+          }
+        },
+        "actual_test_count": 15,
+        "actual_external_consumer_observations": 37,
+        "actual_independent_api_observations": 9,
+        "timeout_policy": "checked-in test30s bounded cases; external observations30s each; compiler/build no outer timeout",
+        "source_freeze_released": true,
+        "observed_at": "2026-10-10T09:09:41.829520+00:00"
       }
     ],
-    "source_runtime_result": "NOT_RUN",
+    "source_runtime_result": "INDEPENDENT_SOURCE_FOUNDATION_PASS",
     "source_only_diagnostic_tiers": [
       {
         "tier": "flight_recorder",

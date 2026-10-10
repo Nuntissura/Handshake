@@ -1517,6 +1517,61 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35532#/execution",
       "host_proof_pending": true
+    },
+    "chronicle_current_field_binding": {
+      "publication_commit": "5798af7377c7ee9d3ea173f2da07db7ba020378d",
+      "pointer_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "pointer_sha256": "a4870403d412f56eb5f966011972734b6ab473cb6c763aa2229dd912c7343d88",
+      "version": "v02.211",
+      "approved_signature": "ilja091020261912",
+      "clauses": [
+        {
+          "id": "STU-CON-022",
+          "source_ref": ".GOV/spec/master-spec-v02.211/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22467,
+          "end_line": 22468,
+          "source_sha256": "64fa5122c2adbc95738f3dd05a438205969cfa510e3981a1ef9655f03f334c65",
+          "body_sha256": "867fe112f41855aa949d760e47a8691119e49c6981c031af7b1bfa9f85839a5b",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-023",
+          "source_ref": ".GOV/spec/master-spec-v02.211/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22469,
+          "end_line": 22483,
+          "source_sha256": "64fa5122c2adbc95738f3dd05a438205969cfa510e3981a1ef9655f03f334c65",
+          "body_sha256": "fdac310cb1472770d856c1efc7ecf74d01b7e54c1b7c17bc1c0091f629a9af66",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-024",
+          "source_ref": ".GOV/spec/master-spec-v02.211/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22484,
+          "end_line": 22489,
+          "source_sha256": "64fa5122c2adbc95738f3dd05a438205969cfa510e3981a1ef9655f03f334c65",
+          "body_sha256": "c9d3208d267cf1b24c4a49c392eb7bf494c0821f6c4f53244a68b6c4fb5e13b0",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-025",
+          "source_ref": ".GOV/spec/master-spec-v02.211/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22490,
+          "end_line": 22493,
+          "source_sha256": "64fa5122c2adbc95738f3dd05a438205969cfa510e3981a1ef9655f03f334c65",
+          "body_sha256": "f466cecbc914c2fd168e2e1375af47cf891ceb26770e8a625a80103d530de9bc",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-026",
+          "source_ref": ".GOV/spec/master-spec-v02.211/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22494,
+          "end_line": 22497,
+          "source_sha256": "64fa5122c2adbc95738f3dd05a438205969cfa510e3981a1ef9655f03f334c65",
+          "body_sha256": "94c6ff022adc061acff6ef47f8c1c9a9bf34231324495e4144caddb44150f3c4",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ],
+      "preservation": "Existing207 lineage/AC IDs/catalogowner retained; source-only supporting transport fields exactCON022-026; no newprimitive/persistedproposal/history decoder"
     }
   },
   "closure_unit": {
@@ -1644,17 +1699,26 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35532/studio-assets-kernel-builder",
+      "env": {
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\cargo-target",
+        "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\cache\\cargo-home",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35532/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -1948,19 +2012,20 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T09:07:05.776642+00:00",
+  "updated_at_utc": "2026-10-10T09:21:00.482340+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "blocked",
+    "phase": "implementation",
     "status": "PENDING",
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "contract_preparation_only": true,
-    "blocked_on": "MT-35532-CANONICAL-PATCH-FIELDS"
+    "contract_preparation_only": false,
+    "blocked_on": null,
+    "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
   },
   "scope": {
     "summary": "Validate/apply real typed patch to immutable base; generate inverse/conflict and retain original on failure.",
@@ -2092,7 +2157,63 @@
       }
     ],
     "proof_target_materialization_required": true,
-    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff."
+    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff.",
+    "current_field_acceptance_mapping": {
+      "AC-001": [
+        "STU-CON-022",
+        "STU-CON-023",
+        "STU-CON-024",
+        "STU-CON-025"
+      ],
+      "AC-002": [
+        "STU-CON-024",
+        "STU-CON-025",
+        "STU-CON-026"
+      ],
+      "AC-003": [
+        "STU-CON-022"
+      ],
+      "AC-004": [
+        "STU-CON-026"
+      ],
+      "AC-005": [
+        "STU-CON-022",
+        "STU-CON-026"
+      ],
+      "proof": "Actual scalarbatch+conditionalinverse; disjointoldbase acceptance preservingforeignedit; overlap/readdependency/ABA/absent+duplicaterevisions/missingread/wrongdoc+target+property+type/overflow/nochange/budget/preacceptcancel rejects unchangedbytes/vector; postsourceacceptcancelretention; descriptor/generatedschema/externalconsumer",
+      "host": "PENDING; no durable acceptance/EventLedger/CRDT/retainedhistory/vendorfeature claim"
+    },
+    "source_research_basis": {
+      "sources_checked": [
+        "https://www.rfc-editor.org/info/rfc6902/",
+        "https://docs.yjs.dev/api/undo-manager",
+        "https://raw.githubusercontent.com/yjs/yjs/main/src/utils/UndoManager.js",
+        "CurrentCON022-026 and actualFolio/Accord/Observe source"
+      ],
+      "patterns_found": [
+        "Typedreplace/test preconditions and atomic batchfailure",
+        "Scopedinverse avoids foreignchanges; origin/footprint distinctfromwholehistory"
+      ],
+      "reuse": [
+        "Folio fullprospectivevalidate_document immutableSnapshot",
+        "Accord attribution/IDs/cancel",
+        "Observe boundedcallerports",
+        "Existingpure serde+schemars exactpins"
+      ],
+      "rejected_options": [
+        "GenericJSONPointer patchgrammar conflictswithcanonicaltypedpropertyselection",
+        "Yjs privateundo stack cannot become Chroniclepromotedhistoryauthority",
+        "Whole-document oldbaseCAS would rejectrequired disjointedits"
+      ],
+      "selected_approach": "Implement exactpublishedCON022-026 typedscalartransport, callerownedcurrentpropertyvector, checked latestsuccessor serialization, conditionalinverse; no extraengine/authority",
+      "risks_mitigations": [
+        "ABA: comparepropertyrevision+exactvalue",
+        "Foreigninverseoverwrite: posteditvalue/rev preconditions plus originalreaddependencies",
+        "Partialbatch/cancel: preflightbudget+clone+fullvalidation before result",
+        "Telemetryprivatevalues: boundedtypedcodes/address only; delivery stateexplicit"
+      ],
+      "validation_plan": "Compiler/static selectedclosure then independent actualconsumer+schema+allCON026negative and counterfactual oldbaseCAS proof"
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2116,10 +2237,10 @@
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "runtime": "NOT_RUN",
     "compile": "NOT_RUN",
-    "next_actor": "Root spec owner field enrichment or explicit owning-authority ephemeral transport binding",
+    "next_actor": "Parent dependencytarget/ownerpolicy materialization then scoped Chronicle source implementation",
     "authority_blocker": {
       "id": "MT-35532-CANONICAL-PATCH-FIELDS",
-      "status": "OPEN",
+      "status": "RESOLVED_CANONICAL_FIELDS",
       "observed_source": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
       "anchors": [
         "STU-DOC-002",
@@ -2132,7 +2253,22 @@
       "observed": "Named edit_proposal/history_entry schemas and property-footprint/inverse laws exist; no14.23 typed patch/precondition-vector/inverse fields authored",
       "blocked_step": "Implement typed patch/proposal/inverse consumer without inventing persisted canonicalwire records",
       "needed_dependency": "Narrow canonical field publication or explicit source-only ephemeral transport authority binding from root spec owner",
-      "request_target": "01a12168-a212-7991-8b69-454deae05b60"
-    }
+      "request_target": "01a12168-a212-7991-8b69-454deae05b60",
+      "resolution_commit": "5798af7377c7ee9d3ea173f2da07db7ba020378d"
+    },
+    "batch_owner": "MT-35532",
+    "covered_mts": [
+      "MT-35532"
+    ],
+    "predecessor_verdicts": [
+      "MT-35528-SOURCE-PRISM-REGISTRY-EXTENSION-V4",
+      "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
+      "MT-35530-SOURCE-FOUNDATION-V1",
+      "MT-35531-SOURCE-FOUNDATION-V1"
+    ],
+    "field_authority_commit": "5798af7377c7ee9d3ea173f2da07db7ba020378d",
+    "source_feature_policy": "Accord+Folio+Observe declaredmoduleclosure; exactFolio pure schemars1.2.2/serde1.0.229/serde_json1.0.151 explicitfeatures/no defaults",
+    "source_owner_search": "ExistingregisteredSTUDIO-MODULE-CHRONICLE; actualassetsChronicleabsent; no newhistory/revision/catalog owner",
+    "per_test_timeout": "Checked-in bounded_case30s; no outertimeout"
   }
 }
