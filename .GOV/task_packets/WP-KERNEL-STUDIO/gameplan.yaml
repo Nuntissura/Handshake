@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 4
+generation: 6
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -28,6 +28,7 @@ steps:
 - {id: GP-010, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
 - {id: GP-011, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
 - {id: GP-012, role: any, at: on_resume, do: confirm half-written records finished before new work, check: {type: confirm}, source: 'preset:resume', state: active}
-- {id: GP-013, role: builder, at: before_dispatch, do: verify selected MT35528 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, exists: true}, source: KB-START-001; published lease c66eddd4, state: active}
+- {id: GP-013, role: builder, at: before_dispatch, do: verify selected MT35528 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, exists: true}, source: KB-START-001; published lease c66eddd4, state: retired}
 - {id: GP-014, role: builder, at: any, do: confirm minified JSON reads use selectors and bounded output, check: {type: confirm}, source: 'infra: rg matched entire 30MB minified report', state: active}
 - {id: GP-015, role: builder, at: before_dispatch, do: 'confirm owned output, pinned compiler and target disk have no competing build', check: {type: confirm}, source: CX-984-008; KB-CARGO-IO-001, state: active}
+- {id: GP-016, role: builder, at: before_dispatch, do: verify selected Accord MT35529 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json, exists: true}, source: KB-IMPL-001; verified predecessor source verdict, state: active}
