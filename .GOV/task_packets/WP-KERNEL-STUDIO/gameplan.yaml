@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 57
+generation: 59
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -79,3 +79,5 @@ steps:
 - {id: GP-061, role: builder, at: before_dispatch, do: require JSON leaf selectors only; forbid line-count reads and full context capsule serialization, check: {type: confirm}, source: 'prep: TotalCount8 read minifiedcatalog and fullcontext emitted oversized JSON', state: active}
 - {id: GP-062, role: builder, at: before_dispatch, do: verify imported Accord cancellation uses actual check API before source compilation, check: {type: confirm}, source: 'source: initial Type context used unverified is_cancelled; actual Accord exposes check', state: active}
 - {id: GP-063, role: builder, at: before_dispatch, do: 'verify scoped reads use literal paths, JSON leaf selectors and YAML parser', check: {type: confirm}, source: 'source: minified full reads and wrong cwd/globs/YAML-as-JSON produced invalid oversized observations', state: active}
+- {id: GP-064, role: builder, at: before_dispatch, do: verify Type private module imports and Rust2024 patterns against first compiler errors, check: {type: confirm}, source: 'compile: private nested macro import, missing meter imports and Rust2024 ref patterns', state: active}
+- {id: GP-065, role: builder, at: before_dispatch, do: verify Type caller read bytes are slices and Observe constructor returns direct value, check: {type: confirm}, source: 'compile: fixture arrays differed in size and Observe new has no unwrap', state: active}
