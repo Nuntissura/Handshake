@@ -69,7 +69,77 @@
     "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
     "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
     "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
-    "routing": "Navigation extends the existing address and bus seams. No new router."
+    "routing": "Navigation extends the existing address and bus seams. No new router.",
+    "historical_hbr_pillar_refs": {
+      "immutable_baseline_commit": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33959.json",
+      "pointer": "/context_capsule/pillar_refs",
+      "previous_registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "preservation": "Original forty-five row history remains in baseline Git blob; current applicable rows refreshed to HBR1.16 without acceptance changes."
+    },
+    "motion_task_method": {
+      "family": "procedural_layer",
+      "method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+      "negative": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+      "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+      "planned_proof": {
+        "selected_packages": [
+          "hsk-studio-motion"
+        ],
+        "feature_policy": "Explicit --no-default-features pure Rust closure; optional MotionJS/native provider proof separately selected and cannot be claimed by this target.",
+        "consumer_assertion": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+        "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+        "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+        "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+        "planned_filter": "mt_33959::",
+        "argv": [
+          "cargo",
+          "test",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-motion",
+          "--no-default-features",
+          "--test",
+          "contracts",
+          "--",
+          "mt_33959::"
+        ],
+        "configuration_binding": {
+          "status": "PLANNED_NOT_RUN",
+          "cwd": "canonical assets checkout root",
+          "source_repository": "https://github.com/Nuntissura/assets",
+          "source_revision": null,
+          "env": {
+            "CARGO_TARGET_DIR": "resolved owning external artifact root/cargo-target",
+            "TMP": "resolved owning external artifact root/tmp",
+            "TEMP": "resolved owning external artifact root/tmp"
+          },
+          "features": [],
+          "require_nonzero_selected_cases": true
+        },
+        "timeout_seconds": 30,
+        "proof_limit": "Source domain only; native device, proprietary oracle/parity, host GUI/storage/auth/Argus behavior remain independently pending.",
+        "task_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
+      },
+      "source_stage": "Canonical remote landing independently re-read before host writes; local candidate is insufficient.",
+      "task_cases": [
+        {
+          "case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+          "expected": "Exact task-specific consumer/read-back or explicit unresolved-source result; original acceptance remains mandatory."
+        }
+      ],
+      "source_binding_gap": {
+        "kind": "SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE",
+        "operator": "ADBE Vector Filter - RC",
+        "children": [
+          "ADBE Vector RoundCorner Radius"
+        ],
+        "missing": "Owning-clause parameter domain/unit/enum/evaluation definitions where unrecovered",
+        "status": "PENDING"
+      }
+    }
   },
   "gui_obligation": {
     "operator_surface_required": "YES",
@@ -138,7 +208,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -155,7 +232,7 @@
     "title": "ADBE Vector Filter - RC",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -196,7 +273,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -216,13 +293,13 @@
         "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -242,13 +319,13 @@
         "evidence_kind": "cross_boundary_default_deny_negative_suite",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -268,13 +345,13 @@
         "evidence_kind": "same_project_and_cross_project_isolation_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -294,13 +371,13 @@
         "evidence_kind": "mixed_scope_derivation_non_widening_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -320,13 +397,13 @@
         "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -346,13 +423,13 @@
         "evidence_kind": "concurrent_revocation_and_context_switch_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -372,13 +449,13 @@
         "evidence_kind": "remote_delegation_and_sync_scope_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -398,13 +475,13 @@
         "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -424,13 +501,13 @@
         "evidence_kind": "test_run_with_ledger_replay",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -450,13 +527,13 @@
         "evidence_kind": "test_run_with_session_trace",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -476,13 +553,13 @@
         "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -502,13 +579,13 @@
         "evidence_kind": "test_run_with_reconnect_and_promotion",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -528,13 +605,13 @@
         "evidence_kind": "test_run_with_cross_lane_trace_comparison",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -554,13 +631,13 @@
         "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -580,13 +657,13 @@
         "evidence_kind": "test_run_with_trace_projection_replay",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -606,13 +683,13 @@
         "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -632,13 +709,13 @@
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -658,13 +735,13 @@
         "evidence_kind": "concurrent_session_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -684,13 +761,13 @@
         "evidence_kind": "concurrency_primitive_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -710,13 +787,13 @@
         "evidence_kind": "parallel_operator_agent_ui_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -736,13 +813,13 @@
         "evidence_kind": "typed_routing_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -762,13 +839,13 @@
         "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -788,13 +865,13 @@
         "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -814,13 +891,13 @@
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -840,13 +917,13 @@
         "evidence_kind": "renderer_console_error_report",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION owns no GUI. Verify negative owned-GUI scope; any visible shared consuming integration requires later viewport/state matrix, never an invented module panel.",
@@ -866,13 +943,13 @@
         "evidence_kind": "capture_matrix",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -892,13 +969,13 @@
         "evidence_kind": "trace_projection_inspection",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -918,13 +995,13 @@
         "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -944,13 +1021,13 @@
         "evidence_kind": "headless_run_with_focus_audit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -970,13 +1047,13 @@
         "evidence_kind": "automation_path_audit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -996,13 +1073,13 @@
         "evidence_kind": "process_lifecycle_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1022,13 +1099,13 @@
         "evidence_kind": "foreground_exception_declaration_and_operator_warning",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1048,13 +1125,13 @@
         "evidence_kind": "user_manual_diff_in_same_commit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1074,13 +1151,13 @@
         "evidence_kind": "no_context_model_operation_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1100,13 +1177,13 @@
         "evidence_kind": "manual_self_consistency_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1126,13 +1203,13 @@
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1152,13 +1229,13 @@
         "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1178,13 +1255,13 @@
         "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1204,13 +1281,13 @@
         "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1230,13 +1307,13 @@
         "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1256,13 +1333,13 @@
         "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1282,13 +1359,13 @@
         "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1308,13 +1385,13 @@
         "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1334,13 +1411,13 @@
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1360,8 +1437,92 @@
         "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "ADBE Vector Filter - RC changes a standalone Motion capability; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33959/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007"
       }
     ],
     "runtime_lane_refs": [
@@ -1390,7 +1551,10 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "7f875e820560703e7591c4238737a73dcf04b9a752d5da3c078c77c1b31e7fd7"
+    "context_digest": "7f875e820560703e7591c4238737a73dcf04b9a752d5da3c078c77c1b31e7fd7",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/14/maintenance"
+    ]
   },
   "closure_unit": {
     "outcome": "Deliver STUDIO-MODULE-MOTION asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
@@ -1542,34 +1706,462 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-MOTION asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-33959#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-MOTION",
-        "immutable_input_and_revision_required": true
+        "task": "ADBE Vector Filter - RC",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 27605,
+            "end_line": 27682,
+            "body_sha256": "8a81d56c2260466043a539397febcecf3e4a1ce50b48cf38c80d6f7a5e1a55bb",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "acceptance_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004"
+        ],
+        "input_binding": "Immutable Folio composition/property revision; exact canonical effective tick, dimensions, profile/seed and published dependency versions; runtime values and hashes bind before dispatch."
+      },
+      {
+        "task_specific_recovered_bindings": [
+          {
+            "row_index": 1,
+            "cells": [
+              "Shape operator family",
+              "Semantic",
+              "Child properties"
+            ]
+          },
+          {
+            "row_index": 3,
+            "cells": [
+              "`ADBE Vector Shape - Rect`",
+              "Rectangle path",
+              "`ADBE Vector Rect Position`, `ADBE Vector Rect Roundness`, `ADBE Vector Rect Size`, `ADBE Vector Shape Direction`"
+            ]
+          },
+          {
+            "row_index": 4,
+            "cells": [
+              "`ADBE Vector Shape - Ellipse`",
+              "Ellipse path",
+              "`ADBE Vector Ellipse Position`, `ADBE Vector Ellipse Size`, `ADBE Vector Shape Direction`"
+            ]
+          },
+          {
+            "row_index": 5,
+            "cells": [
+              "`ADBE Vector Shape - Star`",
+              "Polystar path",
+              "`ADBE Vector Shape Direction`, `ADBE Vector Star Inner Radius`, `ADBE Vector Star Inner Roundess`, `ADBE Vector Star Outer Radius`, `ADBE Vector Star Outer Roundess`, `ADBE Vector Star Points`, `ADBE Vector Star Position`, `ADBE Vector Star Rotation`, `ADBE Vector Star Type`"
+            ]
+          },
+          {
+            "row_index": 6,
+            "cells": [
+              "`ADBE Vector Shape - Group`",
+              "Bezier path (Path)",
+              "`ADBE Vector Shape`, `ADBE Vector Shape Direction`"
+            ]
+          },
+          {
+            "row_index": 7,
+            "cells": [
+              "`ADBE Vector Graphic - Fill`",
+              "Fill",
+              "`ADBE Vector Blend Mode`, `ADBE Vector Composite Order`, `ADBE Vector Fill Color`, `ADBE Vector Fill Opacity`, `ADBE Vector Fill Rule`"
+            ]
+          },
+          {
+            "row_index": 8,
+            "cells": [
+              "`ADBE Vector Graphic - Stroke`",
+              "Stroke",
+              "`ADBE Vector Blend Mode`, `ADBE Vector Composite Order`, `ADBE Vector Stroke Color`, `ADBE Vector Stroke Dashes`, `ADBE Vector Stroke Line Cap`, `ADBE Vector Stroke Line Join`, `ADBE Vector Stroke Miter Limit`, `ADBE Vector Stroke Opacity`, `ADBE Vector Stroke Taper`, `ADBE Vector Stroke Wave`, `ADBE Vector Stroke Width`"
+            ]
+          },
+          {
+            "row_index": 9,
+            "cells": [
+              "`ADBE Vector Graphic - G-Fill`",
+              "Gradient Fill",
+              "_children not recovered_"
+            ]
+          },
+          {
+            "row_index": 10,
+            "cells": [
+              "`ADBE Vector Graphic - G-Stroke`",
+              "Gradient Stroke",
+              "_children not recovered_"
+            ]
+          },
+          {
+            "row_index": 11,
+            "cells": [
+              "`ADBE Vector Filter - Merge`",
+              "Merge Paths",
+              "`ADBE Vector Merge Type`"
+            ]
+          },
+          {
+            "row_index": 12,
+            "cells": [
+              "`ADBE Vector Filter - Offset`",
+              "Offset Paths",
+              "`ADBE Vector Offset Amount`, `ADBE Vector Offset Copies`, `ADBE Vector Offset Copy Offset`, `ADBE Vector Offset Line Join`, `ADBE Vector Offset Miter Limit`"
+            ]
+          },
+          {
+            "row_index": 13,
+            "cells": [
+              "`ADBE Vector Filter - PB`",
+              "Pucker & Bloat",
+              "`ADBE Vector PuckerBloat Amount`"
+            ]
+          },
+          {
+            "row_index": 14,
+            "cells": [
+              "`ADBE Vector Filter - Repeater`",
+              "Repeater",
+              "`ADBE Vector Repeater Copies`, `ADBE Vector Repeater Offset`, `ADBE Vector Repeater Order`, `ADBE Vector Repeater Transform`"
+            ]
+          },
+          {
+            "row_index": 15,
+            "cells": [
+              "`ADBE Vector Filter - RC`",
+              "Round Corners",
+              "`ADBE Vector RoundCorner Radius`"
+            ]
+          },
+          {
+            "row_index": 16,
+            "cells": [
+              "`ADBE Vector Filter - Trim`",
+              "Trim Paths",
+              "`ADBE Vector Trim End`, `ADBE Vector Trim Offset`, `ADBE Vector Trim Start`, `ADBE Vector Trim Type`"
+            ]
+          },
+          {
+            "row_index": 17,
+            "cells": [
+              "`ADBE Vector Filter - Twist`",
+              "Twist",
+              "`ADBE Vector Twist Angle`, `ADBE Vector Twist Center`"
+            ]
+          },
+          {
+            "row_index": 18,
+            "cells": [
+              "`ADBE Vector Filter - Roughen`",
+              "Wiggle Paths (Roughen Edges)",
+              "`ADBE Vector Roughen Detail`, `ADBE Vector Roughen Points`, `ADBE Vector Roughen Size`, `ADBE Vector Temporal Freq`"
+            ]
+          },
+          {
+            "row_index": 19,
+            "cells": [
+              "`ADBE Vector Filter - Wiggler`",
+              "Wiggle Transform",
+              "`ADBE Vector Correlation`, `ADBE Vector Random Seed`, `ADBE Vector Spatial Phase`, `ADBE Vector Temporal Phase`, `ADBE Vector Wiggler Transform`, `ADBE Vector Xform Temporal Freq`"
+            ]
+          },
+          {
+            "row_index": 20,
+            "cells": [
+              "`ADBE Vector Filter - Zigzag`",
+              "Zig Zag",
+              "`ADBE Vector Zigzag Detail`, `ADBE Vector Zigzag Points`, `ADBE Vector Zigzag Size`"
+            ]
+          },
+          {
+            "row_index": 21,
+            "cells": [
+              "`ADBE Vector Filter - Reveal`",
+              "Reveal (Trim) helper",
+              "_children not recovered_"
+            ]
+          },
+          {
+            "row_index": 22,
+            "cells": [
+              "`ADBE Vector Transform Group`",
+              "Shape group Transform",
+              "`ADBE Vector Anchor`, `ADBE Vector Group Opacity`, `ADBE Vector Position`, `ADBE Vector Rotation`, `ADBE Vector Scale`, `ADBE Vector Skew`, `ADBE Vector Skew Axis`"
+            ]
+          },
+          {
+            "row_index": 23,
+            "cells": [
+              "`ADBE Vector Materials Group`",
+              "Shape group material options",
+              "`ADBE Vec3D Back Ambient`, `ADBE Vec3D Back Diffuse`, `ADBE Vec3D Back Fresnel`, `ADBE Vec3D Back Gloss`, `ADBE Vec3D Back IOR`, `ADBE Vec3D Back Metal`, `ADBE Vec3D Back RGB`, `ADBE Vec3D Back Reflection`, `ADBE Vec3D Back Shininess`, `ADBE Vec3D Back Specular`, `ADBE Vec3D Back XparRoll`, `ADBE Vec3D Back Xparency`, `ADBE Vec3D Bevel Ambient`, `ADBE Vec3D Bevel Diffuse`, `ADBE Vec3D Bevel Fresnel`, `ADBE Vec3D Bevel Gloss`, `ADBE Vec3D Bevel IOR`, `ADBE Vec3D Bevel Metal`, `ADBE Vec3D Bevel RGB`, `ADBE Vec3D Bevel Reflection`, `ADBE Vec3D Bevel Shininess`, `ADBE Vec3D Bevel Specular`, `ADBE Vec3D Bevel XparRoll`, `ADBE Vec3D Bevel Xparency`, `ADBE Vec3D Front Ambient`, `ADBE Vec3D Front Diffuse`, `ADBE Vec3D Front Fresnel`, `ADBE Vec3D Front Gloss`, `ADBE Vec3D Front IOR`, `ADBE Vec3D Front Metal`, `ADBE Vec3D Front RGB`, `ADBE Vec3D Front Reflection`, `ADBE Vec3D Front Shininess`, `ADBE Vec3D Front Specular`, `ADBE Vec3D Front XparRoll`, `ADBE Vec3D Front Xparency`, `ADBE Vec3D Side Ambient`, `ADBE Vec3D Side Diffuse`, `ADBE Vec3D Side Fresnel`, `ADBE Vec3D Side Gloss`, `ADBE Vec3D Side IOR`, `ADBE Vec3D Side Metal`, `ADBE Vec3D Side RGB`, `ADBE Vec3D Side Reflection`, `ADBE Vec3D Side Shininess`, `ADBE Vec3D Side Specular`, `ADBE Vec3D Side XparRoll`, `ADBE Vec3D Side Xparency`"
+            ]
+          },
+          {
+            "row_index": 24,
+            "cells": [
+              "Group",
+              "Semantic",
+              "Children"
+            ]
+          },
+          {
+            "row_index": 26,
+            "cells": [
+              "`ADBE Text Properties`",
+              "Text property root",
+              "`ADBE Text Animators`, `ADBE Text Document`, `ADBE Text More Options`, `ADBE Text Path Options`"
+            ]
+          },
+          {
+            "row_index": 27,
+            "cells": [
+              "`ADBE Text Document`",
+              "Source Text document",
+              "--"
+            ]
+          },
+          {
+            "row_index": 28,
+            "cells": [
+              "`ADBE Text Path Options`",
+              "Path Options",
+              "`ADBE Text First Margin`, `ADBE Text Force Align Path`, `ADBE Text Last Margin`, `ADBE Text Path`, `ADBE Text Perpendicular To Path`, `ADBE Text Reverse Path`"
+            ]
+          },
+          {
+            "row_index": 29,
+            "cells": [
+              "`ADBE Text More Options`",
+              "More Options",
+              "`ADBE Text Anchor Point Align`, `ADBE Text Anchor Point Option`, `ADBE Text Character Blend Mode`, `ADBE Text Render Order`, `ADBE Text Variable Font Spacing`"
+            ]
+          },
+          {
+            "row_index": 30,
+            "cells": [
+              "`ADBE Text Animators`",
+              "Animators collection",
+              "`ADBE Text Animator`"
+            ]
+          },
+          {
+            "row_index": 31,
+            "cells": [
+              "`ADBE Text Animator`",
+              "One text animator",
+              "`ADBE Text Animator Properties`, `ADBE Text Selectors`"
+            ]
+          },
+          {
+            "row_index": 32,
+            "cells": [
+              "`ADBE Text Animator Properties`",
+              "Animatable text properties",
+              "`ADBE 3DText Back Ambient`, `ADBE 3DText Back Bright`, `ADBE 3DText Back Diffuse`, `ADBE 3DText Back Fresnel`, `ADBE 3DText Back Gloss`, `ADBE 3DText Back Hue`, `ADBE 3DText Back IOR`, `ADBE 3DText Back Metal`, `ADBE 3DText Back Opacity`, `ADBE 3DText Back RGB`, `ADBE 3DText Back Reflection`, `ADBE 3DText Back Sat`, `ADBE 3DText Back Shininess`, `ADBE 3DText Back Specular`, `ADBE 3DText Back XparRoll`, `ADBE 3DText Back Xparency`, `ADBE 3DText Bevel Ambient`, `ADBE 3DText Bevel Bright`, `ADBE 3DText Bevel Depth`, `ADBE 3DText Bevel Diffuse`, `ADBE 3DText Bevel Fresnel`, `ADBE 3DText Bevel Gloss`, `ADBE 3DText Bevel Hue`, `ADBE 3DText Bevel IOR`, `ADBE 3DText Bevel Metal`, `ADBE 3DText Bevel Opacity`, `ADBE 3DText Bevel RGB`, `ADBE 3DText Bevel Reflection`, `ADBE 3DText Bevel Sat`, `ADBE 3DText Bevel Shininess`, `ADBE 3DText Bevel Specular`, `ADBE 3DText Bevel XparRoll`, `ADBE 3DText Bevel Xparency`, `ADBE 3DText Extrude Depth`, `ADBE 3DText Front Ambient`, `ADBE 3DText Front Bright`, `ADBE 3DText Front Diffuse`, `ADBE 3DText Front Fresnel`, `ADBE 3DText Front Gloss`, `ADBE 3DText Front Hue`, `ADBE 3DText Front IOR`, `ADBE 3DText Front Metal`, `ADBE 3DText Front Opacity`, `ADBE 3DText Front RGB`, `ADBE 3DText Front Reflection`, `ADBE 3DText Front Sat`, `ADBE 3DText Front Shininess`, `ADBE 3DText Front Specular`, `ADBE 3DText Front XparRoll`, `ADBE 3DText Front Xparency`, `ADBE 3DText Side Ambient`, `ADBE 3DText Side Bright`, `ADBE 3DText Side Diffuse`, `ADBE 3DText Side Fresnel`, `ADBE 3DText Side Gloss`, `ADBE 3DText Side Hue`, `ADBE 3DText Side IOR`, `ADBE 3DText Side Metal`, `ADBE 3DText Side Opacity`, `ADBE 3DText Side RGB`, `ADBE 3DText Side Reflection`, `ADBE 3DText Side Sat`, `ADBE 3DText Side Shininess`, `ADBE 3DText Side Specular`, `ADBE 3DText Side XparRoll`, `ADBE 3DText Side Xparency`, `ADBE Text Anchor Point`, `ADBE Text Anchor Point 3D`, `ADBE Text Blur`, `ADBE Text Character Change Type`, `ADBE Text Character Offset`, `ADBE Text Character Range`, `ADBE Text Character Replace`, `ADBE Text Fill Brightness`, `ADBE Text Fill Color`, `ADBE Text Fill Hue`, `ADBE Text Fill Opacity`, `ADBE Text Fill Saturation`, `ADBE Text Line Anchor`, `ADBE Text Line Spacing`, `ADBE Text Opacity`, `ADBE Text Position`, `ADBE Text Position 3D`, `ADBE Text Rotation`, `ADBE Text Rotation X`, `ADBE Text Rotation Y`, `ADBE Text Scale`, `ADBE Text Scale 3D`, `ADBE Text Skew`, `ADBE Text Skew Axis`, `ADBE Text Stroke Brightness`, `ADBE Text Stroke Color`, `ADBE Text Stroke Hue`, `ADBE Text Stroke Opacity`, `ADBE Text Stroke Saturation`, `ADBE Text Stroke Width`, `ADBE Text Track Type`, `ADBE Text Tracking Amount`, `ADBE Text VF Axis 1`"
+            ]
+          },
+          {
+            "row_index": 33,
+            "cells": [
+              "`ADBE Text Selectors`",
+              "Selectors collection",
+              "`ADBE Text Expressible Selector`, `ADBE Text Selector`, `ADBE Text Wiggly Selector`"
+            ]
+          },
+          {
+            "row_index": 34,
+            "cells": [
+              "`ADBE Text Selector`",
+              "Range selector",
+              "`ADBE Text Index End`, `ADBE Text Index Offset`, `ADBE Text Index Start`, `ADBE Text Percent End`, `ADBE Text Percent Offset`, `ADBE Text Percent Start`, `ADBE Text Range Advanced`"
+            ]
+          },
+          {
+            "row_index": 35,
+            "cells": [
+              "`ADBE Text Wiggly Selector`",
+              "Wiggly selector",
+              "`ADBE Text Character Correlation`, `ADBE Text Range Type2`, `ADBE Text Selector Mode`, `ADBE Text Spatial Phase`, `ADBE Text Temporal Freq`, `ADBE Text Temporal Phase`, `ADBE Text Wiggly Lock Dim`, `ADBE Text Wiggly Max Amount`, `ADBE Text Wiggly Min Amount`, `ADBE Text Wiggly Random Seed`"
+            ]
+          },
+          {
+            "row_index": 36,
+            "cells": [
+              "`ADBE Text Expressible Selector`",
+              "Expression selector",
+              "`ADBE Text Expressible Amount`, `ADBE Text Range Type2`"
+            ]
+          },
+          {
+            "row_index": 37,
+            "cells": [
+              "`ADBE Text Range Advanced`",
+              "Range selector advanced options",
+              "`ADBE Text Levels Max Ease`, `ADBE Text Levels Min Ease`, `ADBE Text Random Seed`, `ADBE Text Randomize Order`, `ADBE Text Range Shape`, `ADBE Text Range Type2`, `ADBE Text Range Units`, `ADBE Text Selector Max Amount`, `ADBE Text Selector Mode`, `ADBE Text Selector Smoothness`"
+            ]
+          },
+          {
+            "row_index": 38,
+            "cells": [
+              "`ADBE Text Per Char 3D`",
+              "Enable Per-character 3D",
+              "--"
+            ]
+          },
+          {
+            "row_index": 39,
+            "cells": [
+              "Group",
+              "Semantic",
+              "Children"
+            ]
+          },
+          {
+            "row_index": 41,
+            "cells": [
+              "`ADBE Mask Parade`",
+              "Masks collection",
+              "`ADBE Mask Atom`"
+            ]
+          },
+          {
+            "row_index": 42,
+            "cells": [
+              "`ADBE Mask Atom`",
+              "One mask",
+              "`ADBE Mask Feather`, `ADBE Mask Offset`, `ADBE Mask Opacity`, `ADBE Mask Shape`"
+            ]
+          },
+          {
+            "row_index": 43,
+            "cells": [
+              "`ADBE Mask Shape`",
+              "Mask Path",
+              "--"
+            ]
+          },
+          {
+            "row_index": 44,
+            "cells": [
+              "`ADBE Mask Opacity`",
+              "Mask Opacity",
+              "--"
+            ]
+          },
+          {
+            "row_index": 45,
+            "cells": [
+              "`ADBE Mask Offset`",
+              "Mask Expansion",
+              "--"
+            ]
+          },
+          {
+            "row_index": 46,
+            "cells": [
+              "`ADBE Mask Feather`",
+              "Mask Feather (uniform)",
+              "--"
+            ]
+          },
+          {
+            "row_index": 47,
+            "cells": [
+              "`ADBE Mask Interp`",
+              "Variable-width mask feather points",
+              "--"
+            ]
+          }
+        ],
+        "binding_status": "EXACT_SOURCE_ROWS",
+        "source_ranges_ref": "./MT-33959.json#/context_capsule/specification_anchor_refs"
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Run planned owning-package proof only after target materialization/activation; land canonical https://github.com/Nuntissura/assets source revision under handshake-studio-assets and require independent remote revision re-read plus source proof before mapped host adoption."
       },
       {
-        "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
-      },
-      {
-        "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+        "acceptance_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004"
+        ],
+        "n": 3
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      {
+        "acceptance_ref": "AC-001",
+        "expected_ref": "MT-33959#/fulfillment/legacy_acceptance_map/0",
+        "observable": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+        "behavioral_source_gap": {
+          "kind": "SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE",
+          "operator": "ADBE Vector Filter - RC",
+          "children": [
+            "ADBE Vector RoundCorner Radius"
+          ],
+          "missing": "Owning-clause parameter domain/unit/enum/evaluation definitions where unrecovered",
+          "status": "PENDING"
+        }
+      },
+      {
+        "acceptance_ref": "AC-002",
+        "expected_ref": "MT-33959#/fulfillment/legacy_acceptance_map/1",
+        "observable": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+        "behavioral_source_gap": {
+          "kind": "SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE",
+          "operator": "ADBE Vector Filter - RC",
+          "children": [
+            "ADBE Vector RoundCorner Radius"
+          ],
+          "missing": "Owning-clause parameter domain/unit/enum/evaluation definitions where unrecovered",
+          "status": "PENDING"
+        }
+      },
+      {
+        "acceptance_ref": "AC-003",
+        "expected_ref": "MT-33959#/fulfillment/legacy_acceptance_map/2",
+        "observable": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+        "behavioral_source_gap": {
+          "kind": "SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE",
+          "operator": "ADBE Vector Filter - RC",
+          "children": [
+            "ADBE Vector RoundCorner Radius"
+          ],
+          "missing": "Owning-clause parameter domain/unit/enum/evaluation definitions where unrecovered",
+          "status": "PENDING"
+        }
+      },
+      {
+        "acceptance_ref": "AC-004",
+        "expected_ref": "MT-33959#/fulfillment/legacy_acceptance_map/3",
+        "observable": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing.",
+        "behavioral_source_gap": {
+          "kind": "SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE",
+          "operator": "ADBE Vector Filter - RC",
+          "children": [
+            "ADBE Vector RoundCorner Radius"
+          ],
+          "missing": "Owning-clause parameter domain/unit/enum/evaluation definitions where unrecovered",
+          "status": "PENDING"
+        }
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1610,7 +2202,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/14",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1621,9 +2214,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33959::",
         "expected": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC`",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1631,15 +2224,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC`",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33959::",
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1652,9 +2249,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33959::",
         "expected": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1662,15 +2259,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33959::",
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1683,9 +2284,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33959::",
         "expected": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius`",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1693,15 +2294,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius`",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33959::",
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1714,9 +2319,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33959::",
         "expected": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1724,15 +2329,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "consumer_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33959::",
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -2063,7 +2672,8 @@
             "STU-MOT-095"
           ],
           "original_scope_retained": true,
-          "fulfillment_required_even_without_separate_captured_ac": true
+          "fulfillment_required_even_without_separate_captured_ac": true,
+          "executable_mt_ref": "./MT-33959.json"
         },
         "parent_activation_ref": "MT-33959#/activation",
         "mandatory_parent_precondition_ref": "MT-33959#/execution/start_precondition",
@@ -2093,18 +2703,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-001",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
         "later_embedding_ref": "MT-33959-KERNEL-AC-001",
         "later_embedding_required": true,
         "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC` Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2127,18 +2743,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-002",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
         "later_embedding_ref": "MT-33959-KERNEL-AC-002",
         "later_embedding_required": true,
         "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2161,18 +2783,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-003",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius`",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
         "later_embedding_ref": "MT-33959-KERNEL-AC-003",
         "later_embedding_required": true,
         "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius` Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2195,18 +2823,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33959.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-004",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Missing child/source parameter semantic binding returns attributed unsupported/gap result and unchanged source graph; no guessed native operator parameter.",
+          "oracle": "Independent exact group-child containment/order/value read-back against cited appendix and owning clause; positive geometry oracle remains blocked until required parameter semantics are established.",
+          "task_specific_method": "Bind ADBE Vector Filter - RC to owning shape clause as recovered Round Corners group; resolve exact children ADBE Vector RoundCorner Radius. Preserve ordered temporal samples and feed existing Nib operation port. Appendix is topology only: missing parameter domains/units/type semantics cannot be invented from sibling or operator name.",
+          "task_specific_case": "Create ADBE Vector Filter - RC group with independently identifiable child samples ADBE Vector RoundCorner Radius. Change one addressed child and verify other child values/group order survive serialize/reopen and undo. Query numeric domain, unit and enum meanings: where owning clause has no definition, return SOURCE_PARAMETER_SEMANTICS_UNAVAILABLE; refuse geometry evaluation rather than guessing."
         },
         "later_embedding_ref": "MT-33959-KERNEL-AC-004",
         "later_embedding_required": true,
         "later_embedding_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       }
     ],
     "later_kernel": {
@@ -2275,18 +2909,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33959.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-001",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC`",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Unknown operator/member, dimensional mismatch or unsupported parameter must return an explicit gap/loss result; unchanged group order and source graph survive cancellation and failed evaluation.",
+            "oracle": "Independent sampled property values and shared Nib/Type consumer output from original-authored multi-operator shape/text composition; rendered output comparison is still separately required."
           },
           "later_embedding_ref": "MT-33959-KERNEL-AC-001",
           "later_embedding_required": true,
           "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated shape operator family: `ADBE Vector Filter - RC` Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2309,18 +2947,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33959.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-002",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Unknown operator/member, dimensional mismatch or unsupported parameter must return an explicit gap/loss result; unchanged group order and source graph survive cancellation and failed evaluation.",
+            "oracle": "Independent sampled property values and shared Nib/Type consumer output from original-authored multi-operator shape/text composition; rendered output comparison is still separately required."
           },
           "later_embedding_ref": "MT-33959-KERNEL-AC-002",
           "later_embedding_required": true,
           "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated semantic: Round Corners Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2343,18 +2985,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33959.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-003",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius`",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Unknown operator/member, dimensional mismatch or unsupported parameter must return an explicit gap/loss result; unchanged group order and source graph survive cancellation and failed evaluation.",
+            "oracle": "Independent sampled property values and shared Nib/Type consumer output from original-authored multi-operator shape/text composition; rendered output comparison is still separately required."
           },
           "later_embedding_ref": "MT-33959-KERNEL-AC-003",
           "later_embedding_required": true,
           "later_embedding_assertion": "`ADBE Vector Filter - RC` satisfies the spec's stated child properties: `ADBE Vector RoundCorner Radius` Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-004",
@@ -2377,19 +3023,26 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33959.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-004",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Unknown operator/member, dimensional mismatch or unsupported parameter must return an explicit gap/loss result; unchanged group order and source graph survive cancellation and failed evaluation.",
+            "oracle": "Independent sampled property values and shared Nib/Type consumer output from original-authored multi-operator shape/text composition; rendered output comparison is still separately required."
           },
           "later_embedding_ref": "MT-33959-KERNEL-AC-004",
           "later_embedding_required": true,
           "later_embedding_assertion": "`ADBE Vector Filter - RC` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         }
+      ],
+      "host_adoption_mt_refs": [
+        "./MT-36203.json"
       ]
     },
     "unresolved_source_anchors": [],

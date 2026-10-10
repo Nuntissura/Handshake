@@ -50,7 +50,7 @@
     "title": "Adopt pinned hsk-studio-press through native Handshake services",
     "group": "HOST_ADOPTION",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "parent": {
     "wp_contract_revision": 2,
@@ -70,7 +70,9 @@
       "src/backend/handshake_core/src/api/mod.rs:35",
       "src/backend/handshake_core/src/api/authority.rs:1322",
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/nonexecutable_reference_disposition",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35346"
     ],
     "pillar_refs": [
       "INT",
@@ -162,7 +164,6 @@
       "MT-33392/AC-001",
       "MT-33393/AC-001",
       "MT-33394/AC-001",
-      "MT-35346/AC-001",
       "MT-35557/AC-001",
       "MT-35557/AC-002",
       "MT-35557/AC-003",
@@ -188,7 +189,7 @@
       },
       {
         "id": "MT-36217/AC-HOST-002",
-        "text": "Every qualified source criterion and preserved scope in .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/28 is independently read, executed through its mapped actual host consumer, and bound to an individual result; aggregate adapter success cannot discharge feature results."
+        "text": "Every executable qualified source criterion and preserved product scope in .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/28 is independently read, executed through its mapped actual host consumer, and bound to an individual result; aggregate adapter success cannot discharge feature results. MT-35346/AC-001 is retained as umbrella IO-170 authority/content-obligation lineage only, not a runtime gate; genuine Press/PDF parameter acceptance remains required."
       },
       {
         "id": "MT-36217/AC-HOST-003",
@@ -277,7 +278,6 @@
       "MT-33393",
       "MT-33394",
       "MT-33395",
-      "MT-35346",
       "MT-35592",
       "MT-35593",
       "MT-35980",
@@ -323,7 +323,7 @@
       },
       {
         "n": 4,
-        "step": "Construct per-criterion inputs from .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/28/qualified_ac_refs and original_scope_refs. Preserve exact IDs, source hashes, source feature outputs and loss/failure rules. Bind each output to mapped host consumer, current actor/resource/revision and source release; do not replace composite feature results with facade registration."
+        "step": "Construct per-criterion inputs from .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/28/qualified_ac_refs and original_scope_refs. Preserve exact IDs, source hashes, source feature outputs and loss/failure rules. Bind each output to mapped host consumer, current actor/resource/revision and source release; do not replace composite feature results with facade registration. MT-35346 (IO-170) is a retained authority/content-obligation reference, not a source/runtime gate, per current IO derivation no-yield set. Genuine Press/PDF parameter obligations remain mandatory: seven distinct parameter-contract fields, unknown versus absent, complete enum members/domain completeness, verified units and writer determinism."
       },
       {
         "n": 5,
@@ -416,7 +416,6 @@
         "MT-33393",
         "MT-33394",
         "MT-33395",
-        "MT-35346",
         "MT-35592",
         "MT-35593",
         "MT-35980",
@@ -487,7 +486,6 @@
         "./MT-33393.json#/submissions",
         "./MT-33394.json#/submissions",
         "./MT-33395.json#/submissions",
-        "./MT-35346.json#/submissions",
         "./MT-35592.json#/submissions",
         "./MT-35593.json#/submissions",
         "./MT-35980.json#/submissions",
@@ -579,7 +577,6 @@
           "MT-33392/AC-001",
           "MT-33393/AC-001",
           "MT-33394/AC-001",
-          "MT-35346/AC-001",
           "MT-35557/AC-001",
           "MT-35557/AC-002",
           "MT-35557/AC-003",
@@ -598,7 +595,7 @@
           "MT-33387/ASSET-AC-001",
           "MT-33395/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Granted PDF document/export/redaction with full reachable payload graph. Method: Invoke Press through approved sandbox and artifact services; consume Layout/Type/Prism ports and inspect full sanitized output closure Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: fully sanitized PDF content, metadata, attachments and incremental revisions. Negative assertions: Redacted text/images/metadata/attachments/incremental revisions cannot remain reachable; independent extract/reopen verifies irreversible redaction. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Granted PDF document/export/redaction with full reachable payload graph. Method: Invoke Press through approved sandbox and artifact services; consume Layout/Type/Prism ports and inspect full sanitized output closure Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: fully sanitized PDF content, metadata, attachments and incremental revisions. Negative assertions: Redacted text/images/metadata/attachments/incremental revisions cannot remain reachable; independent extract/reopen verifies irreversible redaction. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
         "expected": "Redacted text/images/metadata/attachments/incremental revisions cannot remain reachable; independent extract/reopen verifies irreversible redaction",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -614,8 +611,8 @@
         "claim_refs": [
           "MT-36217/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare fully sanitized PDF content, metadata, attachments and incremental revisions and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight fully sanitized PDF content, metadata, attachments and incremental revisions, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare fully sanitized PDF content, metadata, attachments and incremental revisions plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
-      "expected": "Prior/candidate compatible release preserves fully sanitized PDF content, metadata, attachments and incremental revisions; incompatible candidate is denied before authority mutation; rollback reopens/replays prior fully sanitized PDF content, metadata, attachments and incremental revisions with accepted authority and provenance intact.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare fully sanitized PDF content, metadata, attachments and incremental revisions and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight fully sanitized PDF content, metadata, attachments and incremental revisions, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare fully sanitized PDF content, metadata, attachments and incremental revisions plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
+        "expected": "Prior/candidate compatible release preserves fully sanitized PDF content, metadata, attachments and incremental revisions; incompatible candidate is denied before authority mutation; rollback reopens/replays prior fully sanitized PDF content, metadata, attachments and incremental revisions with accepted authority and provenance intact.",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -680,7 +677,6 @@
           "MT-33392/AC-001",
           "MT-33393/AC-001",
           "MT-33394/AC-001",
-          "MT-35346/AC-001",
           "MT-35557/AC-001",
           "MT-35557/AC-002",
           "MT-35557/AC-003",
@@ -699,7 +695,7 @@
           "MT-33387/ASSET-AC-001",
           "MT-33395/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and fully sanitized PDF content, metadata, attachments and incremental revisions for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-press through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_press_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and fully sanitized PDF content, metadata, attachments and incremental revisions for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-press through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
         "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -768,7 +764,6 @@
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33393.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33394.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33395.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35346.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35592.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35593.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35980.json",

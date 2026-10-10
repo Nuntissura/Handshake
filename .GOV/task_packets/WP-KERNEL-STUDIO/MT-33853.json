@@ -105,7 +105,68 @@
     "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
     "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
     "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
-    "routing": "Navigation extends the existing address and bus seams. No new router."
+    "routing": "Navigation extends the existing address and bus seams. No new router.",
+    "historical_hbr_pillar_refs": {
+      "immutable_baseline_commit": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33853.json",
+      "pointer": "/context_capsule/pillar_refs",
+      "previous_registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "preservation": "Original forty-five row history remains in baseline Git blob; current applicable rows refreshed to HBR1.16 without acceptance changes."
+    },
+    "motion_task_method": {
+      "family": "property_schema",
+      "method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+      "negative": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+      "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+      "planned_proof": {
+        "selected_packages": [
+          "hsk-studio-motion"
+        ],
+        "feature_policy": "Explicit --no-default-features pure Rust closure; optional MotionJS/native provider proof separately selected and cannot be claimed by this target.",
+        "consumer_assertion": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+        "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+        "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+        "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+        "planned_filter": "mt_33853::",
+        "argv": [
+          "cargo",
+          "test",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-motion",
+          "--no-default-features",
+          "--test",
+          "contracts",
+          "--",
+          "mt_33853::"
+        ],
+        "configuration_binding": {
+          "status": "PLANNED_NOT_RUN",
+          "cwd": "canonical assets checkout root",
+          "source_repository": "https://github.com/Nuntissura/assets",
+          "source_revision": null,
+          "env": {
+            "CARGO_TARGET_DIR": "resolved owning external artifact root/cargo-target",
+            "TMP": "resolved owning external artifact root/tmp",
+            "TEMP": "resolved owning external artifact root/tmp"
+          },
+          "features": [],
+          "require_nonzero_selected_cases": true
+        },
+        "timeout_seconds": 30,
+        "proof_limit": "Source domain only; native device, proprietary oracle/parity, host GUI/storage/auth/Argus behavior remain independently pending.",
+        "task_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
+      },
+      "source_stage": "Canonical remote landing independently re-read before host writes; local candidate is insufficient.",
+      "task_cases": [
+        {
+          "case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+          "expected": "Exact task-specific consumer/read-back or explicit unresolved-source result; original acceptance remains mandatory."
+        }
+      ]
+    }
   },
   "gui_obligation": {
     "operator_surface_required": "YES",
@@ -174,7 +235,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -191,7 +259,7 @@
     "title": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -232,7 +300,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -252,13 +320,13 @@
         "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -278,13 +346,13 @@
         "evidence_kind": "cross_boundary_default_deny_negative_suite",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -304,13 +372,13 @@
         "evidence_kind": "same_project_and_cross_project_isolation_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -330,13 +398,13 @@
         "evidence_kind": "mixed_scope_derivation_non_widening_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -356,13 +424,13 @@
         "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -382,13 +450,13 @@
         "evidence_kind": "concurrent_revocation_and_context_switch_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -408,13 +476,13 @@
         "evidence_kind": "remote_delegation_and_sync_scope_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -434,13 +502,13 @@
         "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -460,13 +528,13 @@
         "evidence_kind": "test_run_with_ledger_replay",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -486,13 +554,13 @@
         "evidence_kind": "test_run_with_session_trace",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -512,13 +580,13 @@
         "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -538,13 +606,13 @@
         "evidence_kind": "test_run_with_reconnect_and_promotion",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -564,13 +632,13 @@
         "evidence_kind": "test_run_with_cross_lane_trace_comparison",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -590,13 +658,13 @@
         "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -616,13 +684,13 @@
         "evidence_kind": "test_run_with_trace_projection_replay",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -642,13 +710,13 @@
         "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -668,13 +736,13 @@
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -694,13 +762,13 @@
         "evidence_kind": "concurrent_session_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -720,13 +788,13 @@
         "evidence_kind": "concurrency_primitive_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -746,13 +814,13 @@
         "evidence_kind": "parallel_operator_agent_ui_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -772,13 +840,13 @@
         "evidence_kind": "typed_routing_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -798,13 +866,13 @@
         "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -824,13 +892,13 @@
         "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -850,13 +918,13 @@
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -876,13 +944,13 @@
         "evidence_kind": "renderer_console_error_report",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION owns no GUI. Verify negative owned-GUI scope; any visible shared consuming integration requires later viewport/state matrix, never an invented module panel.",
@@ -902,13 +970,13 @@
         "evidence_kind": "capture_matrix",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -928,13 +996,13 @@
         "evidence_kind": "trace_projection_inspection",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -954,13 +1022,13 @@
         "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -980,13 +1048,13 @@
         "evidence_kind": "headless_run_with_focus_audit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -1006,13 +1074,13 @@
         "evidence_kind": "automation_path_audit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -1032,13 +1100,13 @@
         "evidence_kind": "process_lifecycle_test_run",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1058,13 +1126,13 @@
         "evidence_kind": "foreground_exception_declaration_and_operator_warning",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1084,13 +1152,13 @@
         "evidence_kind": "user_manual_diff_in_same_commit",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1110,13 +1178,13 @@
         "evidence_kind": "no_context_model_operation_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1136,13 +1204,13 @@
         "evidence_kind": "manual_self_consistency_test",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1162,13 +1230,13 @@
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1188,13 +1256,13 @@
         "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1214,13 +1282,13 @@
         "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1240,13 +1308,13 @@
         "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1266,13 +1334,13 @@
         "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1292,13 +1360,13 @@
         "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1318,13 +1386,13 @@
         "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1344,13 +1412,13 @@
         "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1370,13 +1438,13 @@
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-MOTION scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1396,8 +1464,92 @@
         "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "proof_status": "PENDING_NOT_RUN",
+        "assessment": "APPLIES",
+        "reason": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration changes a standalone Motion capability; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33853/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007"
       }
     ],
     "runtime_lane_refs": [
@@ -1426,7 +1578,10 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "8a4dfb883296fbc3c86e5ece2e71029dfe1266c3d56370f7624fcd0ce8061a00"
+    "context_digest": "8a4dfb883296fbc3c86e5ece2e71029dfe1266c3d56370f7624fcd0ce8061a00",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/14/maintenance"
+    ]
   },
   "closure_unit": {
     "outcome": "Deliver STUDIO-MODULE-MOTION asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
@@ -1614,34 +1769,125 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-MOTION asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-33853#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-MOTION",
-        "immutable_input_and_revision_required": true
+        "task": "The normative `StudioLayer.kind` enumeration for compositions is ten members - composition layer is a StudioLayer whose kind is one of enumeration",
+        "source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 25509,
+            "end_line": 25527,
+            "body_sha256": "a4ccd47d535974bf3d526e74c8bd4e4b43d5f507a261b7b8395f3484396c80d5",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "acceptance_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007",
+          "AC-008",
+          "AC-009",
+          "AC-010"
+        ],
+        "input_binding": "Immutable Folio composition/property revision; exact canonical effective tick, dimensions, profile/seed and published dependency versions; runtime values and hashes bind before dispatch."
+      },
+      {
+        "task_specific_recovered_bindings": [],
+        "binding_status": "EXACT_SOURCE_ROWS",
+        "source_ranges_ref": "./MT-33853.json#/context_capsule/specification_anchor_refs"
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Run planned owning-package proof only after target materialization/activation; land canonical https://github.com/Nuntissura/assets source revision under handshake-studio-assets and require independent remote revision re-read plus source proof before mapped host adoption."
       },
       {
-        "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
-      },
-      {
-        "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "acceptance_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005",
+          "AC-006",
+          "AC-007",
+          "AC-008",
+          "AC-009",
+          "AC-010"
+        ],
+        "n": 3
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      {
+        "acceptance_ref": "AC-001",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/0",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-002",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/1",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-003",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/2",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-004",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/3",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-005",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/4",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-006",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/5",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-007",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/6",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-008",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/7",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-009",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/8",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      },
+      {
+        "acceptance_ref": "AC-010",
+        "expected_ref": "MT-33853#/fulfillment/legacy_acceptance_map/9",
+        "observable": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition.",
+        "behavioral_source_gap": null
+      }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1685,7 +1931,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/14",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1696,9 +1943,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1706,15 +1953,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1727,9 +1978,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1737,15 +1988,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1758,9 +2013,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1768,15 +2023,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1789,9 +2048,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1799,15 +2058,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1820,9 +2083,9 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1830,15 +2093,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1851,9 +2118,9 @@
         "claim_refs": [
           "AC-006"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1861,15 +2128,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1882,9 +2153,9 @@
         "claim_refs": [
           "AC-007"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1892,15 +2163,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1913,9 +2188,9 @@
         "claim_refs": [
           "AC-008"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1923,15 +2198,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1944,9 +2223,9 @@
         "claim_refs": [
           "AC-009"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1954,15 +2233,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1975,9 +2258,9 @@
         "claim_refs": [
           "AC-010"
         ],
-        "command_or_method": null,
+        "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-motion --no-default-features --test contracts -- mt_33853::",
         "expected": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1985,15 +2268,19 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
+          "planned_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "consumer_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another.",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "planned_target": "handshake-studio-assets/crates/hsk-studio-motion/tests/contracts.rs",
+          "planned_filter": "mt_33853::",
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -2366,7 +2653,8 @@
             "STU-MOT-005"
           ],
           "original_scope_retained": true,
-          "fulfillment_required_even_without_separate_captured_ac": true
+          "fulfillment_required_even_without_separate_captured_ac": true,
+          "executable_mt_ref": "./MT-33853.json"
         },
         "parent_activation_ref": "MT-33853#/activation",
         "mandatory_parent_precondition_ref": "MT-33853#/execution/start_precondition",
@@ -2396,18 +2684,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-001",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-001",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2430,18 +2724,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-002",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-002",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2464,18 +2764,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-003",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-003",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2498,18 +2804,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-004",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-004",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-005",
@@ -2532,18 +2844,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-005",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-005",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-006",
@@ -2566,18 +2884,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-006",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-006",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-007",
@@ -2600,18 +2924,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-007",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-007",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-008",
@@ -2634,18 +2964,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-008",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-008",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-009",
@@ -2668,18 +3004,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-009",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-009",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       },
       {
         "acceptance_id": "AC-010",
@@ -2702,18 +3044,24 @@
           }
         ],
         "asset_proof_recipe": {
+          "task_method_ref": "./MT-33853.json#/execution/implementation_steps",
+          "acceptance_ref": "AC-010",
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "consumer_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+          "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API.",
+          "task_specific_method": "Dispatch each exact ten-member layer kind to its declared source/property creation contract in shared layer registry.",
+          "task_specific_case": "Create/read all ten kinds; compare kind/source reference, reject unknown kind, never coerce footage to precomposition."
         },
         "later_embedding_ref": "MT-33853-KERNEL-AC-010",
         "later_embedding_required": true,
         "later_embedding_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "./MT-36203.json"
+        ]
       }
     ],
     "later_kernel": {
@@ -2824,18 +3172,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-001",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-001",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `footage` with the exact meaning the spec states: An audio/video layer whose source is an imported media item. Carries the full transform, effects, masks and time properties.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2858,18 +3210,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-002",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-002",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `composition` with the exact meaning the spec states: An audio/video layer whose source is another `StudioComposition` (a precomposition).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2892,18 +3248,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-003",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-003",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `solid` with the exact meaning the spec states: A single-colour layer of a declared size. The workhorse carrier for effects that generate rather than filter.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-004",
@@ -2926,18 +3286,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-004",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-004",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `text` with the exact meaning the spec states: A text layer with a source-text property, path options, more options and an animator collection ([STU-MOT-090]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-005",
@@ -2960,18 +3324,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-005",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-005",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `shape` with the exact meaning the spec states: A procedurally-defined vector layer built from shape operators ([STU-MOT-100]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-006",
@@ -2994,18 +3362,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-006",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-006",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `camera` with the exact meaning the spec states: A camera. Renders nothing; defines the view for 3D layers ([STU-CMP-040]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-007",
@@ -3028,18 +3400,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-007",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-007",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `light` with the exact meaning the spec states: A light. Renders nothing; illuminates 3D layers ([STU-CMP-045]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-008",
@@ -3062,18 +3438,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-008",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-008",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `null` with the exact meaning the spec states: An invisible zero-content layer used purely as a parent or an expression target ([STU-MOT-008]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-009",
@@ -3096,18 +3476,22 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-009",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-009",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `adjustment` with the exact meaning the spec states: A layer whose effects apply to everything composited beneath it in the stack rather than to its own content ([STU-CMP-015]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         },
         {
           "acceptance_id": "AC-010",
@@ -3130,19 +3514,26 @@
             }
           ],
           "asset_proof_recipe": {
+            "task_method_ref": "./MT-33853.json#/implementation_notes/motion_task_method",
+            "acceptance_ref": "AC-010",
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "consumer_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "negative_path": "Reject duplicate/ambiguous identities, parent cycle, wrong dimension or stale revision before a reversible patch is accepted; serialize/reopen and verify order/time/value metadata survives.",
+            "oracle": "Independent read-back of the returned typed record and sampled values against complete source clause, using an original-authored composition through the actual public API."
           },
           "later_embedding_ref": "MT-33853-KERNEL-AC-010",
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `guide` with the exact meaning the spec states: A layer visible while authoring and excluded from render by default ([STU-MOT-121]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "host_adoption_mt_refs": [
+            "./MT-36203.json"
+          ]
         }
+      ],
+      "host_adoption_mt_refs": [
+        "./MT-36203.json"
       ]
     },
     "unresolved_source_anchors": [],

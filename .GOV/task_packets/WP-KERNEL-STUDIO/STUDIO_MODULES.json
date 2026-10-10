@@ -4348,7 +4348,10 @@
           ],
           "foundation_mt_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json",
           "feature_selector_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json#/execution/inputs",
-          "compiler_materialization": "Independent selected closure only; manifests/targets created by source implementation, not claimed present in preparation; provider pin/features resolved in owning MT before dispatch"
+          "compiler_materialization": "Independent selected closure only; manifests/targets created by source implementation, not claimed present in preparation; provider pin/features resolved in owning MT before dispatch",
+          "retained_authority_reference_refs": [
+            ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35346"
+          ]
         },
         "public_behavior": {
           "responsibility": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",

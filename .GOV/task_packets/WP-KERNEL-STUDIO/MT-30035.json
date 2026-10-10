@@ -1852,6 +1852,25 @@
     "extra_build_proofs": [],
     "proof_materialization_status": "PLANNED_NOT_RUN_NO_EXECUTION_AUTHORIZED"
   },
+  "red_team": {
+    "required": true,
+    "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+    "risks": [
+      "No-op foundation or canned oracle PASS",
+      "Hidden kernel/GPU/codec dependency closure",
+      "Unbounded swarm queue, stale revision, cancellation or data loss",
+      "Duplicated UI/manual/diagnostic owner",
+      "Asset proof substituted for production embedding/native editable decoder"
+    ],
+    "minimum_controls": [
+      "Bounded actual consumer plus failure/loss/cancel path",
+      "Closed selectable DAG and clean dependency proof",
+      "Bounded admission and canonical runtime adapter; no private scheduler",
+      "Reuse canonical Controls/Argus/UserManual owners",
+      "Retain all original acceptance and independent later embedding proof"
+    ]
+  },
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
     "implementation_state": "PLANNED_NOT_IMPLEMENTED",

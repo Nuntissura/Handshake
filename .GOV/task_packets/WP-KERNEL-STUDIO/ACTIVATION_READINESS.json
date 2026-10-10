@@ -20,9 +20,9 @@
     "baseline_legacy": 509,
     "baseline_derived": 4975,
     "baseline_acceptance": 21145,
-    "current_added_count": 297,
-    "published_source_companions": 161,
-    "remaining_allocated_source_companions": 409
+    "current_added_count": 377,
+    "published_source_companions": 241,
+    "remaining_allocated_source_companions": 329
   },
   "local_branch": null,
   "local_worktree_dir": null,

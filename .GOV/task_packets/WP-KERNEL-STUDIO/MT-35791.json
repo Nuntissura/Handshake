@@ -1,0 +1,3114 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "schema_version": "microtask_contract_v2_preservation_asset_first",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-35791",
+  "created_at_utc": "2026-07-09T00:00:00Z",
+  "updated_at_utc": "2026-10-09T23:12:06.084Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35791.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": "PENDING",
+    "active": false,
+    "validator_verdict": "PENDING",
+    "contract_preparation_only": true,
+    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION",
+    "rounds_without_output": 0
+  },
+  "clause": "Develop read/observe surfaces (histogram, navigation, before/after, filmstrip, cache) [STU-RAW-004]",
+  "spec_anchor": [
+    "STU-RAW-004",
+    "STU-DOC-004",
+    "STU-OVR-003"
+  ],
+  "scope": {
+    "summary": "Implement the develop read/observe projections of StudioRawDevelop state to operator UI and model command surface per [STU-DOC-004] (never a separate model shim): live histogram with shadow/highlight clipping toggles; zoom/pan/hand navigation with zoom presets + full-screen review; before/after cycling + per-panel adjustment-visibility toggling; multi-image filmstrip with sort/filter (capture date, name, rating, color label), per-image star ratings, color labels, mark-for-deletion; and a configurable preview/settings cache with max size, purge, and relocation held outside authority under the typed SurrealDB boundary and PostgreSQL/SQLite tripwire.",
+    "allowed_paths": [
+      "src/studio/raw/**",
+      "src/frontend/handshake_native/src/studio/**",
+      "tests/studio/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/** (legacy reference-only)"
+    ],
+    "acceptance_criteria": [
+      "Read/observe surfaces render",
+      "Query",
+      "Filmstrip sort/filter/rating",
+      "Cache controls",
+      "No PostgreSQL/SQLite"
+    ],
+    "proof_targets": [
+      "Argus inspect of histogram/filmstrip + cache-control test"
+    ],
+    "code_surfaces": [
+      "src/studio/raw/observe.rs",
+      "src/frontend/handshake_native/src/studio/raw/develop_pane.rs"
+    ],
+    "expected_tests": [
+      "argus: histogram + clipping toggles + navigation reachable with stable author_ids",
+      "test: filmstrip sort/filter + rating/label/mark-for-deletion query",
+      "test: preview/settings cache purge+relocate; no PostgreSQL/SQLite"
+    ],
+    "acceptance_criteria_original": [
+      "read/observe surfaces render + query; filmstrip sort/filter/rating; cache controls; no PostgreSQL/SQLite"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "develop histogram",
+      "develop navigator",
+      "filmstrip"
+    ],
+    "argus_targets": [
+      "studio.raw.histogram",
+      "studio.raw.filmstrip",
+      "studio.raw.beforeafter"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "ASSESS_ACTUAL_DESCRIPTOR_CHANGE",
+    "target_entries": [
+      "STUDIO-MODULE-DEVELOP",
+      "Owned command/primitive, input/output, failure/recovery and diagnostic/Argus routes"
+    ],
+    "expected_evidence": [
+      "Canonical UserManual same-change descriptor diff",
+      "No-context operation and wired-surface consistency"
+    ],
+    "location": "Canonical Handshake UserManual; host-neutral descriptor publication during asset phase",
+    "reason": "Every capability includes human/model operation and recovery information."
+  },
+  "hbr_obligations": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "FR-EVT-STUDIO-* business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+    },
+    {
+      "tier": "palmistry",
+      "status": "WIRED",
+      "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
+    }
+  ],
+  "risk_if_missed": "No inspection/navigation surface; operator+model cannot observe develop state.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+    "risks": [
+      "No-op foundation or canned oracle PASS",
+      "Hidden kernel/GPU/codec dependency closure",
+      "Unbounded swarm queue, stale revision, cancellation or data loss",
+      "Duplicated UI/manual/diagnostic owner",
+      "Asset proof substituted for production embedding/native editable decoder"
+    ],
+    "minimum_controls": [
+      "Bounded actual consumer plus failure/loss/cancel path",
+      "Closed selectable DAG and clean dependency proof",
+      "Bounded admission and canonical runtime adapter; no private scheduler",
+      "Reuse canonical Controls/Argus/UserManual owners",
+      "Retain all original acceptance and independent later embedding proof"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Read/observe surfaces render",
+      "evidence_kind": "gui_proof",
+      "proof_target": "Argus inspect of histogram/filmstrip + cache-control test",
+      "proof_target_status": "carried_from_original",
+      "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Query",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+      "proof_target_status": "REQUIRED",
+      "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Filmstrip sort/filter/rating",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+      "proof_target_status": "REQUIRED",
+      "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Cache controls",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+      "proof_target_status": "REQUIRED",
+      "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "No PostgreSQL/SQLite",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+      "proof_target_status": "REQUIRED",
+      "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+    }
+  ],
+  "acceptance_criteria_count": 5,
+  "implementation_notes": {
+    "spec_clauses": [
+      {
+        "anchor": "STU-RAW-004",
+        "spec_clause_text": "**[STU-RAW-004]** The pipeline MUST expose, as projections of the same `StudioRawDevelop` state to both the operator UI and the model command surface ([STU-DOC-004]): a live histogram with shadow/highlight clipping indication; zoom, pan and hand navigation with zoom presets and a full-screen review view; before/after preview cycling and per-group visibility toggling via [STU-RAW-105]; a multi-image filmstrip with sort and filter and per-image rating, colour-label and mark-for-deletion state; and a configurable preview/settings cache with a maximum size, purge and relocation controls, held under the no-SQLite authority rule ([STU-OVR-003]). ### 2a. Retained Group-Scope Clauses These clauses state what each develop group MUST provide. They are retained from v02.205 with their scope unchanged; the parameter contract for each group follows in the section named."
+      },
+      {
+        "anchor": "STU-DOC-004",
+        "spec_clause_text": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability. --- ## 14.4 Raster Imaging & Photo Editing ## 14.4 Raster Imaging & Photo Editing Studio's raster imaging surface is the deduped union of the pixel-editing capability of every source suite in Studio's parity basis, rebuilt as Handshake-native pixel primitives. It is the pixel-editing domain of the unified `StudioDocument`: raster content lives as `StudioLayer` nodes whose `kind` selects a pixel payload, sharing one selection surface, one masking surface, one color pipeline, one history, and one export surface with every other Studio domain (14.3, [STU-DOC-004]). This sub-section is the normative Studio raster feature set and it is self-sufficient: an implementer with no other document MUST be able to build every primitive named here, and to derive the microtask set that builds them, from this sub-section alone. No source-suite product name is a Studio tool, panel, adjustment, or command name. Every raster capability MUST be exposed as a non-destructive primitive wherever a non-destructive form exists: destructive-in-place editing is a mode of a primitive, never the only path. Canonical field-level types, schema ids, event variants, tables, and validation checks for every primitive named here (`StudioLayer`, `StudioRasterTile`, `StudioSelectionSet`, `StudioMask`, `StudioAdjustment`, `StudioLiveFilter`, `StudioBlendMode`, `StudioEffectStack`, `StudioGradient`, `StudioPattern`, `StudioColorProfile`, and the `StudioParameterSpec` added by [STU-RAS-100]) are defined in 14.23; where this sub-section and 14.23 conflict, 14.23 wins. --- ### 0. Replacement, Derivation, and Anchor Disposition"
+      },
+      {
+        "anchor": "STU-OVR-003",
+        "spec_clause_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed. ### 2. Scope Studio's normative feature scope is the deduped union of the five source suites, organized into the domain catalogs below. Each catalog sub-section is the normative Studio feature set for that domain; the research provenance rows are collapsed into these normative features per [STU-SECTION-003]. | Domain catalog | Sub-section | Source-suite parity basis (provenance) | |---|---|---| | Raster imaging & photo editing | 14.4 | Photoshop, Affinity Photo, Figma raster fills | | Vector graphics & illustration | 14.5 | Illustrator, Affinity Designer, Figma/Draw vector networks | | Page layout & publishing | 14.6 | InDesign, Affinity Publisher | | Typography engine | 14.7 | all five suites' text engines | | Color management & pipeline | 14.8 | all five suites' color systems | | Effects, filters & adjustments | 14.9 | Photoshop filters/adjustments, Illustrator effects, Affinity live filters, Figma effects | | Design systems, components & variables | 14.10 | Figma components/variants/variables, Illustrator symbols, InDesign styles | | Prototyping, motion & interaction | 14.11 | Figma prototyping + Motion, InDesign interactive/EPUB | | Camera Raw / Develop pipeline | 14.12 | Photoshop Camera Raw, Affinity Develop persona | | Import/export & file-format compatibility | 14.13 | all five suites' format matrices | | Automation, scripting & plugin/API surface | 14.14 | Photoshop UXP/actions, Illustrator/InDesign scripting DOM, Figma Plugin/REST API | | Whiteboard & diagramming | 14.15 | FigJam | The cross-cutting normative requirements — model visibility/steerability (14.16), parallel workflows (14.17), the propose-work system (14.18), per-file history/undo (14.19), the headless/quiet law (14.20), the operator unification surface (14.21), the dual-audience UserManual (14.22), the canonical contracts (14.23), and validation/promotion/HBR (14.24) — apply to every domain catalog. Out of scope: replicating any source suite's exact menu tree, pixel-perfect UI clone, vendor cloud services, vendor pro"
+      }
+    ],
+    "spec_clause_count": 3,
+    "unresolved_anchors": [],
+    "family_scope_citations": [],
+    "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+    "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+    "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+    "routing": "Navigation extends the existing address and bus seams. No new router.",
+    "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+  },
+  "validator_focus": [
+    "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+    "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+    "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+    "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+  ],
+  "resource_privacy_obligation": {
+    "applies": true,
+    "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+  },
+  "patch_provenance": {
+    "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+    "patched_at": "2026-09-04T20:08:28+00:00",
+    "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+    "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+  },
+  "identity": {
+    "mt_id": "MT-35791",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "Develop read/observe surfaces (histogram, navigation, before/after, filmstrip, cache) [STU-RAW-004] / STUDIO-WORKSPACE owned slice",
+    "group": "STUDIO_ASSET_FEATURE_SPLIT",
+    "version": 2,
+    "contract_revision": 5
+  },
+  "parent": {
+    "wp_contract_revision": null,
+    "wp_contract_digest": null,
+    "binding_status": "ROOT_FINALIZATION_REQUIRED"
+  },
+  "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "anchor": "STU-RAW-004",
+        "line": 2102,
+        "section": "14.12",
+        "heading": "### 2. Raw Input Scope and Sensor Decode",
+        "verbatim": "**[STU-RAW-004]** The pipeline MUST expose, as projections of the same `StudioRawDevelop` state to both the",
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "definition_kind": "normative_clause"
+      },
+      {
+        "anchor": "STU-DOC-004",
+        "line": 263,
+        "section": "14.3",
+        "heading": "## 14.3 Unified Document Model and Studio Primitive Set",
+        "verbatim": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability.",
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "definition_kind": "normative_clause"
+      },
+      {
+        "anchor": "STU-OVR-003",
+        "line": 144,
+        "section": "14.1",
+        "heading": "### 1. What Studio Is",
+        "verbatim": "[STU-OVR-003] Studio MUST NOT introduce a SQLite database/SQL-engine dependency anywhere (not in any Studio asset crate, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio except for the explicitly bounded external file-byte decoder below. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+        "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "definition_kind": "normative_clause"
+      }
+    ],
+    "read_context": [
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
+    ],
+    "pillar_refs": [
+      {
+        "rule_id": "HBR-PRIV-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any resource authorization or discovery boundary",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "cross_boundary_default_deny_negative_suite",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "same_project_and_cross_project_isolation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "mixed_scope_derivation_non_widening_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-005 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-006 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "concurrent_revocation_and_context_switch_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-007 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "remote_delegation_and_sync_scope_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-PRIV-008 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any product behavior",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_ledger_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model invocation path",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_session_trace",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP produces any artifact intended for authority state",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any collaborative state surface",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_reconnect_and_promotion",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-005 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_cross_lane_trace_comparison",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-006 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable behavior",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-007 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_trace_projection_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates or modifies any UUID generation site in product code",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-008 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-009",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-INT-009 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any shared state surface",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "concurrent_session_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "concurrency_primitive_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any operator-facing surface",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "parallel_operator_agent_ui_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "typed_routing_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-005 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-SWARM-006 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-VIS-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any captured frame produced for HBR-VIS-001",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-VIS-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "renderer_console_error_report",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any feature visible at multiple viewports or states",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-VIS-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "capture_matrix",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches a non-UI behavior",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-VIS-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "trace_projection_inspection",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-VIS-005 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automated test or agent run",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-QUIET-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "headless_run_with_focus_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automation surface",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-QUIET-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "automation_path_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-QUIET-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "process_lifecycle_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP requires foreground interaction that cannot be eliminated",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-QUIET-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "foreground_exception_declaration_and_operator_warning",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MAN-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "user_manual_diff_in_same_commit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any change to UserManual content",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MAN-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "no_context_model_operation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any UserManual entry that describes a wired code surface",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MAN-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "manual_self_consistency_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MAN-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-STOP-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-STOP-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer considers stopping work on an MT, WP, or session",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-STOP-003 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters a dependency that blocks completion of the current work",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-STOP-004 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-STOP-005 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPART-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-COMPART-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPART-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any validation round of a product WP once build units exist",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-COMPART-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPONENT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-COMPONENT-001 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPONENT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP declares a new canonical mechanic or capability owner",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-COMPONENT-002 against exact selected source case and distinct actual host adoption.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-001 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-002 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-003 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "CONDITIONAL",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-004 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-005 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-006 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Owned STUDIO-WORKSPACE contribution to MT-413; evaluate HBR-MODULE-LIFECYCLE-007 against exact selected source case and distinct actual host adoption.",
+        "scope_evidence_refs": [
+          "MT-35791#/execution",
+          "MT-35791#/derivation",
+          "MT-35791#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": true,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      }
+    ],
+    "runtime_lane_refs": [
+      "STUDIO_ASSET_PREPARATION_NON_EXECUTION",
+      "LATER_KERNEL_EMBEDDING_RETAINED"
+    ],
+    "inspection_route_refs": [
+      "STUDIO-MODULE-OBSERVE:canonical Argus typed inspect/steer/capture ports; actual routes required before dispatch"
+    ],
+    "account_bound_resource_refs": [
+      "Typed principal/resource/revision/grant descriptors; concrete kernel auth consumer later"
+    ],
+    "consumed_capability_refs": [
+      "STUDIO-MODULE-ACCORD",
+      "STUDIO-MODULE-PIGMENT",
+      "STUDIO-MODULE-PRISM",
+      "STUDIO-MODULE-OBSERVE",
+      "Canonical Argus/FlightRecorder/InternalDiagnostics/Palmistry",
+      "Canonical UserManual",
+      "Canonical Controls owner search required",
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/consumed_capability_refs/0",
+        "capability": "Typed promotion decision through existing host owner; extend authenticated evidence/policy integration, never create Studio approval authority",
+        "consumption_phase": "LATER_ACTUAL_HOST_EMBEDDING",
+        "runtime_acceptance": "PENDING_NOT_RUN"
+      },
+      {
+        "ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/consumed_capability_refs/2",
+        "capability": "Existing canonical UserManual surface descriptor/route coverage registry; extend same-change canonical entries rather than parallel manual",
+        "consumption_phase": "LATER_ACTUAL_HOST_EMBEDDING",
+        "runtime_acceptance": "PENDING_NOT_RUN"
+      }
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/workspace_owner/maintenance"
+    ],
+    "prior_pillar_assessment_refs": [
+      {
+        "contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+        "native_git_blob_oid": "27751958198957d6327c410ebe77eefd9a1edfc3",
+        "source_parent_mt": "MT-413",
+        "history_retained_at_source": true
+      }
+    ],
+    "current_hbr_assessment": {
+      "version": "1.16.0",
+      "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+      "assessed_rule_count": 52,
+      "prior_acceptance_wording_retained": true,
+      "source_capability_ref": "MT-35529#/execution",
+      "host_proof_pending": true
+    },
+    "source_parent_context_ref": "MT-413#/context_capsule"
+  },
+  "closure_unit": {
+    "outcome": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Source case: STUDIO-MODULE-DEVELOP standalone contribution: Revision/profile/resolution-bound histogram,filmstrip and actorlocal navigation descriptors plus bounded disposable cache requests and typed metadata proposals",
+    "requirement_refs": [
+      "STU-RAW-004",
+      "STU-DOC-004",
+      "STU-OVR-003"
+    ],
+    "acceptance_refs": [
+      "MT-413/AC-001",
+      "MT-413/AC-002",
+      "MT-413/AC-003",
+      "MT-413/AC-004",
+      "MT-413/AC-005"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "Read/observe surfaces render",
+        "fulfillment_ref": "MT-413#/closure_unit/materialized_acceptance/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Query",
+        "fulfillment_ref": "MT-413#/closure_unit/materialized_acceptance/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "Filmstrip sort/filter/rating",
+        "fulfillment_ref": "MT-413#/closure_unit/materialized_acceptance/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "Cache controls",
+        "fulfillment_ref": "MT-413#/closure_unit/materialized_acceptance/3"
+      },
+      {
+        "id": "AC-005",
+        "text": "No PostgreSQL/SQLite",
+        "fulfillment_ref": "MT-413#/closure_unit/materialized_acceptance/4"
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+    ],
+    "operator_decision_refs": [
+      "ilja091020261912"
+    ]
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-WORKSPACE",
+    "build_unit_ref": "STUDIO-WORKSPACE",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35528",
+      "MT-35529",
+      "MT-35530",
+      "MT-35531",
+      "MT-35532",
+      "MT-35533",
+      "MT-35534",
+      "MT-35535",
+      "MT-35536",
+      "MT-35537",
+      "MT-35538",
+      "MT-35539",
+      "MT-35540",
+      "MT-35541",
+      "MT-35542",
+      "MT-35543",
+      "MT-35544",
+      "MT-35545",
+      "MT-35546",
+      "MT-35547",
+      "MT-35548",
+      "MT-35549",
+      "MT-35550",
+      "MT-35551",
+      "MT-35552",
+      "MT-35553",
+      "MT-35554",
+      "MT-35555",
+      "MT-35556",
+      "MT-35557",
+      "MT-35558",
+      "MT-35559",
+      "MT-35560",
+      "MT-35561",
+      "MT-35562",
+      "MT-35563",
+      "MT-411",
+      "MT-35784",
+      "MT-35785",
+      "MT-35786",
+      "MT-009",
+      "MT-35640",
+      "MT-35641",
+      "MT-35642"
+    ],
+    "start_precondition": {
+      "dispatch_allowed": false,
+      "required_conditions": [
+        "SPEC207_PUBLICATION",
+        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
+        "FOCUSED_RECIPE_OWNER_FEATURE_SELECTION_AND_TIMEOUT_APPROVED_BEFORE_CODING",
+        "INDEPENDENT_CONTRACT_REVIEW",
+        "STUDIO_ALL_36_FOUNDATIONS_PASSED",
+        "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING",
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND"
+      ],
+      "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
+      "foundation_members": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35532",
+        "MT-35533",
+        "MT-35534",
+        "MT-35535",
+        "MT-35536",
+        "MT-35537",
+        "MT-35538",
+        "MT-35539",
+        "MT-35540",
+        "MT-35541",
+        "MT-35542",
+        "MT-35543",
+        "MT-35544",
+        "MT-35545",
+        "MT-35546",
+        "MT-35547",
+        "MT-35548",
+        "MT-35549",
+        "MT-35550",
+        "MT-35551",
+        "MT-35552",
+        "MT-35553",
+        "MT-35554",
+        "MT-35555",
+        "MT-35556",
+        "MT-35557",
+        "MT-35558",
+        "MT-35559",
+        "MT-35560",
+        "MT-35561",
+        "MT-35562",
+        "MT-35563"
+      ],
+      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
+    },
+    "allowed_write_paths": [
+      "handshake-studio-assets/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "Other Studio module roots/**"
+    ],
+    "shared_resource_locks": [],
+    "inputs": [
+      {
+        "source_slice_ref": "./MT-413.json#/fulfillment/asset_slices/2",
+        "parent_execution_ref": "MT-413#/execution",
+        "source_case_outcome": "STUDIO-MODULE-DEVELOP standalone contribution: Revision/profile/resolution-bound histogram,filmstrip and actorlocal navigation descriptors plus bounded disposable cache requests and typed metadata proposals",
+        "source_case_steps": [
+          {
+            "n": 1,
+            "step": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_observe_projection.rs: Compute histogram/clipping from actual identified resolution/profile sample source and expose counts/bins plus explicit partial/unavailable metadata. Build actorlocal zoom/pan/beforeafter projection of same develop state and use group enable flags for visibility rather than zeroing params. Sort/filter full canonical image set before pagination,stable image IDs preserve rating/label/deletion proposals. Preview/settings cache holds derived projection bytes only via artifact provider with maxsize/purge/relocation lease safety; no SQLite/PostgreSQL/catalog authority. Controls/Observe/UserManual descriptors shared; native fullscreen/focus/Argus proof remains host-owned."
+          },
+          {
+            "n": 2,
+            "step": "handshake-studio-assets/crates/hsk-studio-develop/src/develop_observe_projection.rs: Consume Canonical entire authorized develop/image set with revisions, decoded/profile-bound sample tiles and enable flags, actorlocal navigation state, capture/name/rating/colourlabel/deletion metadata, bounded configurable external artifact cache port; emit Revision/profile/resolution-bound histogram,filmstrip and actorlocal navigation descriptors plus bounded disposable cache requests and typed metadata proposals through the published STUDIO-MODULE-DEVELOP port. Consume genuine companion MT outputs; only this owner writes."
+          },
+          {
+            "n": 3,
+            "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_observe_projection.rs: histogram_sample_reconciliation; full_set_filmstrip_query; group_enable_preview; cache_lease_relocation Independent observation: Independent sample-bin sums and full canonical image-ID/metadata reread reconcile filters/counts independent of visible pages; cache provider bytes/lease accounting reread and same state beforeafter; real native GUI/Argus remaining separate host proof"
+          },
+          {
+            "n": 4,
+            "step": "handshake-studio-assets/crates/hsk-studio-develop/tests/develop_observe_projection.rs: Decode/profile/source unavailable or partial returns explicit state rather than stale histogram; staleimage metadata,cancel,budget/relocation failure preserves lastgood cache/source and no authority change; refreshed grant/currentsnapshot retries; cache purge only declared owned derived artifacts"
+          }
+        ],
+        "exact_materialized_claims": [
+          {
+            "id": "AC-001",
+            "text": "Read/observe surfaces render",
+            "fulfillment_ref": "MT-413#/fulfillment/legacy_acceptance_map/0"
+          },
+          {
+            "id": "AC-002",
+            "text": "Query",
+            "fulfillment_ref": "MT-413#/fulfillment/legacy_acceptance_map/1"
+          },
+          {
+            "id": "AC-003",
+            "text": "Filmstrip sort/filter/rating",
+            "fulfillment_ref": "MT-413#/fulfillment/legacy_acceptance_map/2"
+          },
+          {
+            "id": "AC-004",
+            "text": "Cache controls",
+            "fulfillment_ref": "MT-413#/fulfillment/legacy_acceptance_map/3"
+          },
+          {
+            "id": "AC-005",
+            "text": "No PostgreSQL/SQLite",
+            "fulfillment_ref": "MT-413#/fulfillment/legacy_acceptance_map/4"
+          }
+        ],
+        "complete_canonical_scope_basis": [
+          {
+            "anchor": "STU-RAW-004",
+            "line": 2102,
+            "section": "14.12",
+            "heading": "### 2. Raw Input Scope and Sensor Decode",
+            "verbatim": "**[STU-RAW-004]** The pipeline MUST expose, as projections of the same `StudioRawDevelop` state to both the",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          },
+          {
+            "anchor": "STU-DOC-004",
+            "line": 263,
+            "section": "14.3",
+            "heading": "## 14.3 Unified Document Model and Studio Primitive Set",
+            "verbatim": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability.",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          },
+          {
+            "anchor": "STU-OVR-003",
+            "line": 144,
+            "section": "14.1",
+            "heading": "### 1. What Studio Is",
+            "verbatim": "[STU-OVR-003] Studio MUST NOT introduce a SQLite database/SQL-engine dependency anywhere (not in any Studio asset crate, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio except for the explicitly bounded external file-byte decoder below. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          }
+        ],
+        "owning_semantics": "Virtual workspace/lockfile/toolchain/dependency-selection/mirror provenance; owns MT001 coordination, not Accord domain semantics",
+        "immutable_input_and_revision_required": true
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003"
+      },
+      {
+        "n": 2,
+        "step": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact source-case outcome: STUDIO-MODULE-DEVELOP standalone contribution: Revision/profile/resolution-bound histogram,filmstrip and actorlocal navigation descriptors plus bounded disposable cache requests and typed metadata proposals"
+      },
+      {
+        "n": 3,
+        "step": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+      },
+      {
+        "n": 4,
+        "step": "Update same-change inspection/manual descriptors; publish canonical Nuntissura/assets source first and require independent remote reread before the distinct exact mapped host adoption."
+      }
+    ],
+    "expected_outputs": [
+      "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority.",
+      "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+      "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+      "Source-case exact selected acceptance evidence and canonical manual/inspection; host adoption PENDING"
+    ],
+    "stop_conditions": [
+      "Exact recorded blocker with required dependency",
+      "Scope expansion requires owning contract; no capacity stopping"
+    ],
+    "may_create_canonical_capability": false,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts",
+      "owner_dir": null,
+      "env": {},
+      "flags": null,
+      "reference_runner": null,
+      "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
+      "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
+      "resolved_absolute_root_proof_required_before_run": true,
+      "proof_status": "PENDING",
+      "owner_dir_template": "WP-KERNEL-STUDIO/MT-35791/{VERIFIED_OWNER_SLUG}/",
+      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
+      "resolved_absolute_owner_root": null,
+      "runtime_binding_required_before_run": true,
+      "mutable_suffixes": {
+        "cargo": "cargo-target/",
+        "cache": "cache/",
+        "logs": "logs/",
+        "coverage": "coverage/",
+        "TMP": "tmp/",
+        "TEMP": "tmp/"
+      },
+      "same_disk_build_rule": "At most one actual build per physical disk; independent owners have disjoint mutable targets/caches/TMP/TEMP/logs."
+    },
+    "required_capability_dependencies": [],
+    "capability_creation_binding": {
+      "permission": "REUSE_OR_EXTEND_ONLY_NO_BLANKET_NEW_OWNER",
+      "new_owner_authorization": false,
+      "exact_registered_primitive_candidates": [
+        "PRIM-StudioRawDevelop"
+      ],
+      "primitive_candidates_are_not_owner_absence_proof": true,
+      "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
+      "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/9",
+      "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
+    },
+    "module_change_stage": "standalone_source"
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-413#/proof"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-35791-ASSET-AC-001",
+        "kind": "inspection",
+        "claim_refs": [
+          "MT-413/AC-001"
+        ],
+        "command_or_method": "Independent validator executes the HBR-bound selected virtual-workspace metadata consumer mt_35791 for the exact source case; planned target is created during implementation.",
+        "expected": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Source contribution is independently inspected; complete original host requirement remains in the exact mapped host MT.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate and immutable input closure",
+          "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+          "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+        ],
+        "method_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Read/observe surfaces render",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "existing_target_claimed": false,
+          "before_coding": "Bind selected owner package/features,HBR runner/config and scoped natural test cases.",
+          "before_handoff": "Real target and independent actual output required."
+        },
+        "source_requirement_text": "Read/observe surfaces render",
+        "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+        "full_parent_acceptance_ref": "MT-413#/closure_unit"
+      },
+      {
+        "check_id": "MT-35791-ASSET-AC-002",
+        "kind": "inspection",
+        "claim_refs": [
+          "MT-413/AC-002"
+        ],
+        "command_or_method": "Independent validator executes the HBR-bound selected virtual-workspace metadata consumer mt_35791 for the exact source case; planned target is created during implementation.",
+        "expected": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Source contribution is independently inspected; complete original host requirement remains in the exact mapped host MT.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate and immutable input closure",
+          "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+          "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+        ],
+        "method_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Query",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "existing_target_claimed": false,
+          "before_coding": "Bind selected owner package/features,HBR runner/config and scoped natural test cases.",
+          "before_handoff": "Real target and independent actual output required."
+        },
+        "source_requirement_text": "Query",
+        "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+        "full_parent_acceptance_ref": "MT-413#/closure_unit"
+      },
+      {
+        "check_id": "MT-35791-ASSET-AC-003",
+        "kind": "inspection",
+        "claim_refs": [
+          "MT-413/AC-003"
+        ],
+        "command_or_method": "Independent validator executes the HBR-bound selected virtual-workspace metadata consumer mt_35791 for the exact source case; planned target is created during implementation.",
+        "expected": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Source contribution is independently inspected; complete original host requirement remains in the exact mapped host MT.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate and immutable input closure",
+          "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+          "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+        ],
+        "method_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Filmstrip sort/filter/rating",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "existing_target_claimed": false,
+          "before_coding": "Bind selected owner package/features,HBR runner/config and scoped natural test cases.",
+          "before_handoff": "Real target and independent actual output required."
+        },
+        "source_requirement_text": "Filmstrip sort/filter/rating",
+        "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+        "full_parent_acceptance_ref": "MT-413#/closure_unit"
+      },
+      {
+        "check_id": "MT-35791-ASSET-AC-004",
+        "kind": "inspection",
+        "claim_refs": [
+          "MT-413/AC-004"
+        ],
+        "command_or_method": "Independent validator executes the HBR-bound selected virtual-workspace metadata consumer mt_35791 for the exact source case; planned target is created during implementation.",
+        "expected": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Source contribution is independently inspected; complete original host requirement remains in the exact mapped host MT.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate and immutable input closure",
+          "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+          "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+        ],
+        "method_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Cache controls",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "existing_target_claimed": false,
+          "before_coding": "Bind selected owner package/features,HBR runner/config and scoped natural test cases.",
+          "before_handoff": "Real target and independent actual output required."
+        },
+        "source_requirement_text": "Cache controls",
+        "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+        "full_parent_acceptance_ref": "MT-413#/closure_unit"
+      },
+      {
+        "check_id": "MT-35791-ASSET-AC-005",
+        "kind": "inspection",
+        "claim_refs": [
+          "MT-413/AC-005"
+        ],
+        "command_or_method": "Independent validator executes the HBR-bound selected virtual-workspace metadata consumer mt_35791 for the exact source case; planned target is created during implementation.",
+        "expected": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Source contribution is independently inspected; complete original host requirement remains in the exact mapped host MT.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate and immutable input closure",
+          "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows.",
+          "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency."
+        ],
+        "method_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: No PostgreSQL/SQLite",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "materialization_status": "REQUIRED_BEFORE_HANDOFF_NO_EXECUTABLE_TARGET_YET",
+        "materialization_timing": {
+          "existing_target_claimed": false,
+          "before_coding": "Bind selected owner package/features,HBR runner/config and scoped natural test cases.",
+          "before_handoff": "Real target and independent actual output required."
+        },
+        "source_requirement_text": "No PostgreSQL/SQLite",
+        "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+        "full_parent_acceptance_ref": "MT-413#/closure_unit"
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/**"
+    ],
+    "extra_build_proofs": [],
+    "proof_materialization_status": "PENDING_NOT_RUN",
+    "implementer_static_method": {
+      "selected_packages": [],
+      "method": "Compile/static inspect only selected locked owner closure and same-change schema/manual descriptors; independent validator executes runtime proof.",
+      "whole_host_build_required": false
+    }
+  },
+  "activation": {
+    "disposition": "NON_AI_CURRENT_SCOPE",
+    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
+    "source_owner_resolution": "EXACT_CLAUSE_HEADING_WITH_COMPOUND_SCOPE_EVIDENCE",
+    "semantic_trigger_flags": {
+      "resource": true,
+      "owned_gui": true,
+      "collaborative_state": true,
+      "queue_or_inflight": true,
+      "interop_or_remote": true,
+      "uuid_generation": false,
+      "parked_ai": false
+    },
+    "current_dispatch_authorized": false
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "preserved_original": {
+    "schema_id": "hsk.preserved_microtask@1",
+    "immutable": true,
+    "baseline_git_commit": "5d7e9077e4a74d717153d42a6067751caca1c8e6",
+    "source_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+    "raw_sha256": "a26aace80fc22a6e4736385e222c1b8735be70228c804efc83bec5f12773460d",
+    "semantic_sha256": "69679fa94cf78b8759ac6e79bcd0e25f0dcee3977253fe402efdb8c7009b6604",
+    "scope_sha256": "c26d175ab3cfc8116eca7f55235d3297ad8533546a6638b5f82604cc762681a7",
+    "acceptance_sha256": "4294af42b5bcf219163092d3afe0621619a1852d105d0589e2480276fbad4736",
+    "calculated_git_blob_oid": "85cfeaefb7a0dd1f493605147f347a043e3d1eb2",
+    "payload": {
+      "schema_id": "hsk.microtask_contract@1",
+      "schema_version": "microtask_contract_v3_spec_bound",
+      "contract_authority": "PRIMARY_MACHINE_READABLE",
+      "artifact_policy": {
+        "authority_surface": "MACHINE_CONTRACT",
+        "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+        "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+        "operator_facing_authority": false,
+        "model_created_markdown_authority_allowed": false
+      },
+      "wp_id": "WP-KERNEL-STUDIO",
+      "mt_id": "MT-413",
+      "created_at_utc": "2026-07-09T00:00:00Z",
+      "updated_at_utc": "2026-09-04T20:08:28+00:00",
+      "authority_files": {
+        "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+        "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.md",
+        "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+      },
+      "lifecycle": {
+        "status": "PENDING",
+        "depends_on": [
+          "MT-411",
+          "MT-009"
+        ],
+        "blocks": [],
+        "active": false,
+        "validator_verdict": "PENDING"
+      },
+      "clause": "Develop read/observe surfaces (histogram, navigation, before/after, filmstrip, cache) [STU-RAW-004]",
+      "spec_anchor": [
+        "STU-RAW-004",
+        "STU-DOC-004",
+        "STU-OVR-003"
+      ],
+      "scope": {
+        "summary": "Implement the develop read/observe projections of StudioRawDevelop state to operator UI and model command surface per [STU-DOC-004] (never a separate model shim): live histogram with shadow/highlight clipping toggles; zoom/pan/hand navigation with zoom presets + full-screen review; before/after cycling + per-panel adjustment-visibility toggling; multi-image filmstrip with sort/filter (capture date, name, rating, color label), per-image star ratings, color labels, mark-for-deletion; and a configurable preview/settings cache with max size, purge, and relocation held outside authority under the typed SurrealDB boundary and PostgreSQL/SQLite tripwire.",
+        "allowed_paths": [
+          "src/studio/raw/**",
+          "src/frontend/handshake_native/src/studio/**",
+          "tests/studio/**"
+        ],
+        "forbidden_paths": [
+          ".GOV/**",
+          "app/src/** (legacy reference-only)"
+        ],
+        "acceptance_criteria": [
+          "Read/observe surfaces render",
+          "Query",
+          "Filmstrip sort/filter/rating",
+          "Cache controls",
+          "No PostgreSQL/SQLite"
+        ],
+        "proof_targets": [
+          "Argus inspect of histogram/filmstrip + cache-control test"
+        ],
+        "code_surfaces": [
+          "src/studio/raw/observe.rs",
+          "src/frontend/handshake_native/src/studio/raw/develop_pane.rs"
+        ],
+        "expected_tests": [
+          "argus: histogram + clipping toggles + navigation reachable with stable author_ids",
+          "test: filmstrip sort/filter + rating/label/mark-for-deletion query",
+          "test: preview/settings cache purge+relocate; no PostgreSQL/SQLite"
+        ],
+        "acceptance_criteria_original": [
+          "read/observe surfaces render + query; filmstrip sort/filter/rating; cache controls; no PostgreSQL/SQLite"
+        ]
+      },
+      "gui_obligation": {
+        "operator_surface_required": "YES",
+        "gui_creation_required": "YES",
+        "argus_required": "YES",
+        "trace_projection_required_when_non_ui": true,
+        "surfaces": [
+          "develop histogram",
+          "develop navigator",
+          "filmstrip"
+        ],
+        "argus_targets": [
+          "studio.raw.histogram",
+          "studio.raw.filmstrip",
+          "studio.raw.beforeafter"
+        ],
+        "not_applicable_reason": null
+      },
+      "user_manual_obligation": {
+        "required": true,
+        "same_change_update_required": "YES",
+        "manual_version_bump_required": "NO",
+        "target_entries": [
+          "Studio / Camera Raw & Develop / Reviewing and navigating"
+        ],
+        "not_applicable_reason": null
+      },
+      "hbr_obligations": [
+        "HBR-VIS-001",
+        "HBR-MAN-001"
+      ],
+      "hbr_int_009_tier_obligations": [
+        {
+          "tier": "flight_recorder",
+          "status": "WIRED",
+          "reason": "FR-EVT-STUDIO-* business event"
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "WIRED",
+          "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+        },
+        {
+          "tier": "palmistry",
+          "status": "WIRED",
+          "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
+        }
+      ],
+      "risk_if_missed": "No inspection/navigation surface; operator+model cannot observe develop state.",
+      "handoff": {
+        "coder_session": null,
+        "wp_validator_session": null,
+        "review_request_receipt_id": null,
+        "review_response_receipt_id": null
+      },
+      "red_team": {
+        "required": true,
+        "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+        "risks": [
+          "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+          "Domain MT forking a canonical primitive instead of referencing 14.23.",
+          "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+        ],
+        "minimum_controls": [
+          "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+          "Reference canonical primitives (14.23); no shadow primitives.",
+          "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+        ]
+      },
+      "acceptance_criteria": [
+        {
+          "id": "AC-001",
+          "criterion": "Read/observe surfaces render",
+          "evidence_kind": "gui_proof",
+          "proof_target": "Argus inspect of histogram/filmstrip + cache-control test",
+          "proof_target_status": "carried_from_original",
+          "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+        },
+        {
+          "id": "AC-002",
+          "criterion": "Query",
+          "evidence_kind": "runtime_assertion",
+          "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+          "proof_target_status": "REQUIRED",
+          "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+        },
+        {
+          "id": "AC-003",
+          "criterion": "Filmstrip sort/filter/rating",
+          "evidence_kind": "runtime_assertion",
+          "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+          "proof_target_status": "REQUIRED",
+          "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+        },
+        {
+          "id": "AC-004",
+          "criterion": "Cache controls",
+          "evidence_kind": "runtime_assertion",
+          "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+          "proof_target_status": "REQUIRED",
+          "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+        },
+        {
+          "id": "AC-005",
+          "criterion": "No PostgreSQL/SQLite",
+          "evidence_kind": "runtime_assertion",
+          "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+          "proof_target_status": "REQUIRED",
+          "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+        }
+      ],
+      "acceptance_criteria_count": 5,
+      "implementation_notes": {
+        "spec_clauses": [
+          {
+            "anchor": "STU-RAW-004",
+            "spec_clause_text": "**[STU-RAW-004]** The pipeline MUST expose, as projections of the same `StudioRawDevelop` state to both the operator UI and the model command surface ([STU-DOC-004]): a live histogram with shadow/highlight clipping indication; zoom, pan and hand navigation with zoom presets and a full-screen review view; before/after preview cycling and per-group visibility toggling via [STU-RAW-105]; a multi-image filmstrip with sort and filter and per-image rating, colour-label and mark-for-deletion state; and a configurable preview/settings cache with a maximum size, purge and relocation controls, held under the no-SQLite authority rule ([STU-OVR-003]). ### 2a. Retained Group-Scope Clauses These clauses state what each develop group MUST provide. They are retained from v02.205 with their scope unchanged; the parameter contract for each group follows in the section named."
+          },
+          {
+            "anchor": "STU-DOC-004",
+            "spec_clause_text": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability. --- ## 14.4 Raster Imaging & Photo Editing ## 14.4 Raster Imaging & Photo Editing Studio's raster imaging surface is the deduped union of the pixel-editing capability of every source suite in Studio's parity basis, rebuilt as Handshake-native pixel primitives. It is the pixel-editing domain of the unified `StudioDocument`: raster content lives as `StudioLayer` nodes whose `kind` selects a pixel payload, sharing one selection surface, one masking surface, one color pipeline, one history, and one export surface with every other Studio domain (14.3, [STU-DOC-004]). This sub-section is the normative Studio raster feature set and it is self-sufficient: an implementer with no other document MUST be able to build every primitive named here, and to derive the microtask set that builds them, from this sub-section alone. No source-suite product name is a Studio tool, panel, adjustment, or command name. Every raster capability MUST be exposed as a non-destructive primitive wherever a non-destructive form exists: destructive-in-place editing is a mode of a primitive, never the only path. Canonical field-level types, schema ids, event variants, tables, and validation checks for every primitive named here (`StudioLayer`, `StudioRasterTile`, `StudioSelectionSet`, `StudioMask`, `StudioAdjustment`, `StudioLiveFilter`, `StudioBlendMode`, `StudioEffectStack`, `StudioGradient`, `StudioPattern`, `StudioColorProfile`, and the `StudioParameterSpec` added by [STU-RAS-100]) are defined in 14.23; where this sub-section and 14.23 conflict, 14.23 wins. --- ### 0. Replacement, Derivation, and Anchor Disposition"
+          },
+          {
+            "anchor": "STU-OVR-003",
+            "spec_clause_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed. ### 2. Scope Studio's normative feature scope is the deduped union of the five source suites, organized into the domain catalogs below. Each catalog sub-section is the normative Studio feature set for that domain; the research provenance rows are collapsed into these normative features per [STU-SECTION-003]. | Domain catalog | Sub-section | Source-suite parity basis (provenance) | |---|---|---| | Raster imaging & photo editing | 14.4 | Photoshop, Affinity Photo, Figma raster fills | | Vector graphics & illustration | 14.5 | Illustrator, Affinity Designer, Figma/Draw vector networks | | Page layout & publishing | 14.6 | InDesign, Affinity Publisher | | Typography engine | 14.7 | all five suites' text engines | | Color management & pipeline | 14.8 | all five suites' color systems | | Effects, filters & adjustments | 14.9 | Photoshop filters/adjustments, Illustrator effects, Affinity live filters, Figma effects | | Design systems, components & variables | 14.10 | Figma components/variants/variables, Illustrator symbols, InDesign styles | | Prototyping, motion & interaction | 14.11 | Figma prototyping + Motion, InDesign interactive/EPUB | | Camera Raw / Develop pipeline | 14.12 | Photoshop Camera Raw, Affinity Develop persona | | Import/export & file-format compatibility | 14.13 | all five suites' format matrices | | Automation, scripting & plugin/API surface | 14.14 | Photoshop UXP/actions, Illustrator/InDesign scripting DOM, Figma Plugin/REST API | | Whiteboard & diagramming | 14.15 | FigJam | The cross-cutting normative requirements — model visibility/steerability (14.16), parallel workflows (14.17), the propose-work system (14.18), per-file history/undo (14.19), the headless/quiet law (14.20), the operator unification surface (14.21), the dual-audience UserManual (14.22), the canonical contracts (14.23), and validation/promotion/HBR (14.24) — apply to every domain catalog. Out of scope: replicating any source suite's exact menu tree, pixel-perfect UI clone, vendor cloud services, vendor pro"
+          }
+        ],
+        "spec_clause_count": 3,
+        "unresolved_anchors": [],
+        "family_scope_citations": [],
+        "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+        "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+        "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+        "routing": "Navigation extends the existing address and bus seams. No new router.",
+        "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+      },
+      "validator_focus": [
+        "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+        "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+        "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+        "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+      ],
+      "resource_privacy_obligation": {
+        "applies": true,
+        "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+      },
+      "patch_provenance": {
+        "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+        "patched_at": "2026-09-04T20:08:28+00:00",
+        "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+        "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+      }
+    },
+    "legacy_byte_metadata_basis": "PRE_MIGRATION_WORKING_COPY_BYTES; NOT_CANONICAL_GIT_BLOB_IDENTITY",
+    "working_copy_snapshot": {
+      "source_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+      "raw_sha256": "a26aace80fc22a6e4736385e222c1b8735be70228c804efc83bec5f12773460d",
+      "computed_blob_oid_for_working_bytes": "85cfeaefb7a0dd1f493605147f347a043e3d1eb2",
+      "source_basis": "PRE_MIGRATION_WORKING_COPY_READ_BYTES",
+      "raw_bytes_retained": false,
+      "newline_transform_all_records_claimed": false
+    },
+    "git_baseline": {
+      "commit": "5d7e9077e4a74d717153d42a6067751caca1c8e6",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-413.json",
+      "git_blob_oid": "e5f8f4572bdd6ef3815ea48f3b7cb81b276c0d55",
+      "raw_sha256": "6fc59d1698f789d418981c2d845920389822da6af01ae8f8ea85dbccae73b658",
+      "byte_count": 14865,
+      "semantic_sha256": "69679fa94cf78b8759ac6e79bcd0e25f0dcee3977253fe402efdb8c7009b6604",
+      "source_basis": "IMMUTABLE_GIT_BLOB_BYTES_READ_ONLY_CAT_FILE_BATCH",
+      "independent_evidence_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/mt-preservation-independent-review.json#/baseline_records/5344"
+    },
+    "byte_identity_rule": "git_baseline is canonical committed byte identity; legacy raw/OID aliases describe working-copy capture only."
+  },
+  "authority_migration": {
+    "approval": "ilja091020261912",
+    "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
+    "active_execution_authority": [
+      "identity",
+      "context_capsule",
+      "closure_unit",
+      "execution",
+      "proof",
+      "fulfillment",
+      "activation"
+    ],
+    "historical_fields": [
+      "clause",
+      "spec_anchor",
+      "scope",
+      "acceptance_criteria",
+      "acceptance_criteria_count",
+      "implementation_notes",
+      "gui_obligation",
+      "validator_focus",
+      "patch_provenance",
+      "scope.proof_targets",
+      "scope.expected_tests",
+      "lifecycle.depends_on"
+    ],
+    "legacy_commands_dispatchable": false,
+    "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
+    "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+  },
+  "fulfillment": {
+    "schema_id": "hsk.studio_mt_fulfillment@1",
+    "original_intent_retained": true,
+    "all_foundations_barrier": {
+      "id": "STUDIO-ALL-FOUNDATIONS",
+      "requires_all": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35532",
+        "MT-35533",
+        "MT-35534",
+        "MT-35535",
+        "MT-35536",
+        "MT-35537",
+        "MT-35538",
+        "MT-35539",
+        "MT-35540",
+        "MT-35541",
+        "MT-35542",
+        "MT-35543",
+        "MT-35544",
+        "MT-35545",
+        "MT-35546",
+        "MT-35547",
+        "MT-35548",
+        "MT-35549",
+        "MT-35550",
+        "MT-35551",
+        "MT-35552",
+        "MT-35553",
+        "MT-35554",
+        "MT-35555",
+        "MT-35556",
+        "MT-35557",
+        "MT-35558",
+        "MT-35559",
+        "MT-35560",
+        "MT-35561",
+        "MT-35562",
+        "MT-35563"
+      ],
+      "condition": "Every declared real capability and negative path independently passed before feature dispatch"
+    },
+    "asset_slices": [
+      {
+        "slice_id": "MT-413-ASSET-WORKSPACE",
+        "owning_module_ref": "STUDIO-WORKSPACE",
+        "build_unit_ref": "STUDIO-WORKSPACE",
+        "source_root": "handshake-studio-assets",
+        "status": "PENDING",
+        "write_authority": "ONLY_THIS_OWNER_ROOT",
+        "execution_is_separate": true,
+        "scope_basis": [
+          {
+            "anchor": "STU-RAW-004",
+            "line": 2102,
+            "section": "14.12",
+            "heading": "### 2. Raw Input Scope and Sensor Decode",
+            "verbatim": "**[STU-RAW-004]** The pipeline MUST expose, as projections of the same `StudioRawDevelop` state to both the",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          },
+          {
+            "anchor": "STU-DOC-004",
+            "line": 263,
+            "section": "14.3",
+            "heading": "## 14.3 Unified Document Model and Studio Primitive Set",
+            "verbatim": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability.",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          },
+          {
+            "anchor": "STU-OVR-003",
+            "line": 144,
+            "section": "14.1",
+            "heading": "### 1. What Studio Is",
+            "verbatim": "[STU-OVR-003] Studio MUST NOT introduce a SQLite database/SQL-engine dependency anywhere (not in any Studio asset crate, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio except for the explicitly bounded external file-byte decoder below. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed.",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "definition_kind": "normative_clause"
+          }
+        ],
+        "original_scope_ref": "MT-413#/preserved_original/payload/scope",
+        "requires_foundation_mts": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563"
+        ],
+        "acceptance_fulfillment": "Exact legacy acceptance retained; owner domain contribution is reviewed before slice dispatch.",
+        "acceptance_refs": [],
+        "scope_fulfillment": {
+          "original_scope_digest": "c26d175ab3cfc8116eca7f55235d3297ad8533546a6638b5f82604cc762681a7",
+          "domain_responsibility": "Virtual workspace/lockfile/toolchain/dependency-selection/mirror provenance; owns MT001 coordination, not Accord domain semantics",
+          "exact_requirement_refs": [
+            "STU-RAW-004",
+            "STU-DOC-004",
+            "STU-OVR-003"
+          ],
+          "original_scope_retained": true,
+          "fulfillment_required_even_without_separate_captured_ac": true
+        },
+        "parent_activation_ref": "MT-413#/activation",
+        "mandatory_parent_precondition_ref": "MT-413#/execution/start_precondition",
+        "separate_execution_rule": "Separate owner claim does not bypass parent activation, all36 foundations, exact external capability proof or original acceptance; only this slice root is writable."
+      }
+    ],
+    "compound_scope_rule": "Only primary owner executes under this MT claim; each other owner slice is an independently scoped execution unit requiring its own claim and evidence. Parent MT cannot complete until all slices plus later embedding acceptance are fulfilled.",
+    "legacy_acceptance_map": [
+      {
+        "acceptance_id": "AC-001",
+        "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
+        "original_text": "Read/observe surfaces render",
+        "original_row_sha256": "f0f70341513146cb7debcf47eed7c9a59a71c2590e6f72a390d285747666362d",
+        "lineage": "ORIGINAL_AC_RETAINED",
+        "semantic_fulfillment": "Read/observe surfaces render",
+        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "asset_contribution_refs": [
+          "MT-413-ASSET-WORKSPACE"
+        ],
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
+        "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003",
+            "required_behavior": "Read/observe surfaces render",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-413#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Read/observe surfaces render",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Read/observe surfaces render Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36198#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36198"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
+            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+            "required_behavior": "Read/observe surfaces render",
+            "only_owner_root_may_change": true
+          }
+        ]
+      },
+      {
+        "acceptance_id": "AC-002",
+        "original_pointer": "#/preserved_original/payload/acceptance_criteria/1",
+        "original_text": "Query",
+        "original_row_sha256": "b72b5b42fd3dc86913fa2ed5b2c37b6cf7cc814c18e4bd1b1196c13f9ea72a2d",
+        "lineage": "ORIGINAL_AC_RETAINED",
+        "semantic_fulfillment": "Query",
+        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "asset_contribution_refs": [
+          "MT-413-ASSET-WORKSPACE"
+        ],
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
+        "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003",
+            "required_behavior": "Query",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-413#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Query",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Query Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36198#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36198"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
+            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+            "required_behavior": "Query",
+            "only_owner_root_may_change": true
+          }
+        ]
+      },
+      {
+        "acceptance_id": "AC-003",
+        "original_pointer": "#/preserved_original/payload/acceptance_criteria/2",
+        "original_text": "Filmstrip sort/filter/rating",
+        "original_row_sha256": "ab794228c430352b149f724c13ed1f97f1adc680890bac046e24eabb601f46aa",
+        "lineage": "ORIGINAL_AC_RETAINED",
+        "semantic_fulfillment": "Filmstrip sort/filter/rating",
+        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "asset_contribution_refs": [
+          "MT-413-ASSET-WORKSPACE"
+        ],
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
+        "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003",
+            "required_behavior": "Filmstrip sort/filter/rating",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-413#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Filmstrip sort/filter/rating",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Filmstrip sort/filter/rating Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36198#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36198"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
+            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+            "required_behavior": "Filmstrip sort/filter/rating",
+            "only_owner_root_may_change": true
+          }
+        ]
+      },
+      {
+        "acceptance_id": "AC-004",
+        "original_pointer": "#/preserved_original/payload/acceptance_criteria/3",
+        "original_text": "Cache controls",
+        "original_row_sha256": "44159be022088c844b6b34fa35b20a86c9cc19c709fb102b195df2943b53fea4",
+        "lineage": "ORIGINAL_AC_RETAINED",
+        "semantic_fulfillment": "Cache controls",
+        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "asset_contribution_refs": [
+          "MT-413-ASSET-WORKSPACE"
+        ],
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
+        "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003",
+            "required_behavior": "Cache controls",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-413#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: Cache controls",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Cache controls Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36198#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36198"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
+            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+            "required_behavior": "Cache controls",
+            "only_owner_root_may_change": true
+          }
+        ]
+      },
+      {
+        "acceptance_id": "AC-005",
+        "original_pointer": "#/preserved_original/payload/acceptance_criteria/4",
+        "original_text": "No PostgreSQL/SQLite",
+        "original_row_sha256": "8964c3b0cc62b41e0d6ee57310fcbad4f13bc3a67090f666beb4b93a80f1d3e2",
+        "lineage": "ORIGINAL_AC_RETAINED",
+        "semantic_fulfillment": "No PostgreSQL/SQLite",
+        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "asset_contribution_refs": [
+          "MT-413-ASSET-WORKSPACE"
+        ],
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
+        "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Configure standalone workspace preview/settings cache roots, maximum size, purge and relocation through caller-owned external cache configuration; cached buffers are disposable and never raw/develop authority. Required source anchors: STU-RAW-004,STU-DOC-004,STU-OVR-003",
+            "required_behavior": "No PostgreSQL/SQLite",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-413#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Use the source workspace/cache consumer to write a bounded preview, enforce configured ceiling, purge then regenerate from unchanged document state, and relocate without moving authority rows. Exact requirement: No PostgreSQL/SQLite",
+          "negative_path": "Reject unresolved/in-repo authority path, overflowed size and failed relocation before changing active cache config; no SQLite/PostgreSQL backend, byte loss or mandatory host database dependency.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
+        },
+        "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "No PostgreSQL/SQLite Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36198#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36198"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
+            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+            "required_behavior": "No PostgreSQL/SQLite",
+            "only_owner_root_may_change": true
+          }
+        ]
+      }
+    ],
+    "later_kernel": {
+      "host_adoption_mt_refs": [
+        "MT-36198"
+      ],
+      "qualified_acceptance_to_host_adoption_mts": {
+        "MT-413/AC-001": [
+          "MT-36198"
+        ],
+        "MT-413/AC-002": [
+          "MT-36198"
+        ],
+        "MT-413/AC-003": [
+          "MT-36198"
+        ],
+        "MT-413/AC-004": [
+          "MT-36198"
+        ],
+        "MT-413/AC-005": [
+          "MT-36198"
+        ]
+      },
+      "status": "PENDING_DISTINCT_EXACT_HOST_ADOPTION"
+    },
+    "unresolved_source_anchors": [],
+    "dependency_reconciliation": {
+      "original_payload_ref": "MT-413#/preserved_original/payload/lifecycle/depends_on",
+      "original_edges": [
+        "MT-411",
+        "MT-009"
+      ],
+      "executable_dependency_refs": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35532",
+        "MT-35533",
+        "MT-35534",
+        "MT-35535",
+        "MT-35536",
+        "MT-35537",
+        "MT-35538",
+        "MT-35539",
+        "MT-35540",
+        "MT-35541",
+        "MT-35542",
+        "MT-35543",
+        "MT-35544",
+        "MT-35545",
+        "MT-35546",
+        "MT-35547",
+        "MT-35548",
+        "MT-35549",
+        "MT-35550",
+        "MT-35551",
+        "MT-35552",
+        "MT-35553",
+        "MT-35554",
+        "MT-35555",
+        "MT-35556",
+        "MT-35557",
+        "MT-35558",
+        "MT-35559",
+        "MT-35560",
+        "MT-35561",
+        "MT-35562",
+        "MT-35563",
+        "MT-411",
+        "MT-35784",
+        "MT-35785",
+        "MT-35786",
+        "MT-009",
+        "MT-35640",
+        "MT-35641",
+        "MT-35642"
+      ],
+      "source_parent_excluded_to_prevent_parent_split_cycle": "MT-413",
+      "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "source_parent_mt_ref": "MT-413"
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "generated_by": {
+    "source": "allocated owner-slice authoring",
+    "not_runtime_proof": true
+  },
+  "derivation": {
+    "derivation_key": "MT-413-ASSET-WORKSPACE",
+    "unit_kind": "owner_slice",
+    "source_pointer": "./MT-413.json#/fulfillment/asset_slices/2",
+    "original_source_checkpoint_blob": "27751958198957d6327c410ebe77eefd9a1edfc3",
+    "source_parent_mt": "MT-413"
+  }
+}
