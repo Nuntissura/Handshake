@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 61
+generation: 62
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -83,3 +83,4 @@ steps:
 - {id: GP-065, role: builder, at: before_dispatch, do: verify Type caller read bytes are slices and Observe constructor returns direct value, check: {type: confirm}, source: 'compile: fixture arrays differed in size and Observe new has no unwrap', state: active}
 - {id: GP-066, role: builder, at: before_dispatch, do: require preparation exit0 before Cargo and notes at most120 chars, check: {type: confirm}, source: failed prep confirmation did not stop separate Cargo launch, state: active}
 - {id: GP-067, role: builder, at: before_dispatch, do: verify Observe Outcome variants and scoped counts freshness receiver, check: {type: confirm}, source: 'compile: Outcome Failed absent and token scoped only in reconcile', state: active}
+- {id: GP-068, role: builder, at: before_dispatch, do: verify Type group iteration skips terminal sentinel without weakening provider bounds, check: {type: confirm}, source: 'runtime: required Arabic positive hit terminal group_end bound and returned InternalInvariant', state: active}
