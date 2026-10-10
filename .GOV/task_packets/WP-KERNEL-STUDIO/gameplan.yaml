@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 41
+generation: 44
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -63,3 +63,6 @@ steps:
 - {id: GP-045, role: builder, at: before_dispatch, do: forbid default token allocation before admitted Prism constructor reservation, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-prism/src/admitted.rs, not_contains: 'CancellationToken::default()'}, source: 'independent review: constructor default Accord token allocates Arc before byte admission', state: active}
 - {id: GP-046, role: builder, at: before_dispatch, do: verify Pigment damage minima do not shadow borrowed current pixel coordinates, check: {type: confirm}, source: 'compile: masked_patch bbox i64 minima shadow x/y references then invalid dereference', state: active}
 - {id: GP-047, role: builder, at: before_dispatch, do: verify Pigment Accepted indirection preserves wire and admits retained Box Patch layout before allocation, check: {type: confirm}, source: 'lint: Outcome Accepted336 bytes versus Failure88 triggers large_enum_variant; indirection must be counted', state: active}
+- {id: GP-048, role: builder, at: before_dispatch, do: verify Pigment retained wrappers deallocate before charge retirement and transferred lease cannot reduce, check: {type: confirm}, source: 'independent API: live cloned planes and Lease Box Arc wrappers reached reserved0; transferred reduce succeeded', state: active}
+- {id: GP-049, role: builder, at: before_dispatch, do: verify returned pending token owns retained reservation independently of pending resolution, check: {type: confirm}, source: 'independent API: pending rejection reserved0 while returned token String17 bytes remained live', state: active}
+- {id: GP-050, role: builder, at: before_dispatch, do: verify reused Pigment caller charges current operation provider peak only, check: {type: confirm}, source: 'source review: ledger lifetime provider_peak polluted later operation byte limit', state: active}
