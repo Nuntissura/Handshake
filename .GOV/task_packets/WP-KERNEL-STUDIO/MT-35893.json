@@ -261,7 +261,7 @@
       {
         "id": "STU-WB-011",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22260",
-        "verbatim": "[STU-WB-011] The whiteboard surface \u2014 board mode, every board object type, templates, widgets, facilitation, diagram generation, and board import/export \u2014 MUST be operable both from the native operator UI and from the typed model command surface (14.16), MUST honor the headless/quiet law (14.20) for background board operations and model-driven generation (bounded, non-focus-stealing, non-input-hijacking, observable through structured state), MUST expose stable AccessKit/`author_id` targets and structured state to the Argus visual-inspection/steering surface so a no-context model can place, connect, and re-observe board objects, and MUST be documented in the dual-audience Studio UserManual (14.22) with operator facilitation/board workflows and the model command reference for board objects and diagram generation.",
+        "verbatim": "[STU-WB-011] The whiteboard surface — board mode, every board object type, templates, widgets, facilitation, diagram generation, and board import/export — MUST be operable both from the native operator UI and from the typed model command surface (14.16), MUST honor the headless/quiet law (14.20) for background board operations and model-driven generation (bounded, non-focus-stealing, non-input-hijacking, observable through structured state), MUST expose stable AccessKit/`author_id` targets and structured state to the Argus visual-inspection/steering surface so a no-context model can place, connect, and re-observe board objects, and MUST be documented in the dual-audience Studio UserManual (14.22) with operator facilitation/board workflows and the model command reference for board objects and diagram generation.",
         "heading": "### 7. GUI, diagnostics, and manual obligations",
         "section": "14.15",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -281,7 +281,7 @@
       {
         "id": "STU-MAN-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22377",
-        "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer \u2014 user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer \u2014 technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
+        "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
         "heading": "## 14.22 Studio UserManual (Dual-Audience)",
         "section": "14.22",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1372,7 +1372,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1780,41 +1780,41 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-524-ASSET-NIB",
-      "MT-526-ASSET-NIB",
-      "MT-534-ASSET-NIB",
-      "MT-534-ASSET-KERNEL_BINDINGS",
-      "MT-534-ASSET-COMPONENTS",
-      "MT-534-ASSET-SESSION",
-      "MT-535-ASSET-NIB",
-      "MT-535-ASSET-KERNEL_BINDINGS",
-      "MT-535-ASSET-COMPONENTS",
-      "MT-535-ASSET-SESSION",
-      "MT-536-ASSET-NIB",
-      "MT-538-ASSET-NIB",
-      "MT-538-ASSET-CHRONICLE",
-      "MT-538-ASSET-COMPONENTS",
-      "MT-539-ASSET-NIB",
-      "MT-015-ASSET-HARNESS",
-      "MT-556-ASSET-ACCORD",
-      "MT-556-ASSET-HARNESS",
-      "MT-556-ASSET-FOLIO",
-      "MT-557-ASSET-ACCORD",
-      "MT-557-ASSET-SESSION",
-      "MT-557-ASSET-CHRONICLE",
-      "MT-557-ASSET-FOLIO",
-      "MT-558-ASSET-ACCORD",
-      "MT-558-ASSET-HARNESS",
-      "MT-558-ASSET-SESSION",
-      "MT-558-ASSET-FOLIO",
-      "MT-559-ASSET-ACCORD",
-      "MT-559-ASSET-HARNESS",
-      "MT-559-ASSET-FOLIO",
-      "MT-559-ASSET-SESSION",
-      "MT-560-ASSET-ACCORD",
-      "MT-560-ASSET-HARNESS",
-      "MT-560-ASSET-FOLIO",
-      "MT-560-ASSET-SESSION"
+      "MT-524",
+      "MT-526",
+      "MT-534",
+      "MT-35881",
+      "MT-35882",
+      "MT-35883",
+      "MT-535",
+      "MT-35884",
+      "MT-35885",
+      "MT-35886",
+      "MT-536",
+      "MT-538",
+      "MT-35889",
+      "MT-35890",
+      "MT-539",
+      "MT-015",
+      "MT-556",
+      "MT-35908",
+      "MT-35909",
+      "MT-557",
+      "MT-35910",
+      "MT-35911",
+      "MT-35912",
+      "MT-558",
+      "MT-35913",
+      "MT-35914",
+      "MT-35915",
+      "MT-559",
+      "MT-35916",
+      "MT-35917",
+      "MT-35918",
+      "MT-560",
+      "MT-35919",
+      "MT-35920",
+      "MT-35921"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2524,12 +2524,350 @@
       "scope.expected_tests",
       "lifecycle.depends_on",
       "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-540.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-540.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-540.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35893.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Authorized source slice ./MT-540.json#/fulfillment/asset_slices/3; native checkpoint blob 2c8290a7268435438c58ea6329d1cd12b0a96963. Original source payload retained, current Controls-only contribution active; other owners separately scoped.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/20"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "b72bd1a2338e3ac29a4e4b1da0aabc70e2606650989f58aec5ce85c9942a2c88",
+        "preimage_raw_sha256": "b72bd1a2338e3ac29a4e4b1da0aabc70e2606650989f58aec5ce85c9942a2c88",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-524-ASSET-NIB",
+          "MT-526-ASSET-NIB",
+          "MT-534-ASSET-NIB",
+          "MT-534-ASSET-KERNEL_BINDINGS",
+          "MT-534-ASSET-COMPONENTS",
+          "MT-534-ASSET-SESSION",
+          "MT-535-ASSET-NIB",
+          "MT-535-ASSET-KERNEL_BINDINGS",
+          "MT-535-ASSET-COMPONENTS",
+          "MT-535-ASSET-SESSION",
+          "MT-536-ASSET-NIB",
+          "MT-538-ASSET-NIB",
+          "MT-538-ASSET-CHRONICLE",
+          "MT-538-ASSET-COMPONENTS",
+          "MT-539-ASSET-NIB",
+          "MT-015-ASSET-HARNESS",
+          "MT-556-ASSET-ACCORD",
+          "MT-556-ASSET-HARNESS",
+          "MT-556-ASSET-FOLIO",
+          "MT-557-ASSET-ACCORD",
+          "MT-557-ASSET-SESSION",
+          "MT-557-ASSET-CHRONICLE",
+          "MT-557-ASSET-FOLIO",
+          "MT-558-ASSET-ACCORD",
+          "MT-558-ASSET-HARNESS",
+          "MT-558-ASSET-SESSION",
+          "MT-558-ASSET-FOLIO",
+          "MT-559-ASSET-ACCORD",
+          "MT-559-ASSET-HARNESS",
+          "MT-559-ASSET-FOLIO",
+          "MT-559-ASSET-SESSION",
+          "MT-560-ASSET-ACCORD",
+          "MT-560-ASSET-HARNESS",
+          "MT-560-ASSET-FOLIO",
+          "MT-560-ASSET-SESSION"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-524-ASSET-NIB",
+            "resolved_mt_id": "MT-524"
+          },
+          {
+            "index": 37,
+            "alias": "MT-526-ASSET-NIB",
+            "resolved_mt_id": "MT-526"
+          },
+          {
+            "index": 38,
+            "alias": "MT-534-ASSET-NIB",
+            "resolved_mt_id": "MT-534"
+          },
+          {
+            "index": 39,
+            "alias": "MT-534-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-35881"
+          },
+          {
+            "index": 40,
+            "alias": "MT-534-ASSET-COMPONENTS",
+            "resolved_mt_id": "MT-35882"
+          },
+          {
+            "index": 41,
+            "alias": "MT-534-ASSET-SESSION",
+            "resolved_mt_id": "MT-35883"
+          },
+          {
+            "index": 42,
+            "alias": "MT-535-ASSET-NIB",
+            "resolved_mt_id": "MT-535"
+          },
+          {
+            "index": 43,
+            "alias": "MT-535-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-35884"
+          },
+          {
+            "index": 44,
+            "alias": "MT-535-ASSET-COMPONENTS",
+            "resolved_mt_id": "MT-35885"
+          },
+          {
+            "index": 45,
+            "alias": "MT-535-ASSET-SESSION",
+            "resolved_mt_id": "MT-35886"
+          },
+          {
+            "index": 46,
+            "alias": "MT-536-ASSET-NIB",
+            "resolved_mt_id": "MT-536"
+          },
+          {
+            "index": 47,
+            "alias": "MT-538-ASSET-NIB",
+            "resolved_mt_id": "MT-538"
+          },
+          {
+            "index": 48,
+            "alias": "MT-538-ASSET-CHRONICLE",
+            "resolved_mt_id": "MT-35889"
+          },
+          {
+            "index": 49,
+            "alias": "MT-538-ASSET-COMPONENTS",
+            "resolved_mt_id": "MT-35890"
+          },
+          {
+            "index": 50,
+            "alias": "MT-539-ASSET-NIB",
+            "resolved_mt_id": "MT-539"
+          },
+          {
+            "index": 51,
+            "alias": "MT-015-ASSET-HARNESS",
+            "resolved_mt_id": "MT-015"
+          },
+          {
+            "index": 52,
+            "alias": "MT-556-ASSET-ACCORD",
+            "resolved_mt_id": "MT-556"
+          },
+          {
+            "index": 53,
+            "alias": "MT-556-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35908"
+          },
+          {
+            "index": 54,
+            "alias": "MT-556-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35909"
+          },
+          {
+            "index": 55,
+            "alias": "MT-557-ASSET-ACCORD",
+            "resolved_mt_id": "MT-557"
+          },
+          {
+            "index": 56,
+            "alias": "MT-557-ASSET-SESSION",
+            "resolved_mt_id": "MT-35910"
+          },
+          {
+            "index": 57,
+            "alias": "MT-557-ASSET-CHRONICLE",
+            "resolved_mt_id": "MT-35911"
+          },
+          {
+            "index": 58,
+            "alias": "MT-557-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35912"
+          },
+          {
+            "index": 59,
+            "alias": "MT-558-ASSET-ACCORD",
+            "resolved_mt_id": "MT-558"
+          },
+          {
+            "index": 60,
+            "alias": "MT-558-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35913"
+          },
+          {
+            "index": 61,
+            "alias": "MT-558-ASSET-SESSION",
+            "resolved_mt_id": "MT-35914"
+          },
+          {
+            "index": 62,
+            "alias": "MT-558-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35915"
+          },
+          {
+            "index": 63,
+            "alias": "MT-559-ASSET-ACCORD",
+            "resolved_mt_id": "MT-559"
+          },
+          {
+            "index": 64,
+            "alias": "MT-559-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35916"
+          },
+          {
+            "index": 65,
+            "alias": "MT-559-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35917"
+          },
+          {
+            "index": 66,
+            "alias": "MT-559-ASSET-SESSION",
+            "resolved_mt_id": "MT-35918"
+          },
+          {
+            "index": 67,
+            "alias": "MT-560-ASSET-ACCORD",
+            "resolved_mt_id": "MT-560"
+          },
+          {
+            "index": 68,
+            "alias": "MT-560-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35919"
+          },
+          {
+            "index": 69,
+            "alias": "MT-560-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35920"
+          },
+          {
+            "index": 70,
+            "alias": "MT-560-ASSET-SESSION",
+            "resolved_mt_id": "MT-35921"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-524",
+          "MT-526",
+          "MT-534",
+          "MT-35881",
+          "MT-35882",
+          "MT-35883",
+          "MT-535",
+          "MT-35884",
+          "MT-35885",
+          "MT-35886",
+          "MT-536",
+          "MT-538",
+          "MT-35889",
+          "MT-35890",
+          "MT-539",
+          "MT-015",
+          "MT-556",
+          "MT-35908",
+          "MT-35909",
+          "MT-557",
+          "MT-35910",
+          "MT-35911",
+          "MT-35912",
+          "MT-558",
+          "MT-35913",
+          "MT-35914",
+          "MT-35915",
+          "MT-559",
+          "MT-35916",
+          "MT-35917",
+          "MT-35918",
+          "MT-560",
+          "MT-35919",
+          "MT-35920",
+          "MT-35921"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2591,7 +2929,7 @@
             "line": 22260,
             "section": "14.15",
             "heading": "### 7. GUI, diagnostics, and manual obligations",
-            "verbatim": "[STU-WB-011] The whiteboard surface \u2014 board mode, every board object type, templates, widgets, facilitation, diagram generation, and board import/export \u2014 MUST be operable both from the native operator UI and from the typed model command surface (14.16), MUST honor the headless/quiet law (14.20) for background board operations and model-driven generation (bounded, non-focus-stealing, non-input-hijacking, observable through structured state), MUST expose stable AccessKit/`author_id` targets and structured state to the Argus visual-inspection/steering surface so a no-context model can place, connect, and re-observe board objects, and MUST be documented in the dual-audience Studio UserManual (14.22) with operator facilitation/board workflows and the model command reference for board objects and diagram generation.",
+            "verbatim": "[STU-WB-011] The whiteboard surface — board mode, every board object type, templates, widgets, facilitation, diagram generation, and board import/export — MUST be operable both from the native operator UI and from the typed model command surface (14.16), MUST honor the headless/quiet law (14.20) for background board operations and model-driven generation (bounded, non-focus-stealing, non-input-hijacking, observable through structured state), MUST expose stable AccessKit/`author_id` targets and structured state to the Argus visual-inspection/steering surface so a no-context model can place, connect, and re-observe board objects, and MUST be documented in the dual-audience Studio UserManual (14.22) with operator facilitation/board workflows and the model command reference for board objects and diagram generation.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2600,7 +2938,7 @@
             "line": 22377,
             "section": "14.22",
             "heading": "## 14.22 Studio UserManual (Dual-Audience)",
-            "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer \u2014 user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer \u2014 technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
+            "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },

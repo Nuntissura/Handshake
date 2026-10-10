@@ -347,8 +347,8 @@
       {
         "id": "STU-SHL-006",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30852",
-        "verbatim": "**[STU-SHL-006] No new routing machinery.** Studio MUST register its addresses and navigation targets in the navigation layers that already exist \u2014 the address type, the navigation bus, the model-driven navigation surface, the module rail, the backend client and the JSON-RPC model tool dispatch. Opening a Studio attachment from another module MUST be one additional navigation-target variant, not a parallel bus. Merging the shell's routing layers is explicitly out of Studio scope.",
-        "heading": "## 14.30 Operator Shell \u2014 Menu, Availability, Docks, and Gesture Arbitration",
+        "verbatim": "**[STU-SHL-006] No new routing machinery.** Studio MUST register its addresses and navigation targets in the navigation layers that already exist — the address type, the navigation bus, the model-driven navigation surface, the module rail, the backend client and the JSON-RPC model tool dispatch. Opening a Studio attachment from another module MUST be one additional navigation-target variant, not a parallel bus. Merging the shell's routing layers is explicitly out of Studio scope.",
+        "heading": "## 14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
         "verified_source_ranges": [
@@ -387,7 +387,7 @@
       {
         "id": "STU-SHL-097",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31627",
-        "verbatim": "**[STU-SHL-097] Documents and projects open as TABS inside the Studio viewport.** Studio holds an arbitrary number of open documents and projects SIMULTANEOUSLY, each as a tab in an editor group of the centre tree ([STU-SHL-065]), and each retaining its OWN state: selection, active tool, history, zoom, playhead, per-tab layout override and scroll position. Closing one tab MUST NOT disturb another. The number of open documents is unbounded and the number of editor groups is unbounded; a document tab may be dragged between groups, split into a new group, or dropped onto empty space to create one. A single file beside a chat pane, and ten groups each holding several tabs, are the SAME model with different tab distributions \u2014 neither is a special case and neither is a fixed layout.",
+        "verbatim": "**[STU-SHL-097] Documents and projects open as TABS inside the Studio viewport.** Studio holds an arbitrary number of open documents and projects SIMULTANEOUSLY, each as a tab in an editor group of the centre tree ([STU-SHL-065]), and each retaining its OWN state: selection, active tool, history, zoom, playhead, per-tab layout override and scroll position. Closing one tab MUST NOT disturb another. The number of open documents is unbounded and the number of editor groups is unbounded; a document tab may be dragged between groups, split into a new group, or dropped onto empty space to create one. A single file beside a chat pane, and ten groups each holding several tabs, are the SAME model with different tab distributions — neither is a special case and neither is a fixed layout.",
         "heading": "### 5A. The two entry paths and the document tab strip",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1458,7 +1458,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1875,20 +1875,20 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-33707-ASSET-PULSE",
-      "MT-33686-ASSET-PULSE",
-      "MT-33687-ASSET-PULSE",
-      "MT-33704-ASSET-PULSE",
-      "MT-33848-ASSET-MOTION",
-      "MT-33867-ASSET-MOTION",
-      "MT-30020-ASSET-FOLIO",
-      "MT-30020-ASSET-ACCORD",
-      "MT-30020-ASSET-KERNEL_BINDINGS",
-      "MT-009-ASSET-CONTROLS",
-      "MT-009-ASSET-HARNESS",
-      "MT-009-ASSET-SESSION",
-      "MT-009-ASSET-FOLIO",
-      "MT-34427-ASSET-CONTROLS"
+      "MT-33707",
+      "MT-33686",
+      "MT-33687",
+      "MT-33704",
+      "MT-33848",
+      "MT-33867",
+      "MT-30020",
+      "MT-35928",
+      "MT-35929",
+      "MT-009",
+      "MT-35640",
+      "MT-35641",
+      "MT-35642",
+      "MT-34427"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2604,12 +2604,203 @@
       "scope.expected_tests",
       "lifecycle.depends_on",
       "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json#/fulfillment/legacy_acceptance_map and later_kernel (original empty acceptance and native embedding lineage retained)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-34070.json#/fulfillment/legacy_acceptance_map and later_kernel (original empty acceptance and native embedding lineage retained)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35948.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Authorized source slice ./MT-34070.json#/fulfillment/asset_slices/5; native checkpoint blob 4446d0ebcbafd4ec3bf8b2ce9e1e0037df1397d1. Original source payload retained, current Controls-only contribution active; other owners separately scoped.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/21"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "5e227d61cbfc5214625006e0d418fbf3318dccc61072e5606321df8c761afeac",
+        "preimage_raw_sha256": "5e227d61cbfc5214625006e0d418fbf3318dccc61072e5606321df8c761afeac",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-33707-ASSET-PULSE",
+          "MT-33686-ASSET-PULSE",
+          "MT-33687-ASSET-PULSE",
+          "MT-33704-ASSET-PULSE",
+          "MT-33848-ASSET-MOTION",
+          "MT-33867-ASSET-MOTION",
+          "MT-30020-ASSET-FOLIO",
+          "MT-30020-ASSET-ACCORD",
+          "MT-30020-ASSET-KERNEL_BINDINGS",
+          "MT-009-ASSET-CONTROLS",
+          "MT-009-ASSET-HARNESS",
+          "MT-009-ASSET-SESSION",
+          "MT-009-ASSET-FOLIO",
+          "MT-34427-ASSET-CONTROLS"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-33707-ASSET-PULSE",
+            "resolved_mt_id": "MT-33707"
+          },
+          {
+            "index": 37,
+            "alias": "MT-33686-ASSET-PULSE",
+            "resolved_mt_id": "MT-33686"
+          },
+          {
+            "index": 38,
+            "alias": "MT-33687-ASSET-PULSE",
+            "resolved_mt_id": "MT-33687"
+          },
+          {
+            "index": 39,
+            "alias": "MT-33704-ASSET-PULSE",
+            "resolved_mt_id": "MT-33704"
+          },
+          {
+            "index": 40,
+            "alias": "MT-33848-ASSET-MOTION",
+            "resolved_mt_id": "MT-33848"
+          },
+          {
+            "index": 41,
+            "alias": "MT-33867-ASSET-MOTION",
+            "resolved_mt_id": "MT-33867"
+          },
+          {
+            "index": 42,
+            "alias": "MT-30020-ASSET-FOLIO",
+            "resolved_mt_id": "MT-30020"
+          },
+          {
+            "index": 43,
+            "alias": "MT-30020-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35928"
+          },
+          {
+            "index": 44,
+            "alias": "MT-30020-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-35929"
+          },
+          {
+            "index": 45,
+            "alias": "MT-009-ASSET-CONTROLS",
+            "resolved_mt_id": "MT-009"
+          },
+          {
+            "index": 46,
+            "alias": "MT-009-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35640"
+          },
+          {
+            "index": 47,
+            "alias": "MT-009-ASSET-SESSION",
+            "resolved_mt_id": "MT-35641"
+          },
+          {
+            "index": 48,
+            "alias": "MT-009-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35642"
+          },
+          {
+            "index": 49,
+            "alias": "MT-34427-ASSET-CONTROLS",
+            "resolved_mt_id": "MT-34427"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-33707",
+          "MT-33686",
+          "MT-33687",
+          "MT-33704",
+          "MT-33848",
+          "MT-33867",
+          "MT-30020",
+          "MT-35928",
+          "MT-35929",
+          "MT-009",
+          "MT-35640",
+          "MT-35641",
+          "MT-35642",
+          "MT-34427"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2880,8 +3071,8 @@
             "anchor": "STU-SHL-006",
             "line": 30852,
             "section": "14.30",
-            "heading": "## 14.30 Operator Shell \u2014 Menu, Availability, Docks, and Gesture Arbitration",
-            "verbatim": "**[STU-SHL-006] No new routing machinery.** Studio MUST register its addresses and navigation targets in the navigation layers that already exist \u2014 the address type, the navigation bus, the model-driven navigation surface, the module rail, the backend client and the JSON-RPC model tool dispatch. Opening a Studio attachment from another module MUST be one additional navigation-target variant, not a parallel bus. Merging the shell's routing layers is explicitly out of Studio scope.",
+            "heading": "## 14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
+            "verbatim": "**[STU-SHL-006] No new routing machinery.** Studio MUST register its addresses and navigation targets in the navigation layers that already exist — the address type, the navigation bus, the model-driven navigation surface, the module rail, the backend client and the JSON-RPC model tool dispatch. Opening a Studio attachment from another module MUST be one additional navigation-target variant, not a parallel bus. Merging the shell's routing layers is explicitly out of Studio scope.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause",
             "verified_source_ranges": [
@@ -2923,7 +3114,7 @@
             "line": 31627,
             "section": "14.30",
             "heading": "### 5A. The two entry paths and the document tab strip",
-            "verbatim": "**[STU-SHL-097] Documents and projects open as TABS inside the Studio viewport.** Studio holds an arbitrary number of open documents and projects SIMULTANEOUSLY, each as a tab in an editor group of the centre tree ([STU-SHL-065]), and each retaining its OWN state: selection, active tool, history, zoom, playhead, per-tab layout override and scroll position. Closing one tab MUST NOT disturb another. The number of open documents is unbounded and the number of editor groups is unbounded; a document tab may be dragged between groups, split into a new group, or dropped onto empty space to create one. A single file beside a chat pane, and ten groups each holding several tabs, are the SAME model with different tab distributions \u2014 neither is a special case and neither is a fixed layout.",
+            "verbatim": "**[STU-SHL-097] Documents and projects open as TABS inside the Studio viewport.** Studio holds an arbitrary number of open documents and projects SIMULTANEOUSLY, each as a tab in an editor group of the centre tree ([STU-SHL-065]), and each retaining its OWN state: selection, active tool, history, zoom, playhead, per-tab layout override and scroll position. Closing one tab MUST NOT disturb another. The number of open documents is unbounded and the number of editor groups is unbounded; a document tab may be dragged between groups, split into a new group, or dropped onto empty space to create one. A single file beside a chat pane, and ten groups each holding several tabs, are the SAME model with different tab distributions — neither is a special case and neither is a fixed layout.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause",
             "verified_source_ranges": [

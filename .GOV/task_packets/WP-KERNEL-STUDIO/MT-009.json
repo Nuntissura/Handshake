@@ -299,7 +299,7 @@
       {
         "id": "STU-UNI-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22359",
-        "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+        "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
         "heading": "## 14.21 Operator Unification Surface",
         "section": "14.21",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1430,7 +1430,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1792,8 +1792,8 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-002-ASSET-FOLIO",
-      "MT-002-ASSET-ACCORD"
+      "MT-002",
+      "MT-35628"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2390,12 +2390,119 @@
       "scope.proof_targets",
       "scope.expected_tests",
       "lifecycle.depends_on",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-009.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-009.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-009.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/7"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "de52f3840955764e852eaf94ec02487ad8016f888549a40cbc819b02c5c2d999",
+        "preimage_raw_sha256": "de52f3840955764e852eaf94ec02487ad8016f888549a40cbc819b02c5c2d999",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-002-ASSET-FOLIO",
+          "MT-002-ASSET-ACCORD"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-002-ASSET-FOLIO",
+            "resolved_mt_id": "MT-002"
+          },
+          {
+            "index": 37,
+            "alias": "MT-002-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35628"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-002",
+          "MT-35628"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2457,7 +2564,7 @@
             "line": 22359,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2565,7 +2672,7 @@
             "line": 22359,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2668,7 +2775,7 @@
             "line": 22359,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2771,7 +2878,7 @@
             "line": 22359,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },

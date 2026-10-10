@@ -1760,7 +1760,7 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-544-ASSET-HARNESS"
+      "MT-544"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2278,12 +2278,112 @@
       "patch_provenance",
       "scope.proof_targets",
       "scope.expected_tests",
-      "lifecycle.depends_on"
+      "lifecycle.depends_on",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-548.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/69"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "63ff2385bb090b915259ec839cdc8bd20e216f82fcb21712dcb243d948479585",
+        "preimage_raw_sha256": "813dcea63cd3741408017464a571ff2b2e219d13a7d5ad35db7b02dc4873f565",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-544-ASSET-HARNESS"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-544-ASSET-HARNESS",
+            "resolved_mt_id": "MT-544"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-544"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",

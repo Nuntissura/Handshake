@@ -327,7 +327,7 @@
         "id": "STU-IO-004",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:21271",
         "verbatim": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts:",
-        "heading": "### 2. Compatibility scope, fixtures, receipts, and recovery \u2014 the promotion gate",
+        "heading": "### 2. Compatibility scope, fixtures, receipts, and recovery — the promotion gate",
         "section": "14.13",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
         "verified_source_ranges": [
@@ -366,7 +366,7 @@
       {
         "id": "STU-MDL-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22271",
-        "verbatim": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` \u2014 the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge.",
+        "verbatim": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` — the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge.",
         "heading": "## 14.16 Model Visibility and Steerability (Backend and Frontend)",
         "section": "14.16",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -406,7 +406,7 @@
       {
         "id": "STU-MAN-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22377",
-        "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer \u2014 user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer \u2014 technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
+        "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
         "heading": "## 14.22 Studio UserManual (Dual-Audience)",
         "section": "14.22",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1477,7 +1477,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-PACKAGE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-PACKAGE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1919,81 +1919,81 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-446-ASSET-INTEROP_PSD",
-      "MT-447-ASSET-PACKAGE",
-      "MT-448-ASSET-PACKAGE",
-      "MT-449-ASSET-PACKAGE",
-      "MT-450-ASSET-PACKAGE",
-      "MT-451-ASSET-PACKAGE",
-      "MT-452-ASSET-PACKAGE",
-      "MT-453-ASSET-PACKAGE",
-      "MT-454-ASSET-PACKAGE",
-      "MT-454-ASSET-DEVELOP",
-      "MT-454-ASSET-INTEROP_PSD",
-      "MT-455-ASSET-PACKAGE",
-      "MT-455-ASSET-DEVELOP",
-      "MT-455-ASSET-INTEROP_PSD",
-      "MT-456-ASSET-PACKAGE",
-      "MT-457-ASSET-INTEROP_VECTOR",
-      "MT-457-ASSET-NIB",
-      "MT-457-ASSET-INTEROP_FIG",
-      "MT-457-ASSET-MOTION",
-      "MT-458-ASSET-INTEROP_VECTOR",
-      "MT-459-ASSET-PRESS",
-      "MT-460-ASSET-PACKAGE",
-      "MT-461-ASSET-PACKAGE",
-      "MT-462-ASSET-INTEROP_LAYOUT",
-      "MT-462-ASSET-LAYOUT",
-      "MT-462-ASSET-INTEROP_FIG",
-      "MT-463-ASSET-INTEROP_LAYOUT",
-      "MT-464-ASSET-PRESS",
-      "MT-465-ASSET-PRESS",
-      "MT-466-ASSET-PACKAGE",
-      "MT-467-ASSET-PACKAGE",
-      "MT-468-ASSET-PACKAGE",
-      "MT-469-ASSET-PACKAGE",
-      "MT-470-ASSET-PACKAGE",
-      "MT-471-ASSET-PACKAGE",
-      "MT-471-ASSET-TYPE",
-      "MT-471-ASSET-INTEROP_LAYOUT",
-      "MT-472-ASSET-PACKAGE",
-      "MT-472-ASSET-FOLIO",
-      "MT-472-ASSET-INTEROP_PSD",
-      "MT-473-ASSET-PACKAGE",
-      "MT-474-ASSET-PACKAGE",
-      "MT-475-ASSET-PACKAGE",
-      "MT-476-ASSET-PACKAGE",
-      "MT-477-ASSET-PACKAGE",
-      "MT-478-ASSET-PRESS",
-      "MT-478-ASSET-COMPONENTS",
-      "MT-478-ASSET-INTEROP_VECTOR",
-      "MT-479-ASSET-PACKAGE",
-      "MT-479-ASSET-WORKSPACE",
-      "MT-479-ASSET-INTEROP_FIG",
-      "MT-479-ASSET-ACCORD",
-      "MT-006-ASSET-KERNEL_BINDINGS",
-      "MT-006-ASSET-CHRONICLE",
-      "MT-006-ASSET-ACCORD",
-      "MT-015-ASSET-HARNESS",
-      "MT-556-ASSET-ACCORD",
-      "MT-556-ASSET-HARNESS",
-      "MT-556-ASSET-FOLIO",
-      "MT-557-ASSET-ACCORD",
-      "MT-557-ASSET-SESSION",
-      "MT-557-ASSET-CHRONICLE",
-      "MT-557-ASSET-FOLIO",
-      "MT-558-ASSET-ACCORD",
-      "MT-558-ASSET-HARNESS",
-      "MT-558-ASSET-SESSION",
-      "MT-558-ASSET-FOLIO",
-      "MT-559-ASSET-ACCORD",
-      "MT-559-ASSET-HARNESS",
-      "MT-559-ASSET-FOLIO",
-      "MT-559-ASSET-SESSION",
-      "MT-560-ASSET-ACCORD",
-      "MT-560-ASSET-HARNESS",
-      "MT-560-ASSET-FOLIO",
-      "MT-560-ASSET-SESSION"
+      "MT-446",
+      "MT-447",
+      "MT-448",
+      "MT-449",
+      "MT-450",
+      "MT-451",
+      "MT-452",
+      "MT-453",
+      "MT-454",
+      "MT-35822",
+      "MT-35823",
+      "MT-455",
+      "MT-35824",
+      "MT-35825",
+      "MT-456",
+      "MT-457",
+      "MT-35826",
+      "MT-35827",
+      "MT-35828",
+      "MT-458",
+      "MT-459",
+      "MT-460",
+      "MT-461",
+      "MT-462",
+      "MT-35829",
+      "MT-35830",
+      "MT-463",
+      "MT-464",
+      "MT-465",
+      "MT-466",
+      "MT-467",
+      "MT-468",
+      "MT-469",
+      "MT-470",
+      "MT-471",
+      "MT-35831",
+      "MT-35832",
+      "MT-472",
+      "MT-35833",
+      "MT-35834",
+      "MT-473",
+      "MT-474",
+      "MT-475",
+      "MT-476",
+      "MT-477",
+      "MT-478",
+      "MT-35835",
+      "MT-35836",
+      "MT-479",
+      "MT-35837",
+      "MT-35838",
+      "MT-35839",
+      "MT-006",
+      "MT-35637",
+      "MT-35638",
+      "MT-015",
+      "MT-556",
+      "MT-35908",
+      "MT-35909",
+      "MT-557",
+      "MT-35910",
+      "MT-35911",
+      "MT-35912",
+      "MT-558",
+      "MT-35913",
+      "MT-35914",
+      "MT-35915",
+      "MT-559",
+      "MT-35916",
+      "MT-35917",
+      "MT-35918",
+      "MT-560",
+      "MT-35919",
+      "MT-35920",
+      "MT-35921"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -3348,12 +3348,630 @@
       "scope.expected_tests",
       "lifecycle.depends_on",
       "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35845.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Authorized source slice ./MT-480.json#/fulfillment/asset_slices/6; native checkpoint blob 5c8e9f1035680e3a33b5d5e4cbd56514f9a3f57c. Original source payload retained, current Controls-only contribution active; other owners separately scoped.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/16"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "978c271c408ca3f1e2d33bc809c306dc5260b2c729989043fe81f1a4f772c7aa",
+        "preimage_raw_sha256": "978c271c408ca3f1e2d33bc809c306dc5260b2c729989043fe81f1a4f772c7aa",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-446-ASSET-INTEROP_PSD",
+          "MT-447-ASSET-PACKAGE",
+          "MT-448-ASSET-PACKAGE",
+          "MT-449-ASSET-PACKAGE",
+          "MT-450-ASSET-PACKAGE",
+          "MT-451-ASSET-PACKAGE",
+          "MT-452-ASSET-PACKAGE",
+          "MT-453-ASSET-PACKAGE",
+          "MT-454-ASSET-PACKAGE",
+          "MT-454-ASSET-DEVELOP",
+          "MT-454-ASSET-INTEROP_PSD",
+          "MT-455-ASSET-PACKAGE",
+          "MT-455-ASSET-DEVELOP",
+          "MT-455-ASSET-INTEROP_PSD",
+          "MT-456-ASSET-PACKAGE",
+          "MT-457-ASSET-INTEROP_VECTOR",
+          "MT-457-ASSET-NIB",
+          "MT-457-ASSET-INTEROP_FIG",
+          "MT-457-ASSET-MOTION",
+          "MT-458-ASSET-INTEROP_VECTOR",
+          "MT-459-ASSET-PRESS",
+          "MT-460-ASSET-PACKAGE",
+          "MT-461-ASSET-PACKAGE",
+          "MT-462-ASSET-INTEROP_LAYOUT",
+          "MT-462-ASSET-LAYOUT",
+          "MT-462-ASSET-INTEROP_FIG",
+          "MT-463-ASSET-INTEROP_LAYOUT",
+          "MT-464-ASSET-PRESS",
+          "MT-465-ASSET-PRESS",
+          "MT-466-ASSET-PACKAGE",
+          "MT-467-ASSET-PACKAGE",
+          "MT-468-ASSET-PACKAGE",
+          "MT-469-ASSET-PACKAGE",
+          "MT-470-ASSET-PACKAGE",
+          "MT-471-ASSET-PACKAGE",
+          "MT-471-ASSET-TYPE",
+          "MT-471-ASSET-INTEROP_LAYOUT",
+          "MT-472-ASSET-PACKAGE",
+          "MT-472-ASSET-FOLIO",
+          "MT-472-ASSET-INTEROP_PSD",
+          "MT-473-ASSET-PACKAGE",
+          "MT-474-ASSET-PACKAGE",
+          "MT-475-ASSET-PACKAGE",
+          "MT-476-ASSET-PACKAGE",
+          "MT-477-ASSET-PACKAGE",
+          "MT-478-ASSET-PRESS",
+          "MT-478-ASSET-COMPONENTS",
+          "MT-478-ASSET-INTEROP_VECTOR",
+          "MT-479-ASSET-PACKAGE",
+          "MT-479-ASSET-WORKSPACE",
+          "MT-479-ASSET-INTEROP_FIG",
+          "MT-479-ASSET-ACCORD",
+          "MT-006-ASSET-KERNEL_BINDINGS",
+          "MT-006-ASSET-CHRONICLE",
+          "MT-006-ASSET-ACCORD",
+          "MT-015-ASSET-HARNESS",
+          "MT-556-ASSET-ACCORD",
+          "MT-556-ASSET-HARNESS",
+          "MT-556-ASSET-FOLIO",
+          "MT-557-ASSET-ACCORD",
+          "MT-557-ASSET-SESSION",
+          "MT-557-ASSET-CHRONICLE",
+          "MT-557-ASSET-FOLIO",
+          "MT-558-ASSET-ACCORD",
+          "MT-558-ASSET-HARNESS",
+          "MT-558-ASSET-SESSION",
+          "MT-558-ASSET-FOLIO",
+          "MT-559-ASSET-ACCORD",
+          "MT-559-ASSET-HARNESS",
+          "MT-559-ASSET-FOLIO",
+          "MT-559-ASSET-SESSION",
+          "MT-560-ASSET-ACCORD",
+          "MT-560-ASSET-HARNESS",
+          "MT-560-ASSET-FOLIO",
+          "MT-560-ASSET-SESSION"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-446-ASSET-INTEROP_PSD",
+            "resolved_mt_id": "MT-446"
+          },
+          {
+            "index": 37,
+            "alias": "MT-447-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-447"
+          },
+          {
+            "index": 38,
+            "alias": "MT-448-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-448"
+          },
+          {
+            "index": 39,
+            "alias": "MT-449-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-449"
+          },
+          {
+            "index": 40,
+            "alias": "MT-450-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-450"
+          },
+          {
+            "index": 41,
+            "alias": "MT-451-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-451"
+          },
+          {
+            "index": 42,
+            "alias": "MT-452-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-452"
+          },
+          {
+            "index": 43,
+            "alias": "MT-453-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-453"
+          },
+          {
+            "index": 44,
+            "alias": "MT-454-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-454"
+          },
+          {
+            "index": 45,
+            "alias": "MT-454-ASSET-DEVELOP",
+            "resolved_mt_id": "MT-35822"
+          },
+          {
+            "index": 46,
+            "alias": "MT-454-ASSET-INTEROP_PSD",
+            "resolved_mt_id": "MT-35823"
+          },
+          {
+            "index": 47,
+            "alias": "MT-455-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-455"
+          },
+          {
+            "index": 48,
+            "alias": "MT-455-ASSET-DEVELOP",
+            "resolved_mt_id": "MT-35824"
+          },
+          {
+            "index": 49,
+            "alias": "MT-455-ASSET-INTEROP_PSD",
+            "resolved_mt_id": "MT-35825"
+          },
+          {
+            "index": 50,
+            "alias": "MT-456-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-456"
+          },
+          {
+            "index": 51,
+            "alias": "MT-457-ASSET-INTEROP_VECTOR",
+            "resolved_mt_id": "MT-457"
+          },
+          {
+            "index": 52,
+            "alias": "MT-457-ASSET-NIB",
+            "resolved_mt_id": "MT-35826"
+          },
+          {
+            "index": 53,
+            "alias": "MT-457-ASSET-INTEROP_FIG",
+            "resolved_mt_id": "MT-35827"
+          },
+          {
+            "index": 54,
+            "alias": "MT-457-ASSET-MOTION",
+            "resolved_mt_id": "MT-35828"
+          },
+          {
+            "index": 55,
+            "alias": "MT-458-ASSET-INTEROP_VECTOR",
+            "resolved_mt_id": "MT-458"
+          },
+          {
+            "index": 56,
+            "alias": "MT-459-ASSET-PRESS",
+            "resolved_mt_id": "MT-459"
+          },
+          {
+            "index": 57,
+            "alias": "MT-460-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-460"
+          },
+          {
+            "index": 58,
+            "alias": "MT-461-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-461"
+          },
+          {
+            "index": 59,
+            "alias": "MT-462-ASSET-INTEROP_LAYOUT",
+            "resolved_mt_id": "MT-462"
+          },
+          {
+            "index": 60,
+            "alias": "MT-462-ASSET-LAYOUT",
+            "resolved_mt_id": "MT-35829"
+          },
+          {
+            "index": 61,
+            "alias": "MT-462-ASSET-INTEROP_FIG",
+            "resolved_mt_id": "MT-35830"
+          },
+          {
+            "index": 62,
+            "alias": "MT-463-ASSET-INTEROP_LAYOUT",
+            "resolved_mt_id": "MT-463"
+          },
+          {
+            "index": 63,
+            "alias": "MT-464-ASSET-PRESS",
+            "resolved_mt_id": "MT-464"
+          },
+          {
+            "index": 64,
+            "alias": "MT-465-ASSET-PRESS",
+            "resolved_mt_id": "MT-465"
+          },
+          {
+            "index": 65,
+            "alias": "MT-466-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-466"
+          },
+          {
+            "index": 66,
+            "alias": "MT-467-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-467"
+          },
+          {
+            "index": 67,
+            "alias": "MT-468-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-468"
+          },
+          {
+            "index": 68,
+            "alias": "MT-469-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-469"
+          },
+          {
+            "index": 69,
+            "alias": "MT-470-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-470"
+          },
+          {
+            "index": 70,
+            "alias": "MT-471-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-471"
+          },
+          {
+            "index": 71,
+            "alias": "MT-471-ASSET-TYPE",
+            "resolved_mt_id": "MT-35831"
+          },
+          {
+            "index": 72,
+            "alias": "MT-471-ASSET-INTEROP_LAYOUT",
+            "resolved_mt_id": "MT-35832"
+          },
+          {
+            "index": 73,
+            "alias": "MT-472-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-472"
+          },
+          {
+            "index": 74,
+            "alias": "MT-472-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35833"
+          },
+          {
+            "index": 75,
+            "alias": "MT-472-ASSET-INTEROP_PSD",
+            "resolved_mt_id": "MT-35834"
+          },
+          {
+            "index": 76,
+            "alias": "MT-473-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-473"
+          },
+          {
+            "index": 77,
+            "alias": "MT-474-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-474"
+          },
+          {
+            "index": 78,
+            "alias": "MT-475-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-475"
+          },
+          {
+            "index": 79,
+            "alias": "MT-476-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-476"
+          },
+          {
+            "index": 80,
+            "alias": "MT-477-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-477"
+          },
+          {
+            "index": 81,
+            "alias": "MT-478-ASSET-PRESS",
+            "resolved_mt_id": "MT-478"
+          },
+          {
+            "index": 82,
+            "alias": "MT-478-ASSET-COMPONENTS",
+            "resolved_mt_id": "MT-35835"
+          },
+          {
+            "index": 83,
+            "alias": "MT-478-ASSET-INTEROP_VECTOR",
+            "resolved_mt_id": "MT-35836"
+          },
+          {
+            "index": 84,
+            "alias": "MT-479-ASSET-PACKAGE",
+            "resolved_mt_id": "MT-479"
+          },
+          {
+            "index": 85,
+            "alias": "MT-479-ASSET-WORKSPACE",
+            "resolved_mt_id": "MT-35837"
+          },
+          {
+            "index": 86,
+            "alias": "MT-479-ASSET-INTEROP_FIG",
+            "resolved_mt_id": "MT-35838"
+          },
+          {
+            "index": 87,
+            "alias": "MT-479-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35839"
+          },
+          {
+            "index": 88,
+            "alias": "MT-006-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-006"
+          },
+          {
+            "index": 89,
+            "alias": "MT-006-ASSET-CHRONICLE",
+            "resolved_mt_id": "MT-35637"
+          },
+          {
+            "index": 90,
+            "alias": "MT-006-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35638"
+          },
+          {
+            "index": 91,
+            "alias": "MT-015-ASSET-HARNESS",
+            "resolved_mt_id": "MT-015"
+          },
+          {
+            "index": 92,
+            "alias": "MT-556-ASSET-ACCORD",
+            "resolved_mt_id": "MT-556"
+          },
+          {
+            "index": 93,
+            "alias": "MT-556-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35908"
+          },
+          {
+            "index": 94,
+            "alias": "MT-556-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35909"
+          },
+          {
+            "index": 95,
+            "alias": "MT-557-ASSET-ACCORD",
+            "resolved_mt_id": "MT-557"
+          },
+          {
+            "index": 96,
+            "alias": "MT-557-ASSET-SESSION",
+            "resolved_mt_id": "MT-35910"
+          },
+          {
+            "index": 97,
+            "alias": "MT-557-ASSET-CHRONICLE",
+            "resolved_mt_id": "MT-35911"
+          },
+          {
+            "index": 98,
+            "alias": "MT-557-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35912"
+          },
+          {
+            "index": 99,
+            "alias": "MT-558-ASSET-ACCORD",
+            "resolved_mt_id": "MT-558"
+          },
+          {
+            "index": 100,
+            "alias": "MT-558-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35913"
+          },
+          {
+            "index": 101,
+            "alias": "MT-558-ASSET-SESSION",
+            "resolved_mt_id": "MT-35914"
+          },
+          {
+            "index": 102,
+            "alias": "MT-558-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35915"
+          },
+          {
+            "index": 103,
+            "alias": "MT-559-ASSET-ACCORD",
+            "resolved_mt_id": "MT-559"
+          },
+          {
+            "index": 104,
+            "alias": "MT-559-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35916"
+          },
+          {
+            "index": 105,
+            "alias": "MT-559-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35917"
+          },
+          {
+            "index": 106,
+            "alias": "MT-559-ASSET-SESSION",
+            "resolved_mt_id": "MT-35918"
+          },
+          {
+            "index": 107,
+            "alias": "MT-560-ASSET-ACCORD",
+            "resolved_mt_id": "MT-560"
+          },
+          {
+            "index": 108,
+            "alias": "MT-560-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35919"
+          },
+          {
+            "index": 109,
+            "alias": "MT-560-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35920"
+          },
+          {
+            "index": 110,
+            "alias": "MT-560-ASSET-SESSION",
+            "resolved_mt_id": "MT-35921"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-446",
+          "MT-447",
+          "MT-448",
+          "MT-449",
+          "MT-450",
+          "MT-451",
+          "MT-452",
+          "MT-453",
+          "MT-454",
+          "MT-35822",
+          "MT-35823",
+          "MT-455",
+          "MT-35824",
+          "MT-35825",
+          "MT-456",
+          "MT-457",
+          "MT-35826",
+          "MT-35827",
+          "MT-35828",
+          "MT-458",
+          "MT-459",
+          "MT-460",
+          "MT-461",
+          "MT-462",
+          "MT-35829",
+          "MT-35830",
+          "MT-463",
+          "MT-464",
+          "MT-465",
+          "MT-466",
+          "MT-467",
+          "MT-468",
+          "MT-469",
+          "MT-470",
+          "MT-471",
+          "MT-35831",
+          "MT-35832",
+          "MT-472",
+          "MT-35833",
+          "MT-35834",
+          "MT-473",
+          "MT-474",
+          "MT-475",
+          "MT-476",
+          "MT-477",
+          "MT-478",
+          "MT-35835",
+          "MT-35836",
+          "MT-479",
+          "MT-35837",
+          "MT-35838",
+          "MT-35839",
+          "MT-006",
+          "MT-35637",
+          "MT-35638",
+          "MT-015",
+          "MT-556",
+          "MT-35908",
+          "MT-35909",
+          "MT-557",
+          "MT-35910",
+          "MT-35911",
+          "MT-35912",
+          "MT-558",
+          "MT-35913",
+          "MT-35914",
+          "MT-35915",
+          "MT-559",
+          "MT-35916",
+          "MT-35917",
+          "MT-35918",
+          "MT-560",
+          "MT-35919",
+          "MT-35920",
+          "MT-35921"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -3423,7 +4041,7 @@
             "anchor": "STU-IO-004",
             "line": 21271,
             "section": "14.13",
-            "heading": "### 2. Compatibility scope, fixtures, receipts, and recovery \u2014 the promotion gate",
+            "heading": "### 2. Compatibility scope, fixtures, receipts, and recovery — the promotion gate",
             "verbatim": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts:",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
@@ -3442,7 +4060,7 @@
             "line": 22271,
             "section": "14.16",
             "heading": "## 14.16 Model Visibility and Steerability (Backend and Frontend)",
-            "verbatim": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` \u2014 the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge.",
+            "verbatim": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` — the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -3460,7 +4078,7 @@
             "line": 22377,
             "section": "14.22",
             "heading": "## 14.22 Studio UserManual (Dual-Audience)",
-            "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer \u2014 user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer \u2014 technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
+            "verbatim": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }

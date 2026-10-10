@@ -1802,37 +1802,37 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-501-ASSET-KERNEL_BINDINGS",
-      "MT-504-ASSET-KERNEL_BINDINGS",
-      "MT-504-ASSET-SESSION",
-      "MT-507-ASSET-KERNEL_BINDINGS",
-      "MT-508-ASSET-KERNEL_BINDINGS",
-      "MT-513-ASSET-KERNEL_BINDINGS",
-      "MT-513-ASSET-WORKSPACE",
-      "MT-513-ASSET-SESSION",
-      "MT-513-ASSET-ACCORD",
-      "MT-515-ASSET-KERNEL_BINDINGS",
-      "MT-518-ASSET-KERNEL_BINDINGS",
-      "MT-015-ASSET-HARNESS",
-      "MT-556-ASSET-ACCORD",
-      "MT-556-ASSET-HARNESS",
-      "MT-556-ASSET-FOLIO",
-      "MT-557-ASSET-ACCORD",
-      "MT-557-ASSET-SESSION",
-      "MT-557-ASSET-CHRONICLE",
-      "MT-557-ASSET-FOLIO",
-      "MT-558-ASSET-ACCORD",
-      "MT-558-ASSET-HARNESS",
-      "MT-558-ASSET-SESSION",
-      "MT-558-ASSET-FOLIO",
-      "MT-559-ASSET-ACCORD",
-      "MT-559-ASSET-HARNESS",
-      "MT-559-ASSET-FOLIO",
-      "MT-559-ASSET-SESSION",
-      "MT-560-ASSET-ACCORD",
-      "MT-560-ASSET-HARNESS",
-      "MT-560-ASSET-FOLIO",
-      "MT-560-ASSET-SESSION",
+      "MT-501",
+      "MT-504",
+      "MT-35860",
+      "MT-507",
+      "MT-508",
+      "MT-513",
+      "MT-35866",
+      "MT-35867",
+      "MT-35868",
+      "MT-515",
+      "MT-518",
+      "MT-015",
+      "MT-556",
+      "MT-35908",
+      "MT-35909",
+      "MT-557",
+      "MT-35910",
+      "MT-35911",
+      "MT-35912",
+      "MT-558",
+      "MT-35913",
+      "MT-35914",
+      "MT-35915",
+      "MT-559",
+      "MT-35916",
+      "MT-35917",
+      "MT-35918",
+      "MT-560",
+      "MT-35919",
+      "MT-35920",
+      "MT-35921",
       "MT-35872",
       "MT-35873",
       "MT-35874"
@@ -2503,12 +2503,328 @@
       "patch_provenance",
       "scope.proof_targets",
       "scope.expected_tests",
-      "lifecycle.depends_on"
+      "lifecycle.depends_on",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-520.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/61"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "51b4af15ab0e129f16ac753b7fb151392dc8004e60a7eac1686b49caf88b6e5d",
+        "preimage_raw_sha256": "bfdd111b87538f05a53ddf4de49a65f64c815a2b55e6350d2c06c71e907cbbb2",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-501-ASSET-KERNEL_BINDINGS",
+          "MT-504-ASSET-KERNEL_BINDINGS",
+          "MT-504-ASSET-SESSION",
+          "MT-507-ASSET-KERNEL_BINDINGS",
+          "MT-508-ASSET-KERNEL_BINDINGS",
+          "MT-513-ASSET-KERNEL_BINDINGS",
+          "MT-513-ASSET-WORKSPACE",
+          "MT-513-ASSET-SESSION",
+          "MT-513-ASSET-ACCORD",
+          "MT-515-ASSET-KERNEL_BINDINGS",
+          "MT-518-ASSET-KERNEL_BINDINGS",
+          "MT-015-ASSET-HARNESS",
+          "MT-556-ASSET-ACCORD",
+          "MT-556-ASSET-HARNESS",
+          "MT-556-ASSET-FOLIO",
+          "MT-557-ASSET-ACCORD",
+          "MT-557-ASSET-SESSION",
+          "MT-557-ASSET-CHRONICLE",
+          "MT-557-ASSET-FOLIO",
+          "MT-558-ASSET-ACCORD",
+          "MT-558-ASSET-HARNESS",
+          "MT-558-ASSET-SESSION",
+          "MT-558-ASSET-FOLIO",
+          "MT-559-ASSET-ACCORD",
+          "MT-559-ASSET-HARNESS",
+          "MT-559-ASSET-FOLIO",
+          "MT-559-ASSET-SESSION",
+          "MT-560-ASSET-ACCORD",
+          "MT-560-ASSET-HARNESS",
+          "MT-560-ASSET-FOLIO",
+          "MT-560-ASSET-SESSION",
+          "MT-35872",
+          "MT-35873",
+          "MT-35874"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-501-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-501"
+          },
+          {
+            "index": 37,
+            "alias": "MT-504-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-504"
+          },
+          {
+            "index": 38,
+            "alias": "MT-504-ASSET-SESSION",
+            "resolved_mt_id": "MT-35860"
+          },
+          {
+            "index": 39,
+            "alias": "MT-507-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-507"
+          },
+          {
+            "index": 40,
+            "alias": "MT-508-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-508"
+          },
+          {
+            "index": 41,
+            "alias": "MT-513-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-513"
+          },
+          {
+            "index": 42,
+            "alias": "MT-513-ASSET-WORKSPACE",
+            "resolved_mt_id": "MT-35866"
+          },
+          {
+            "index": 43,
+            "alias": "MT-513-ASSET-SESSION",
+            "resolved_mt_id": "MT-35867"
+          },
+          {
+            "index": 44,
+            "alias": "MT-513-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35868"
+          },
+          {
+            "index": 45,
+            "alias": "MT-515-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-515"
+          },
+          {
+            "index": 46,
+            "alias": "MT-518-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-518"
+          },
+          {
+            "index": 47,
+            "alias": "MT-015-ASSET-HARNESS",
+            "resolved_mt_id": "MT-015"
+          },
+          {
+            "index": 48,
+            "alias": "MT-556-ASSET-ACCORD",
+            "resolved_mt_id": "MT-556"
+          },
+          {
+            "index": 49,
+            "alias": "MT-556-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35908"
+          },
+          {
+            "index": 50,
+            "alias": "MT-556-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35909"
+          },
+          {
+            "index": 51,
+            "alias": "MT-557-ASSET-ACCORD",
+            "resolved_mt_id": "MT-557"
+          },
+          {
+            "index": 52,
+            "alias": "MT-557-ASSET-SESSION",
+            "resolved_mt_id": "MT-35910"
+          },
+          {
+            "index": 53,
+            "alias": "MT-557-ASSET-CHRONICLE",
+            "resolved_mt_id": "MT-35911"
+          },
+          {
+            "index": 54,
+            "alias": "MT-557-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35912"
+          },
+          {
+            "index": 55,
+            "alias": "MT-558-ASSET-ACCORD",
+            "resolved_mt_id": "MT-558"
+          },
+          {
+            "index": 56,
+            "alias": "MT-558-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35913"
+          },
+          {
+            "index": 57,
+            "alias": "MT-558-ASSET-SESSION",
+            "resolved_mt_id": "MT-35914"
+          },
+          {
+            "index": 58,
+            "alias": "MT-558-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35915"
+          },
+          {
+            "index": 59,
+            "alias": "MT-559-ASSET-ACCORD",
+            "resolved_mt_id": "MT-559"
+          },
+          {
+            "index": 60,
+            "alias": "MT-559-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35916"
+          },
+          {
+            "index": 61,
+            "alias": "MT-559-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35917"
+          },
+          {
+            "index": 62,
+            "alias": "MT-559-ASSET-SESSION",
+            "resolved_mt_id": "MT-35918"
+          },
+          {
+            "index": 63,
+            "alias": "MT-560-ASSET-ACCORD",
+            "resolved_mt_id": "MT-560"
+          },
+          {
+            "index": 64,
+            "alias": "MT-560-ASSET-HARNESS",
+            "resolved_mt_id": "MT-35919"
+          },
+          {
+            "index": 65,
+            "alias": "MT-560-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35920"
+          },
+          {
+            "index": 66,
+            "alias": "MT-560-ASSET-SESSION",
+            "resolved_mt_id": "MT-35921"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-501",
+          "MT-504",
+          "MT-35860",
+          "MT-507",
+          "MT-508",
+          "MT-513",
+          "MT-35866",
+          "MT-35867",
+          "MT-35868",
+          "MT-515",
+          "MT-518",
+          "MT-015",
+          "MT-556",
+          "MT-35908",
+          "MT-35909",
+          "MT-557",
+          "MT-35910",
+          "MT-35911",
+          "MT-35912",
+          "MT-558",
+          "MT-35913",
+          "MT-35914",
+          "MT-35915",
+          "MT-559",
+          "MT-35916",
+          "MT-35917",
+          "MT-35918",
+          "MT-560",
+          "MT-35919",
+          "MT-35920",
+          "MT-35921",
+          "MT-35872",
+          "MT-35873",
+          "MT-35874"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",

@@ -1810,7 +1810,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-PRESS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-PRESS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2256,12 +2256,12 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-019-ASSET-PRISM",
-      "MT-019-ASSET-ACCORD",
-      "MT-019-ASSET-FOLIO",
-      "MT-019-ASSET-KERNEL_BINDINGS",
-      "MT-181-ASSET-LAYOUT",
-      "MT-181-ASSET-SESSION"
+      "MT-019",
+      "MT-35660",
+      "MT-35661",
+      "MT-35662",
+      "MT-181",
+      "MT-35692"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -3373,12 +3373,147 @@
       "scope.expected_tests",
       "lifecycle.depends_on",
       "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json#/fulfillment/legacy_acceptance_map and later_kernel (original source acceptance and native embedding lineage retained)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json#/fulfillment/legacy_acceptance_map and later_kernel (original source acceptance and native embedding lineage retained)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35697.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Authorized source slice ./MT-188.json#/fulfillment/asset_slices/3; native checkpoint blob 53dc4c92008c3614984e4a9acec27c624d4d2d3a. Original source payload retained, current Controls-only contribution active; other owners separately scoped.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/14"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "9224f9c5a4aafee4f52737986a8ffbb0ea3673c9fa641c92be106ee69729d5eb",
+        "preimage_raw_sha256": "9224f9c5a4aafee4f52737986a8ffbb0ea3673c9fa641c92be106ee69729d5eb",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-019-ASSET-PRISM",
+          "MT-019-ASSET-ACCORD",
+          "MT-019-ASSET-FOLIO",
+          "MT-019-ASSET-KERNEL_BINDINGS",
+          "MT-181-ASSET-LAYOUT",
+          "MT-181-ASSET-SESSION"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-019-ASSET-PRISM",
+            "resolved_mt_id": "MT-019"
+          },
+          {
+            "index": 37,
+            "alias": "MT-019-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35660"
+          },
+          {
+            "index": 38,
+            "alias": "MT-019-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35661"
+          },
+          {
+            "index": 39,
+            "alias": "MT-019-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-35662"
+          },
+          {
+            "index": 40,
+            "alias": "MT-181-ASSET-LAYOUT",
+            "resolved_mt_id": "MT-181"
+          },
+          {
+            "index": 41,
+            "alias": "MT-181-ASSET-SESSION",
+            "resolved_mt_id": "MT-35692"
+          }
+        ],
+        "removed_internal_own_id_edges": [],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-019",
+          "MT-35660",
+          "MT-35661",
+          "MT-35662",
+          "MT-181",
+          "MT-35692"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -4108,7 +4243,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Implement the prepress control surfaces that drive the color pipeline (14.8, ColorEngine MT-019 \u2014 math owned there, never forked here) and are enumerable: PDF/X output intents (at least PDF/X-1a, PDF/X-3, PDF/X-4 with embedded output intents through built-in presets); Ink manager (per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-values-for-spots, per-ink trapping type normal/transparent/opaque/opaque-ignore with neutral density and sequence); Overprint (per-object overprint of fill, stroke, and gap, plus a black-overprint policy); Trap presets (trap width/black width, join/end styles, appearance thresholds, image-trap placement, assignable to page ranges); Separations preview (per-plate on/off preview, ink-limit view with configurable total-ink threshold, per-ink coverage readouts); Transparency flattener (flattener presets plus a flattener preview highlighting rasterized/outlined regions). This MT owns the control surfaces; math/profiles owned by 14.8.",
+        "summary": "Implement the prepress control surfaces that drive the color pipeline (14.8, ColorEngine MT-019 — math owned there, never forked here) and are enumerable: PDF/X output intents (at least PDF/X-1a, PDF/X-3, PDF/X-4 with embedded output intents through built-in presets); Ink manager (per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-values-for-spots, per-ink trapping type normal/transparent/opaque/opaque-ignore with neutral density and sequence); Overprint (per-object overprint of fill, stroke, and gap, plus a black-overprint policy); Trap presets (trap width/black width, join/end styles, appearance thresholds, image-trap placement, assignable to page ranges); Separations preview (per-plate on/off preview, ink-limit view with configurable total-ink threshold, per-ink coverage readouts); Transparency flattener (flattener presets plus a flattener preview highlighting rasterized/outlined regions). This MT owns the control surfaces; math/profiles owned by 14.8.",
         "allowed_paths": [
           "src/studio/layout/**",
           "tests/studio/**"

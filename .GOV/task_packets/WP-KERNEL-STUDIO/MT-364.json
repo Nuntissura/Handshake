@@ -1792,10 +1792,10 @@
       "MT-35562",
       "MT-35563",
       "MT-363",
-      "MT-009-ASSET-CONTROLS",
-      "MT-009-ASSET-HARNESS",
-      "MT-009-ASSET-SESSION",
-      "MT-009-ASSET-FOLIO"
+      "MT-009",
+      "MT-35640",
+      "MT-35641",
+      "MT-35642"
     ],
     "start_precondition": {
       "dispatch_allowed": false,
@@ -2585,7 +2585,8 @@
       "patch_provenance",
       "scope.proof_targets",
       "scope.expected_tests",
-      "lifecycle.depends_on"
+      "lifecycle.depends_on",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-364.json#/execution/depends_on (original alias IDs/order retained; active IDs resolved through canonical slice_to_executable_mt; grant bed05be036acdd5fd416c59d710e2f4690311c14af1a89e1faad6b4a25c10d68)"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 63
+generation: 69
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -81,3 +81,9 @@ steps:
 - {id: GP-065, role: builder, at: before_submit, do: verify source clause and contract container types before typed HBR repair, check: {type: confirm}, source: 'Web80: clause string and absent semantic_acceptance_map assumptions failed before writes', state: active}
 - {id: GP-066, role: builder, at: before_submit, do: verify historical snapshot container type before publication metadata update, check: {type: confirm}, source: 'coordinator: historical_count_snapshots is list; dict assignment failed before metadata writes', state: active}
 - {id: GP-067, role: builder, at: before_submit, do: verify current registry rule identity keys before consumer projection, check: {type: confirm}, source: 'coordinator: registry rule uses id not projected rule_id; assertion failed before writes', state: active}
+- {id: GP-068, role: builder, at: before_submit, do: verify active dependency IDs resolve to physical MTs and preserve alias history without removing real edges, check: {type: confirm}, source: 'full6190:933 active dependency aliases in146contracts resolve304 existing mapped slices', state: active}
+- {id: GP-069, role: builder, at: before_submit, do: verify rule identity sets separately from presentation ordering before coverage verdicts, check: {type: confirm}, source: 'coordinator:167 complete52 HBR sets ordered lifecycle-first falsely failed positional registry comparison', state: active}
+- {id: GP-070, role: builder, at: before_submit, do: verify repair ownership across existing and split allocation rows before candidate graph assertions, check: {type: confirm}, source: Shared82 grant includes8 companions; original-only allocation assumption failed before writes, state: active}
+- {id: GP-071, role: builder, at: before_submit, do: verify each self prerequisite is an internal owned contribution before removing only its own-ID edge, check: {type: confirm}, source: 'full6190graph:12 Shared companions already depend on themselves; explicit root self12 repair authorized', state: active}
+- {id: GP-072, role: builder, at: before_submit, do: compare dependency membership after canonical alias resolution and do not add parent-exclusion gates, check: {type: confirm}, source: 'coordinator:literal own-slice absence did not prove mapped child absence; root authorizes self edge only', state: active}
+- {id: GP-073, role: builder, at: before_submit, do: compare native report history with separately authorized working publication acknowledgements before mutation, check: {type: confirm}, source: 'Visual64:2dc native report has16history while authorized uncommitted6f acknowledgement makes17', state: active}

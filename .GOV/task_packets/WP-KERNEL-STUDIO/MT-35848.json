@@ -280,7 +280,7 @@
       {
         "id": "STU-AUT-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:21826",
-        "verbatim": "[STU-AUT-001] Studio MUST expose exactly ONE typed command contract as its automation surface. Every automatable Studio operation \u2014 document, layer, selection, path, text, table, color, effect, layout, component, export, and history operation \u2014 is a `StudioCommand`: a typed, schema-described, named operation over the canonical primitive set of 14.3. There is no second, parallel automation API for operators or plugins; the operator script surface, the plugin surface, and the model-lane surface (14.16) are three callers of the one contract, not three contracts.",
+        "verbatim": "[STU-AUT-001] Studio MUST expose exactly ONE typed command contract as its automation surface. Every automatable Studio operation — document, layer, selection, path, text, table, color, effect, layout, component, export, and history operation — is a `StudioCommand`: a typed, schema-described, named operation over the canonical primitive set of 14.3. There is no second, parallel automation API for operators or plugins; the operator script surface, the plugin surface, and the model-lane surface (14.16) are three callers of the one contract, not three contracts.",
         "heading": "### 14.14.CARRIED Clauses carried forward unchanged from v02.205",
         "section": "14.14",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -300,7 +300,7 @@
       {
         "id": "STU-AUT-002",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:21828",
-        "verbatim": "[STU-AUT-002] Every `StudioCommand` MUST be (a) **typed** \u2014 its input and output are `schemars::JsonSchema`-deriving types so the MCP `inputSchema` and the operator/plugin type stubs are generated from one source; (b) **dry-runnable** \u2014 invocable in a preview mode that computes and returns the resulting `StudioEditProposal` diff without mutating authority; (c) **receipted** \u2014 every non-dry-run invocation emits an EventLedger receipt under a `studio.*` `event_family` carrying the `KernelActor` variant (operator, model adapter, or named plugin) so authorship is attributable; and (d) **undoable** \u2014 it produces a `StudioHistoryEntry` and participates in per-file history/undo/revert-of-undo per 14.19. A command that cannot satisfy all four properties is not admissible to the command contract.",
+        "verbatim": "[STU-AUT-002] Every `StudioCommand` MUST be (a) **typed** — its input and output are `schemars::JsonSchema`-deriving types so the MCP `inputSchema` and the operator/plugin type stubs are generated from one source; (b) **dry-runnable** — invocable in a preview mode that computes and returns the resulting `StudioEditProposal` diff without mutating authority; (c) **receipted** — every non-dry-run invocation emits an EventLedger receipt under a `studio.*` `event_family` carrying the `KernelActor` variant (operator, model adapter, or named plugin) so authorship is attributable; and (d) **undoable** — it produces a `StudioHistoryEntry` and participates in per-file history/undo/revert-of-undo per 14.19. A command that cannot satisfy all four properties is not admissible to the command contract.",
         "heading": "### 14.14.CARRIED Clauses carried forward unchanged from v02.205",
         "section": "14.14",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -320,7 +320,7 @@
       {
         "id": "STU-UNI-003",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22363",
-        "verbatim": "[STU-UNI-003] SHARED OPERATOR UX INVARIANTS. Across all task modes: ONE selection model (`StudioSelectionSet` regardless of raster/vector/layout context), ONE undo/history surface (14.19), ONE color pipeline (14.8), ONE asset/library surface (Loom is the home for brushes, styles, palettes, components, export recipes, and placed assets \u2014 no Studio-private asset silo), and ONE export surface (`StudioExportRecipe`, 14.13).",
+        "verbatim": "[STU-UNI-003] SHARED OPERATOR UX INVARIANTS. Across all task modes: ONE selection model (`StudioSelectionSet` regardless of raster/vector/layout context), ONE undo/history surface (14.19), ONE color pipeline (14.8), ONE asset/library surface (Loom is the home for brushes, styles, palettes, components, export recipes, and placed assets — no Studio-private asset silo), and ONE export surface (`StudioExportRecipe`, 14.13).",
         "heading": "## 14.21 Operator Unification Surface",
         "section": "14.21",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1391,7 +1391,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-KERNEL_BINDINGS scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-KERNEL_BINDINGS scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1893,13 +1893,12 @@
       "MT-35561",
       "MT-35562",
       "MT-35563",
-      "MT-484-ASSET-KERNEL_BINDINGS",
-      "MT-002-ASSET-FOLIO",
-      "MT-002-ASSET-ACCORD",
-      "MT-003-ASSET-KERNEL_BINDINGS",
-      "MT-003-ASSET-ACCORD",
-      "MT-003-ASSET-FOLIO",
-      "MT-35848",
+      "MT-484",
+      "MT-002",
+      "MT-35628",
+      "MT-003",
+      "MT-35629",
+      "MT-35630",
       "MT-35849",
       "MT-35850"
     ],
@@ -2533,12 +2532,165 @@
       "scope.expected_tests",
       "lifecycle.depends_on",
       "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-490.json#/context_capsule/pillar_refs (original 45-rule preparation assessment retained as native Git history)",
-      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-490.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)"
+      "git:a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89:.GOV/task_packets/WP-KERNEL-STUDIO/MT-490.json#/fulfillment/legacy_acceptance_map and later_kernel (original acceptance and native embedding lineage retained)",
+      "git:2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35848.json#/execution/depends_on",
+      "#/authority_migration/dependency_repair_history/0/previous_active_depends_on"
     ],
     "legacy_commands_dispatchable": false,
     "reason": "Authorized source slice ./MT-490.json#/fulfillment/asset_slices/1; native checkpoint blob ccd938c327dd87296648015f710c6e4688a89746. Original source payload retained, current Controls-only contribution active; other owners separately scoped.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "dependency_repair_history": [
+      {
+        "repair_id": "shared-dependency146-self12-20261010",
+        "authorization_refs": [
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-dependency146-grant.json#/rows/17",
+          "../Handshake_Artifacts/handshake-tool/studio-publication/shared-self12-grant.json#/rows/4"
+        ],
+        "canonical_preimage_commit": "2dc65947c0c42abe2656365ebf29fd9fc9fa0ffd",
+        "canonical_preimage_raw_sha256": "a2a0c7a44db9b12dbe68d34bfeeff2dd454f72d300de9bf20032dd980df9d30d",
+        "preimage_raw_sha256": "a2a0c7a44db9b12dbe68d34bfeeff2dd454f72d300de9bf20032dd980df9d30d",
+        "previous_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-484-ASSET-KERNEL_BINDINGS",
+          "MT-002-ASSET-FOLIO",
+          "MT-002-ASSET-ACCORD",
+          "MT-003-ASSET-KERNEL_BINDINGS",
+          "MT-003-ASSET-ACCORD",
+          "MT-003-ASSET-FOLIO",
+          "MT-35848",
+          "MT-35849",
+          "MT-35850"
+        ],
+        "indexed_alias_replacements": [
+          {
+            "index": 36,
+            "alias": "MT-484-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-484"
+          },
+          {
+            "index": 37,
+            "alias": "MT-002-ASSET-FOLIO",
+            "resolved_mt_id": "MT-002"
+          },
+          {
+            "index": 38,
+            "alias": "MT-002-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35628"
+          },
+          {
+            "index": 39,
+            "alias": "MT-003-ASSET-KERNEL_BINDINGS",
+            "resolved_mt_id": "MT-003"
+          },
+          {
+            "index": 40,
+            "alias": "MT-003-ASSET-ACCORD",
+            "resolved_mt_id": "MT-35629"
+          },
+          {
+            "index": 41,
+            "alias": "MT-003-ASSET-FOLIO",
+            "resolved_mt_id": "MT-35630"
+          }
+        ],
+        "removed_internal_own_id_edges": [
+          {
+            "original_index": 42,
+            "removed_mt_id": "MT-35848",
+            "source_mt": "MT-490",
+            "source_slice_ref": "./MT-490.json#/fulfillment/asset_slices/1",
+            "source_slice_id": "MT-490-ASSET-CONTROLS",
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "native_source_parent_blob_oid": "ccd938c327dd87296648015f710c6e4688a89746",
+            "disposition": "INTERNAL_OWNED_CONTRIBUTION_NOT_EXTERNAL_PREREQUISITE",
+            "parent_to_owned_child_edges_retained": true
+          }
+        ],
+        "current_active_depends_on": [
+          "MT-35528",
+          "MT-35529",
+          "MT-35530",
+          "MT-35531",
+          "MT-35532",
+          "MT-35533",
+          "MT-35534",
+          "MT-35535",
+          "MT-35536",
+          "MT-35537",
+          "MT-35538",
+          "MT-35539",
+          "MT-35540",
+          "MT-35541",
+          "MT-35542",
+          "MT-35543",
+          "MT-35544",
+          "MT-35545",
+          "MT-35546",
+          "MT-35547",
+          "MT-35548",
+          "MT-35549",
+          "MT-35550",
+          "MT-35551",
+          "MT-35552",
+          "MT-35553",
+          "MT-35554",
+          "MT-35555",
+          "MT-35556",
+          "MT-35557",
+          "MT-35558",
+          "MT-35559",
+          "MT-35560",
+          "MT-35561",
+          "MT-35562",
+          "MT-35563",
+          "MT-484",
+          "MT-002",
+          "MT-35628",
+          "MT-003",
+          "MT-35629",
+          "MT-35630",
+          "MT-35849",
+          "MT-35850"
+        ],
+        "source_scope_policy": "Only authorized active edge changes; original scope, acceptance, payload, source, proofs, HBR, host bindings, lifecycle and activation retained."
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2600,7 +2752,7 @@
             "line": 21826,
             "section": "14.14",
             "heading": "### 14.14.CARRIED Clauses carried forward unchanged from v02.205",
-            "verbatim": "[STU-AUT-001] Studio MUST expose exactly ONE typed command contract as its automation surface. Every automatable Studio operation \u2014 document, layer, selection, path, text, table, color, effect, layout, component, export, and history operation \u2014 is a `StudioCommand`: a typed, schema-described, named operation over the canonical primitive set of 14.3. There is no second, parallel automation API for operators or plugins; the operator script surface, the plugin surface, and the model-lane surface (14.16) are three callers of the one contract, not three contracts.",
+            "verbatim": "[STU-AUT-001] Studio MUST expose exactly ONE typed command contract as its automation surface. Every automatable Studio operation — document, layer, selection, path, text, table, color, effect, layout, component, export, and history operation — is a `StudioCommand`: a typed, schema-described, named operation over the canonical primitive set of 14.3. There is no second, parallel automation API for operators or plugins; the operator script surface, the plugin surface, and the model-lane surface (14.16) are three callers of the one contract, not three contracts.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2609,7 +2761,7 @@
             "line": 21828,
             "section": "14.14",
             "heading": "### 14.14.CARRIED Clauses carried forward unchanged from v02.205",
-            "verbatim": "[STU-AUT-002] Every `StudioCommand` MUST be (a) **typed** \u2014 its input and output are `schemars::JsonSchema`-deriving types so the MCP `inputSchema` and the operator/plugin type stubs are generated from one source; (b) **dry-runnable** \u2014 invocable in a preview mode that computes and returns the resulting `StudioEditProposal` diff without mutating authority; (c) **receipted** \u2014 every non-dry-run invocation emits an EventLedger receipt under a `studio.*` `event_family` carrying the `KernelActor` variant (operator, model adapter, or named plugin) so authorship is attributable; and (d) **undoable** \u2014 it produces a `StudioHistoryEntry` and participates in per-file history/undo/revert-of-undo per 14.19. A command that cannot satisfy all four properties is not admissible to the command contract.",
+            "verbatim": "[STU-AUT-002] Every `StudioCommand` MUST be (a) **typed** — its input and output are `schemars::JsonSchema`-deriving types so the MCP `inputSchema` and the operator/plugin type stubs are generated from one source; (b) **dry-runnable** — invocable in a preview mode that computes and returns the resulting `StudioEditProposal` diff without mutating authority; (c) **receipted** — every non-dry-run invocation emits an EventLedger receipt under a `studio.*` `event_family` carrying the `KernelActor` variant (operator, model adapter, or named plugin) so authorship is attributable; and (d) **undoable** — it produces a `StudioHistoryEntry` and participates in per-file history/undo/revert-of-undo per 14.19. A command that cannot satisfy all four properties is not admissible to the command contract.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           },
@@ -2618,7 +2770,7 @@
             "line": 22363,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-003] SHARED OPERATOR UX INVARIANTS. Across all task modes: ONE selection model (`StudioSelectionSet` regardless of raster/vector/layout context), ONE undo/history surface (14.19), ONE color pipeline (14.8), ONE asset/library surface (Loom is the home for brushes, styles, palettes, components, export recipes, and placed assets \u2014 no Studio-private asset silo), and ONE export surface (`StudioExportRecipe`, 14.13).",
+            "verbatim": "[STU-UNI-003] SHARED OPERATOR UX INVARIANTS. Across all task modes: ONE selection model (`StudioSelectionSet` regardless of raster/vector/layout context), ONE undo/history surface (14.19), ONE color pipeline (14.8), ONE asset/library surface (Loom is the home for brushes, styles, palettes, components, export recipes, and placed assets — no Studio-private asset silo), and ONE export surface (`StudioExportRecipe`, 14.13).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
