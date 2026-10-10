@@ -14,7 +14,7 @@
     "wp_contract_digest": null,
     "binding_status": "ROOT_FINALIZATION_REQUIRED"
   },
-  "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
   "context_capsule": {
     "specification_anchor_refs": [
       {
@@ -1640,17 +1640,28 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35528/studio-assets-kernel-builder",
+      "env": {
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+        "CARGO_PROFILE_TEST_DEBUG": "line-tables-only",
+        "CARGO_INCREMENTAL": "0",
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\cargo-target",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35528/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session 01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -1944,12 +1955,14 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "blocked",
+    "phase": "implementation",
     "status": "PENDING",
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "contract_preparation_only": false,
+    "blocked_on": null,
+    "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+    "completed_by": null
   },
   "scope": {
     "summary": "Real workspace manifest/toolchain/package-selection/provenance consumer rejects invalid selection without needing uncreated sibling code; every actual module/provider compile remains mandatory at the final 36-foundation barrier.",
@@ -2098,5 +2111,17 @@
       "status": "PENDING",
       "production_requirement": "Actual selected Handshake consumer and permitted dependency closure with independent proof."
     }
+  },
+  "implementation_state": {
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "selected_mt": "MT-35528",
+    "batch_owner": "MT-35528",
+    "covered_mts": [
+      "MT-35528"
+    ],
+    "scope": "standalone_source",
+    "runtime": "NOT_RUN",
+    "compile": "PENDING_SOURCE_MATERIALIZATION",
+    "next_actor": "workspace coding lane; parent compile/static; independent runtime validator"
   }
 }
