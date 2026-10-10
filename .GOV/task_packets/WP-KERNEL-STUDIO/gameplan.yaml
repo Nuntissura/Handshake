@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 17
+generation: 18
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -39,3 +39,4 @@ steps:
 - {id: GP-021, role: integration_validator, at: before_round, do: require named case stdout stderr exit saved before oracle assertions, check: {type: confirm}, source: 'infra: selection assertion ran before evidence persistence', state: active}
 - {id: GP-022, role: builder, at: before_dispatch, do: require recorded workspace example-array rejection before scoped parser repair, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, contains: selected_manifest_unsupported_example_array}, source: 'runtime: selected Accord [[example]] rejected by workspace probe', state: retired}
 - {id: GP-023, role: builder, at: before_dispatch, do: require selected Observe MT35530 contract and predecessor binding, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json, contains: MT-35529-SOURCE-FOUNDATION-V1}, source: KB-IMPL-001; independently passed workspace and Accord, state: active}
+- {id: GP-024, role: builder, at: before_dispatch, do: require selected owner jobs flags materialized before expensive source check, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json, contains: '"jobs": 4'}, source: 'prep: nullable flags left transient Observe claim incomplete', state: active}

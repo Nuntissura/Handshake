@@ -1708,7 +1708,7 @@
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "TARGET_EXISTS_BUILDER_STATIC_PASS_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1739,7 +1739,7 @@
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "TARGET_EXISTS_BUILDER_STATIC_PASS_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1770,7 +1770,7 @@
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "TARGET_EXISTS_BUILDER_STATIC_PASS_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1801,7 +1801,7 @@
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "TARGET_EXISTS_BUILDER_STATIC_PASS_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1832,7 +1832,7 @@
           "negative_path": "Inject project-text secret, rejected sink, saturation and canceled work; no sensitive bytes escape and no success is reported for lost required delivery",
           "oracle": "Real consumer callback trace and independently decoded allowlisted output; rejection/cancel/redaction cases"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "TARGET_EXISTS_BUILDER_STATIC_PASS_RUNTIME_PENDING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1895,7 +1895,20 @@
     },
     "current_dispatch_authorized": false
   },
-  "submissions": [],
+  "submissions": [
+    {
+      "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+      "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+      "status": "READY_FOR_VALIDATION",
+      "source_published": true,
+      "proof_refs": [
+        "validation.proof_records/0",
+        "validation.proof_records/1"
+      ],
+      "runtime": "NOT_RUN",
+      "host": "PENDING_NOT_AUTHORIZED"
+    }
+  ],
   "verdicts": [],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
@@ -1952,7 +1965,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T07:59:10.366260+00:00",
+  "updated_at_utc": "2026-10-10T08:19:09.576484+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -1960,7 +1973,7 @@
   },
   "lifecycle": {
     "phase": "implementation",
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2128,10 +2141,94 @@
     ],
     "predecessor_candidate": "2cb3883a4728bb8cbd0195c4e48247848e78d0b7",
     "runtime": "NOT_RUN",
-    "compile": "NOT_RUN",
-    "next_actor": "workspace scoped Observe source implementation",
+    "compile": "PASS_STATIC",
+    "next_actor": "foundation_validator independent Observe acceptance",
     "source_owner_search": "Canonical assets subtree has workspace+Accord only; STUDIO-MODULE-OBSERVE already registered sole diagnostic-port owner; caller-owned sinks reuse existing FlightRecorder/internal_diagnostics/Palmistry authority",
     "source_feature_policy": "hsk-studio-observe selected no-default-features; direct owning package dependency Accord; no external/native/provider feature",
-    "per_test_timeout": "Checked-in foundation_contract bounded_case30s, no outer timeout"
+    "per_test_timeout": "Checked-in foundation_contract bounded_case30s, no outer timeout",
+    "lint": "PASS_STATIC",
+    "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+    "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "MT-35530-BUILDER-COMPILER-STATIC-V1",
+        "scope": "compiler_static_only",
+        "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+        "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-kernel-builder\\logs\\compiler-static-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "a7785aa47ab9db72f272c9be43703379c0e2e8289f75811431d15e11af9cde10",
+          "handshake-studio-assets/Cargo.lock": "bd8dccd6770ad683b0c61c03fb48380069f4402b930b02c0d450544e485f1e98",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "076e6a7080f535aa4c7828daa9e2fdefb5e903531a67d60615f37d6a0c6031fd"
+        },
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "check",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-observe",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "-j",
+          "4"
+        ],
+        "exit_code": 0,
+        "runtime": "NOT_RUN"
+      },
+      {
+        "proof_id": "MT-35530-BUILDER-CLIPPY-STATIC-V1",
+        "scope": "compiler_static_only",
+        "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+        "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-kernel-builder\\logs\\clippy-static-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "a7785aa47ab9db72f272c9be43703379c0e2e8289f75811431d15e11af9cde10",
+          "handshake-studio-assets/Cargo.lock": "bd8dccd6770ad683b0c61c03fb48380069f4402b930b02c0d450544e485f1e98",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "076e6a7080f535aa4c7828daa9e2fdefb5e903531a67d60615f37d6a0c6031fd"
+        },
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "clippy",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-observe",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "-j",
+          "4",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "runtime": "NOT_RUN"
+      }
+    ]
   }
 }
