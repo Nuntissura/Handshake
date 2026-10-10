@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 47
+generation: 49
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -69,3 +69,5 @@ steps:
 - {id: GP-051, role: builder, at: before_dispatch, do: verify metered zero-byte reservations cannot outlive a freed generation slot, check: {type: confirm}, source: 'source review: metered zero-byte token leaves live0; operation closes slot; later token drops against reused generation', state: active}
 - {id: GP-052, role: integration_validator, at: before_round, do: verify caller cancellation token fixtures allocate before requested-allocation observer capture, check: {type: confirm}, source: 'oracle: pending accepted harness created caller Accord token Arc24 inside capture; fixture moved outside', state: active}
 - {id: GP-053, role: integration_validator, at: before_round, do: verify overlapping meter fixtures fit scoped aggregate limit including prior retained reservations, check: {type: confirm}, source: 'oracle: second limit256 could not admit128 while prior generation retained1024; aggregate denial correct', state: active}
+- {id: GP-054, role: builder, at: before_dispatch, do: verify Cargo-generated Nib lock preserves selected exact pins before locked compile retry, check: {type: confirm}, source: 'compile: manual seed omitted Cargo canonical resolution; locked check refused update', state: active}
+- {id: GP-055, role: builder, at: before_dispatch, do: verify Nib rejection stores one typed error in inspection without duplicate or heap wrapper, check: {type: confirm}, source: 'lint: Rejected duplicated Error inflated Result Err128bytes; retain inline bounded diagnostic', state: active}

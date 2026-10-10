@@ -1174,7 +1174,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2077,8 +2077,8 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "implementation",
-    "status": "PENDING",
+    "phase": "validation",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2239,8 +2239,8 @@
       "MT-35528"
     ],
     "session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
-    "runtime": "NOT_RUN",
-    "compile": "NOT_RUN",
+    "runtime": "NOT_RUN_BY_BUILDER",
+    "compile": "PASS_SOURCE_ONLY",
     "preparation_status": "PREPARATION_READY_SOURCE_IMPLEMENTATION_ONLY",
     "predecessor_verdicts": [
       "MT-35528-SOURCE-PIGMENT-REGISTRY-EXTENSION-V6",
@@ -2276,7 +2276,7 @@
       ],
       "validation_plan": "Existingtwoexact30sowning filters + realexternalconsumer/directedNetwork analyticshoelace/winding + actualrequestedallocator/lifetime/cancel/delivery tests; implementercheck/clippy only"
     },
-    "next_actor": "Parent and disjoint owned-source agents implement Nib/required Observe/workspace extension; parent static check then pushed source handoff to independent validator",
+    "next_actor": "Independent validator executes exact owning runtime selectors and external source-boundary proof on pushed8a3eebf; builder continues other independently unblocked all36 foundations",
     "independent_preparation_review": {
       "executor": "foundation_validator",
       "disposition": "PREPARATION_READY_NOT_RUNTIME_PASS",
@@ -2374,9 +2374,9 @@
         },
         {
           "name": "libc",
-          "version": "0.2.189",
+          "version": "0.2.190",
           "source": "registry+https://github.com/rust-lang/crates.io-index",
-          "checksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
+          "checksum": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
           "license": "MIT OR Apache-2.0"
         },
         {
@@ -2417,8 +2417,24 @@
       ],
       "evidence_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\research\\sha2-kurbo-source-preparation.json",
       "evidence_sha256": "0e4c412cb872ec95f7a706b12f9b7e30929a0ab796e0363c67c91d5f1595485b",
-      "actual_cargo_lock": "CREATED_DURING_CODING_PENDING_ACTUAL_CLOSURE_CHECK",
-      "original_oracle_disposition": "CON036 analytic rectangle source proof; original Illustrator editable curves/full fidelity stay existing pending owners"
+      "actual_cargo_lock": "CARGO_GENERATED_LOCKED_CHECK_PASS_8a3eebf",
+      "original_oracle_disposition": "CON036 analytic rectangle source proof; original Illustrator editable curves/full fidelity stay existing pending owners",
+      "libc_reuse": {
+        "original_research_version": "0.2.189",
+        "selected_runtime_version": "0.2.190",
+        "reason": "Existing workspace/Prism exact pin preserved; cpufeatures0.2.17 target-specific caret0.2.155 admits190; target libc edges inactive Windowsx64",
+        "independent_source_review": "foundation_validator reconciled archive/source/licenses/current lock/crates.io metadata",
+        "evidence_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-kernel-builder/research/libc-0.2.190-reuse-evidence.json",
+        "evidence_sha256": "8b01a9ddebe5c0f34746b009084ef2a1d7f7d3717aefc44bf260d7c6e3665ddd",
+        "actual_cargo_closure": "Cargo tree Windowsx64 selected closure excludes libc; canonical lock reuses190"
+      },
+      "optional_lock_only": {
+        "euclid": "0.22.14",
+        "num-traits": "0.2.19",
+        "autocfg": "1.5.1",
+        "selected_features": "Cargo tree confirms none active for Nib Windowsx64 std",
+        "research_evidence_sha256": "5016c55c97f3bd993780c5797dfc4da4c3555b71eac5488acbcc8ab3f7a23232"
+      }
     },
     "bounded_adaptation_recipe": {
       "input_subset": "Exactly two closed four-anchor axis-aligned rectangles with zero relative handles; reject unsupported before provider",
@@ -2471,6 +2487,70 @@
       "allocation": "Stack fixed arena; checked pinned Rust Arc header+actual RetainedInner Layout with pad_to_align reserved before creation; immutable borrow/precharged source lease; last Arc::into_inner frees control before inline retirement; no Weak or mutable lease escape; bounded inline pending token retains same owner",
       "decoder": "Private borrowed strict matcher; fixed known-record key bitsets; escaped decoded keys/values compare prevalidated Accord identities; no owned tree/constructors; exact numeric f64 equality after strictJSON finite conversion, -0 equals0 while original byte fingerprint retained; structural max depth5 enforced before scan; scan all original bytes and SHA hash chunks with shared work/cancel meter",
       "validation": "Retain exact2 path_boolean filters30seconds; independent analytic winding/shoelace/topology/style, private actualallocator lifetime and public failure/delivery proof; parent compile/static only"
+    },
+    "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+    "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+    "source_status": "READY_FOR_VALIDATION",
+    "source_review_repairs": {
+      "executor": "foundation_validator",
+      "actual_findings": [
+        "Byte-denial counters must preserve over-limit inputs",
+        "Wrong-prefix optional source identity must not suppress rejection",
+        "All returned final rejected/pending state needs fresh diagnostic observer",
+        "Reconciliation failed work counter retained",
+        "Canceled receipt cannot imply acceptance",
+        "Diagnostic delivery distinct from required primary sink",
+        "Saturated delivery preserved; fresh reconciliation delivery replaces old state"
+      ],
+      "disposition": "SOURCE_REPAIRED_STATIC_PASS_RUNTIME_PENDING"
     }
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "MT-35535-BUILDER-NIB-SOURCE-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35535",
+          "MT-35530",
+          "MT-35528"
+        ],
+        "scope": "standalone_source_only",
+        "status": "COMPILE_STATIC_PASS_RUNTIME_NOT_RUN",
+        "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+        "commands": [
+          {
+            "command": "cargo check --locked --tests --examples -p hsk-studio-nib -p hsk-studio-observe --no-default-features -j4",
+            "exit_code": 0,
+            "log": "logs/check-v3.log",
+            "artifact_sha256": "354418feef7d0d4f711e21766b8de165b2889aea2c38f1c7247c7b42f2a021f7"
+          },
+          {
+            "command": "cargo clippy --locked --tests --examples -p hsk-studio-nib -p hsk-studio-observe --no-default-features -j4 -- -D warnings",
+            "exit_code": 0,
+            "log": "logs/clippy-v3.log",
+            "artifact_sha256": "7c7db798bdba5d992f5e5148cc201a46eb8a6482dde1a0f885f9e34ff3ba8541"
+          },
+          {
+            "command": "rustc --edition=2024 --emit=metadata tools/workspace-probe.rs",
+            "exit_code": 0,
+            "stdout": "EMPTY",
+            "artifact": "cargo-target/workspace-probe.rmeta",
+            "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "command": "cargo tree --locked --offline -p hsk-studio-nib --no-default-features -e features",
+            "exit_code": 0,
+            "log": "logs/selected-features.log",
+            "artifact_sha256": "bb3bf22155ae8ae61e211916dc4653663ee17ae4745cc505187d3aec7e79d7e2"
+          }
+        ],
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\logs\\source-static-evidence.json",
+        "evidence_sha256": "79ab889e1086f61e543e7184a670d96ce4a7373a1bc37645a6fb26c193e0af66",
+        "input_count": 55,
+        "pending_independent_acceptance": true
+      }
+    ]
   }
 }

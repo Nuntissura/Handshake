@@ -1891,7 +1891,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-OBSERVE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-OBSERVE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -3406,15 +3406,15 @@
       "MT-35529-SOURCE-FOUNDATION-V1"
     ],
     "predecessor_candidate": "2cb3883a4728bb8cbd0195c4e48247848e78d0b7",
-    "runtime": "INDEPENDENT_SOURCE_FOUNDATION_PASS",
-    "compile": "PASS_STATIC",
-    "next_actor": "Parent dependency-local foundation orchestration",
+    "runtime": "NOT_RUN_BY_BUILDER",
+    "compile": "PASS_SOURCE_ONLY",
+    "next_actor": "Independent validator executes exact owning runtime selectors and external source-boundary proof on pushed8a3eebf; builder continues other independently unblocked all36 foundations",
     "source_owner_search": "Canonical assets subtree has workspace+Accord only; STUDIO-MODULE-OBSERVE already registered sole diagnostic-port owner; caller-owned sinks reuse existing FlightRecorder/internal_diagnostics/Palmistry authority",
     "source_feature_policy": "hsk-studio-observe selected no-default-features; direct owning package dependency Accord; no external/native/provider feature",
     "per_test_timeout": "Checked-in foundation_contract bounded_case30s, no outer timeout",
     "lint": "PASS_STATIC",
-    "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
-    "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+    "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+    "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
     "tile_diagnostic_dependency_extension": {
       "status": "COMPILED_STATIC_PENDING_INDEPENDENT_RUNTIME",
       "batch_owner": "MT-35534",
@@ -3446,10 +3446,13 @@
         "MT-35530",
         "MT-35528"
       ],
-      "runtime": "NOT_RUN",
-      "compile": "NOT_RUN",
-      "prior_verdict_preserved_for_unchanged_proof_only": "PASS_V3"
-    }
+      "runtime": "PENDING_INDEPENDENT",
+      "compile": "PASS",
+      "prior_verdict_preserved_for_unchanged_proof_only": "PASS_V3",
+      "status": "READY_FOR_VALIDATION",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b"
+    },
+    "source_status": "READY_FOR_VALIDATION"
   },
   "validation": {
     "proof_records": [
@@ -4697,6 +4700,50 @@
             "later_kernel": "PENDING"
           }
         ]
+      },
+      {
+        "proof_id": "MT-35535-BUILDER-NIB-SOURCE-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35535",
+          "MT-35530",
+          "MT-35528"
+        ],
+        "scope": "standalone_source_only",
+        "status": "COMPILE_STATIC_PASS_RUNTIME_NOT_RUN",
+        "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+        "commands": [
+          {
+            "command": "cargo check --locked --tests --examples -p hsk-studio-nib -p hsk-studio-observe --no-default-features -j4",
+            "exit_code": 0,
+            "log": "logs/check-v3.log",
+            "artifact_sha256": "354418feef7d0d4f711e21766b8de165b2889aea2c38f1c7247c7b42f2a021f7"
+          },
+          {
+            "command": "cargo clippy --locked --tests --examples -p hsk-studio-nib -p hsk-studio-observe --no-default-features -j4 -- -D warnings",
+            "exit_code": 0,
+            "log": "logs/clippy-v3.log",
+            "artifact_sha256": "7c7db798bdba5d992f5e5148cc201a46eb8a6482dde1a0f885f9e34ff3ba8541"
+          },
+          {
+            "command": "rustc --edition=2024 --emit=metadata tools/workspace-probe.rs",
+            "exit_code": 0,
+            "stdout": "EMPTY",
+            "artifact": "cargo-target/workspace-probe.rmeta",
+            "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "command": "cargo tree --locked --offline -p hsk-studio-nib --no-default-features -e features",
+            "exit_code": 0,
+            "log": "logs/selected-features.log",
+            "artifact_sha256": "bb3bf22155ae8ae61e211916dc4653663ee17ae4745cc505187d3aec7e79d7e2"
+          }
+        ],
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\logs\\source-static-evidence.json",
+        "evidence_sha256": "79ab889e1086f61e543e7184a670d96ce4a7373a1bc37645a6fb26c193e0af66",
+        "input_count": 55,
+        "pending_independent_acceptance": true
       }
     ],
     "source_only_diagnostic_tiers": [
