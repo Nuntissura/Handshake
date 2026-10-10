@@ -1968,7 +1968,188 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-35532-SOURCE-FOUNDATION-V1",
+      "mt_id": "MT-35532",
+      "verdict": "FAIL_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+      "candidate_tree": "4612f72d83a1d9ec4cde906334a720847ad8cb9d",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+      ],
+      "check_results": [
+        {
+          "check_id": "MT-35532-ASSET-AC-001",
+          "result": "PASS",
+          "scope": "CON022-026 source-local property transport foundation only",
+          "proof_refs": [
+            "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35532-ASSET-AC-002",
+          "result": "FAIL",
+          "scope": "CON022-026 source-local property transport foundation only",
+          "proof_refs": [
+            "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+          ],
+          "finding_refs": [
+            "MT-35532-CON026-OBSERVE-FEED-GAP"
+          ]
+        },
+        {
+          "check_id": "MT-35532-ASSET-AC-003",
+          "result": "PASS",
+          "scope": "CON022-026 source-local property transport foundation only",
+          "proof_refs": [
+            "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35532-ASSET-AC-004",
+          "result": "FAIL",
+          "scope": "CON022-026 source-local property transport foundation only",
+          "proof_refs": [
+            "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+          ],
+          "finding_refs": [
+            "MT-35532-CON026-OBSERVE-FEED-GAP"
+          ]
+        },
+        {
+          "check_id": "MT-35532-ASSET-AC-005",
+          "result": "FAIL",
+          "scope": "CON022-026 source-local property transport foundation only",
+          "proof_refs": [
+            "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+          ],
+          "finding_refs": [
+            "MT-35532-CON026-OBSERVE-FEED-GAP"
+          ]
+        }
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Closed typed patch/current-vector/result/inverse transport and generated schema",
+        "Read value+property revision versus forbidden old-base global CAS",
+        "Atomic immutable prospective Folio validation; overflow/count/value/input/traversal budgets and cancellation",
+        "Source-local publication versus Observe delivery versus later durable host acceptance"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "16 actual checked-in bounded30s tests passed",
+        "30 independently authored external CLI observations passed; nine compiled independent API observations passed",
+        "20 native SHA256/Git clean-filter input identities before/after equal exact pushed clean candidate",
+        "Actual generated schemas and descriptor inspected against pinned/current equal CON022-026",
+        "Actual selected cargo manifest has Accord/Folio/Observe and approved exact pure registry pins; shared source inputs unchanged",
+        "Read-only exact CON026 caller/Observe inspection exposes missing typed feed despite green runtime cases"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Whole-document old-base CAS would reject second independent patch at latesthead8; actual observed heads8/9/10 and first inverse preserves foreign visible=false",
+        "Value-only comparison would admit ABA same old value with propertyrevision5; actual RevisionConflict",
+        "Inverse dropping extra reads would overwrite despite foreign dependency; actual independently changed visible dependency rejects RevisionConflict",
+        "No-change carrying successor/update/inverse violates actual closed field set and emitted result schema",
+        "Partial batch mutation violates immutable original bytes/vector checked in tests and independent public API rejected cases",
+        "Returning source outcome as rolled back after diagnostic rejection/cancel violates actual retained successor revision8 and bytes",
+        "Private string telemetry violates actual raw frame exclusion and independent attributed binary decode"
+      ],
+      "BOUNDARY_PROBES": [
+        "Independent document/vector/patch files -> actual sequential chronicle-consumer -> exact canonical successor/property revision/inverse oracle",
+        "Independent public typed consumer -> actual WrongType/MissingRead/ValueConflict addresses and original snapshot/vector byte equality",
+        "Actual public deliver -> raw frame correlation23/revision8/sequence1/seven resource+actor strings; no original/new property values or command text",
+        "Actual descriptor and draft2020-12 patch/result schema emitted from owning binary"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "overlap",
+        "inverse-foreign-dependency",
+        "read-dependency",
+        "aba",
+        "missing-vector",
+        "duplicate-vector",
+        "missing-read",
+        "duplicate-write",
+        "duplicate-read",
+        "wrong-document",
+        "wrong-target",
+        "wrong-type",
+        "wrong-value",
+        "unknown-property",
+        "version",
+        "head-overflow",
+        "property-overflow",
+        "reads-budget",
+        "writes-budget",
+        "value-budget",
+        "pre-cancel",
+        "api-Rejected",
+        "api-Saturated",
+        "api-Unavailable",
+        "api-Indeterminate",
+        "checked-in duplicatefields/unsupportedpayload/actor/command/Folio traversal/prospective output budgets/during-validation cancellation"
+      ],
+      "INDEPENDENT_FINDINGS": [
+        {
+          "finding_id": "MT-35532-CON026-OBSERVE-FEED-GAP",
+          "priority": "P1",
+          "requirement": "STU-CON-026: Typed errors, conflict addresses, disposition and bounded counters feed the existing Observe ports",
+          "observed": "Chronicle deliver accepts generic Outcome and emits Observation without Diagnostic/address/source disposition/operation counters. CLI prepare errors discard address and exit before deliver; inverse path has no observation. Existing Observe frame carries generic outcome/progress and SDOC/six actor strings only. Public API typed Diagnostic and CLI result JSON are not an Observe feed.",
+          "source_refs": [
+            "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs:752",
+            "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs:163",
+            "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs:201",
+            "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs:146",
+            "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs:311"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\read-dependency.stderr",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\read-dependency.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\api.stdout"
+          ],
+          "affected_acceptance": [
+            "AC-002",
+            "AC-004",
+            "AC-005"
+          ],
+          "remediation": "Owning source must route closed privacy-safe typed Chronicle diagnostic/conflict address/result disposition and bounded operation counters through the existing Observe boundary for rejection, changed, no_change and inverse paths; preserve immutable property-vector semantics and delivery/source-acceptance separation. Independently inspect actual emitted bytes for those affected paths after exact pushed repair; reuse unchanged green proof only with unchanged input/assertion mapping.",
+          "boundary": "Explicit source CON026 obligation; host diagnostic-service deferral does not satisfy it."
+        }
+      ],
+      "RESIDUAL_UNCERTAINTY": [
+        "Confirmed source acceptance blocker: required typed Observe feed missing; source foundation not accepted until repaired and independently proven",
+        "Only name layer/artboard/page-spread and visible layer scalar replacement transport; complete persisted StudioEditProposal/StudioHistoryEntry decoding and arbitrary-domain undo/redo not certified",
+        "Caller supplies current snapshot/vector and serializes local publication; no authenticated host grants, authoritative serialized database transaction or proposal approval proven",
+        "Source result/delivery is not EventLedger/CRDT durable acceptance, idempotency, recovery, restart replay, retained history cursor or vendor parity",
+        "Descriptor/manual/typed wire surfaces inspected; their coherence does not prove the missing CON026 typed Observe feed. Rendered Argus and three concrete host diagnostic services remain deferred"
+      ],
+      "diagnostic_tiers": [
+        {
+          "tier": "flight_recorder",
+          "status": "DEFERRED",
+          "reason": "Generic Chronicle->Observe terminal delivery proven only; required typed diagnostic/address/disposition/operation-count feed is missing (source FAIL_CON026). Concrete host-service adapter/durable grants separately deferred."
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "DEFERRED",
+          "reason": "Generic Chronicle->Observe terminal delivery proven only; required typed diagnostic/address/disposition/operation-count feed is missing (source FAIL_CON026). Concrete host-service adapter/durable grants separately deferred."
+        },
+        {
+          "tier": "palmistry",
+          "status": "DEFERRED",
+          "reason": "Generic Chronicle->Observe terminal delivery proven only; required typed diagnostic/address/disposition/operation-count feed is missing (source FAIL_CON026). Concrete host-service adapter/durable grants separately deferred."
+        }
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "observed_at": "2026-10-10T10:20:07.701880+00:00",
+      "retraction": {
+        "previous_uncommitted_verdict": "PASS_V1",
+        "status": "RETRACTED_INVALID_ACCEPTANCE",
+        "reason": "Generic terminal delivery and returned API diagnostics were incorrectly treated as sufficient CON026 typed Observe feed proof",
+        "green_runtime_evidence": "Retained as partial evidence; does not establish complete source foundation acceptance"
+      }
+    }
+  ],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-35532",
@@ -2024,7 +2205,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T10:07:55.703410+00:00",
+  "updated_at_utc": "2026-10-10T10:23:31.877266+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2032,11 +2213,11 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "READY_FOR_INDEPENDENT_VALIDATION",
+    "status": "FAIL_V1",
     "active": true,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL_V1",
     "contract_preparation_only": false,
-    "blocked_on": null,
+    "blocked_on": "MT-35532-CON026-OBSERVE-FEED-GAP",
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
   },
   "scope": {
@@ -2467,7 +2648,161 @@
         },
         "runtime": "NOT_RUN",
         "candidate_binding": "Native hashes unchanged; Git clean-filter blobs reconcile exact pushed candidate"
+      },
+      {
+        "proof_id": "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1",
+        "executor_role": "integration_validator",
+        "validator_session": "foundation_validator",
+        "scope": "standalone_source_foundation_only",
+        "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+        "candidate_tree": "4612f72d83a1d9ec4cde906334a720847ad8cb9d",
+        "observed_at": "2026-10-10T10:14:26.758780+00:00",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "test",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-chronicle",
+          "--no-default-features",
+          "--test",
+          "foundation_contract",
+          "--",
+          "--nocapture"
+        ],
+        "execution_workdir": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets",
+        "hook_workdir": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-STUDIO",
+        "environment": {
+          "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\cargo-target",
+          "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\cache\\cargo-home",
+          "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\tmp",
+          "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\tmp",
+          "CARGO_BUILD_JOBS": "4",
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+          "CARGO_PROFILE_TEST_DEBUG": "line-tables-only"
+        },
+        "actual_results": {
+          "bounded_tests": 16,
+          "external_consumer_observations": 30,
+          "independent_api_observations": 9,
+          "exit_codes": 0,
+          "native_and_gitfiltered_input_count": 20,
+          "before_after_equal": true,
+          "remote_equal_clean": true
+        },
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\foundation-tests.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\foundation-tests.result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\consumer-build.result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\external-consumer-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\api-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\schema.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\result-schema.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-validator\\logs\\identity-after.json"
+        ],
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+          "handshake-studio-assets/Cargo.lock": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/tools/workspace-probe.rs": "390199e5bcb1892de65da7870e79b26ed8ca0673b9a558f0bdb68fb9841e82fd",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "a211bcd170eb0622ebfe905aab5024f09f36b2921b38bfdc6dd8406bfd03f2c7",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "bb4455355d08cb144ec3883b16ed5e038136b4371935ad37c4f1e9badaebf6e4",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "4b06bc6e64b0ca9127720ec87e14ed291b3990f5267f6575707d97ccce233f2e",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "3633e11bc870751587f5dde9d51438ee1ee562c4fda27337b0ac08492f21dc0c",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "d135f207c0bb30997872893b9ac35b3ce1f94cc83ef858c0adaa106388da2f02",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "076e6a7080f535aa4c7828daa9e2fdefb5e903531a67d60615f37d6a0c6031fd",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/Cargo.toml": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6",
+          "handshake-studio-assets/Cargo.lock": "6a77ace6f8e27ed295c496e4babda2f159174ec9",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/tools/workspace-probe.rs": "adc09dc1285e71fb3f8e454d031ebefcb55f12b9",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "01b290fb843d4f2d23477b1602a8216c5326cc9c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "16c09ea6d834f178a9f1e90339275f5229c089e0",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "653e4fc4a4b578193b1e4b2addec738fb44ad8c5",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "59abd2773867c626aea5f8ee4bf447d5b18f0585",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "2aaa4294fae1e05917d5fa883541bb502babd8a6",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "ca9c73c3937490cf536ceacf5f80b9eca01a97fe",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "212e385d01c9f76de7c33cf4b85f19b943300313",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "067b65b90922c41a8b4a48d8519ab4bcd5da6571",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "5b13232f6b47658e7f67167c13e027e22cf1c8f1",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "fc440187c553869565f79629bb024f06ca4c2387",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+        },
+        "spec_binding": "Pinned v02.211 CON022-026 clause bodies independently equal current v02.212",
+        "source_identity": "Before and after independently read exact canonical target and Git clean-filter identities; no source edits",
+        "gameplan": {
+          "initial_check": "PASS13/13",
+          "scoped_retry_workdir": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-STUDIO",
+          "subsequent_check": "PASS14/14 incl GP038",
+          "pre_execution_rejection": "Default inherited kernel workdir selected WP012 despite leading Studio literal; no runtime executed; explicit Studio exec workdir selected supported pointer",
+          "offline_oracle_correction": "Saved actual frame magic HSKO+binary01, incorrect ASCII HSKO1 assertion corrected offline; no runtime repeat"
+        },
+        "proof_reuse": "Accord/Folio/Observe native source/manifest identities unchanged; owning historical proofs retained, no unchanged runtime rerun",
+        "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+        "acceptance_result": "PARTIAL_EVIDENCE_SOURCE_ACCEPTANCE_FAIL_CON026",
+        "finding_refs": [
+          "MT-35532-CON026-OBSERVE-FEED-GAP"
+        ],
+        "evidence_limit": "16 bounded tests,30 externalCLI,9 API observations remain actual green evidence for covered behavior; no assertion or actual emitter proved typed diagnostic/address/disposition/bounded operation counts through Observe"
       }
-    ]
+    ],
+    "source_runtime_result": {
+      "status": "FAIL_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "fb185b2580d4e2745fc3d789487ac3e979f062f1",
+      "proof_refs": [
+        "MT-35532-INDEPENDENT-CHRONICLE-SOURCE-PROOF-V1"
+      ],
+      "full_fulfillment": "PENDING",
+      "later_kernel": "PENDING",
+      "finding_refs": [
+        "MT-35532-CON026-OBSERVE-FEED-GAP"
+      ],
+      "green_runtime_result": "PASS_PARTIAL_CON026_FEED_NOT_PROVEN",
+      "source_acceptance": "NOT_ACCEPTED"
+    }
+  },
+  "remediation": {
+    "batch_owner": "MT-35532",
+    "covered_mts": [
+      "MT-35530",
+      "MT-35532"
+    ],
+    "finding_ref": "MT-35532-CON026-OBSERVE-FEED-GAP",
+    "authority": "Root coordinator explicit scoped dependency remediation 2026-10-10; canonical CON026 unchanged",
+    "owner": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+    "source_base": "f5a7833d3e0601646e69da57f09d3d40ad8647f3",
+    "owned_files": [
+      "handshake-studio-assets/crates/hsk-studio-chronicle/**"
+    ],
+    "disjoint_peer_files": [
+      "handshake-studio-assets/crates/hsk-studio-observe/**"
+    ],
+    "scope": "Map actual typed diagnostic/address/disposition/bounded counters to shared Observe boundary for rejection/changed/no_change/inverse, preserve source outcome versus delivery",
+    "status": "IMPLEMENTATION_IN_PROGRESS",
+    "runtime": "NOT_RUN",
+    "proof_required": "Independent exact emitted-frame decode and error/privacy/delivery/cancellation boundaries, plus affected existing immutable/property-vector assertions",
+    "next_actor": "folio source repair then parent static checkpoint then independent validator"
   }
 }
