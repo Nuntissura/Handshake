@@ -3016,6 +3016,110 @@
       ],
       "full_acceptance": "PENDING; source prerequisite only",
       "observed_at": "2026-10-10T09:36:05.968252+00:00"
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-PIGMENT-REGISTRY-EXTENSION-V6",
+      "mt_id": "MT-35528",
+      "verdict": "PASS_V6",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "candidate_tree": "0d97b664555c24fb832afa8c9309f97edba7ea31",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+      ],
+      "observed_at": "2026-10-10T12:14:35.060808+00:00",
+      "check_results": [
+        {
+          "check_id": "MT-35528-ASSET-AC-001",
+          "result": "PASS_SOURCE_ONLY",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+          ],
+          "full_acceptance": "PENDING"
+        },
+        {
+          "check_id": "MT-35528-ASSET-AC-002",
+          "result": "PASS_SOURCE_ONLY",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+          ],
+          "full_acceptance": "PENDING"
+        },
+        {
+          "check_id": "MT-35528-ASSET-AC-003",
+          "result": "PASS_SOURCE_ONLY",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+          ],
+          "full_acceptance": "PENDING"
+        },
+        {
+          "check_id": "MT-35528-ASSET-AC-004",
+          "result": "PASS_SOURCE_ONLY",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+          ],
+          "full_acceptance": "PENDING"
+        },
+        {
+          "check_id": "MT-35528-ASSET-AC-005",
+          "result": "PASS_SOURCE_ONLY",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+          ],
+          "full_acceptance": "PENDING"
+        }
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Source producer/consumer bytes and typed rejection",
+        "Owner/dependency selection",
+        "Requested allocation/returned ownership lifetime where applicable"
+      ],
+      "INDEPENDENT_CHECKS_RUN": {
+        "selected_modules": 5,
+        "owner_negative_cases": 4,
+        "selection_only_not_library_purity": true
+      },
+      "COUNTERFACTUAL_CHECKS": [
+        "If Pigment owner registry allowlist admitted Prism moxcms, actual cross-owner fixture would accept instead of rejecting",
+        "If exact/default/feature guards were removed, the three recorded malformed direct pins would accept"
+      ],
+      "BOUNDARY_PROBES": [
+        "Actual selected external CPU/provider consumers and independently decoded shared source frames",
+        "Independent requested allocation observer and canonical Git/native reconciliation"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Invalid/stale/cancel/budget/sink rejection and pending explicit reconciliation",
+        "Selected owner registry exact/default/features/cross-owner refusals"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Only declared source foundation/Windows x64 MSVC Rust1.97.1 requested-allocation subset",
+        "Actual host grants/storage/atomic durable commit/restart/GUI/native adapters remain PENDING",
+        "Original-produced brush/blend fidelity/full HDR/all ICC remain original later feature work",
+        "Full module compiler/foundation barrier remains PENDING"
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "later_kernel": "PENDING",
+      "diagnostic_tiers": [
+        {
+          "tier": "flight_recorder",
+          "status": "DEFERRED_HOST_CALLER_OWNED",
+          "reason": "Readonly workspace probe emits bounded local JSON; no Observe/FlightRecorder/database runtime. Caller-owned attribution and existing three-tier host ports deferred"
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "DEFERRED_HOST_CALLER_OWNED",
+          "reason": "Readonly workspace probe emits bounded local JSON; no Observe/FlightRecorder/database runtime. Caller-owned attribution and existing three-tier host ports deferred"
+        },
+        {
+          "tier": "palmistry",
+          "status": "DEFERRED_HOST_CALLER_OWNED",
+          "reason": "Readonly workspace probe emits bounded local JSON; no Observe/FlightRecorder/database runtime. Caller-owned attribution and existing three-tier host ports deferred"
+        }
+      ]
     }
   ],
   "blockers": [],
@@ -3073,7 +3177,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T10:51:05.293717+00:00",
+  "updated_at_utc": "2026-10-10T12:14:35.060808+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -3081,9 +3185,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "PASS_V5",
+    "status": "PASS_V6",
     "active": true,
-    "validator_verdict": "PASS_V5",
+    "validator_verdict": "PASS_V6",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -4966,6 +5070,811 @@
           "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml": "1ffdd53c90b66f46ad3f255547852141332144ce"
         },
         "runtime": "NOT_RUN"
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6",
+        "scope": "standalone_source_foundation_only",
+        "status": "PASS_V6",
+        "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+        "candidate_tree": "0d97b664555c24fb832afa8c9309f97edba7ea31",
+        "observed_at": "2026-10-10T12:14:35.060808+00:00",
+        "actual_results": {
+          "selected_modules": 5,
+          "owner_negative_cases": 4,
+          "selection_only_not_library_purity": true
+        },
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\repair-v2-pigment-policy-compile.result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\repair-v2-pigment-selection.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\repair-v2-workspace-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\repair-v2-workspace-negatives.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\repair-v2-descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-validator\\logs\\repair-v2-identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-validator\\logs\\repair-v2-identity-after.json"
+        ],
+        "native_git_input_identity": {
+          "commit": "7532834ede6b382117428911100d333b2cfe513f",
+          "tree": "0d97b664555c24fb832afa8c9309f97edba7ea31",
+          "remote": "7532834ede6b382117428911100d333b2cfe513f",
+          "status": "",
+          "inputs": {
+            "handshake-studio-assets/Cargo.lock": {
+              "sha256": "e4cb7c1b528767e3463ba34a00e6d2e2c189dbeebb3748860c63d4f928f74aef",
+              "blob": "eb699b999fa1618dfcb23610d7b7fa8fa8e1d5c2",
+              "clean_filtered": "eb699b999fa1618dfcb23610d7b7fa8fa8e1d5c2"
+            },
+            "handshake-studio-assets/Cargo.toml": {
+              "sha256": "9a2a5daa2fdd72d6acf76ab08c0b2ce7996b06cd5e411e92157f43fc1b9888ea",
+              "blob": "9bd8442ae9ab252ebf69f2c61d4fe36015c71f91",
+              "clean_filtered": "9bd8442ae9ab252ebf69f2c61d4fe36015c71f91"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+              "clean_filtered": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": {
+              "sha256": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+              "blob": "2aaa4294fae1e05917d5fa883541bb502babd8a6",
+              "clean_filtered": "2aaa4294fae1e05917d5fa883541bb502babd8a6"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+              "clean_filtered": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": {
+              "sha256": "d135f207c0bb30997872893b9ac35b3ce1f94cc83ef858c0adaa106388da2f02",
+              "blob": "ca9c73c3937490cf536ceacf5f80b9eca01a97fe",
+              "clean_filtered": "ca9c73c3937490cf536ceacf5f80b9eca01a97fe"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+              "clean_filtered": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": {
+              "sha256": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+              "blob": "fc440187c553869565f79629bb024f06ca4c2387",
+              "clean_filtered": "fc440187c553869565f79629bb024f06ca4c2387"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": {
+              "sha256": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+              "blob": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4",
+              "clean_filtered": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": {
+              "sha256": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56",
+              "blob": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29",
+              "clean_filtered": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": {
+              "sha256": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+              "blob": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+              "clean_filtered": "6ac479ca23509bf97df71f1e7c5969285dcf7e61"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": {
+              "sha256": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+              "blob": "212e385d01c9f76de7c33cf4b85f19b943300313",
+              "clean_filtered": "212e385d01c9f76de7c33cf4b85f19b943300313"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": {
+              "sha256": "5e018ab150abd127ee4c4c225e603eb3c0c496f73128091d4f696a5210059f50",
+              "blob": "3bcf9b3cd4d26f26435626b76aff61fd7e7165dc",
+              "clean_filtered": "3bcf9b3cd4d26f26435626b76aff61fd7e7165dc"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": {
+              "sha256": "f47870a23acf6f6807bf857509673f9b7ba3acf935eebfc750c56dd621ab1c3c",
+              "blob": "95e3a338de4ccd3bca2d45d0780e5dedd2d0d579",
+              "clean_filtered": "95e3a338de4ccd3bca2d45d0780e5dedd2d0d579"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml": {
+              "sha256": "2703e6ca63607c3da4264551de9e13df99e30f96c9fa6af3e45ccd2e3b9a9591",
+              "blob": "1ffdd53c90b66f46ad3f255547852141332144ce",
+              "clean_filtered": "1ffdd53c90b66f46ad3f255547852141332144ce"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/SOURCE_PROVENANCE.json": {
+              "sha256": "bb4025eda18889eb01004b7378d3a9131a68fbd905e116ec947ed03f09fb5ee9",
+              "blob": "0598181bc6f7f863eac8d771d9e63cbeeef9ade1",
+              "clean_filtered": "0598181bc6f7f863eac8d771d9e63cbeeef9ade1"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/examples/pigment-consumer.rs": {
+              "sha256": "68b43014174bd541679d351b74913882786f20f595cfa8c6615b0e6bc94d4522",
+              "blob": "faf889c293051b67bfcec1d31f7c328e511c0006",
+              "clean_filtered": "faf889c293051b67bfcec1d31f7c328e511c0006"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/allocation.rs": {
+              "sha256": "ddf1a7f16d4a40c572d2744baf0a7d8bd7458803523800b5fad2a9782b852c78",
+              "blob": "ce372f7132f443e8f36490fcdb992425a29e37c0",
+              "clean_filtered": "ce372f7132f443e8f36490fcdb992425a29e37c0"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/caller.rs": {
+              "sha256": "5d00614649001aacdade358747acf36e5c722c038db1ef4e504ac81a4ab8340f",
+              "blob": "bbc64cbf9dc99c0e705082a5de064183ad33711e",
+              "clean_filtered": "bbc64cbf9dc99c0e705082a5de064183ad33711e"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/lib.rs": {
+              "sha256": "2021b6684f812678815e67fdadde5ea12a0f75f8c32a5dc4d69faf7cf87a0005",
+              "blob": "065620fb2660ff4a7cf248d667c9291fa1e48511",
+              "clean_filtered": "065620fb2660ff4a7cf248d667c9291fa1e48511"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/masked_patch.rs": {
+              "sha256": "25ab971f2333e096f7544bd7d2c4de9c65cca2acdc2c045f5340daae2611006c",
+              "blob": "3ea3471b66cb8316d9e781730db7fc9e0f685ab4",
+              "clean_filtered": "3ea3471b66cb8316d9e781730db7fc9e0f685ab4"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/tile.rs": {
+              "sha256": "3d0f3c23b55930b783495d098a196f3d4a94d4864f14a99c1aab4b382bac0ea8",
+              "blob": "f5cf01627553fc9834339b626465a08e75ded66c",
+              "clean_filtered": "f5cf01627553fc9834339b626465a08e75ded66c"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/src/wire.rs": {
+              "sha256": "db2661b2932fdb9dee407ceaeefe9e44590384dc9932d41beb5b800e2336bc2c",
+              "blob": "dab4663717816d15d0af213eca2ed6656ed90a4b",
+              "clean_filtered": "dab4663717816d15d0af213eca2ed6656ed90a4b"
+            },
+            "handshake-studio-assets/crates/hsk-studio-pigment/tests/masked_patch.rs": {
+              "sha256": "7251d1696317081d891af06f82635397f865f8837359fbdde9a6e0dae13ee00f",
+              "blob": "3712ef207d6397d0dd6ff7b780bfca70bec59908",
+              "clean_filtered": "3712ef207d6397d0dd6ff7b780bfca70bec59908"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/Cargo.toml": {
+              "sha256": "a870a1d32872aa0a46c35b3a9d7a4c4f97d1ff3b24a92a976951a3ff3d2a2c25",
+              "blob": "fb1cb7eb9514b792e79be9ca994f19c1eec4b187",
+              "clean_filtered": "fb1cb7eb9514b792e79be9ca994f19c1eec4b187"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/examples/prism-consumer.rs": {
+              "sha256": "719d5eec0f119f4d936cbd3f61f7dad0214f1d0333ceb7aa582c2e0f194beb45",
+              "blob": "911bf4cfcef8673de272483e93b29d451f41eb96",
+              "clean_filtered": "911bf4cfcef8673de272483e93b29d451f41eb96"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/src/admitted.rs": {
+              "sha256": "765df4e31037ee5fa62a1ab11474ddacf00a43c513799578906dae2de489dcc1",
+              "blob": "c5f391bdecb0f4cc234473dee2518b4e5492643f",
+              "clean_filtered": "c5f391bdecb0f4cc234473dee2518b4e5492643f"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/src/lib.rs": {
+              "sha256": "941af65df1e01fd99d9bed966c979e4d4daa85dc2aa8e2003589098761a50bd9",
+              "blob": "13436fe324655256456e6fac8bcf38247a70dc23",
+              "clean_filtered": "13436fe324655256456e6fac8bcf38247a70dc23"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/foundation_contract.rs": {
+              "sha256": "b8bbb641b05d43b5816f7ed7dd02f88e3956fdf343aa24e9d4e17a64a3c75e72",
+              "blob": "3410e72450c480300494e3fa69a33467bf64995f",
+              "clean_filtered": "3410e72450c480300494e3fa69a33467bf64995f"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/CC0-LICENSE": {
+              "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+              "blob": "550e190e5c9ddeff82695fd411ca16edc5e4980e",
+              "clean_filtered": "550e190e5c9ddeff82695fd411ca16edc5e4980e"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-admitted-linear-v4.icc": {
+              "sha256": "c94737d225dec435f0119910080395e63d5efc6a6cbe594507d0c84544becfde",
+              "blob": "b72f01d98d0a4c398a1ce530be147ad66a25de74",
+              "clean_filtered": "b72f01d98d0a4c398a1ce530be147ad66a25de74"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-linear-v4.icc": {
+              "sha256": "138ca6af5c8709c8dab4123a48ba2509ac8c89e53004f0909fc948f87f37f3f7",
+              "blob": "83f79d31416658edc37a4301d7b1de682b85ab51",
+              "clean_filtered": "83f79d31416658edc37a4301d7b1de682b85ab51"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-v4.icc": {
+              "sha256": "cb51de38e482ee974c0c76b9689e16aad04bad16e226fed2f30c842d15ff3a3d",
+              "blob": "4ee40fb5eeb6dfde851c989ecc7c3ebd496ba9fc",
+              "clean_filtered": "4ee40fb5eeb6dfde851c989ecc7c3ebd496ba9fc"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/README.md": {
+              "sha256": "a865e3fbb38491014d6500293205800c45fdb3fa3d2376b1e00def5206cb1406",
+              "blob": "2579bb148f3427549561f334d8c0490ac3450427",
+              "clean_filtered": "2579bb148f3427549561f334d8c0490ac3450427"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-admitted-linear-v4.icc": {
+              "sha256": "63fc75efa59e9499411634a4298e48fc0f45d073f214a1c1de35fd76241aed27",
+              "blob": "bc4002b780f9d594bea03143e9a5deec09f90901",
+              "clean_filtered": "bc4002b780f9d594bea03143e9a5deec09f90901"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-linear-v4.icc": {
+              "sha256": "4813c25a76abcf572f146c5a36b56ed83526c82327ee9f863553bf1e99c8b64d",
+              "blob": "f0f590e48a9d84f563624d8410cbba58b24b2f05",
+              "clean_filtered": "f0f590e48a9d84f563624d8410cbba58b24b2f05"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-v4.icc": {
+              "sha256": "c56e1685d888f5edb92fe07f2750f387f8fe8e91b32ff8fb0b56bfbbb9458353",
+              "blob": "d9f3c055bd4d7573124090569e1b9533932214eb",
+              "clean_filtered": "d9f3c055bd4d7573124090569e1b9533932214eb"
+            },
+            "handshake-studio-assets/rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+              "clean_filtered": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "handshake-studio-assets/tools/workspace-probe.rs": {
+              "sha256": "7c87e178ac23688c9eabb9ae7919fe6651de782f467e53bddef106e45abf24ab",
+              "blob": "7fdfdd0c172f76ff8c77c3b05d23589d92bb9b13",
+              "clean_filtered": "7fdfdd0c172f76ff8c77c3b05d23589d92bb9b13"
+            }
+          }
+        },
+        "proof_reuse": {
+          "accord": {
+            "previous_candidate": "8b0b9c34f04913c1aa8e300225be47bde477fb4e",
+            "current_candidate": "7532834ede6b382117428911100d333b2cfe513f",
+            "identical_native_and_git_inputs": [
+              "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml",
+              "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs",
+              "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs",
+              "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs"
+            ],
+            "assertion_mapping": "Owning code/tests/examples/profiles and dependency manifests/toolchain/lock/config unchanged; Pigment-only callers changed"
+          },
+          "observe": {
+            "previous_candidate": "8b0b9c34f04913c1aa8e300225be47bde477fb4e",
+            "current_candidate": "7532834ede6b382117428911100d333b2cfe513f",
+            "identical_native_and_git_inputs": [
+              "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml",
+              "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs",
+              "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs",
+              "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs"
+            ],
+            "assertion_mapping": "Owning code/tests/examples/profiles and dependency manifests/toolchain/lock/config unchanged; Pigment-only callers changed"
+          },
+          "prism": {
+            "previous_candidate": "8b0b9c34f04913c1aa8e300225be47bde477fb4e",
+            "current_candidate": "7532834ede6b382117428911100d333b2cfe513f",
+            "identical_native_and_git_inputs": [
+              "handshake-studio-assets/crates/hsk-studio-prism/Cargo.toml",
+              "handshake-studio-assets/crates/hsk-studio-prism/examples/prism-consumer.rs",
+              "handshake-studio-assets/crates/hsk-studio-prism/src/admitted.rs",
+              "handshake-studio-assets/crates/hsk-studio-prism/src/lib.rs",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/foundation_contract.rs",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/CC0-LICENSE",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-admitted-linear-v4.icc",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-linear-v4.icc",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-v4.icc",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/README.md",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-admitted-linear-v4.icc",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-linear-v4.icc",
+              "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-v4.icc"
+            ],
+            "assertion_mapping": "Owning code/tests/examples/profiles and dependency manifests/toolchain/lock/config unchanged; Pigment-only callers changed"
+          },
+          "folio": {
+            "previous_candidate": "8b0b9c34f04913c1aa8e300225be47bde477fb4e",
+            "current_candidate": "7532834ede6b382117428911100d333b2cfe513f",
+            "identical_native_and_git_inputs": [
+              "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml",
+              "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs",
+              "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs",
+              "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs"
+            ],
+            "assertion_mapping": "Owning code/tests/examples/profiles and dependency manifests/toolchain/lock/config unchanged; Pigment-only callers changed"
+          }
+        },
+        "source_pre_post_equal": true,
+        "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+        "later_kernel": "PENDING",
+        "hbr_asset_assessment": [
+          {
+            "rule_id": "HBR-PRIV-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-003",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-004",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-005",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-006",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-007",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-PRIV-008",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-002",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-003",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-004",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-005",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-006",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-007",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-008",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-INT-009",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-001",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-003",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-004",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-005",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_ISOLATION_PROVEN",
+            "reason": "Actual disjoint external target/cache/tmp and source-only CLI execution recorded; no foreground UI or kernel/native build selected",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-SWARM-006",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-VIS-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-VIS-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-VIS-003",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-VIS-004",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-VIS-005",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "NOT_APPLICABLE_TO_READONLY_SOURCE_PROBE_HOST_PENDING",
+            "reason": "Workspace probe reads local manifest/lock/provenance and emits bounded JSON only; no resource actor/grant/state/delivery service. Caller owns attribution and host diagnostics; later kernel obligations retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-QUIET-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_ISOLATION_PROVEN",
+            "reason": "Actual disjoint external target/cache/tmp and source-only CLI execution recorded; no foreground UI or kernel/native build selected",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-QUIET-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_ISOLATION_PROVEN",
+            "reason": "Actual disjoint external target/cache/tmp and source-only CLI execution recorded; no foreground UI or kernel/native build selected",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-QUIET-003",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-QUIET-004",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "DEFERRED_HOST_OR_TRIGGER_NOT_PRESENT",
+            "reason": "Source leaf has no concrete host service/GUI/authorization/lifecycle trigger; original assessment and later embedding obligation retained",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MAN-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_DESCRIPTOR_PROVEN_HOST_PENDING",
+            "reason": "Actual CLI descriptor is the same model/manual/inspect/state/capture semantic source; canonical host UserManual adoption remains pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MAN-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_DESCRIPTOR_PROVEN_HOST_PENDING",
+            "reason": "Actual CLI descriptor is the same model/manual/inspect/state/capture semantic source; canonical host UserManual adoption remains pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MAN-003",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_DESCRIPTOR_PROVEN_HOST_PENDING",
+            "reason": "Actual CLI descriptor is the same model/manual/inspect/state/capture semantic source; canonical host UserManual adoption remains pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MAN-004",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_DESCRIPTOR_PROVEN_HOST_PENDING",
+            "reason": "Actual CLI descriptor is the same model/manual/inspect/state/capture semantic source; canonical host UserManual adoption remains pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-STOP-001",
+            "original_assessment": "APPLIES_ON_NAMED_TRIGGER",
+            "asset_disposition": "SOURCE_VALIDATOR_TRIGGER_ASSESSED",
+            "reason": "Bounded source verdict follows actual evidence, retains historical failure and explicit pending wider acceptance; no source scope alteration or process termination",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-STOP-002",
+            "original_assessment": "APPLIES_ON_NAMED_TRIGGER",
+            "asset_disposition": "SOURCE_VALIDATOR_TRIGGER_ASSESSED",
+            "reason": "Bounded source verdict follows actual evidence, retains historical failure and explicit pending wider acceptance; no source scope alteration or process termination",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-STOP-003",
+            "original_assessment": "APPLIES_ON_NAMED_TRIGGER",
+            "asset_disposition": "SOURCE_VALIDATOR_TRIGGER_ASSESSED",
+            "reason": "Bounded source verdict follows actual evidence, retains historical failure and explicit pending wider acceptance; no source scope alteration or process termination",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-STOP-004",
+            "original_assessment": "APPLIES_ON_NAMED_TRIGGER",
+            "asset_disposition": "SOURCE_VALIDATOR_TRIGGER_ASSESSED",
+            "reason": "Bounded source verdict follows actual evidence, retains historical failure and explicit pending wider acceptance; no source scope alteration or process termination",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-STOP-005",
+            "original_assessment": "APPLIES_ON_NAMED_TRIGGER",
+            "asset_disposition": "SOURCE_VALIDATOR_TRIGGER_ASSESSED",
+            "reason": "Bounded source verdict follows actual evidence, retains historical failure and explicit pending wider acceptance; no source scope alteration or process termination",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-COMPART-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_ISOLATION_PROVEN",
+            "reason": "Actual disjoint external target/cache/tmp and source-only CLI execution recorded; no foreground UI or kernel/native build selected",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-COMPART-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_SELECTED_BUILD_PROVEN_HOST_BUDGET_PENDING",
+            "reason": "Actual selected owner build and warm external targets recorded; no full host rebuild/relink budget certification",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-COMPONENT-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-COMPONENT-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-001",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-002",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-003",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-004",
+            "original_assessment": "CONDITIONAL",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-005",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-006",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          },
+          {
+            "rule_id": "HBR-MODULE-LIFECYCLE-007",
+            "original_assessment": "APPLIES",
+            "asset_disposition": "SOURCE_OWNER_CLOSURE_PROVEN_HOST_PENDING",
+            "reason": "Actual canonical pushed source selection/compiled consumer uses single existing Accord/Folio/Observe/Prism owners; distinct host adoption and full module barrier pending",
+            "proof_refs": [
+              "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+            ],
+            "later_kernel": "PENDING"
+          }
+        ]
       }
     ],
     "source_only_diagnostic_tiers": [
@@ -4984,7 +5893,17 @@
         "status": "DEFERRED",
         "reason": "Actual descriptor delegates delivery to authorized host caller; local read-only std-only workspace probe has no host event/database/diagnostic services. Separate host adoption must wire and independently prove this tier."
       }
-    ]
+    ],
+    "source_runtime_result": {
+      "status": "PASS_V6",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+      ],
+      "full_fulfillment": "PENDING",
+      "later_kernel": "PENDING"
+    }
   },
   "remediation": [
     {
