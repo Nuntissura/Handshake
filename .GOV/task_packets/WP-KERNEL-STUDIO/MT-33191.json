@@ -120,7 +120,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -137,7 +144,7 @@
     "title": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -159,13 +166,13 @@
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
             "start_line": 20213,
-            "end_line": 20214,
-            "body_sha256": "6a372a8290cd6c420509bf13f84e71a032893bc2cb149be6867aa97ec7876a94",
+            "end_line": 20213,
+            "body_sha256": "eaf3763d8f6c67350e464b81b1a38ee641d7cb30da58c232ee0ea42c58e86e4a",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
-            "range_kind": "normative_clause"
+            "range_kind": "task_specific_complete_definition"
           }
         ],
-        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+        "verbatim_scope": "COMPLETE_SCOPED_DEFINITION"
       }
     ],
     "read_context": [
@@ -178,10 +185,10 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -192,8 +199,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
         "proof_status": "PENDING_NOT_RUN",
@@ -204,10 +212,10 @@
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -218,8 +226,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "cross_boundary_default_deny_negative_suite",
         "proof_status": "PENDING_NOT_RUN",
@@ -230,10 +239,10 @@
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -244,8 +253,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "same_project_and_cross_project_isolation_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -256,10 +266,10 @@
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -270,8 +280,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "mixed_scope_derivation_non_widening_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -282,10 +293,10 @@
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -296,8 +307,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -308,10 +320,10 @@
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -322,8 +334,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "concurrent_revocation_and_context_switch_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -334,10 +347,10 @@
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -348,8 +361,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "remote_delegation_and_sync_scope_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -360,10 +374,10 @@
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -374,8 +388,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
         "proof_status": "PENDING_NOT_RUN",
@@ -386,10 +401,10 @@
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -400,8 +415,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_ledger_replay",
         "proof_status": "PENDING_NOT_RUN",
@@ -412,10 +428,10 @@
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -426,8 +442,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_session_trace",
         "proof_status": "PENDING_NOT_RUN",
@@ -438,10 +455,10 @@
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -452,8 +469,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
         "proof_status": "PENDING_NOT_RUN",
@@ -464,10 +482,10 @@
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -478,8 +496,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_reconnect_and_promotion",
         "proof_status": "PENDING_NOT_RUN",
@@ -490,10 +509,10 @@
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -504,8 +523,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_cross_lane_trace_comparison",
         "proof_status": "PENDING_NOT_RUN",
@@ -516,10 +536,10 @@
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves a typed FEMS record is written with source link and retrieval policy; freeform prose logs are not sufficient. Repo-governance memory dual-write per feedback_dual_write_repo_memory. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -530,8 +550,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
         "proof_status": "PENDING_NOT_RUN",
@@ -542,10 +563,10 @@
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory). Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -556,8 +577,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_trace_projection_replay",
         "proof_status": "PENDING_NOT_RUN",
@@ -568,10 +590,10 @@
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order). Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -582,8 +604,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -594,10 +617,10 @@
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -608,8 +631,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
         "proof_status": "PENDING_NOT_RUN",
@@ -620,10 +644,10 @@
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -634,8 +658,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "concurrent_session_test_run",
         "proof_status": "PENDING_NOT_RUN",
@@ -646,10 +671,10 @@
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -660,8 +685,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "concurrency_primitive_test_run",
         "proof_status": "PENDING_NOT_RUN",
@@ -672,10 +698,10 @@
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -686,8 +712,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "parallel_operator_agent_ui_test_run",
         "proof_status": "PENDING_NOT_RUN",
@@ -698,10 +725,10 @@
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -712,8 +739,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "typed_routing_test_run",
         "proof_status": "PENDING_NOT_RUN",
@@ -724,10 +752,10 @@
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -738,8 +766,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
         "proof_status": "PENDING_NOT_RUN",
@@ -750,10 +779,10 @@
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -764,8 +793,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
         "proof_status": "PENDING_NOT_RUN",
@@ -776,10 +806,10 @@
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -790,8 +820,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
         "proof_status": "PENDING_NOT_RUN",
@@ -802,10 +833,10 @@
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -816,8 +847,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "renderer_console_error_report",
         "proof_status": "PENDING_NOT_RUN",
@@ -828,10 +860,10 @@
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item). Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -842,8 +874,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "capture_matrix",
         "proof_status": "PENDING_NOT_RUN",
@@ -854,10 +887,10 @@
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -868,8 +901,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "trace_projection_inspection",
         "proof_status": "PENDING_NOT_RUN",
@@ -880,10 +914,10 @@
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -894,8 +928,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
         "proof_status": "PENDING_NOT_RUN",
@@ -906,10 +941,10 @@
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -920,8 +955,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "headless_run_with_focus_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -932,10 +968,10 @@
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -946,8 +982,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "automation_path_audit",
         "proof_status": "PENDING_NOT_RUN",
@@ -958,10 +995,10 @@
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -972,8 +1009,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "process_lifecycle_test_run",
         "proof_status": "PENDING_NOT_RUN",
@@ -984,10 +1022,10 @@
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -998,8 +1036,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "foreground_exception_declaration_and_operator_warning",
         "proof_status": "PENDING_NOT_RUN",
@@ -1010,10 +1049,10 @@
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1024,8 +1063,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "user_manual_diff_in_same_commit",
         "proof_status": "PENDING_NOT_RUN",
@@ -1036,10 +1076,10 @@
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1050,8 +1090,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "no_context_model_operation_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1062,10 +1103,10 @@
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1076,8 +1117,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "manual_self_consistency_test",
         "proof_status": "PENDING_NOT_RUN",
@@ -1088,10 +1130,10 @@
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1102,8 +1144,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
         "proof_status": "PENDING_NOT_RUN",
@@ -1114,10 +1157,10 @@
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1128,8 +1171,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
@@ -1140,10 +1184,10 @@
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1154,8 +1198,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
         "proof_status": "PENDING_NOT_RUN",
@@ -1166,10 +1211,10 @@
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1180,8 +1225,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
         "proof_status": "PENDING_NOT_RUN",
@@ -1192,10 +1238,10 @@
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1206,8 +1252,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
         "proof_status": "PENDING_NOT_RUN",
@@ -1218,10 +1265,10 @@
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1232,8 +1279,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
         "proof_status": "PENDING_NOT_RUN",
@@ -1244,10 +1292,10 @@
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1258,8 +1306,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
         "proof_status": "PENDING_NOT_RUN",
@@ -1270,10 +1319,10 @@
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1284,8 +1333,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
         "proof_status": "PENDING_NOT_RUN",
@@ -1296,10 +1346,10 @@
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1310,8 +1360,9 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
         "proof_status": "PENDING_NOT_RUN",
@@ -1322,10 +1373,10 @@
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-COMPONENTS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1336,14 +1387,134 @@
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-33191#/scope",
-          "MT-33191#/context_capsule/specification_anchor_refs"
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
         ],
         "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "assessment": "APPLIES",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "assessment": "APPLIES",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "assessment": "APPLIES",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "assessment": "HOST_ADOPTION_ONLY",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "assessment": "APPLIES",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "assessment": "APPLIES",
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "assessment": "APPLIES",
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "reason": "STU-DS-039 input overlapping ordered children, first-on-top/last-on-top setting -> Canonical stacking value and rendered overlap. Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first. Portable Components capability and exact qualified host adoption carry separate proof; source fixtures never prove deployed permissions, authority or GUI.",
+        "scope_evidence_refs": [
+          "MT-33191#/execution/inputs",
+          "MT-33191#/context_capsule/specification_anchor_refs",
+          "MT-33191#/context_capsule/module_maintenance_refs"
+        ],
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-33191/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007"
       }
     ],
     "runtime_lane_refs": [
@@ -1371,10 +1542,13 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "d469b82ecf6281f98eb28b2b0e0c88da04243d593196d00c63c3fe7e5857f9df"
+    "context_digest": "d469b82ecf6281f98eb28b2b0e0c88da04243d593196d00c63c3fe7e5857f9df",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/10/maintenance"
+    ]
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-COMPONENTS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "Implement STU-DS-039 in hsk-studio-components standalone source: Canonical stacking value and rendered overlap; original acceptance and separately qualified host adoption remain mandatory.",
     "requirement_refs": [
       "STU-DS-039"
     ],
@@ -1384,7 +1558,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+        "text": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Current complete task scope: [STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
         "fulfillment_ref": "MT-33191#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1505,34 +1679,50 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-COMPONENTS asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-33191#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-COMPONENTS",
-        "immutable_input_and_revision_required": true
+        "scope": "overlapping ordered children, first-on-top/last-on-top setting",
+        "immutable_input_and_revision_required": true,
+        "source_definition": "[STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+        "canonical_api_tokens": [],
+        "normative_records": [
+          {
+            "anchor": "STU-DS-039",
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 20213,
+            "end_line": 20213,
+            "verbatim": "[STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top."
+          }
+        ],
+        "host_authority_rule": "Canonical source has no kernel/native/database dependency. Host binds resource/Principal/AccessSpace/actor/revision intents; SurrealDB/EventLedger is its only durable database authority, never SQLite/libSQL/Turso/PostgreSQL. No own media store, parallel panels or router."
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels Consume current Accord/Folio/Layout/Observe public ports through independently selected dependency closure. Preserve same-document primitives and existing controls."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Produce Canonical stacking value and rendered overlap from overlapping ordered children, first-on-top/last-on-top setting. The complete source_definition and normative_records retain every required field, token, unit, unknown bound and Studio-declared default. Provider/kernel/native/database handles never escape public schema."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Canonical stacking value and rendered overlap. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Materialize source-owned components_layout_mt_33191 using public consumer calls. Independent overlap pixel inspection with ordered graph reread. Rendered output requires real byte capture and independent visual inspection; unavailable provider/oracle is NOT_PROVEN. One command/control descriptor source feeds manual and inspection."
+      },
+      {
+        "n": 5,
+        "step": "Land source first in canonical https://github.com/Nuntissura/assets handshake-studio-assets. Independently reread exact remote commit/tree/subtree, immutable release/schema/artifact and dependency lock closure before qualified host adoption. Actual auth/SurrealDB/EventLedger/Argus/FlightRecorder/InternalDiagnostics/Palmistry/CRDT/recovery remains separate host proof PENDING."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Canonical stacking value and rendered overlap",
+      "Candidate-bound typed outcome, diagnostic, manual and inspection descriptors for STU-DS-039",
+      "Actual public consumer fixture/provider output and source proof; native/host proof remains pending",
+      "Immutable canonical source revision/release/schema/dependency-lock closure before host adoption"
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1575,7 +1765,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/10",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1586,9 +1777,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_layout_mt_33191 components_layout_mt_33191_ac_1 -- --exact --nocapture.. Public consumer Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels. Negative Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Canonical stacking value and rendered overlap. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.. Independent oracle Independent overlap pixel inspection with ordered graph reread. Planned target only; no executable or run claimed.",
         "expected": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
-        "timeout_seconds": null,
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1600,9 +1791,26 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "consumer_assertion": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels",
+          "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Canonical stacking value and rendered overlap. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
+          "oracle": "Independent overlap pixel inspection with ordered graph reread",
+          "features": [
+            "--no-default-features"
+          ],
+          "test_target": "components_layout_mt_33191",
+          "test_filter": "components_layout_mt_33191_ac_1",
+          "typed_input": "overlapping ordered children, first-on-top/last-on-top setting",
+          "typed_output": "Canonical stacking value and rendered overlap",
+          "fixture_requirements": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Immutable real Folio/Accord graph plus current selected provider revision; positive/violating/boundary pairs. Real render/media/layout provider required where relevant; authored fixture cannot serve as its own oracle.",
+          "prerequisites": [
+            "All36 foundation capabilities independently accepted",
+            "Scoped reusable owner and selected provider features resolved",
+            "Create meaningful source-owned target during implementation",
+            "Bind input/source/provider/release/lock hashes and runner per-test timeout",
+            "Unavailable provider/oracle remains NOT_PROVEN"
+          ],
+          "producer_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "source_scope_ref": "MT-33191#/execution/inputs/0"
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -1617,7 +1825,7 @@
       "handshake-studio-assets/crates/hsk-studio-components/**"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PENDING_NOT_RUN_PLANNED_TASK_SPECIFIC_PRODUCER"
   },
   "red_team": {
     "required": true,
@@ -1903,7 +2111,7 @@
           "MT-35562",
           "MT-35563"
         ],
-        "acceptance_fulfillment": "Exact legacy acceptance retained; owner domain contribution is reviewed before slice dispatch.",
+        "acceptance_fulfillment": "Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels; Independent overlap pixel inspection with ordered graph reread; source and separately qualified host proof remain PENDING.",
         "acceptance_refs": [
           "AC-001"
         ],
@@ -1929,7 +2137,7 @@
         "original_text": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
         "original_row_sha256": "2e6a4ebab15d9b2da66c2037023c267d899f4f2525b991d521fafdc8f7e73d9d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+        "semantic_fulfillment": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Complete current scope: [STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33191-ASSET-COMPONENTS"
@@ -1939,7 +2147,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+            "required_behavior": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Complete current scope: [STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
             "only_owner_root_may_change": true
           }
         ],
@@ -1948,13 +2156,30 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "consumer_assertion": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels",
+          "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Canonical stacking value and rendered overlap. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
+          "oracle": "Independent overlap pixel inspection with ordered graph reread",
+          "features": [
+            "--no-default-features"
+          ],
+          "test_target": "components_layout_mt_33191",
+          "test_filter": "components_layout_mt_33191_ac_1",
+          "typed_input": "overlapping ordered children, first-on-top/last-on-top setting",
+          "typed_output": "Canonical stacking value and rendered overlap",
+          "fixture_requirements": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Immutable real Folio/Accord graph plus current selected provider revision; positive/violating/boundary pairs. Real render/media/layout provider required where relevant; authored fixture cannot serve as its own oracle.",
+          "prerequisites": [
+            "All36 foundation capabilities independently accepted",
+            "Scoped reusable owner and selected provider features resolved",
+            "Create meaningful source-owned target during implementation",
+            "Bind input/source/provider/release/lock hashes and runner per-test timeout",
+            "Unavailable provider/oracle remains NOT_PROVEN"
+          ],
+          "producer_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "source_scope_ref": "MT-33191#/execution/inputs/0"
         },
-        "later_embedding_ref": "MT-33191-KERNEL-AC-001",
+        "later_embedding_ref": "MT-36199",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it. Qualified acceptance MT-33191/AC-001 requires MT-36199: immutable source/release/lock adoption and actual host conformance, never a portable fixture substitute.",
         "status": "PENDING"
       }
     ],
@@ -1962,7 +2187,7 @@
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-33191-KERNEL-AC-001"
+        "MT-36199"
       ],
       "original_acceptance": [
         {
@@ -1988,7 +2213,7 @@
           "original_text": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
           "original_row_sha256": "2e6a4ebab15d9b2da66c2037023c267d899f4f2525b991d521fafdc8f7e73d9d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+          "semantic_fulfillment": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Complete current scope: [STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33191-ASSET-COMPONENTS"
@@ -1998,7 +2223,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
+              "required_behavior": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Complete current scope: [STU-DS-039] Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2007,13 +2232,30 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "consumer_assertion": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Render distinct-colored overlapping children in both settings; read ordering and inspect overlap pixels",
+            "negative_path": "Unknown token/record version, missing required field, stale document/session/provider revision or unresolved node/asset rejects typed before applying Canonical stacking value and rendered overlap. Cancel pending page/media/layout port work and discard late completion; lost provider reports unavailable with source revision and affected input. Per-session admission and queue bounds, backpressure, actor/revision attribution, conflict and drain/recovery are explicit; concurrent sessions never share mutable state.",
+            "oracle": "Independent overlap pixel inspection with ordered graph reread",
+            "features": [
+              "--no-default-features"
+            ],
+            "test_target": "components_layout_mt_33191",
+            "test_filter": "components_layout_mt_33191_ac_1",
+            "typed_input": "overlapping ordered children, first-on-top/last-on-top setting",
+            "typed_output": "Canonical stacking value and rendered overlap",
+            "fixture_requirements": "Exact acceptance AC-001: Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top.. Immutable real Folio/Accord graph plus current selected provider revision; positive/violating/boundary pairs. Real render/media/layout provider required where relevant; authored fixture cannot serve as its own oracle.",
+            "prerequisites": [
+              "All36 foundation capabilities independently accepted",
+              "Scoped reusable owner and selected provider features resolved",
+              "Create meaningful source-owned target during implementation",
+              "Bind input/source/provider/release/lock hashes and runner per-test timeout",
+              "Unavailable provider/oracle remains NOT_PROVEN"
+            ],
+            "producer_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+            "source_scope_ref": "MT-33191#/execution/inputs/0"
           },
-          "later_embedding_ref": "MT-33191-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36199",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children render first-on-top or last-on-top. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it. Qualified acceptance MT-33191/AC-001 requires MT-36199: immutable source/release/lock adoption and actual host conformance, never a portable fixture substitute.",
           "status": "PENDING"
         }
       ]
@@ -2027,5 +2269,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T03:20:43.682Z"
 }
