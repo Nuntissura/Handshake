@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 62
+generation: 64
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -84,3 +84,5 @@ steps:
 - {id: GP-066, role: builder, at: before_dispatch, do: require preparation exit0 before Cargo and notes at most120 chars, check: {type: confirm}, source: failed prep confirmation did not stop separate Cargo launch, state: active}
 - {id: GP-067, role: builder, at: before_dispatch, do: verify Observe Outcome variants and scoped counts freshness receiver, check: {type: confirm}, source: 'compile: Outcome Failed absent and token scoped only in reconcile', state: active}
 - {id: GP-068, role: builder, at: before_dispatch, do: verify Type group iteration skips terminal sentinel without weakening provider bounds, check: {type: confirm}, source: 'runtime: required Arabic positive hit terminal group_end bound and returned InternalInvariant', state: active}
+- {id: GP-069, role: integration_validator, at: before_round, do: verify foreach_group terminal start=count skips group_end before Arabic retry, check: {type: confirm}, source: 'failure: original Arabic positive returned InternalInvariant at terminal group_end', state: active}
+- {id: GP-070, role: builder, at: before_dispatch, do: verify Type unresolved-script control path accepts only pinned default-ignorables with full coverage, check: {type: confirm}, source: 'runtime: original standalone RLI Zyyy positive refused UnsupportedProfile before control coverage', state: active}
