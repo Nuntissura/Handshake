@@ -855,17 +855,18 @@
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
-          "scope": "Observe source foundation only",
-          "status": "DEFERRED",
-          "reason": "Real source SinkPort callback bytes and receipts independently read; Flight Recorder/EventLedger, internal_diagnostics and Palmistry production adapters/durable replay remain later host caller-owned proof.",
+          "scope": "Observe v4 shared source carrier only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual geometry frame type/address/disposition/counters independently decoded; v1\u20133 exact bytes retained; concrete three-tier host adapters deferred",
           "proof_refs": [
-            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+            "MT-35530-INDEPENDENT-SOURCE-OBSERVE-GEOMETRY-V4"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\legacy-wire-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\observe-v4-owning.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
           ]
         },
         "later_host": {
@@ -3166,6 +3167,49 @@
           "reason": "Actual bounded source Observe byte/codes/address/counts carrier observed; concrete host adapter/grant/storage runtime not executed"
         }
       ]
+    },
+    {
+      "verdict_id": "MT-35530-SOURCE-OBSERVE-GEOMETRY-V4",
+      "mt_id": "MT-35530",
+      "verdict": "PASS_V4",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+      "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "observed_at": "2026-10-10T14:02:20.262864+00:00",
+      "proof_refs": [
+        "MT-35530-INDEPENDENT-SOURCE-OBSERVE-GEOMETRY-V4"
+      ],
+      "INDEPENDENT_CHECKS_RUN": {
+        "owning_tests": 17,
+        "independent_geometry_frames": 17,
+        "legacy_byte_exact_versions": [
+          1,
+          2,
+          3
+        ]
+      },
+      "DIFF_ATTACK_SURFACES": [
+        "Exact original input/typed equality and directed geometry topology",
+        "Fresh complete context read set and caller serialized sink boundary",
+        "Requested allocation shared ownership retirement",
+        "Observe actual wire and selected dependency closure"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Independent area/loop oracle would reject incorrect union150/difference50/hole300 topology",
+        "Requested allocation observer would expose release before last clone/token retirement",
+        "Foreign mutator using the same real lock cannot finish inside sink callback; mutation after receipt does not erase Accepted",
+        "Exact independent legacy bytes detect any v1\u20133 encoding change"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Full host/adoption/native/UI/Illustrator curve parity and full36 foundation barrier remain PENDING",
+        "Only two zero-handle axis-aligned rectangle operand subset is proven",
+        "Requested allocation scope excludes caller preowned fixture/setup, allocator bookkeeping and RSS"
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "later_kernel": "PENDING"
     }
   ],
   "blockers": [],
@@ -3231,9 +3275,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "PASS_V3",
+    "status": "PASS_V4",
     "active": true,
-    "validator_verdict": "PASS_V3",
+    "validator_verdict": "PASS_V4",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -4744,6 +4788,36 @@
         "evidence_sha256": "79ab889e1086f61e543e7184a670d96ce4a7373a1bc37645a6fb26c193e0af66",
         "input_count": 55,
         "pending_independent_acceptance": true
+      },
+      {
+        "proof_id": "MT-35530-INDEPENDENT-SOURCE-OBSERVE-GEOMETRY-V4",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "scope": "standalone_source_foundation_only",
+        "status": "PASS_V4",
+        "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+        "observed_at": "2026-10-10T14:02:20.262864+00:00",
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\legacy-wire-independent-oracle.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\observe-v4-owning.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+        ],
+        "checks": {
+          "owning_tests": 17,
+          "independent_geometry_frames": 17,
+          "legacy_byte_exact_versions": [
+            1,
+            2,
+            3
+          ]
+        },
+        "identity": "55 before/after nativeSHA and Git-filtered blobs equal HEAD, clean canonical remote",
+        "execution": "Explicit Studio scoped workdir and semicolon literal Set-Location; current integration_validator gate22/22; owner target/tmp; Rust1.97.1 jobs4; no outer timeout; streams/exit persisted before assertions",
+        "full_fulfillment": "PENDING",
+        "later_kernel": "PENDING"
       }
     ],
     "source_only_diagnostic_tiers": [
@@ -4764,11 +4838,11 @@
       }
     ],
     "source_runtime_result": {
-      "status": "PASS_V3",
+      "status": "PASS_V4",
       "scope": "standalone_source_foundation_only",
-      "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
       "proof_refs": [
-        "MT-35530-INDEPENDENT-OBSERVE-RESOURCE-PROOF-V3"
+        "MT-35530-INDEPENDENT-SOURCE-OBSERVE-GEOMETRY-V4"
       ],
       "full_fulfillment": "PENDING",
       "later_kernel": "PENDING"

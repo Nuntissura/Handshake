@@ -1495,15 +1495,15 @@
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35528/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
-          "scope": "MT-35528 standalone bootstrap only",
-          "status": "PROVED",
-          "reason": "Actual --descriptor JSON inspected against CLI/parser/error behavior: purpose, pinned startup, selection, provenance, I/O, bounds, recovery, Argus ports and caller diagnostic/grant responsibility. Canonical host UserManual integration remains later-host PENDING.",
+          "scope": "Readonly source workspace descriptor",
+          "status": "FAIL_SOURCE_DESCRIPTOR",
+          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-PROOF-V1"
+            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\runtime-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\descriptor.json"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
           ]
         },
         "later_host": {
@@ -1537,15 +1537,15 @@
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35528/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
-          "scope": "MT-35528 standalone bootstrap only",
-          "status": "PROVED",
-          "reason": "Actual --descriptor JSON inspected against CLI/parser/error behavior: purpose, pinned startup, selection, provenance, I/O, bounds, recovery, Argus ports and caller diagnostic/grant responsibility. Canonical host UserManual integration remains later-host PENDING.",
+          "scope": "Readonly source workspace descriptor",
+          "status": "FAIL_SOURCE_DESCRIPTOR",
+          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-PROOF-V1"
+            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\runtime-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\descriptor.json"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
           ]
         },
         "later_host": {
@@ -1579,15 +1579,15 @@
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35528/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
-          "scope": "MT-35528 standalone bootstrap only",
-          "status": "PROVED",
-          "reason": "Actual --descriptor JSON inspected against CLI/parser/error behavior: purpose, pinned startup, selection, provenance, I/O, bounds, recovery, Argus ports and caller diagnostic/grant responsibility. Canonical host UserManual integration remains later-host PENDING.",
+          "scope": "Readonly source workspace descriptor",
+          "status": "FAIL_SOURCE_DESCRIPTOR",
+          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-PROOF-V1"
+            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\runtime-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\descriptor.json"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
           ]
         },
         "later_host": {
@@ -1621,15 +1621,15 @@
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35528/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
-          "scope": "MT-35528 standalone bootstrap only",
-          "status": "PROVED",
-          "reason": "Actual --descriptor JSON inspected against CLI/parser/error behavior: purpose, pinned startup, selection, provenance, I/O, bounds, recovery, Argus ports and caller diagnostic/grant responsibility. Canonical host UserManual integration remains later-host PENDING.",
+          "scope": "Readonly source workspace descriptor",
+          "status": "FAIL_SOURCE_DESCRIPTOR",
+          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-PROOF-V1"
+            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\runtime-evidence.json",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\descriptor.json"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
           ]
         },
         "later_host": {
@@ -1811,7 +1811,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u00e2\u20ac\u201d and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver â€” and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": false,
@@ -3120,6 +3120,59 @@
           "reason": "Readonly workspace probe emits bounded local JSON; no Observe/FlightRecorder/database runtime. Caller-owned attribution and existing three-tier host ports deferred"
         }
       ]
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-NIB-REGISTRY-V7",
+      "mt_id": "MT-35528",
+      "verdict": "FAIL_V7",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+      "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "observed_at": "2026-10-10T14:02:20.262864+00:00",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+      ],
+      "INDEPENDENT_CHECKS_RUN": {
+        "module_count": 3,
+        "lock_registry_count": 17,
+        "actual_windows_registry_count": 13,
+        "named_negatives": 3
+      },
+      "DIFF_ATTACK_SURFACES": [
+        "Exact original input/typed equality and directed geometry topology",
+        "Fresh complete context read set and caller serialized sink boundary",
+        "Requested allocation shared ownership retirement",
+        "Observe actual wire and selected dependency closure"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Independent area/loop oracle would reject incorrect union150/difference50/hole300 topology",
+        "Requested allocation observer would expose release before last clone/token retirement",
+        "Foreign mutator using the same real lock cannot finish inside sink callback; mutation after receipt does not erase Accepted",
+        "Exact independent legacy bytes detect any v1–3 encoding change"
+      ],
+      "INDEPENDENT_FINDINGS": [
+        {
+          "finding_id": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+          "status": "OPEN",
+          "source_ref": "handshake-studio-assets/tools/workspace-probe.rs:1024",
+          "expected": "Selection descriptor names actual approved Nib sha2/kurbo owner subset",
+          "observed": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+          "remediation": "Update only descriptor selection text to include approved Nib sha2/kurbo owner subset; compile affected probe and independently inspect actual descriptor; reuse unchanged graph/runtime proof with exact input mapping",
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+          ]
+        }
+      ],
+      "RESIDUAL_UNCERTAINTY": [
+        "Full host/adoption/native/UI/Illustrator curve parity and full36 foundation barrier remain PENDING",
+        "Only two zero-handle axis-aligned rectangle operand subset is proven",
+        "Requested allocation scope excludes caller preowned fixture/setup, allocator bookkeeping and RSS"
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "later_kernel": "PENDING"
     }
   ],
   "blockers": [],
@@ -3185,11 +3238,11 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "PASS_V6",
+    "status": "FAIL_V7",
     "active": true,
-    "validator_verdict": "PASS_V6",
+    "validator_verdict": "FAIL_V7",
     "contract_preparation_only": false,
-    "blocked_on": null,
+    "blocked_on": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
     "completed_by": null
   },
@@ -3358,7 +3411,7 @@
     "scope": "standalone_source",
     "runtime": "NOT_RUN_BY_BUILDER",
     "compile": "PASS_SOURCE_ONLY",
-    "next_actor": "Independent validator executes exact owning runtime selectors and external source-boundary proof on pushed8a3eebf; builder continues other independently unblocked all36 foundations",
+    "next_actor": "Independent validator verifies repaired emitted workspace descriptor on a7bf900; exact prior unchanged Nib/Observe/selected graph runtime proofs reused",
     "materialized_commands": {
       "compiler_static": {
         "argv": [
@@ -3489,7 +3542,16 @@
       "status": "READY_FOR_VALIDATION",
       "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b"
     },
-    "source_status": "READY_FOR_VALIDATION"
+    "source_status": "READY_FOR_VALIDATION",
+    "descriptor_remediation": {
+      "finding": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+      "status": "REPAIRED_STATIC_PASS_INDEPENDENT_DESCRIPTOR_PENDING",
+      "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+      "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+      "proof_id": "MT-35528-BUILDER-NIB-DESCRIPTOR-REPAIR-V1",
+      "changed_file": "handshake-studio-assets/tools/workspace-probe.rs",
+      "scope": "OnlyHELP approvesactualNibsha2/kurbo; no runtimealgorithm/dependency changes"
+    }
   },
   "validation": {
     "proof_records": [
@@ -5939,6 +6001,61 @@
         "evidence_sha256": "79ab889e1086f61e543e7184a670d96ce4a7373a1bc37645a6fb26c193e0af66",
         "input_count": 55,
         "pending_independent_acceptance": true
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "scope": "standalone_source_foundation_only",
+        "status": "FAIL_V7",
+        "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+        "observed_at": "2026-10-10T14:02:20.262864+00:00",
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-negative-oracle.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-active-tree-independent-oracle.json"
+        ],
+        "checks": {
+          "module_count": 3,
+          "lock_registry_count": 17,
+          "actual_windows_registry_count": 13,
+          "named_negatives": 3
+        },
+        "identity": "55 before/after nativeSHA and Git-filtered blobs equal HEAD, clean canonical remote",
+        "execution": "Explicit Studio scoped workdir and semicolon literal Set-Location; current integration_validator gate22/22; owner target/tmp; Rust1.97.1 jobs4; no outer timeout; streams/exit persisted before assertions",
+        "full_fulfillment": "PENDING",
+        "later_kernel": "PENDING"
+      },
+      {
+        "proof_id": "MT-35528-BUILDER-NIB-DESCRIPTOR-REPAIR-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35528",
+          "MT-35535",
+          "MT-35530"
+        ],
+        "scope": "standalone_source_descriptor_remediation_only",
+        "status": "COMPILE_STATIC_PASS_RUNTIME_NOT_RUN",
+        "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+        "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+        "base_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "input_count": 55,
+        "changed_inputs": [
+          "handshake-studio-assets/tools/workspace-probe.rs"
+        ],
+        "command": "rustc --edition=2024 --emit=metadata -D warnings tools/workspace-probe.rs",
+        "exit_code": 0,
+        "stdout": "EMPTY",
+        "artifact": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\cargo-target\\workspace-probe-help-repair.rmeta",
+        "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reuse": "Prior Nib/Observe owning/external/allocator/legacywire and selected graph proofs apply to exact unchanged inputs; changed HELP independent runtime pending",
+        "observed_at": "2026-10-10T14:03:53.951419+00:00",
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\logs\\descriptor-repair-static-evidence.json",
+        "evidence_sha256": "94111eba0f9be7f26bc88b47b91e8b550ced510b16ee518c05dc9d42a0d8032b"
       }
     ],
     "source_only_diagnostic_tiers": [
@@ -5959,14 +6076,26 @@
       }
     ],
     "source_runtime_result": {
-      "status": "PASS_V6",
+      "status": "FAIL_V7",
       "scope": "standalone_source_foundation_only",
-      "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
       "proof_refs": [
-        "MT-35528-INDEPENDENT-PIGMENT-REGISTRY-PROOF-V6"
+        "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
       ],
       "full_fulfillment": "PENDING",
-      "later_kernel": "PENDING"
+      "later_kernel": "PENDING",
+      "finding": {
+        "finding_id": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+        "status": "OPEN",
+        "source_ref": "handshake-studio-assets/tools/workspace-probe.rs:1024",
+        "expected": "Selection descriptor names actual approved Nib sha2/kurbo owner subset",
+        "observed": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+        "remediation": "Update only descriptor selection text to include approved Nib sha2/kurbo owner subset; compile affected probe and independently inspect actual descriptor; reuse unchanged graph/runtime proof with exact input mapping",
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+        ]
+      }
     }
   },
   "remediation": [

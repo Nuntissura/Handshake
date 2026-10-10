@@ -152,7 +152,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-002",
@@ -178,7 +198,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-003",
@@ -204,7 +244,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-004",
@@ -230,7 +290,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-005",
@@ -256,7 +336,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-006",
@@ -282,7 +382,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-007",
@@ -308,7 +428,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-PRIV-008",
@@ -334,7 +474,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-001",
@@ -360,7 +520,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-002",
@@ -386,7 +566,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-003",
@@ -412,7 +612,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-004",
@@ -438,7 +658,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-005",
@@ -464,7 +704,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-006",
@@ -490,7 +750,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-007",
@@ -516,7 +796,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-008",
@@ -542,7 +842,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-INT-009",
@@ -568,7 +888,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-001",
@@ -594,7 +934,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-002",
@@ -620,7 +980,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-003",
@@ -646,7 +1026,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-004",
@@ -672,7 +1072,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-005",
@@ -698,7 +1118,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-SWARM-006",
@@ -724,7 +1164,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-VIS-001",
@@ -750,7 +1210,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-VIS-002",
@@ -776,7 +1256,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-VIS-003",
@@ -802,7 +1302,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-VIS-004",
@@ -828,7 +1348,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-VIS-005",
@@ -854,7 +1394,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-QUIET-001",
@@ -880,7 +1440,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-QUIET-002",
@@ -906,7 +1486,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-QUIET-003",
@@ -932,7 +1532,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-QUIET-004",
@@ -958,7 +1578,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "DEFERRED_HOST_OR_ORIGINAL_FEATURE",
+          "reason": "Source-only proposal has no host resource-grant persistence, GUI, remote integration or full-feature runtime; original required assessment preserved",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MAN-001",
@@ -984,7 +1624,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MAN-002",
@@ -1010,7 +1670,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MAN-003",
@@ -1036,7 +1716,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MAN-004",
@@ -1062,7 +1762,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-STOP-001",
@@ -1088,7 +1808,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-STOP-002",
@@ -1114,7 +1854,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-STOP-003",
@@ -1140,7 +1900,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-STOP-004",
@@ -1166,7 +1946,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-STOP-005",
@@ -1174,7 +1974,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-NIB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1192,7 +1992,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-COMPART-001",
@@ -1218,7 +2038,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-COMPART-002",
@@ -1244,7 +2084,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-COMPONENT-001",
@@ -1270,7 +2130,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-COMPONENT-002",
@@ -1296,7 +2176,27 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-001",
@@ -1314,7 +2214,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-002",
@@ -1332,7 +2252,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-003",
@@ -1350,7 +2290,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-004",
@@ -1368,7 +2328,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "HOST_ADOPTION_PENDING"
+        "phase_disposition": "HOST_ADOPTION_PENDING",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-005",
@@ -1386,7 +2366,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-006",
@@ -1404,7 +2404,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-007",
@@ -1422,7 +2442,27 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Nib supported standalone rectangle proposal only",
+          "status": "SOURCE_SUBSET_PROVEN",
+          "reason": "Actual descriptor, typed rejection/cancel/read fences, immutable source topology and shared ownership, existing bounded Observe port proven by named evidence; no full rule/host certification",
+          "proof_refs": [
+            "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Distinct pinned host adoption/original feature and full36 acceptance not executed"
+        }
       }
     ],
     "runtime_lane_refs": [
@@ -2014,7 +3054,51 @@
     "current_dispatch_authorized": true
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-35535-SOURCE-NIB-FOUNDATION-V1",
+      "mt_id": "MT-35535",
+      "verdict": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+      "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "observed_at": "2026-10-10T14:02:20.262864+00:00",
+      "proof_refs": [
+        "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+      ],
+      "INDEPENDENT_CHECKS_RUN": {
+        "owning_exact30s_filters": 2,
+        "external_geometry_cases": 10,
+        "allocation_lifetime_cases": 12,
+        "serialized_context_and_fresh_read_cases": 7
+      },
+      "DIFF_ATTACK_SURFACES": [
+        "Exact original input/typed equality and directed geometry topology",
+        "Fresh complete context read set and caller serialized sink boundary",
+        "Requested allocation shared ownership retirement",
+        "Observe actual wire and selected dependency closure"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Independent area/loop oracle would reject incorrect union150/difference50/hole300 topology",
+        "Requested allocation observer would expose release before last clone/token retirement",
+        "Foreign mutator using the same real lock cannot finish inside sink callback; mutation after receipt does not erase Accepted",
+        "Exact independent legacy bytes detect any v1–3 encoding change"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Full host/adoption/native/UI/Illustrator curve parity and full36 foundation barrier remain PENDING",
+        "Only two zero-handle axis-aligned rectangle operand subset is proven",
+        "Requested allocation scope excludes caller preowned fixture/setup, allocator bookkeeping and RSS"
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "later_kernel": "PENDING",
+      "dependency_status": {
+        "MT-35528": "Graph/rejections PASS; owning workspace HELP omission OPEN, not overall workspace PASS"
+      }
+    }
+  ],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-35535",
@@ -2078,9 +3162,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": true,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -2276,7 +3360,7 @@
       ],
       "validation_plan": "Existingtwoexact30sowning filters + realexternalconsumer/directedNetwork analyticshoelace/winding + actualrequestedallocator/lifetime/cancel/delivery tests; implementercheck/clippy only"
     },
-    "next_actor": "Independent validator executes exact owning runtime selectors and external source-boundary proof on pushed8a3eebf; builder continues other independently unblocked all36 foundations",
+    "next_actor": "Independent validator verifies repaired emitted workspace descriptor on a7bf900; exact prior unchanged Nib/Observe/selected graph runtime proofs reused",
     "independent_preparation_review": {
       "executor": "foundation_validator",
       "disposition": "PREPARATION_READY_NOT_RUNTIME_PASS",
@@ -2503,6 +3587,15 @@
         "Saturated delivery preserved; fresh reconciliation delivery replaces old state"
       ],
       "disposition": "SOURCE_REPAIRED_STATIC_PASS_RUNTIME_PENDING"
+    },
+    "descriptor_remediation": {
+      "finding": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+      "status": "REPAIRED_STATIC_PASS_INDEPENDENT_DESCRIPTOR_PENDING",
+      "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+      "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+      "proof_id": "MT-35528-BUILDER-NIB-DESCRIPTOR-REPAIR-V1",
+      "changed_file": "handshake-studio-assets/tools/workspace-probe.rs",
+      "scope": "OnlyHELP approvesactualNibsha2/kurbo; no runtimealgorithm/dependency changes"
     }
   },
   "validation": {
@@ -2550,7 +3643,72 @@
         "evidence_sha256": "79ab889e1086f61e543e7184a670d96ce4a7373a1bc37645a6fb26c193e0af66",
         "input_count": 55,
         "pending_independent_acceptance": true
+      },
+      {
+        "proof_id": "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "scope": "standalone_source_foundation_only",
+        "status": "PASS_V1",
+        "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "candidate_tree": "913b86580c97ad2ac8da81a282e5108e4f15882d",
+        "observed_at": "2026-10-10T14:02:20.262864+00:00",
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\external-geometry-oracle.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\allocation-independent-oracle.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\independent-v4-decoder.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\nib-descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-validator\\logs\\identity-after.json"
+        ],
+        "checks": {
+          "owning_exact30s_filters": 2,
+          "external_geometry_cases": 10,
+          "allocation_lifetime_cases": 12,
+          "serialized_context_and_fresh_read_cases": 7
+        },
+        "identity": "55 before/after nativeSHA and Git-filtered blobs equal HEAD, clean canonical remote",
+        "execution": "Explicit Studio scoped workdir and semicolon literal Set-Location; current integration_validator gate22/22; owner target/tmp; Rust1.97.1 jobs4; no outer timeout; streams/exit persisted before assertions",
+        "full_fulfillment": "PENDING",
+        "later_kernel": "PENDING"
+      },
+      {
+        "proof_id": "MT-35528-BUILDER-NIB-DESCRIPTOR-REPAIR-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35528",
+          "MT-35535",
+          "MT-35530"
+        ],
+        "scope": "standalone_source_descriptor_remediation_only",
+        "status": "COMPILE_STATIC_PASS_RUNTIME_NOT_RUN",
+        "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+        "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+        "base_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+        "input_count": 55,
+        "changed_inputs": [
+          "handshake-studio-assets/tools/workspace-probe.rs"
+        ],
+        "command": "rustc --edition=2024 --emit=metadata -D warnings tools/workspace-probe.rs",
+        "exit_code": 0,
+        "stdout": "EMPTY",
+        "artifact": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\cargo-target\\workspace-probe-help-repair.rmeta",
+        "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reuse": "Prior Nib/Observe owning/external/allocator/legacywire and selected graph proofs apply to exact unchanged inputs; changed HELP independent runtime pending",
+        "observed_at": "2026-10-10T14:03:53.951419+00:00",
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\logs\\descriptor-repair-static-evidence.json",
+        "evidence_sha256": "94111eba0f9be7f26bc88b47b91e8b550ced510b16ee518c05dc9d42a0d8032b"
       }
-    ]
+    ],
+    "source_runtime_result": {
+      "status": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+      "proof_refs": [
+        "MT-35535-INDEPENDENT-SOURCE-NIB-FOUNDATION-V1"
+      ],
+      "full_fulfillment": "PENDING",
+      "later_kernel": "PENDING"
+    }
   }
 }
