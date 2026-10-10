@@ -149,7 +149,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-002",
@@ -175,7 +193,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-003",
@@ -201,7 +237,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-004",
@@ -227,7 +281,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual independent byte collector found only allowlisted bounded identifiers/correlation/revision/sequence/progress/outcome. Secret and no-secret accepted frames byte-identical; secret absent from stdout/stderr. Protected destination grant/visibility is separately host-pending.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-005",
@@ -253,7 +325,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual independent byte collector found only allowlisted bounded identifiers/correlation/revision/sequence/progress/outcome. Secret and no-secret accepted frames byte-identical; secret absent from stdout/stderr. Protected destination grant/visibility is separately host-pending.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-006",
@@ -279,7 +369,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-007",
@@ -305,7 +413,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-PRIV-008",
@@ -331,7 +457,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Source frame preserves caller Accord resource/account/Principal/owner/AccessSpace/session attribution; host grant, revocation, authentication and destination visibility remain caller-enforced. Local port does not claim host privacy acceptance.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-001",
@@ -357,7 +501,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Real source SinkPort callback bytes and receipts independently read; Flight Recorder/EventLedger, internal_diagnostics and Palmistry production adapters/durable replay remain later host caller-owned proof.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-002",
@@ -383,7 +545,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-003",
@@ -409,7 +589,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-004",
@@ -435,7 +633,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-005",
@@ -461,7 +677,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-006",
@@ -487,7 +721,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-007",
@@ -513,7 +765,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Real source SinkPort callback bytes and receipts independently read; Flight Recorder/EventLedger, internal_diagnostics and Palmistry production adapters/durable replay remain later host caller-owned proof.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-008",
@@ -539,7 +809,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No model invocation, promotion, CRDT/session-lane/role decision runtime or UUID mint in Observe source foundation. Accord IDs are validated input, never minted.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-INT-009",
@@ -565,7 +853,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "DEFERRED",
+          "reason": "Real source SinkPort callback bytes and receipts independently read; Flight Recorder/EventLedger, internal_diagnostics and Palmistry production adapters/durable replay remain later host caller-owned proof.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-001",
@@ -591,7 +897,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Mutable emitter serializes calls; finite event/byte budget and independent terminal admission, cancellation override, saturation/drop/error counters and indeterminate reconciliation guard have actual named proof. No second scheduler or host lease system created.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-002",
@@ -617,7 +941,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Mutable emitter serializes calls; finite event/byte budget and independent terminal admission, cancellation override, saturation/drop/error counters and indeterminate reconciliation guard have actual named proof. No second scheduler or host lease system created.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-003",
@@ -643,7 +985,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No collaborative GUI or cross-agent routing transport in local Observe source port.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-004",
@@ -669,7 +1029,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No collaborative GUI or cross-agent routing transport in local Observe source port.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-005",
@@ -695,7 +1073,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Selected Accord+Observe independent compilation/consumer ran sequentially in own external target/TMP/TEMP, jobs4. Processes exited; evidence/binary retained for independent review/warm reuse, no other-owner cleanup.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-SWARM-006",
@@ -721,7 +1117,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Selected Accord+Observe independent compilation/consumer ran sequentially in own external target/TMP/TEMP, jobs4. Processes exited; evidence/binary retained for independent review/warm reuse, no other-owner cleanup.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-VIS-001",
@@ -747,7 +1161,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual descriptor, source state/error/receipt and captured emitted binary frames inspected headlessly with independent decoded collector. Native GUI/Argus host/TraceProjection remains pending.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-VIS-002",
@@ -773,7 +1205,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No GUI frames, renderer, viewport or visual control created in source foundation; actual host Argus/render proof remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-VIS-003",
@@ -799,7 +1249,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No GUI frames, renderer, viewport or visual control created in source foundation; actual host Argus/render proof remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-VIS-004",
@@ -825,7 +1293,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual descriptor, source state/error/receipt and captured emitted binary frames inspected headlessly with independent decoded collector. Native GUI/Argus host/TraceProjection remains pending.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-VIS-005",
@@ -851,7 +1337,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No GUI frames, renderer, viewport or visual control created in source foundation; actual host Argus/render proof remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-QUIET-001",
@@ -877,7 +1381,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Pipe-based actual independent tests/consumer exited; code has no global input injection, focus/window API or child launch. Source sink performs bounded in-memory admission before caller stdout collection; no foreground requirement.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-QUIET-002",
@@ -903,7 +1425,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Pipe-based actual independent tests/consumer exited; code has no global input injection, focus/window API or child launch. Source sink performs bounded in-memory admission before caller stdout collection; no foreground requirement.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-QUIET-003",
@@ -929,7 +1469,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Pipe-based actual independent tests/consumer exited; code has no global input injection, focus/window API or child launch. Source sink performs bounded in-memory admission before caller stdout collection; no foreground requirement.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-QUIET-004",
@@ -955,7 +1513,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No foreground interaction required.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MAN-001",
@@ -981,7 +1557,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual --descriptor matched API, binary layout/limits, callback grant contract, failure/recovery, indeterminate delivery, cancellation/terminal reserve, privacy allowlist, general-path allocation/realtime prohibition and existing SPSC synchronization warning. Canonical host UserManual wiring remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MAN-002",
@@ -1007,7 +1601,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual --descriptor matched API, binary layout/limits, callback grant contract, failure/recovery, indeterminate delivery, cancellation/terminal reserve, privacy allowlist, general-path allocation/realtime prohibition and existing SPSC synchronization warning. Canonical host UserManual wiring remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MAN-003",
@@ -1033,7 +1645,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual --descriptor matched API, binary layout/limits, callback grant contract, failure/recovery, indeterminate delivery, cancellation/terminal reserve, privacy allowlist, general-path allocation/realtime prohibition and existing SPSC synchronization warning. Canonical host UserManual wiring remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MAN-004",
@@ -1059,7 +1689,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Actual --descriptor matched API, binary layout/limits, callback grant contract, failure/recovery, indeterminate delivery, cancellation/terminal reserve, privacy allowlist, general-path allocation/realtime prohibition and existing SPSC synchronization warning. Canonical host UserManual wiring remains later adoption.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-STOP-001",
@@ -1085,7 +1733,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No named capacity/stop/out-of-scope-dependency trigger used during completed source proof; no requirement narrowed.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-STOP-002",
@@ -1111,7 +1777,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No named capacity/stop/out-of-scope-dependency trigger used during completed source proof; no requirement narrowed.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-STOP-003",
@@ -1137,7 +1821,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No named capacity/stop/out-of-scope-dependency trigger used during completed source proof; no requirement narrowed.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-STOP-004",
@@ -1163,7 +1865,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No named capacity/stop/out-of-scope-dependency trigger used during completed source proof; no requirement narrowed.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-STOP-005",
@@ -1171,7 +1891,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-OBSERVE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-OBSERVE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1189,7 +1909,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No named capacity/stop/out-of-scope-dependency trigger used during completed source proof; no requirement narrowed.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-COMPART-001",
@@ -1215,7 +1953,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Observe owns only its four crate files; Accord is sole direct selected dependency. Workspace changes remain parent workspace ownership; no Session/kernel/native/DB graph required.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-COMPART-002",
@@ -1241,7 +1997,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Only Accord+Observe compiled; one focused test binary and one Observe example consumer linked; measured test compile/run elapsed recorded. No whole-workspace/all-features/Handshake build.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-COMPONENT-001",
@@ -1267,7 +2041,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Existing STUDIO-MODULE-OBSERVE diagnostic-port owner reused; caller adapters target existing FlightRecorder/internal_diagnostics/Palmistry; no recorder/catalog/session/DB authority duplicated.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-COMPONENT-002",
@@ -1293,7 +2085,25 @@
         "proof_status": "PENDING_NOT_RUN",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
-        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No new canonical capability owner; existing Observe owner only.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-001",
@@ -1311,7 +2121,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-002",
@@ -1329,7 +2157,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-003",
@@ -1347,7 +2193,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-004",
@@ -1365,7 +2229,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "NOT_APPLICABLE",
+          "reason": "No host embedding in source foundation; later host-adoption/integration proof pending.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-005",
@@ -1383,7 +2265,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-006",
@@ -1401,7 +2301,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       },
       {
         "rule_id": "HBR-MODULE-LIFECYCLE-007",
@@ -1419,7 +2337,25 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35530/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
         "proof_destination_base": "Verified configured external CX-984 root before execution",
-        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "asset_validation": {
+          "scope": "Observe source foundation only",
+          "status": "PROVED",
+          "reason": "Canonical published revision/tree and native/clean-filter blob identities reconciled. Real selected source consumer/proof and bounded port version1/wire1; exact dependency Accord0.1.0. Host upgrade/adoption/full suite remain separate pending requirements.",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ],
+          "evidence_refs": [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+          ]
+        },
+        "later_host": {
+          "status": "PENDING",
+          "reason": "Concrete authenticated grant, EventLedger/diagnostic/native GUI/Argus consumers belong to separately authorized host adoption."
+        }
       }
     ],
     "runtime_lane_refs": [
@@ -1909,7 +2845,110 @@
       "host": "PENDING_NOT_AUTHORIZED"
     }
   ],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-35530-SOURCE-FOUNDATION-V1",
+      "mt_id": "MT-35530",
+      "verdict": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+      "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+      ],
+      "check_results": [
+        {
+          "check_id": "MT-35530-ASSET-AC-001",
+          "result": "PASS",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35530-ASSET-AC-002",
+          "result": "PASS",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35530-ASSET-AC-003",
+          "result": "PASS",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35530-ASSET-AC-004",
+          "result": "PASS",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ]
+        },
+        {
+          "check_id": "MT-35530-ASSET-AC-005",
+          "result": "PASS",
+          "proof_refs": [
+            "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
+          ]
+        }
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Binary allowlist and secret redaction",
+        "Sink outcome/acknowledgment versus actual accepted emitted bytes",
+        "Finite admission/cancel reserve and indeterminate retry boundary"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Independent Python struct byte decoder verified actual HSKO fields/7identities/progress/terminal and consumed entire output, without Rust producer/test collector",
+        "Compared actual private/plain accepted frames byte-for-byte and independently scanned stdout/stderr for secret",
+        "Reviewed SinkPort acceptance and emit state updates, terminal reserve and reconciliation gate; inspected descriptor against actual port/consumer"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Moving acknowledged update before sink.try_send would acknowledge rejected/lost required delivery.",
+        "Serializing Observation::private_project_text would break observed private/plain byte equality and leak source content.",
+        "Removing independent Terminal admission lets saturated progress prevent observed cancellation delivery.",
+        "Removing reconciliation_required guard permits duplicate retries after indeterminate delivery."
+      ],
+      "BOUNDARY_PROBES": [
+        "Observe::emit -> caller-owned actual byte sink -> external stdout collector independently decoded frames"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Rejected/unavailable delivery never acknowledge",
+        "Saturated budget/destination preserves cancel terminal path",
+        "Indeterminate delivery blocks retries",
+        "Stale correlation/revision and invalid progress reject",
+        "Private content redaction",
+        "External reject/saturate exit2 zero emitted bytes acknowledged0"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Host caller must enforce fresh authenticated grants/destination visibility and implement genuinely nonblocking atomic SinkPort semantics. Local code cannot certify arbitrary adapter implementations.",
+        "General diagnostic path allocates bounded frames; descriptor forbids realtime audio use and preserves host multiple-writer/SPSC synchronization.",
+        "Actual Flight Recorder/internal diagnostics/Palmistry and native GUI/manual/Argus/host consumers remain pending; no durable authority/parity claimed."
+      ],
+      "diagnostic_tiers": [
+        {
+          "tier": "flight_recorder",
+          "status": "DEFERRED",
+          "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "DEFERRED",
+          "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+        },
+        {
+          "tier": "palmistry",
+          "status": "DEFERRED",
+          "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+        }
+      ],
+      "full_acceptance": "PENDING_SOURCE_FEATURES_FOUNDATION_BARRIER_AND_LATER_HOST",
+      "observed_at": "2026-10-10T08:28:33.306487+00:00"
+    }
+  ],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-35530",
@@ -1973,9 +3012,9 @@
   },
   "lifecycle": {
     "phase": "implementation",
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "active": true,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -2125,6 +3164,12 @@
     "later_kernel": {
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "verdict_ref": "MT-35530-SOURCE-FOUNDATION-V1",
+      "proof_ref": "MT-35530-INDEPENDENT-SOURCE-PROOF-V1"
     }
   },
   "implementation_state": {
@@ -2140,9 +3185,9 @@
       "MT-35529-SOURCE-FOUNDATION-V1"
     ],
     "predecessor_candidate": "2cb3883a4728bb8cbd0195c4e48247848e78d0b7",
-    "runtime": "NOT_RUN",
+    "runtime": "INDEPENDENT_SOURCE_FOUNDATION_PASS",
     "compile": "PASS_STATIC",
-    "next_actor": "foundation_validator independent Observe acceptance",
+    "next_actor": "Parent dependency-local foundation orchestration",
     "source_owner_search": "Canonical assets subtree has workspace+Accord only; STUDIO-MODULE-OBSERVE already registered sole diagnostic-port owner; caller-owned sinks reuse existing FlightRecorder/internal_diagnostics/Palmistry authority",
     "source_feature_policy": "hsk-studio-observe selected no-default-features; direct owning package dependency Accord; no external/native/provider feature",
     "per_test_timeout": "Checked-in foundation_contract bounded_case30s, no outer timeout",
@@ -2228,7 +3273,186 @@
         ],
         "exit_code": 0,
         "runtime": "NOT_RUN"
+      },
+      {
+        "proof_id": "MT-35530-INDEPENDENT-SOURCE-PROOF-V1",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35530"
+        ],
+        "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
+        "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+        "commands": [
+          [
+            "cargo",
+            "+1.97.1",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-observe",
+            "--no-default-features",
+            "--test",
+            "foundation_contract",
+            "--",
+            "--nocapture"
+          ],
+          [
+            "cargo",
+            "+1.97.1",
+            "run",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-observe",
+            "--no-default-features",
+            "--example",
+            "observe-consumer",
+            "--",
+            "--descriptor"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "success",
+            "--private-text",
+            "PROJECT-TEXT-SECRET-DO-NOT-EMIT"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "success"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "error",
+            "--private-text",
+            "PROJECT-TEXT-SECRET-DO-NOT-EMIT"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "cancel",
+            "--private-text",
+            "PROJECT-TEXT-SECRET-DO-NOT-EMIT"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "reject",
+            "--private-text",
+            "PROJECT-TEXT-SECRET-DO-NOT-EMIT"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\cargo-target\\debug\\examples\\observe-consumer.exe",
+            "--mode",
+            "saturate",
+            "--private-text",
+            "PROJECT-TEXT-SECRET-DO-NOT-EMIT"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\workspace-provenance.toml",
+            "--revision",
+            "4933a21a1f8afd6f8aba8c815337173a5708135b",
+            "--tree",
+            "98397b9156402cd69397b8b05094f4afcfcc5f95",
+            "--package",
+            "hsk-studio-observe"
+          ]
+        ],
+        "result": "PASS",
+        "exit_code": 0,
+        "proof_kind": "independent_standalone_observe_runtime",
+        "scope": "Observe local diagnostic transport only",
+        "test_count": 9,
+        "test_elapsed_seconds": 2.2342149999458343,
+        "compiled_crates": 2,
+        "linked_test_binaries": 1,
+        "linked_external_consumers": 1,
+        "input_hashes_before": {
+          "handshake-studio-assets/Cargo.toml": "a7785aa47ab9db72f272c9be43703379c0e2e8289f75811431d15e11af9cde10",
+          "handshake-studio-assets/Cargo.lock": "bd8dccd6770ad683b0c61c03fb48380069f4402b930b02c0d450544e485f1e98",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "076e6a7080f535aa4c7828daa9e2fdefb5e903531a67d60615f37d6a0c6031fd"
+        },
+        "input_hashes_after": {
+          "handshake-studio-assets/Cargo.toml": "a7785aa47ab9db72f272c9be43703379c0e2e8289f75811431d15e11af9cde10",
+          "handshake-studio-assets/Cargo.lock": "bd8dccd6770ad683b0c61c03fb48380069f4402b930b02c0d450544e485f1e98",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "076e6a7080f535aa4c7828daa9e2fdefb5e903531a67d60615f37d6a0c6031fd"
+        },
+        "canonical_git_blobs": {
+          "handshake-studio-assets/Cargo.toml": "b9c47e6048e5f615a6e3eafd719bcf2c97df5353",
+          "handshake-studio-assets/Cargo.lock": "f03345178bdd71633bb87ad1a4aa4cb408772ac1",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "2aaa4294fae1e05917d5fa883541bb502babd8a6",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "144c06b9aa21b0d788c3042ca6c52d5b33861e29",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "ff5059f926007930a4ba716b099fdbd6197dca02",
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "212e385d01c9f76de7c33cf4b85f19b943300313",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "067b65b90922c41a8b4a48d8519ab4bcd5da6571",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "5b13232f6b47658e7f67167c13e027e22cf1c8f1"
+        },
+        "consumer_binary_sha256": "e99b88723a1342773cbfb40083d661225b9e82d449856e4ccbca2565c1d5c0d5",
+        "redaction_exact_equal": true,
+        "artifact_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\test-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\consumer-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\workspace-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-validator\\logs\\descriptor.json"
+        ],
+        "check_ids": [
+          "MT-35530-ASSET-AC-001",
+          "MT-35530-ASSET-AC-002",
+          "MT-35530-ASSET-AC-003",
+          "MT-35530-ASSET-AC-004",
+          "MT-35530-ASSET-AC-005"
+        ],
+        "observed_at": "2026-10-10T08:28:33.306487+00:00",
+        "ownership": "MT35530/studio-assets-validator; jobs4 incremental0 line-tables-only; actual processes exited; outputs retained for evidence/warm reuse",
+        "later_host": "PENDING_NOT_AUTHORIZED"
       }
-    ]
+    ],
+    "source_only_diagnostic_tiers": [
+      {
+        "tier": "flight_recorder",
+        "status": "DEFERRED",
+        "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+      },
+      {
+        "tier": "internal_diagnostics",
+        "status": "DEFERRED",
+        "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+      },
+      {
+        "tier": "palmistry",
+        "status": "DEFERRED",
+        "reason": "Source caller-owned SinkPort demonstrated real accept/reject/cancel/redacted bytes; actual existing host tier adapter/auth/durability remains later adoption and is not certified by local byte collector."
+      }
+    ],
+    "source_runtime_result": "PASS_V1_SOURCE_ONLY"
   }
 }

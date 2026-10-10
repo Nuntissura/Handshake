@@ -1723,17 +1723,25 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35531/studio-assets-kernel-builder",
+      "env": {
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder\\cargo-target",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35531/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -2027,7 +2035,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T08:22:11.870251+00:00",
+  "updated_at_utc": "2026-10-10T08:26:31.521240+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2254,5 +2262,25 @@
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
     }
+  },
+  "implementation_state": {
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "selected_mt": "MT-35531",
+    "batch_owner": "MT-35531",
+    "covered_mts": [
+      "MT-35531"
+    ],
+    "scope": "standalone_source",
+    "predecessor_verdicts": [
+      "MT-35528-SOURCE-REGISTERED-ACCORD-V2",
+      "MT-35529-SOURCE-FOUNDATION-V1"
+    ],
+    "source_owner_search": "Canonical Folio owner registered with Accord directmodule closure; serialization/schema puredependencies mandated CON015; noexisting duplicateStudioDocument assets source",
+    "source_feature_policy": "hsk-studio-folio no-default-features; Accord onlymodule; schemars/std+derive,serde/std+derive,serde_json/std exactregistrypins; no native/provider",
+    "per_test_timeout": "Checked-in foundation_contract bounded_case30s nooutertimeout",
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "next_actor": "Shared Accord schemas and workspace registry pin prerequisites before Folio code",
+    "field_authority_commit": "cfcb4b9a5781db9d4762bf7f0a16cc8bc8dd6ec2"
   }
 }

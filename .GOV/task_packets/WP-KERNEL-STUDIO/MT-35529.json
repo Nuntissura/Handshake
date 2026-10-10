@@ -1931,7 +1931,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-ACCORD scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u00e2\u20ac\u201d and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-ACCORD scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver â€” and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": false,
@@ -3308,6 +3308,19 @@
       "accord_source_closure": "UNCHANGED_FROM_b57b655_RUNTIME_PROOF",
       "runtime_reuse_condition": "Independent native SHA256 closure reconciliation; no Accord test/consumer rerun unless inputs differ",
       "workspace_selection": "PENDING_INDEPENDENT_REPAIR_VALIDATION"
+    },
+    "current_schema_membership_extension": {
+      "publication_commit": "cfcb4b9a5781db9d4762bf7f0a16cc8bc8dd6ec2",
+      "spec_version": "v02.210",
+      "source_ref": "STU-CON-002",
+      "addition": [
+        "hsk.studio.layer_graph@1",
+        "hsk.studio.raster_tile@1"
+      ],
+      "reason": "Existing DOC002 primitive schemaIDs now canonical; shared owner required before Folio consumption",
+      "scope": "two constants and closed schema membership; no new UUID prefix or hostfeature",
+      "proof": "focused independent canonical membership/unsupported-schema transport; original proof historical exactcandidate retained",
+      "state": "PLANNED_NOT_IMPLEMENTED"
     }
   },
   "remediation": [

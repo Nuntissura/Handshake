@@ -1811,7 +1811,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u00e2\u20ac\u201d and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver â€” and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": false,
@@ -3168,6 +3168,16 @@
       "proof_ref": "MT-35528-INDEPENDENT-REGISTERED-ACCORD-REPAIR-V2",
       "current_candidate_commit": "2cb3883a4728bb8cbd0195c4e48247848e78d0b7",
       "current_candidate_tree": "794d6cc961edf4dfb180880af4f1b72606f92bdf"
+    },
+    "folio_registry_pin_policy_extension": {
+      "owner": "STUDIO-WORKSPACE",
+      "dependent_owner": "STUDIO-MODULE-FOLIO",
+      "source_ref": "STU-CON-015",
+      "reason": "Existing selected dependency inspection rejects mandatory pure serialization/schema support; extend same owning command and manifest metadata",
+      "policy": "Exact owner-scoped direct versions/features/defaultfalse; canonical crates.io source and real lock checksums; bounded explicit transitive pins; git/alternate registry/ambiguous/unapproved dependency rejection",
+      "scope": "existing workspace-probe +workspace metadata/lock only; no public sibling command",
+      "proof": "real selected Folio+Accord closure accepted, pin/feature/source/checksum drift rejected; no compiler/host inference from inspectresult",
+      "state": "PLANNED_NOT_IMPLEMENTED"
     }
   },
   "validation": {
