@@ -21,8 +21,8 @@
       }
     },
     "prior_652_state": "UNCHANGED_FROZEN_PUBLISHED_bce7519a791411c6246a034e2b501a31fa2b36b0",
-    "prepared_frozen_count": 545,
-    "remaining_scope": 276,
+    "prepared_frozen_count": 647,
+    "remaining_scope": 174,
     "fixed_cohorts": [
       {
         "cohort_id": "COMPOSITE-A-001",
@@ -2029,7 +2029,11 @@
         "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
         "baseline_proof": "Independent native git blob reads: original normative payload and unmentioned keys unchanged",
         "source_proof": "Exact canonical catalog rows/body hash reconciled; actual concrete methods and unrecovered behavior gaps inspected",
-        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING",
+        "publication_ack": {
+          "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+          "fresh_remote_equality": "CONFIRMED_BY_COORDINATOR"
+        }
       },
       {
         "cohort_id": "COMPOSITE-A-005",
@@ -2718,7 +2722,11 @@
         "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
         "baseline_proof": "Independent native git blob reads: original normative payload and unmentioned keys unchanged",
         "source_proof": "Exact canonical catalog rows/body hash reconciled; actual concrete methods and unrecovered behavior gaps inspected",
-        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING",
+        "publication_ack": {
+          "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+          "fresh_remote_equality": "CONFIRMED_BY_COORDINATOR"
+        }
       },
       {
         "cohort_id": "COMPOSITE-B-002",
@@ -2957,7 +2965,11 @@
         "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
         "baseline_proof": "Independent native git blob reads: original normative payload and unmentioned keys unchanged",
         "source_proof": "Exact captured fields/flags/source range hashes reconciled; direct perAC cases/current52HBR/structured NOT_IMPLEMENTED library selectors",
-        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING",
+        "publication_ack": {
+          "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+          "fresh_remote_equality": "CONFIRMED_BY_COORDINATOR"
+        }
       },
       {
         "cohort_id": "COMPOSITE-B-003",
@@ -3160,7 +3172,11 @@
         "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
         "baseline_proof": "Independent native git blob reads: original normative payload and unmentioned keys unchanged",
         "source_proof": "Exact captured fields/flags/source range hashes reconciled; direct perAC cases/current52HBR/structured NOT_IMPLEMENTED library selectors",
-        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING",
+        "publication_ack": {
+          "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+          "fresh_remote_equality": "CONFIRMED_BY_COORDINATOR"
+        }
       },
       {
         "cohort_id": "COMPOSITE-B-004",
@@ -3411,6 +3427,658 @@
         "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
         "baseline_proof": "Independent native git blob reads: original normative payload and unmentioned keys unchanged",
         "source_proof": "Exact captured fields/flags/source range hashes reconciled; direct perAC cases/current52HBR/structured NOT_IMPLEMENTED library selectors",
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING",
+        "publication_ack": {
+          "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+          "fresh_remote_equality": "CONFIRMED_BY_COORDINATOR"
+        }
+      },
+      {
+        "cohort_id": "COMPOSITE-B-005",
+        "state": "PREPARED_FROZEN_NONEXECUTION",
+        "rows": [
+          {
+            "mt_id": "MT-32050",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32050.json",
+            "raw_sha256": "555b1efb14a8ecf2f47bf784528a63325f1b2a3ffa93a2fddcece65b7283eca3",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32051",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32051.json",
+            "raw_sha256": "be558a5a50497f8a4b035c77cbcbb0836d949821ef11a77ea871f5dc3c06544d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32052",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32052.json",
+            "raw_sha256": "2f9e41ee15320a23f989a823d79cb65140d0936c1179a37a9693ad1c48cbc88e",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32053",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32053.json",
+            "raw_sha256": "3561576250a24343c84602b74145ceee2d7010c58b4616b297ad9c3dbc6e1784",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32054",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32054.json",
+            "raw_sha256": "137449e53c53fc0d490f1e2b2dde04404e88140707f4afd2d701c6b11adcb5dc",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32055",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32055.json",
+            "raw_sha256": "d6d2d2f2db9193d2440917dad3a833c7a1f509241dff24c4ddba3aef4874131f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32056",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32056.json",
+            "raw_sha256": "23d46ee0e852e4d7a6e4a8546c8eea8d9774c7e14b136f66e070478b97d610e6",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32057",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32057.json",
+            "raw_sha256": "1a7a13b9e5fb74bf0597a9d19e187a6df38cd6441efe54b7db3c87afe82bf888",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32058",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32058.json",
+            "raw_sha256": "6ab4a504ca7ab35b01d92312dcd50debf8020e3e441b391982bf2b12931c249d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32059",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32059.json",
+            "raw_sha256": "6adc736bac4d5389034cb06d47da37758012b40b31f85c3e02ea900f41ed940b",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32060",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32060.json",
+            "raw_sha256": "6ec2f29d1e397ff9c141208113b37ac61a77b42a97680169f31e8a4b89b15014",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32061",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32061.json",
+            "raw_sha256": "13f1e540275bd8a2e72b0e7e26015afae7842ff191c803ea35629907aaf5ed6d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32062",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32062.json",
+            "raw_sha256": "ed331be3329a2239bddf61e7cd3f341e9cd7372f7b6d7f729fff0e1363588814",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32063",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32063.json",
+            "raw_sha256": "4096cee2a0b6f73137cc17ac3c6ff8565f77a48307de6484aa8ed8942f3858b9",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32064",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32064.json",
+            "raw_sha256": "b03e68638fd5d5c1fd53095b35c5f5eedad519fa50b9911ebfc2350485cce086",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32065",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32065.json",
+            "raw_sha256": "3a21b239a21d3d809dc1ee59a3ef6aef60957c21a31ada49b23b076cf5bb1726",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32066",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32066.json",
+            "raw_sha256": "6ac1c3eded8e88d5836616d46edaae8e2253a702bb346bb0da25e2f7d5dfcfae",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32067",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32067.json",
+            "raw_sha256": "0f85a0414fd87a9f3a0aa9ff5d4245c46c89cc2fdfc99ce49a018328fe7d7c0e",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32068",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32068.json",
+            "raw_sha256": "cae1601248f3ba371588cc85be283549e57252732d832f170b77ebacc25d7e76",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32069",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32069.json",
+            "raw_sha256": "3da6d4024097adba04dd0417a1245af333e53b07bcad6a5d585da95ab93c248d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32070",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32070.json",
+            "raw_sha256": "10a4473348d4c8f46995dc46a85226199b1f359e6372d52091a7fcf46017533c",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32071",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32071.json",
+            "raw_sha256": "5a1a3a89c4710abd3f9a5d1b53553d1ce43e7ba8c9c1240b2df26b4f9da39c78",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32072",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32072.json",
+            "raw_sha256": "95bc48d55acddc3747c357a382b4649d35f66f5da38e3221098c2dec90edc94f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32073",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32073.json",
+            "raw_sha256": "22c13063f833abbda03acd0da05da6df9e07d281e8bfed5f83fb7dc25c057f79",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32074",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32074.json",
+            "raw_sha256": "d906a113f077bc1149aaac3a70e89d35daac2fc055b9b94fef5dccb57771ae4d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32075",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32075.json",
+            "raw_sha256": "ac9fab26bd398c2cc0410abc94ce5bf02676760927b11e0ba7f81f80de70268a",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32076",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32076.json",
+            "raw_sha256": "78f4356aa2f8a3d6907c62503ca7eda1af8451c4449241855cfabf94e3c2897c",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32077",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32077.json",
+            "raw_sha256": "90a90b6520b6635eee7f4202744a78db9e69987e59aff7e5a0fb282c4e1b4dca",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32078",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32078.json",
+            "raw_sha256": "df7390caae537db4ef5a5128d69b9746005f21817ec43b2cb86dbbf98ae044db",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32079",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32079.json",
+            "raw_sha256": "864297c8822234ba45a20174b4ce88445d398608971d1b6cb2747d374f41f079",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32080",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32080.json",
+            "raw_sha256": "08389faaf0723ea607e0dd9658319ba6fd3164700d0c7f9616873122afa24901",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32081",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32081.json",
+            "raw_sha256": "f814c6a8d49f396ef08b296fd3caa33f8c099481010bacca94df62c7081ebc10",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32082",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32082.json",
+            "raw_sha256": "837e7ceda77c05c184f693d13e8d5f971f126dc71d5fa9a9ee06c3cf79f8a8bb",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32083",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32083.json",
+            "raw_sha256": "ce646a40f9d128fbf41d06d0fb902700dc1a52599166c9ad6618297b29f85b3d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32084",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32084.json",
+            "raw_sha256": "6f2d7d41806adcee12294439883fb75978618810e55a53b3b696cd94f9f198f7",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32085",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32085.json",
+            "raw_sha256": "f842bf0c1dbd99e24e5a3f9d70c203b0bf9e923fd9efe451b270b823ccfd2579",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32086",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32086.json",
+            "raw_sha256": "724fd058efc4924d0659cfc570382f0affa5d449c65ce302ca9c0455992b8072",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32087",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32087.json",
+            "raw_sha256": "3d848f65d49321144f9d404f46ea0377e8b7be5d5e18e7353bf5ab6c3c186657",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32088",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32088.json",
+            "raw_sha256": "73a0c90997bb5f016527beedc9e10aad6e59fa87288be8c1f95d3344b15b3507",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32089",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32089.json",
+            "raw_sha256": "12c5639209bd3cf574969ef1c90e771bb001697ac4782672f2c41b07fecd6e38",
+            "revision": 3
+          }
+        ],
+        "aggregate": "f122983405b5cfeb689f12ae3088bfda61b0d1d7f5f6aada6ec3479197729351",
+        "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
+        "baseline_proof": "Independent native Git baseline reads preserve original normative payload and unmentioned keys",
+        "source_proof": "Exact captured parameter fields/flags/source hashes, direct perAC cases/current52HBR/planned NOT_IMPLEMENTED library selectors reconciled",
+        "host_binding_proof": "Actual MT36204 qualified original AC coverage and matching primary/nested host maps; no host runtime proof",
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+      },
+      {
+        "cohort_id": "COMPOSITE-B-006",
+        "state": "PREPARED_FROZEN_NONEXECUTION",
+        "rows": [
+          {
+            "mt_id": "MT-32090",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32090.json",
+            "raw_sha256": "d671d46d14799225cbb72c9086ac7e3bc7083e621e094f6cfc76918ea1d7ee8c",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32091",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32091.json",
+            "raw_sha256": "c05b5185a422be6e246a202c8b99ddc6e084b98d8b4cb85a0f1ce70222a7d776",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32092",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32092.json",
+            "raw_sha256": "367d33af509c51f5ffa2311a4acba54236e4eb0f36032ded9dbff9d049bff4e3",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32093",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32093.json",
+            "raw_sha256": "f23a89c6fff67e9693aace464a426b864bff18d57cace94ed3dffe14b3199a49",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32094",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32094.json",
+            "raw_sha256": "a23b69b04df2d9e34c12a84596be98b04ac507ce2b731bb9472e278cea28d35c",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32095",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32095.json",
+            "raw_sha256": "a7352015c003697282119744c694ff5c06be412ad69c1dc822426186c3d00ff0",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32096",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32096.json",
+            "raw_sha256": "cfb1dd83abada5057c2554b19cd385641587a720cacd731a319dbfa0d371f574",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32097",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32097.json",
+            "raw_sha256": "560996830cccee87d17def0969985d9835cf8db9e3956761019657e9bab8dff0",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32098",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32098.json",
+            "raw_sha256": "30ceb4edf825ca8e86c237d425b76239043051eeb2d5c7fbe21651fe1831291f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32099",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32099.json",
+            "raw_sha256": "6689a081373f30d3a97a526737f9017349602d47ee9668c9477adaf5f66141b1",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32100",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32100.json",
+            "raw_sha256": "8f139ebace488e85c6764d2d543b7ac74aa091deffe069320a93f1fec20e911f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32101",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32101.json",
+            "raw_sha256": "d8aca4911aa7aa92812e7775983fefabb50c7633ec8f09d4d8904dfdb91aae6b",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32102",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32102.json",
+            "raw_sha256": "ed5032d527d973123f5ee225e9d81b4c4f70773a2d3da8e55293c21756a609b6",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32103",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32103.json",
+            "raw_sha256": "5a51414a1923f3f11815f50ff0942bfe80ca8e8f40a6c151b6d00fdd892c74af",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32104",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32104.json",
+            "raw_sha256": "12c034713f789ab84a5558a83259be6c7b426929d86d1fc5b7fcbc7daefdbd19",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32105",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32105.json",
+            "raw_sha256": "2f7fea2bf7f425c0bdef977c6b884ec91bf6e599155baddc4fdf0d9465546d2b",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32106",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32106.json",
+            "raw_sha256": "ac13b247678910c9fecc893e5be28428540570f8b75f31e29efddd4322b7bcba",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32107",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32107.json",
+            "raw_sha256": "85ca15b7ea79b3a3f82c9f85bd48670dc635d745b55a2ef91bc17e524f01aa5f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32108",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32108.json",
+            "raw_sha256": "6452d3cb1903fbd692f38e40193acb12ec35fb07d2194a1c42a124d2e66e94c0",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32109",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32109.json",
+            "raw_sha256": "ecf1c31b71074f020ced520959676cfd961cdbdfe8e5f28cbd3f3b713014092d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32110",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32110.json",
+            "raw_sha256": "4777bc7c6704eb7bb9058dc1a1032b996d104fbefac0340bce8bf00fd037cdac",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32111",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32111.json",
+            "raw_sha256": "c319f87914acc3a1b99fbac5935250b22552fa6b660b6ca8b3a1cb0067ce3db3",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32112",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32112.json",
+            "raw_sha256": "2e562bbba907edf6b73909dbee029696e36509a19d8eb88b1cb5a3f805eb9e20",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32113",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32113.json",
+            "raw_sha256": "577040587814bc60526ac65035507feb4fd5be40fb1dee414cefc8f5f6de5285",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32114",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32114.json",
+            "raw_sha256": "0939259bd6c168a1dbe25e4b21e2719a0f3f127322641fea22510916643d506f",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32115",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32115.json",
+            "raw_sha256": "7f3b62357dcece87206c18d145ca9df79def37afbe3f2467cb0da1227af45088",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32116",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32116.json",
+            "raw_sha256": "332550dccde5862866e02c9f6ade890e0672d5d98074b759aee77f5cebdd1153",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32117",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32117.json",
+            "raw_sha256": "80937a42d213f24574fd115be74a44eac86fb2c998c52744a7de49818bcba066",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32118",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32118.json",
+            "raw_sha256": "f776ae9eb2917a1e1e361fb05db1f753036de244aa0076305430cbcd556f7daa",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32119",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32119.json",
+            "raw_sha256": "b6b09c3c334136aac2179f92c402e2e612cdfc73b5a47d45b0dfff5dd2f4c64d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32120",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32120.json",
+            "raw_sha256": "f20dd44c17480f5c432d283f75e4339054efe2c289021e9d45fe09a81194612d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32121",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32121.json",
+            "raw_sha256": "12993b5dd0551078d0d834978e2e557e8e6580c969f0a1d091d578f19e9a5bc0",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32122",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32122.json",
+            "raw_sha256": "e5e8ea9cce7801fee8bb38f6503e4cf5165b280fe0c611326c24b89a64f8add6",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32123",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32123.json",
+            "raw_sha256": "8594ad8fed3887c2737ac4764f115d0f089137a66f220b622f8c312fa2662ab5",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32124",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32124.json",
+            "raw_sha256": "8cd24399d5cc47d922392c6566561d87b00b7d3c327e04a6e98f2c077185265a",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32125",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32125.json",
+            "raw_sha256": "8f077260f6b53d110f2c430bd399e40af25f2a23e57c0c093b9eff013ca65d92",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32126",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32126.json",
+            "raw_sha256": "6bff76d31d065f835cfc8b8a3099dc2b7ff90c57a846708741ec66c5bcd96b53",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32127",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32127.json",
+            "raw_sha256": "a68979c1650b8fe242f9355ea75f749bc5d4c726539be6143a0898d6962198e4",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32128",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32128.json",
+            "raw_sha256": "079ceb9e4bfe8c757f450e99982b428e0284dc48dc3dda4e31e418abe0c9f599",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32129",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32129.json",
+            "raw_sha256": "0bbcf76bbebf47ea29c14b70dabc0319c8e7a2d030c3b969b21f41eab5253544",
+            "revision": 3
+          }
+        ],
+        "aggregate": "1c1f68ace36e0b07849430873cc6d76a0702f2c962e362ab7c9945b503773078",
+        "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
+        "baseline_proof": "Independent native Git baseline reads preserve original normative payload and unmentioned keys",
+        "source_proof": "Exact captured parameter fields/flags/source hashes, direct perAC cases/current52HBR/planned NOT_IMPLEMENTED library selectors reconciled",
+        "host_binding_proof": "Actual MT36204 qualified original AC coverage and matching primary/nested host maps; no host runtime proof",
+        "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
+      },
+      {
+        "cohort_id": "COMPOSITE-B-007",
+        "state": "PREPARED_FROZEN_NONEXECUTION",
+        "rows": [
+          {
+            "mt_id": "MT-32130",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32130.json",
+            "raw_sha256": "605142969bc7e8840197f0447a3add21d81dd6980cc3f5d46f2f5c77997e5905",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32131",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32131.json",
+            "raw_sha256": "5f250527ab16fb5e2e89c720a02894ad46d6e30df69556d9a87cd8f6647d9487",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32132",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32132.json",
+            "raw_sha256": "ab39f9491bd20fbabf0cbf3d9d309b93fd2b03e1567fc04d9af78b9274d2f77d",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32133",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32133.json",
+            "raw_sha256": "5ecbac04ee875b9edc3673ba5c445640666858e01c8f24cae4f27ce84c06f65e",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32134",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32134.json",
+            "raw_sha256": "ebbb981953c78a8e86cacb3a38e690f3cf511325886f7730914c61f7e706c618",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32135",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32135.json",
+            "raw_sha256": "74a4e9d33c5b159c1cf8c8001192f62c7c3b449e07d938484791ca492353c554",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32136",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32136.json",
+            "raw_sha256": "2af348f83e6a5dee545c38ef5df46e228ebe91f77fefc42f35654f539491e51a",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32137",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32137.json",
+            "raw_sha256": "92816ac146c850cbef1ec6644802eb090cf4b542bdd63f8a787db63e54f215a8",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32138",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32138.json",
+            "raw_sha256": "1e65134f458a6a44f2dfdaaf92fc89816c13cea8d2cc0f02f9398c49fcc2974e",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32139",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32139.json",
+            "raw_sha256": "745f4724d0dc3b007bcc05a6d637f64a1806c412ac24b3a532ac2240c51159cb",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32140",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32140.json",
+            "raw_sha256": "005c23bce8532b454ca042c6e842c1faf5b5a6c831d615c78f6e6dcba128b133",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32141",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32141.json",
+            "raw_sha256": "1b47de92cf369c0aa1721050ea909d3c42220e0b95cdc6d5b7e4d2f35a5936d0",
+            "revision": 4
+          },
+          {
+            "mt_id": "MT-32142",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32142.json",
+            "raw_sha256": "2cb345dffb325cddda1c82ead028e8e45a1ca1cb10693ae166c8d56848c9dc14",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32143",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32143.json",
+            "raw_sha256": "98a33aaa8541aae2b672ab0eac92ea4bec2c7a4627a4dd1dc91028431ab9e183",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32144",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32144.json",
+            "raw_sha256": "89541b04097a7ff991d82845ac59d4525e89d32de045a6f6bd9078daf9ad4952",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32145",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32145.json",
+            "raw_sha256": "12215e63f8d7854faa00c3bee70b1f19f3cc0769bfbd86dddfb2b70c43dc2289",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32146",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32146.json",
+            "raw_sha256": "0180619c47a579d1bf34e9c0445d0c4b7ce7c6fad4d4ba20d27d2e46e38e6e3a",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32147",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32147.json",
+            "raw_sha256": "efd9766888dc6162fe6184d1c921eff8a77efa6ee905b0dd1befb6e1129401e3",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32148",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32148.json",
+            "raw_sha256": "429e7e3585340da9af741a57b7db16bc41e2d2577276e54d7d81f715f8d22fb2",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32149",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32149.json",
+            "raw_sha256": "005f98fc2912b0479d5cae4374aac8516d27c4810c96b05302e3bc10f752dd10",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32150",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32150.json",
+            "raw_sha256": "8c6ee9da0f3bcd25385ef8e031598e7bddb01489dbeb0b92aca4628031d98bce",
+            "revision": 3
+          },
+          {
+            "mt_id": "MT-32151",
+            "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32151.json",
+            "raw_sha256": "c8c154cfcbcef57a16f9164ef11ec363b9f281c9bf53355bfc490ec6f6574d03",
+            "revision": 3
+          }
+        ],
+        "aggregate": "8a3308f69180b4f62ea26b9bd076f59df8a0bed63eeecfa40827c3f959acb47d",
+        "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF",
+        "baseline_proof": "Independent native Git baseline reads preserve original normative payload and unmentioned keys",
+        "source_proof": "Exact recovered regular/style fields and89 style rows, null uncaptured flags, sparse enums, current52HBR, six global-light cases including secondcomposition isolation reconciled",
+        "host_binding_proof": "Actual MT36204 qualified original AC coverage and matching primary/nested host maps; no host runtime proof",
         "proof_extent": "Preparation only; actual provider outputs/pixel/parity/native proof and canonical source publication/distinct host adoption PENDING"
       }
     ],
@@ -3439,8 +4107,49 @@
       "outgoing_reservation_ack": true,
       "incoming_reservation_ack": true,
       "A425_freeze_confirmed": true,
-      "state": "PENDING_COORDINATOR_CANONICAL_PUBLICATION_NO_WRITE_GRANT",
-      "semantic_ownership_unchanged": true
+      "state": "GRANTED_AFTER_CANONICAL_PUBLICATION_ACK",
+      "semantic_ownership_unchanged": true,
+      "publication_ack_commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+      "grant_scope": "Exact original B rows[222:396]; original396 array/snapshot and semantic owner retained"
+    },
+    "full_B_prefix_freeze": {
+      "count": 222,
+      "aggregate": "48a96b8855117aa78180ef2bb956cb0b542c5c985b75f558e8e9c45c8beae1e4",
+      "state": "FROZEN_SOURCE_PREPARATION_ONLY",
+      "hash_encoding": "sorted mt_id SPACE raw_sha256 LF; UTF8 final LF"
+    },
+    "current_writer_distribution": {
+      "A": {
+        "writer": "/root/score_authoring",
+        "start": 0,
+        "stop": 425,
+        "count": 425
+      },
+      "B": [
+        {
+          "writer": "/root/motion_authoring",
+          "start": 0,
+          "stop": 222,
+          "count": 222
+        },
+        {
+          "writer": "/root/score_authoring",
+          "start": 222,
+          "stop": 396,
+          "count": 174
+        }
+      ]
+    },
+    "known_source_gaps": {
+      "style_global_light": "Captured Outer/Inner Glow tables lack prose-declared global/local binding keys; SOURCE_STYLE_GLOBAL_LIGHT_BINDING_UNAVAILABLE; no invented keys",
+      "proof_readiness": "Provider algorithms/positive pixel oracles/native/parity and actual release/host proof remain PENDING"
+    },
+    "preparation_gate": {
+      "role": "kernel_builder",
+      "moment": "before_submit",
+      "observed": "PASS25/25",
+      "commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
+      "runtime_execution": false
     }
   },
   "scope": {

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 41
+generation: 46
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -61,3 +61,8 @@ steps:
 - {id: GP-045, role: builder, at: before_submit, do: require explicit intended task ID in scoped generator diff calls, check: {type: confirm}, source: 'infra: broad generator replacement31327 to11327 failed before patch; no file changed', state: active}
 - {id: GP-046, role: builder, at: before_submit, do: require scoped patch hunks in source-position order and full verification before apply, check: {type: confirm}, source: 'infra:30318 forward hunk search failed; proposed order verb refused, normalized to require', state: active}
 - {id: GP-047, role: builder, at: before_submit, do: verify HBR assessment container type before list or mapping operations, check: {type: confirm}, source: 'infra: companion HBR obligations list inspected as mapping; read-only shape query failed', state: active}
+- {id: GP-048, role: builder, at: before_submit, do: verify controller command against supported CLI before resume actions, check: {type: confirm}, source: 'infra: unsupported gameplan resume subcommand exit1; use show confirmations check', state: active}
+- {id: GP-049, role: builder, at: before_submit, do: verify every historical contract and registry provenance ref against exact native Git objects, check: {type: confirm}, source: 'infra:36113/36186 nonexistent baseline split paths plus1.15 label with current registry hash', state: active}
+- {id: GP-050, role: builder, at: before_submit, do: compare primary and nested semantic acceptance host bindings against qualified canonical host map, check: {type: confirm}, source: 'infra:52Nib nested semantic maps kept synthetic kernel refs after primary genuine host update', state: active}
+- {id: GP-051, role: builder, at: before_submit, do: require successful controller exit before every dependent PowerShell metadata mutation, check: {type: confirm}, source: 'infra: report327 write continued after rejected note and GP050 FAIL without PowerShell exit guard', state: active}
+- {id: GP-052, role: builder, at: before_submit, do: verify actual asset proof recipe keys before updates and preserve its existing typed shape, check: {type: confirm}, source: 'infra:35571 generator assumed consumer_assertion key; intact target, recipe shape differs', state: active}
