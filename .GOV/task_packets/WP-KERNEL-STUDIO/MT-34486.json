@@ -113,7 +113,14 @@
     "HBR-COMPART-001",
     "HBR-COMPART-002",
     "HBR-COMPONENT-001",
-    "HBR-COMPONENT-002"
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
   ],
   "validator_focus": [
     "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
@@ -130,7 +137,7 @@
     "title": "Reason codes (normative, closed)",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -139,6 +146,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/18/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-SHL-051",
@@ -171,7 +181,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -186,6 +196,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
@@ -197,7 +208,7 @@
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -212,6 +223,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "cross_boundary_default_deny_negative_suite",
@@ -223,7 +235,7 @@
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -238,6 +250,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "same_project_and_cross_project_isolation_test",
@@ -249,7 +262,7 @@
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -264,6 +277,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "mixed_scope_derivation_non_widening_test",
@@ -275,7 +289,7 @@
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -290,6 +304,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
@@ -301,7 +316,7 @@
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -316,6 +331,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "concurrent_revocation_and_context_switch_test",
@@ -327,7 +343,7 @@
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -342,6 +358,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "remote_delegation_and_sync_scope_test",
@@ -353,7 +370,7 @@
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -368,6 +385,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
@@ -379,7 +397,7 @@
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -394,6 +412,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_ledger_replay",
@@ -405,7 +424,7 @@
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -420,6 +439,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_session_trace",
@@ -431,7 +451,7 @@
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -446,6 +466,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
@@ -457,7 +478,7 @@
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -472,6 +493,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_reconnect_and_promotion",
@@ -483,7 +505,7 @@
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -498,6 +520,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_cross_lane_trace_comparison",
@@ -509,7 +532,7 @@
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -524,6 +547,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
@@ -535,7 +559,7 @@
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -550,6 +574,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_trace_projection_replay",
@@ -561,7 +586,7 @@
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -576,6 +601,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
@@ -587,7 +613,7 @@
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -602,6 +628,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
@@ -613,7 +640,7 @@
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -628,6 +655,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "concurrent_session_test_run",
@@ -639,7 +667,7 @@
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -654,6 +682,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "concurrency_primitive_test_run",
@@ -665,7 +694,7 @@
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -680,6 +709,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "parallel_operator_agent_ui_test_run",
@@ -691,7 +721,7 @@
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -706,6 +736,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "typed_routing_test_run",
@@ -717,7 +748,7 @@
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -732,6 +763,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
@@ -743,7 +775,7 @@
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -758,6 +790,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
@@ -769,7 +802,7 @@
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -784,6 +817,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
@@ -795,7 +829,7 @@
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -810,6 +844,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "renderer_console_error_report",
@@ -821,7 +856,7 @@
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
@@ -836,6 +871,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "capture_matrix",
@@ -847,7 +883,7 @@
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -862,6 +898,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "trace_projection_inspection",
@@ -873,7 +910,7 @@
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -888,6 +925,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
@@ -899,7 +937,7 @@
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -914,6 +952,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "headless_run_with_focus_audit",
@@ -925,7 +964,7 @@
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -940,6 +979,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "automation_path_audit",
@@ -951,7 +991,7 @@
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -966,6 +1006,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "process_lifecycle_test_run",
@@ -977,7 +1018,7 @@
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -992,6 +1033,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "foreground_exception_declaration_and_operator_warning",
@@ -1003,7 +1045,7 @@
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1018,6 +1060,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "user_manual_diff_in_same_commit",
@@ -1029,7 +1072,7 @@
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1044,6 +1087,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "no_context_model_operation_test",
@@ -1055,7 +1099,7 @@
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1070,6 +1114,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "manual_self_consistency_test",
@@ -1081,7 +1126,7 @@
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1096,6 +1141,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
@@ -1107,7 +1153,7 @@
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1122,6 +1168,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
@@ -1133,7 +1180,7 @@
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1148,6 +1195,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
@@ -1159,7 +1207,7 @@
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1174,6 +1222,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
@@ -1185,7 +1234,7 @@
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1200,6 +1249,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
@@ -1211,10 +1261,10 @@
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1226,6 +1276,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
@@ -1237,7 +1288,7 @@
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1252,6 +1303,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
@@ -1263,7 +1315,7 @@
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1278,6 +1330,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
@@ -1289,7 +1342,7 @@
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1304,6 +1357,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
@@ -1315,7 +1369,7 @@
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1330,6 +1384,7 @@
         },
         "scope_evidence_refs": [
           "MT-34486#/scope",
+          "MT-34486#/execution",
           "MT-34486#/context_capsule/specification_anchor_refs"
         ],
         "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
@@ -1337,6 +1392,202 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "CONDITIONAL",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "HOST_ADOPTION_PENDING",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Current Controls source-only published capability contribution: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "scope_evidence_refs": [
+          "MT-34486#/scope",
+          "MT-34486#/execution",
+          "MT-34486#/context_capsule/specification_anchor_refs"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-34486/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
       }
     ],
     "runtime_lane_refs": [
@@ -1362,7 +1613,67 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "1b54757e2ef52dc45de5a421df7639fe6f78b3234aac3d1a4345fe244357a77f"
+    "context_digest": "1b54757e2ef52dc45de5a421df7639fe6f78b3234aac3d1a4345fe244357a77f",
+    "prior_pillar_assessment_refs": [
+      {
+        "contract_ref": "CURRENT_UNPUBLISHED_TRANSFER_SNAPSHOT:20d6bce8ec6442611059600fe4c66211f2dcd4050fdf17eb96fd3c2d6ba75b52",
+        "retained_rules": [
+          "HBR-PRIV-001",
+          "HBR-PRIV-002",
+          "HBR-PRIV-003",
+          "HBR-PRIV-004",
+          "HBR-PRIV-005",
+          "HBR-PRIV-006",
+          "HBR-PRIV-007",
+          "HBR-PRIV-008",
+          "HBR-INT-001",
+          "HBR-INT-002",
+          "HBR-INT-003",
+          "HBR-INT-004",
+          "HBR-INT-005",
+          "HBR-INT-006",
+          "HBR-INT-007",
+          "HBR-INT-008",
+          "HBR-INT-009",
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-SWARM-004",
+          "HBR-SWARM-005",
+          "HBR-SWARM-006",
+          "HBR-VIS-001",
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-VIS-004",
+          "HBR-VIS-005",
+          "HBR-QUIET-001",
+          "HBR-QUIET-002",
+          "HBR-QUIET-003",
+          "HBR-QUIET-004",
+          "HBR-MAN-001",
+          "HBR-MAN-002",
+          "HBR-MAN-003",
+          "HBR-MAN-004",
+          "HBR-STOP-001",
+          "HBR-STOP-002",
+          "HBR-STOP-003",
+          "HBR-STOP-004",
+          "HBR-STOP-005",
+          "HBR-COMPART-001",
+          "HBR-COMPART-002",
+          "HBR-COMPONENT-001",
+          "HBR-COMPONENT-002"
+        ]
+      }
+    ],
+    "current_hbr_assessment": {
+      "version": "1.16.0",
+      "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+      "assessed_rule_count": 52,
+      "prior_acceptance_wording_retained": true,
+      "source_capability_ref": "MT-34486#/execution",
+      "host_proof_pending": true
+    }
   },
   "closure_unit": {
     "outcome": "Deliver STUDIO-MODULE-CONTROLS asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
@@ -1389,6 +1700,7 @@
   "execution": {
     "lane": "implementation",
     "module_ref": "STUDIO-MODULE-CONTROLS",
+    "module_change_stage": "standalone_source",
     "build_unit_ref": "STUDIO-MODULE-CONTROLS",
     "write_scope_source": "allowed_write_paths",
     "depends_on": [
@@ -1438,7 +1750,10 @@
         "INDEPENDENT_CONTRACT_REVIEW",
         "STUDIO_ALL_36_FOUNDATIONS_PASSED",
         "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING",
-        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND"
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND",
+        "MODULE_MAINTENANCE_RESOLVED",
+        "CHECKED_IN_HBR_TEST_ENTRYPOINT_AND_PER_TEST_TIMEOUT_CONFIG_BOUND",
+        "CANONICAL_ASSETS_SOURCE_PUBLICATION_BINDING"
       ],
       "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
       "foundation_members": [
@@ -1496,34 +1811,78 @@
     "shared_resource_locks": [],
     "inputs": [
       {
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "planned_source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+        "requirement_refs": [
+          "STU-SHL-051"
+        ],
+        "current_normative_instructions": "**[STU-SHL-051] Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003].",
+        "declared_table_keys": [],
+        "source_fields": [
+          "NO_SUCH_CONTAINER",
+          "WRONG_LAYER_KIND",
+          "DOC_FEATURE_ABSENT",
+          "NEEDS_SELECTION",
+          "WRONG_SELECTION_KIND",
+          "WRONG_COLOR_MODE",
+          "CAPABILITY_NOT_GRANTED",
+          "CAPABILITY_FLAG_ABSENT",
+          "LEASE_HELD_BY_OTHER_ACTOR",
+          "READ_ONLY_DOCUMENT",
+          "EXPRESSION_DRIVEN",
+          "NOT_IMPLEMENTED_YET"
+        ],
+        "feature_selection": "--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only",
+        "activation_bindings": "Immutable actual source/lock/proof, existing actor/session and resolved physical external artifact root; never fabricated local facts"
+      },
+      {
         "scope": "Current STUDIO-MODULE-CONTROLS asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
         "fulfillment_ref": "MT-34486#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-CONTROLS",
         "immutable_input_and_revision_required": true
+      },
+      {
+        "refinement_mapping": "Existing inputs/steps/proof retained cumulatively; exact source-specific actions below refine generic methods without dropping prior constraints.",
+        "actual_consumer": "Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state.",
+        "source_revision_required": true
       }
     ],
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "Implement Reason codes (normative, closed) availability projection from STU-SHL-051 using source fields NO_SUCH_CONTAINER, WRONG_LAYER_KIND, DOC_FEATURE_ABSENT, NEEDS_SELECTION, WRONG_SELECTION_KIND, WRONG_COLOR_MODE, CAPABILITY_NOT_GRANTED, CAPABILITY_FLAG_ABSENT, LEASE_HELD_BY_OTHER_ACTOR, READ_ONLY_DOCUMENT, EXPRESSION_DRIVEN, NOT_IMPLEMENTED_YET; the menu retains stable rendered nodes in available/inapplicable/not-in-document states and publishes one typed reason/remedy."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "Drive source-described available and disabled contexts through menu/tooltip/model/inspect consumers and compare identical reason_code/reason_text/remedy_command_id. Source remedies are enabled owner commands, not new privilege or implicit mutation paths."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "Unknown reason, missing enabled remedy, stale grant and cancelled promotion retain prior document/view state; unavailable action rejects before commit. No hidden menu node or source-specific refusal-only fallback; exact source examples are mandatory cases."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "Create planned src/contracts/mt_34486.rs and tests/mt_34486.rs only where a Controls executable contribution is evidenced; otherwise obtain the exact coordinator owner disposition. Select Controls+Accord+Observe+approved egui0.33 headless; no kernel/native/DB/GPU/codec dependency. Implementer compile/static and independent actual consumer proof are distinct. Bind canonical assets remote candidate/lock and actual actor/CX-984 owner root at activation; host parity remains PENDING."
+      },
+      {
+        "n": 5,
+        "step": "Emit exact12closed reason codes,including EXPRESSION_DRIVEN computed value and LEASE_HELD_BY_OTHER_ACTOR from existing parallel lease owner."
+      },
+      {
+        "n": 6,
+        "step": "Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state."
+      },
+      {
+        "n": 7,
+        "step": "Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Implement Reason codes (normative, closed) availability projection from STU-SHL-051 using source fields NO_SUCH_CONTAINER, WRONG_LAYER_KIND, DOC_FEATURE_ABSENT, NEEDS_SELECTION, WRONG_SELECTION_KIND, WRONG_COLOR_MODE, CAPABILITY_NOT_GRANTED, CAPABILITY_FLAG_ABSENT, LEASE_HELD_BY_OTHER_ACTOR, READ_ONLY_DOCUMENT, EXPRESSION_DRIVEN, NOT_IMPLEMENTED_YET; the menu retains stable rendered nodes in available/inapplicable/not-in-document states and publishes one typed reason/remedy.",
+      "Drive source-described available and disabled contexts through menu/tooltip/model/inspect consumers and compare identical reason_code/reason_text/remedy_command_id. Source remedies are enabled owner commands, not new privilege or implicit mutation paths.",
+      "Unknown reason, missing enabled remedy, stale grant and cancelled promotion retain prior document/view state; unavailable action rejects before commit. No hidden menu node or source-specific refusal-only fallback; exact source examples are mandatory cases.",
+      "Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state.",
+      "Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1575,8 +1934,8 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": null,
-        "timeout_seconds": null,
+        "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34486 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-051/ASSET-AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Every full-scope requirement and governing source range",
@@ -1584,20 +1943,25 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003].",
+        "expected": "Actual Reason codes (normative, closed) output obeys Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003].; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003].",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+          "consumer_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003]. Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state.",
+          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
+        },
+        "source_specific_refinement_mapping": {
+          "prior_method_retained": true,
+          "consumer": "Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state.",
+          "negative_path": "Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override."
         }
       }
     ],
@@ -1606,7 +1970,14 @@
       "handshake-studio-assets/crates/hsk-studio-controls/**"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED",
+    "implementer_static_method": {
+      "selected_packages": [
+        "hsk-studio-controls"
+      ],
+      "method": "Compile/static inspect selected locked owner closure only; independent validator executes real source-specific consumer methods.",
+      "whole_host_build_required": false
+    }
   },
   "red_team": {
     "required": true,
@@ -1930,14 +2301,17 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003].",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
+          "consumer_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003]. Drive computed value,foreign actor lease,read-only,missing capability and unsupported feature to actual predicate and inspect source-defined reason text/remedy/state.",
+          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown reason code and lost lease attribution fail proof; no extra reason taxonomy or silent editable computed-value/foreign-lease override.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34486-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
         "later_embedding_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ]
       }
     ],
     "later_kernel": {
@@ -2025,6 +2399,14 @@
           "later_embedding_assertion": "Reason codes (normative, closed).** Exactly twelve members: `NO_SUCH_CONTAINER`, `WRONG_LAYER_KIND`, `DOC_FEATURE_ABSENT`, `NEEDS_SELECTION`, `WRONG_SELECTION_KIND`, `WRONG_COLOR_MODE`, `CAPABILITY_NOT_GRANTED`, `CAPABILITY_FLAG_ABSENT`, `LEASE_HELD_BY_OTHER_ACTOR`, `READ_ONLY_DOCUMENT`, `EXPRESSION_DRIVEN`, `NOT_IMPLEMENTED_YET`. `EXPRESSION_DRIVEN` is the code a value field returns when its value is computed rather than stored; it is the same predicate applied to a value field ([STU-SHL-203]). `LEASE_HELD_BY_OTHER_ACTOR` binds to the parallel-work lease model of [STU-PAR-003]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
+      ],
+      "qualified_acceptance_to_host_adoption_mts": {
+        "MT-34486/ASSET-AC-001": [
+          "MT-36213"
+        ]
+      },
+      "host_adoption_mt_refs": [
+        "MT-36213"
       ]
     },
     "unresolved_source_anchors": [],
