@@ -2319,7 +2319,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30410-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST provide the deduped vector drawing/editing tool set in the table below. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2353,7 +2354,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30410-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Every tool MUST emit its edits as `studio.vector` events through the sandbox -> validation -> promotion lifecycle ([STU-ARC-005]) when model-authored. *Derivation: catalogue table, splits per row; yields 17 microtasks, one per Studio tool. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

@@ -2426,7 +2426,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30517-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `Layout-suite arrowhead enumeration (12)` with the exact meaning the spec states: `arrow.none`, `arrow.simple`, `arrow.simple_wide`, `arrow.triangle`, `arrow.triangle_wide`, `arrow.barbed`, `arrow.curved`, `arrow.circle`, `arrow.circle_solid`, `arrow.square`, `arrow.square_solid`, `arrow.bar`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2460,7 +2461,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30517-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `Collaborative-suite stroke-cap-as-marker enumeration (8)` with the exact meaning the spec states: `NONE`, `ROUND`, `SQUARE`, `ARROW_LINES`, `ARROW_EQUILATERAL`, `TRIANGLE_FILLED`, `DIAMOND_FILLED`, `CIRCLE_FILLED`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2494,7 +2496,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30517-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `Connector-specific extension (12)` with the exact meaning the spec states: adds the six entity-relationship terminators `ERD_ONE`, `ERD_MANY`, `ERD_ONE_OR_MORE`, `ERD_ZERO_OR_MORE`, `ERD_ZERO_OR_ONE`, `ERD_EXACTLY_ONE`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

@@ -2652,7 +2652,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30388-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `anchor_selection.none` with the exact meaning the spec states: `1`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2686,7 +2687,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30388-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `anchor_selection.anchor` with the exact meaning the spec states: `2`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2720,7 +2722,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30388-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `anchor_selection.in_handle` with the exact meaning the spec states: `3`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2754,7 +2757,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30388-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `anchor_selection.out_handle` with the exact meaning the spec states: `4`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2788,7 +2792,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30388-KERNEL-AC-005",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `anchor_selection.both_handles` with the exact meaning the spec states: `5`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

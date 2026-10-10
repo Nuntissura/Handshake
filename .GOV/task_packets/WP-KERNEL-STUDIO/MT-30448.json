@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30448-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Document cleanup contract.** Studio MUST provide a document-scoped cleanup command whose captured scope is exactly three independent boolean targets, each of which MUST be separately selectable and separately reported in the result receipt: `stray_points` (isolated anchors with no segment), `unpainted_objects` (objects with neither fill nor stroke), `empty_text_paths` (text frames with no content). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30448-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Cleanup MUST be one history entry ([STU-VEC-073]) and MUST report counts per target so a model can verify the effect without re-scanning the document. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

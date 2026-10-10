@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30514-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Per [STU-VEC-105] Studio stores an UNBOUNDED array and MUST present at least three pairs in the default control. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30514-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Additional captured dash controls that Studio MUST carry: `dash_cap` (drawn from [STU-VEC-143]), a corner-adjustment enumeration with captured members `adjust.none`, `adjust.dashes`, `adjust.gaps`, `adjust.dashes_and_gaps`, and a `gap_colour` plus `gap_tint` pair so a dash gap can be painted rather than transparent. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

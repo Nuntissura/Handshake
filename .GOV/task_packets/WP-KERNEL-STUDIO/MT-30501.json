@@ -2202,7 +2202,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30501-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The colour entry surface for any fill or stroke MUST accept HEX, RGB, HSL/HSB, CMYK and Lab input under an explicit `StudioColorProfile` ([STU-DOC-003]), provide an eyedropper that samples anywhere on the canvas including rendered images and gradients, support out-of-gamut warnings, and support global swatches (edit-updates-all-uses) and spot swatches with tint and Lab definitions. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

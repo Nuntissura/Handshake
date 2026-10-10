@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30480-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The shape-builder tool ([STU-VEC-007]) MUST be defined as an interactive front-end over the same `VectorEngine` boolean core used by the explicit geometry operations ([STU-VEC-130]); merge gestures MUST resolve to `geom.union` and extract gestures to `geom.subtract_front`/`geom.divide`, so gestural and command-driven geometry share one deterministic implementation and one result contract. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

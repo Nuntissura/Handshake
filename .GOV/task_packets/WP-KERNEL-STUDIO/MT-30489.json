@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30489-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The captured control is a two-member popup whose members are NOT `perceptual` and `linear`: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Studio member | Captured value | Meaning | |---|---|---| | `gradient_interpolation.classic` | `0` | The legacy component-space ramp. | | `gradient_interpolation.perceptual` | `1` | Perceptually uniform ramp. | `dither` is a separate captured boolean with default `false`, and MUST be modelled as an independent field, not as a third interpolation member. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30489-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST expose all three controls separately. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

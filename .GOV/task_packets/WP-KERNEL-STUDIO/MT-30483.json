@@ -2539,7 +2539,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30483-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The vector suite's colour-kind enumeration carries integer values that Studio MUST preserve at the interchange boundary: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2573,7 +2574,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30483-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Studio member | Captured value | Meaning | |---|---|---| | `paint.none` | `0` | No paint. | | `paint.process_cmyk` | `1` | Process CMYK component colour. | | `paint.gray` | `2` | Single-channel grey. | | `paint.rgb` | `3` | RGB component colour. | | `paint.spot` | `4` | Named spot colour with tint ([STU-VEC-141]). | | `paint.pattern` | `5` | Tiled pattern ([STU-VEC-138]). | | `paint.gradient` | `6` | Gradien [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2607,7 +2609,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30483-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "`paint.video` is an animated fill. v02.205 [STU-VEC-018] stated that \"video/animated fills are an optional playback concern and MUST NOT be a required vector feature\". Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2641,7 +2644,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30483-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "That statement is RETAINED as a vector-domain scope edge: `paint.video` MUST be representable and MUST round-trip, but rendering its playback is owned by the motion/video domain, not by 14.5. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

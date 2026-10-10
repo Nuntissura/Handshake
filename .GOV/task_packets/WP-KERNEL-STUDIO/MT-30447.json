@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30447-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST implement this predicate set and MUST expose it as a typed query object: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Predicate | Included by default | |---|---| | `fill_colour` | `true` | | `stroke_colour` | `false` | | `stroke_weight` | `false` | | `opacity` | `false` | | `blend_mode` | `false` | A tolerance parameter governs colour matching; its bounds, unit and default are UNKNOWN in the capture and MUST be declared as a spec gap. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30447-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "'s wider \"select same\" list (graphic style, shape kind, symbol/component instance) is preserved and is a Studio superset of the captured five; those three additional predicates MUST default to `false`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

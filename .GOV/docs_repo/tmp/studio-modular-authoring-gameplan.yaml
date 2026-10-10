@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 52
+generation: 58
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -72,3 +72,7 @@ steps:
 - {id: GP-056, role: builder, at: before_submit, do: verify exact frozen report field names before selecting owner-declared row lists, check: {type: confirm}, source: 'coordinator: shorthand additional_first100_files lookup failed; actual key prefix requires inspection', state: active}
 - {id: GP-057, role: builder, at: before_submit, do: verify intended transient generator binding before storage and reject stray undefined identifiers, check: {type: confirm}, source: 'Shared writer: stray JS assert assignment raised ReferenceError before generator storage or mutation', state: active}
 - {id: GP-058, role: builder, at: before_submit, do: verify next source file from canonical allocation rows instead of assuming contiguous numeric IDs, check: {type: confirm}, source: 'Visual writer:30374..30377 NOT_FOUND after last Develop30373; no mutation, allocation lookup required', state: active}
+- {id: GP-059, role: builder, at: before_submit, do: verify language-boundary delimiters and literal source boundaries before transient extraction, check: {type: confirm}, source: 'infra: Web regex backticks broke JS parse; root overescaped frontmatter regex matched no boundary', state: retired}
+- {id: GP-060, role: any, at: before_submit, do: verify language-boundary delimiters and literal source boundaries before transient extraction, check: {type: confirm}, source: 'infra: Web regex backticks broke JS parse; root overescaped frontmatter regex matched no boundary', state: active}
+- {id: GP-061, role: builder, at: before_submit, do: compare immutable payload text with canonical native Unicode before accepting owner preservation, check: {type: confirm}, source: 'infra: Visual23 preserved payloads differed; MT129 native emdash became mojibake in scope summary', state: retired}
+- {id: GP-062, role: builder, at: before_submit, do: compare copied spec whitespace with native preserved bytes before changed-file whitespace checks, check: {type: confirm}, source: 'infra: broad diff-check flagged inherited spec archive whitespace; immutable native copies must stay byte exact', state: active}

@@ -2322,7 +2322,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30382-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST provide exactly two canonical vector geometry primitives, and every vector tool, shape, boolean result, brush spine, and import target MUST resolve to one of them: `StudioVectorPath` (schema id `hsk.studio.vector_path@1`), an ordered sequence of anchors forming one open or closed contour; and `StudioVectorNetwork` (schema id `hsk.studio.vector_network@1`), a graph of anchors joined by first-class selectable edges where any anchor MAY join three or more edges and enclosed regions MAY exist without a single closed contour. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2356,7 +2357,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30382-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "A `StudioVectorPath` MUST be losslessly promotable to a `StudioVectorNetwork`; the reverse conversion is lossy and MUST be an explicit flatten/simplify operation, never implicit. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

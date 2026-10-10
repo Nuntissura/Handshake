@@ -2426,7 +2426,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30504-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Spot and swatch library contract.** Studio MUST ship a swatch/colour system whose captured shipped inventory is: 118 swatch library files holding 3,155 named swatch entries plus 10,011 colour-book colours across 14 binary colour books and 6 legacy XML colour books, and 659 gradient entries and 382 pattern entries carried inside those same libraries. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2460,7 +2461,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30504-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio's normative requirement is NOT to ship those specific colour books -- their contents are third-party licensed data -- but to implement the CONTRACT they demonstrate: a swatch library is a named, importable, exportable container of typed swatch entries; a colour book is a read-only container of named spot colours carrying raw component values plus a declared colour space; a swatch group is an ordered named subset of a library; and a swatch entry's kind is one of the captured kinds above and MUST be carried explicitly rather than inferred from the value shape. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2494,7 +2496,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30504-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Colour-book components are captured as RAW BYTES that were not scaled to a colour space; an importer MUST therefore require an explicit space declaration and MUST NOT guess. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

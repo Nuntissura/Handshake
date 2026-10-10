@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30429-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The node-select tool MUST expose, for the current selection, the anchor mirroring mode ([STU-VEC-109]), the per-anchor corner spec ([STU-VEC-112]), the anchor selection state ([STU-VEC-116]) and the region fill state ([STU-VEC-110]) as directly editable typed values, so a no-context model can read and set every geometry attribute without pixel-picking. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

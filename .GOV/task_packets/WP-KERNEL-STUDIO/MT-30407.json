@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30407-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "These are HARD bounds: an operation whose result exceeds them MUST fail closed with a dimension error rather than truncate. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `item_width` | 0.0 | 16348.0 | unknown | unknown | unknown | `pt` | unknown | | `item_height` | 0.0 | 16348.0 | unknown | unknown | unknown | `pt` | unknown | | `item_opacity` | 0.0 | 100.0 | unknown | unknown | 100.0 | `percen [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30407-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Per [STU-VEC-105] both are recorded: the normative Studio hard maximum for a STORED item dimension is 16348 `pt`; the 16384 figure applies only to the transform-entry field of [STU-VEC-157], which MUST validate against the item bound after unit conversion and MUST reject the gap rather than store an over-size item. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

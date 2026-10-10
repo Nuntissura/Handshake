@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30400-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST provide the non-destructive path-topology operations below as first-class commands, each available to both the operator UI and the model command surface as the identical typed contract per [STU-DOC-004]: offset path (numeric inset/outset copy with join-style handling of corners), simplify (anchor-count reduction at an adjustable strength while approximating the source curve), outline stroke (convert a stroked path to filled geometry matching weight, align, caps, joins, and dashes), and join / average (join selected open endpoints and average anchor positions on one or both axes). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

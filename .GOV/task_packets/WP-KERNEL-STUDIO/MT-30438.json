@@ -2177,7 +2177,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30438-KERNEL-ASSET-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Vector-eraser tool option contract.** The eraser nib is the same three-parameter nib as the blob brush, with different captured defaults: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `angle` | unknown | unknown | unknown | unknown | 0 | `deg` | 0 | | `roundness` | unknown | unknown | unknown | unknown | 100 | `percent` | 0 | | `size` | unknown | unknown | unknown | unknown | 0 | `ruler_unit` | 1 | Each parameter carries a dynamics selector from [STU-VEC-150]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

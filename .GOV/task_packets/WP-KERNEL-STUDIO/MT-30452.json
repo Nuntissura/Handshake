@@ -3924,7 +3924,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Rectangle` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0.0, hard_max=16348.0, soft_min=unknown, soft_max=unknown, default=unknown, unit=`pt`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3958,7 +3959,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Rectangle` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=see [STU-VEC-112], hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=UNKNOWN, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3992,7 +3994,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Ellipse / arc` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`deg`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4026,7 +4029,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Ellipse / arc` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`ratio`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4060,7 +4064,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-005",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Polygon` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=3, hard_max=20 (vector-suite capture) / 100 (layout-suite capture), soft_min=3, soft_max=20, default=unknown, unit=`count`, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4094,7 +4099,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-006",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Polygon` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=unknown, soft_max=unknown, default=unknown, unit=`percent`, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4128,7 +4134,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-007",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Star` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=3, hard_max=50, soft_min=3, soft_max=50, default=unknown, unit=`count`, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4162,7 +4169,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-008",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Star` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`ratio`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4196,7 +4204,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-009",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Line / segment` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`document_unit`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4230,7 +4239,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-010",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Line / segment` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`deg`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4264,7 +4274,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-011",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Arc segment` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=-100, soft_max=100, default=0, unit=`percent`, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4298,7 +4309,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-012",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Rectangular grid` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=-500, soft_max=500, default=0, unit=`percent`, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4332,7 +4344,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-013",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Polar grid` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=-500, soft_max=500, default=0, unit=`percent`, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -4366,7 +4379,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30452-KERNEL-AC-014",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `Spiral` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`count`, `percent`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30441-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Shape-builder and region-merge option contract.** The gesture front-end of [STU-VEC-050] carries captured gap handling that MUST be exposed as typed state: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Option | Kind | Members / bounds | default | |---|---|---|---| | `gap_detection` | boolean | -- | UNKNOWN (captured without a default) | | `gap_length` | enumeration | `gap.small = 0`, `gap.medium = 1`, `gap.large = 2`, `gap.custom = 3` | UNKNOWN | | `treat_open_filled_path_as_closed` | boolean | -- | UNKNOWN | | `click_stroke_split [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

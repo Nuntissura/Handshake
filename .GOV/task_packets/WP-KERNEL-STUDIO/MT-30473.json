@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30473-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Geometry-operation option contract.** Three captured options govern every operation in [STU-VEC-130] and MUST be exposed as persisted, model-settable state, not hidden constants: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Option | Kind | Bounds / members | default | |---|---|---|---| | `precision` | numeric | hard_min unknown, hard_max unknown, soft_min unknown, soft_max unknown, unit `pt`, precision unknown | unknown | | `remove_redundant_points` | boolean | -- | unknown | | `divide_and_outline_remove_unpainted` | boolean | -- [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30473-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "It is the coordinate-snapping tolerance the boolean core uses; a model MUST be able to read it, because two runs at different precisions produce different geometry and [STU-VEC-049] requires byte-identical repeatability only at a fixed precision. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

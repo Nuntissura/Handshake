@@ -2177,7 +2177,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30436-KERNEL-ASSET-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Blob-brush tool option contract.** The blob brush is a filled-geometry painter, not a stroke tool; its nib parameters are the calligraphic nib of [STU-VEC-152]. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `fidelity` | unknown | unknown | 0 | 4 | unknown | `count` | unknown | | `size` | unknown | unknown | unknown | unknown | 1 | `ruler_unit` | 1 | | `angle` | unknown | unknown | unknown | unknown | 0 | `deg` | 0 | | `roundness` | unknown | unknown | unknown | unknown | 100 | `percent` | 0 | Booleans: `keep_selected` (default `false`), `merge_only_with_selection` (default `false`). Each of `size`, `angle` and `roundness` additionally carries a dynamics selector drawn from [STU-VEC-150]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

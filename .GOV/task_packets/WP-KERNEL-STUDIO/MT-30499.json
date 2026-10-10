@@ -2498,7 +2498,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30499-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `image_rotation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`deg`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2532,7 +2533,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30499-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `image_scaling_factor` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`ratio`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2566,7 +2568,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30499-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The parameter `image_opacity` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=`percent`, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

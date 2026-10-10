@@ -2544,6 +2544,7 @@
           }
         ],
         "asset_proof_recipe": {
+          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "selected_packages": [
             "hsk-studio-layout"
           ],
@@ -2584,6 +2585,7 @@
           }
         ],
         "asset_proof_recipe": {
+          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "selected_packages": [
             "hsk-studio-layout"
           ],
@@ -2624,6 +2626,7 @@
           }
         ],
         "asset_proof_recipe": {
+          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
           "selected_packages": [
             "hsk-studio-layout"
           ],
@@ -2744,6 +2747,7 @@
             }
           ],
           "asset_proof_recipe": {
+            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "selected_packages": [
               "hsk-studio-layout"
             ],
@@ -2784,6 +2788,7 @@
             }
           ],
           "asset_proof_recipe": {
+            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "selected_packages": [
               "hsk-studio-layout"
             ],
@@ -2824,6 +2829,7 @@
             }
           ],
           "asset_proof_recipe": {
+            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
             "selected_packages": [
               "hsk-studio-layout"
             ],

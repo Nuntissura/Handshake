@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30387-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "The captured enumeration distinguishes which part of the anchor is selected, and Studio MUST carry the same five-member state so a model can address a handle without addressing its anchor: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Studio member | Captured value | |---|---| | `anchor_selection.none` | `1` | | `anchor_selection.anchor` | `2` | | `anchor_selection.in_handle` | `3` | | `anchor_selection.out_handle` | `4` | | `anchor_selection.both_handles` | `5` | Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

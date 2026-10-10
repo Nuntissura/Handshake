@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30403-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Simplify parameter contract.** Simplify is a four-parameter operation, not a single \"strength\": *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `curve_precision` | unknown | unknown | 0 | 100 | 0 | `percent` | 2 | | `angle_threshold` | unknown | unknown | 0 | 180 | 0 | `deg` | 2 | | `smoothing` | unknown | unknown | 0 | 100 | 0 | `percent` | 2 | | `convert_to_straight_lines` | boolean | -- | -- | [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

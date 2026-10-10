@@ -2313,7 +2313,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30510-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Stroke geometry enumerations.** All three carry captured integer values that Studio MUST preserve at the interchange boundary. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2347,7 +2348,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30510-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Two captures agree on the member sets; the second contributes no integers, so the integers below are the normative wire values. *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Enumeration | Members | |---|---| | `stroke_cap` | `cap.butt = 1`, `cap.round = 2`, `cap.projecting = 3` | | `stroke_join` | `join.miter = 1`, `join.round = 2`, `join.bevel = 3` | | `stroke_align` | `align.center` (token `CENTER`), `align.inside` (token `INSIDE`), `align.outside` (token `OUTSIDE`); no integers captured | `stroke_cap` and `stroke_join` are sett [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"

@@ -2200,7 +2200,8 @@
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
-          "later_embedding_ref": "MT-30456-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36195#/scope",
+          "host_adoption_mt_refs": ["MT-36195"],
           "later_embedding_required": true,
           "later_embedding_assertion": "Rectangles, frames and vector anchors MUST support per-corner independent radius (a uniform value or four/N independent values) plus the corner smoothing of [STU-VEC-112]; a corner radius MUST clamp to the available edge length rather than produce invalid geometry, and the clamp behaviour MUST be deterministic: the applied radius is `min(requested_radius, shorter_incident_edge / 2)` evaluated per corner, and the clamped value MUST be reported back to the caller so a model sees what was actually applied rather than what it asked for. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
