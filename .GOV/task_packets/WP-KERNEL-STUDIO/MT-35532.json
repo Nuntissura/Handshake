@@ -2205,7 +2205,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T10:23:31.877266+00:00",
+  "updated_at_utc": "2026-10-10T10:31:02.493601+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2213,11 +2213,11 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "FAIL_V1",
     "contract_preparation_only": false,
-    "blocked_on": "MT-35532-CON026-OBSERVE-FEED-GAP",
+    "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
   },
   "scope": {
@@ -2765,6 +2765,139 @@
           "MT-35532-CON026-OBSERVE-FEED-GAP"
         ],
         "evidence_limit": "16 bounded tests,30 externalCLI,9 API observations remain actual green evidence for covered behavior; no assertion or actual emitter proved typed diagnostic/address/disposition/bounded operation counts through Observe"
+      },
+      {
+        "proof_id": "MT-35532-BUILDER-DIAGNOSTIC-REMEDIATION-CHECK-V2",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35530",
+          "MT-35532"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "ea819a927e48c9d2ff65517ab1491db07c91c037",
+        "candidate_tree": "abdeee5991a861dd208503b3a349f8503600a904",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "check",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-observe",
+          "-p",
+          "hsk-studio-chronicle",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "--jobs",
+          "4"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\logs\\diagnostic-remediation-check-v2-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "9705ef2ebb481d116f2a5bfdba5180c527d3e0bad5d6bc0c38d24ab109dfc423",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "2b9c1732077c324e647bb5540b57d2b86da06743d17616e545a89f2ccb72173b",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "a211bcd170eb0622ebfe905aab5024f09f36b2921b38bfdc6dd8406bfd03f2c7",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "39b38d0b82d28979fdee96840ddf92818ea807c396e4f13abe3b19a2fd6dfb2c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "fcab7446b28ff9ed74ae344b9bf38a3c02f121a32ca2dd61a3a37478ddb348d8",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "1d2f9a71ac9a4bd4cfbef2c0699823f4ee8f727d215b4770778b6889d71c8ab4",
+          "handshake-studio-assets/Cargo.toml": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+          "handshake-studio-assets/Cargo.lock": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "212e385d01c9f76de7c33cf4b85f19b943300313",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "b48f10252f67c0b319fd6a3c6df84f6448d8b8f4",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "e8cbaa40a32b43df7d565c4701e1ff118f7001aa",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "01b290fb843d4f2d23477b1602a8216c5326cc9c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "0f4b7f8a01b24cf8ee0f54f37b6a55db489f84d4",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "4764523f66c32e49df13d60e811d0cff5bf20df5",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "0a0d338fcea4200ea8fee7814870171374137c24",
+          "handshake-studio-assets/Cargo.toml": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6",
+          "handshake-studio-assets/Cargo.lock": "6a77ace6f8e27ed295c496e4babda2f159174ec9",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+        },
+        "runtime": "NOT_RUN"
+      },
+      {
+        "proof_id": "MT-35532-BUILDER-DIAGNOSTIC-REMEDIATION-CLIPPY-V2",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35530",
+          "MT-35532"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "ea819a927e48c9d2ff65517ab1491db07c91c037",
+        "candidate_tree": "abdeee5991a861dd208503b3a349f8503600a904",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "clippy",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-observe",
+          "-p",
+          "hsk-studio-chronicle",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "--jobs",
+          "4",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35532\\studio-assets-kernel-builder\\logs\\diagnostic-remediation-clippy-v2-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "cff802919a9633eafc3de7ce248cb30fac37423374c840d0d81af92829adb01d",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "9705ef2ebb481d116f2a5bfdba5180c527d3e0bad5d6bc0c38d24ab109dfc423",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "2b9c1732077c324e647bb5540b57d2b86da06743d17616e545a89f2ccb72173b",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "a211bcd170eb0622ebfe905aab5024f09f36b2921b38bfdc6dd8406bfd03f2c7",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "39b38d0b82d28979fdee96840ddf92818ea807c396e4f13abe3b19a2fd6dfb2c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "fcab7446b28ff9ed74ae344b9bf38a3c02f121a32ca2dd61a3a37478ddb348d8",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "1d2f9a71ac9a4bd4cfbef2c0699823f4ee8f727d215b4770778b6889d71c8ab4",
+          "handshake-studio-assets/Cargo.toml": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+          "handshake-studio-assets/Cargo.lock": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": "6ac479ca23509bf97df71f1e7c5969285dcf7e61",
+          "handshake-studio-assets/crates/hsk-studio-observe/examples/observe-consumer.rs": "212e385d01c9f76de7c33cf4b85f19b943300313",
+          "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": "b48f10252f67c0b319fd6a3c6df84f6448d8b8f4",
+          "handshake-studio-assets/crates/hsk-studio-observe/tests/foundation_contract.rs": "e8cbaa40a32b43df7d565c4701e1ff118f7001aa",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": "01b290fb843d4f2d23477b1602a8216c5326cc9c",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/examples/chronicle-consumer.rs": "0f4b7f8a01b24cf8ee0f54f37b6a55db489f84d4",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/src/lib.rs": "4764523f66c32e49df13d60e811d0cff5bf20df5",
+          "handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs": "0a0d338fcea4200ea8fee7814870171374137c24",
+          "handshake-studio-assets/Cargo.toml": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6",
+          "handshake-studio-assets/Cargo.lock": "6a77ace6f8e27ed295c496e4babda2f159174ec9",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4"
+        },
+        "runtime": "NOT_RUN"
       }
     ],
     "source_runtime_result": {
@@ -2800,9 +2933,17 @@
       "handshake-studio-assets/crates/hsk-studio-observe/**"
     ],
     "scope": "Map actual typed diagnostic/address/disposition/bounded counters to shared Observe boundary for rejection/changed/no_change/inverse, preserve source outcome versus delivery",
-    "status": "IMPLEMENTATION_IN_PROGRESS",
+    "status": "COMPILED_STATIC_PENDING_INDEPENDENT_RUNTIME",
     "runtime": "NOT_RUN",
     "proof_required": "Independent exact emitted-frame decode and error/privacy/delivery/cancellation boundaries, plus affected existing immutable/property-vector assertions",
-    "next_actor": "folio source repair then parent static checkpoint then independent validator"
+    "next_actor": "foundation_validator independent coherent source runtime",
+    "candidate_commit": "ea819a927e48c9d2ff65517ab1491db07c91c037",
+    "candidate_tree": "abdeee5991a861dd208503b3a349f8503600a904",
+    "compile": "PASS_CHECK_AND_CLIPPY",
+    "proof_refs": [
+      "MT-35532-BUILDER-DIAGNOSTIC-REMEDIATION-CHECK-V2",
+      "MT-35532-BUILDER-DIAGNOSTIC-REMEDIATION-CLIPPY-V2"
+    ],
+    "submit_gameplan": "PASS2/2"
   }
 }

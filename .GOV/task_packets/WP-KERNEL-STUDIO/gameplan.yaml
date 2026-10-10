@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 33
+generation: 35
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -55,3 +55,5 @@ steps:
 - {id: GP-037, role: builder, at: before_dispatch, do: require Chronicle terminal sink uses is_empty frame check, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-chronicle/tests/foundation_contract.rs, contains: '!self.frames.is_empty()'}, source: 'lint: Chronicle test terminal sink len>=1 triggers len_zero after library lint cleared', state: active}
 - {id: GP-038, role: integration_validator, at: before_round, do: require runtime exec workdir bound to Studio scoped pointer directory, check: {type: confirm}, source: 'hook: leading literal location alone selected unrelated rootWP012; explicit scopedworkdir verified', state: active}
 - {id: GP-039, role: integration_validator, at: before_round, do: require Observe frame magic HSKO followed by binary version01, check: {type: confirm}, source: 'oracle: ASCII HSKO1 comparison rejected actual HSKO plus binary01; runtime records retained', state: active}
+- {id: GP-040, role: builder, at: before_dispatch, do: verify crate source paths include crates and Git tree refs stay literal in PowerShell, check: {type: confirm}, source: 'resume: omitted crates path and unquoted HEAD^{tree} rejected read-only commands', state: active}
+- {id: GP-041, role: builder, at: before_dispatch, do: require Chronicle detail budget test direct default struct initialization, check: {type: confirm}, source: 'lint: detail test budget.reads reassignment triggers field_reassign_with_default', state: active}
