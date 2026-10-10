@@ -162,18 +162,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-041",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30111",
-        "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority.",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30133",
+        "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
         "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30111,
-            "end_line": 30112,
-            "body_sha256": "2379fb2f8acb0a6e29d0665880275bb63aaaa4b43bb598fd33392d3afdf503ed",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30133,
+            "end_line": 30133,
+            "body_sha256": "eb769656afd9736d90fd6f21ea47ceab28797694309cffe3c57170e8901e66e4",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -182,7 +182,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1920,7 +1920,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "8c687a66ce65f63a5c965b8ef547d278fb808c6fe99329fee2be230f5c9f53ec",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1937,17 +1937,17 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+        "text": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34259#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+        "text": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34259#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2072,16 +2072,16 @@
         "requirement_ref": "STU-WEB-041",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30111,
-            "end_line": 30112,
-            "body_sha256": "2379fb2f8acb0a6e29d0665880275bb63aaaa4b43bb598fd33392d3afdf503ed",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30133,
+            "end_line": 30133,
+            "body_sha256": "eb769656afd9736d90fd6f21ea47ceab28797694309cffe3c57170e8901e66e4",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority.\n",
+        "complete_clause_body": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2091,12 +2091,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
+        "step": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
         "requirement_ref": "STU-WEB-041"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
         "requirement_ref": "STU-WEB-041"
       },
       {
@@ -2116,8 +2116,8 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-041",
-        "behavior": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-        "state_and_recovery_contract": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+        "behavior": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+        "state_and_recovery_contract": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body"
       }
     ],
@@ -2194,23 +2194,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative. Check this claim explicitly: Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
-        "expected": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority. Check current qualified acceptance: MT-34259/AC-001",
+        "expected": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-041 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-041 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-041 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-          "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+          "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+          "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2231,23 +2232,24 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative. Check this claim explicitly: The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
-        "expected": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority. Check current qualified acceptance: MT-34259/AC-002",
+        "expected": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-041 clause/table versus actual output; exact original claim AC-002"
+          "Complete STU-WEB-041 clause/table versus actual output; exact original claim AC-002",
+          "Canonical v02.208 STU-WEB-041 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-          "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+          "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+          "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2265,7 +2267,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2454,7 +2457,52 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30133,
+          "end_line": 30133,
+          "body_sha256": "eb769656afd9736d90fd6f21ea47ceab28797694309cffe3c57170e8901e66e4",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30111,
+          "end_line": 30112,
+          "body_sha256": "2379fb2f8acb0a6e29d0665880275bb63aaaa4b43bb598fd33392d3afdf503ed",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json",
+        "git_blob_oid": "ab7aac1d4226623b4787a86ee4ec91741103d7e8",
+        "raw_sha256": "96a35f69ba6bd88b543587e78bd1064e37c6b896aab1a5801b29abc6a7438846"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "8c687a66ce65f63a5c965b8ef547d278fb808c6fe99329fee2be230f5c9f53ec",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping"
+      ]
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2587,7 +2635,7 @@
         "original_text": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
         "original_row_sha256": "f8bde6284ba8320510bbf7b0cdd5682f2fbb1e1914a8ac1685a1bd2c593b35de",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+        "semantic_fulfillment": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34259-ASSET-WEB"
@@ -2597,7 +2645,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+            "required_behavior": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2606,13 +2654,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-          "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+          "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+          "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2626,7 +2674,7 @@
         "original_text": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
         "original_row_sha256": "bdf10efd445b98ca784f2c60c79440ba8420571b9cfcc0958fd8859424406b06",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+        "semantic_fulfillment": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34259-ASSET-WEB"
@@ -2636,7 +2684,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+            "required_behavior": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2645,13 +2693,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-          "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+          "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+          "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2697,7 +2745,7 @@
           "original_text": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
           "original_row_sha256": "f8bde6284ba8320510bbf7b0cdd5682f2fbb1e1914a8ac1685a1bd2c593b35de",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+          "semantic_fulfillment": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34259-ASSET-WEB"
@@ -2707,7 +2755,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression.",
+              "required_behavior": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2716,13 +2764,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-            "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+            "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+            "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2736,7 +2784,7 @@
           "original_text": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
           "original_row_sha256": "bdf10efd445b98ca784f2c60c79440ba8420571b9cfcc0958fd8859424406b06",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+          "semantic_fulfillment": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34259-ASSET-WEB"
@@ -2746,7 +2794,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
+              "required_behavior": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2755,13 +2803,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-            "negative_path": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative.",
+            "consumer_assertion": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+            "negative_path": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2780,5 +2828,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

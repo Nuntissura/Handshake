@@ -156,18 +156,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-046",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30125",
-        "verbatim": "**[STU-WEB-046] Colouring-scheme priority.** Priority selects which scheme owns a text region when more than one applies; the shipped bands are 1 (plain text fallback), 5 (whole-document wrapper schemes such as templates and library items), 10 (comment schemes), 20 (embedded script and expression languages), and 50 (top-level document languages). Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30147",
+        "verbatim": "**[STU-WEB-046] Colouring-scheme priority.** The shipped bands remain 1 (plain text fallback), 5 (whole-document wrapper schemes such as templates and library items), 10 (comment schemes), 20 (embedded script and expression languages), and 50 (top-level document languages). Studio MUST first establish region eligibility and nesting from the document language and exact declared opening/closing delimiters. At the same byte position, the longest valid opening delimiter wins; among eligible candidates for that same region, sort by numeric priority ascending, then `scheme_id` lexicographic ascending. Text band 1 is eligible only when no language owns the region. An exact closing delimiter restores the enclosing owner. Duplicate ambiguous boundary definitions MUST be diagnosed at registration rather than silently shadowed. Every region-ownership receipt MUST deterministically record the region byte range, original eligible candidates, delimiter/nesting decision, winning scheme and enclosing owner, so a model can ask what language a byte range is in. These are Studio design rules; vendor runtime comparator behavior is not asserted.",
         "heading": "### 14.28.3 Code intelligence",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30125,
-            "end_line": 30126,
-            "body_sha256": "35493ed9cbe06a418e74c4556453ba6b1562d00394fe84323b88c6250461220f",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30147,
+            "end_line": 30147,
+            "body_sha256": "6da74814b703ceb6a63fe0b983896c3f53595d751d659e740b647d10ff8766ad",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -176,7 +176,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1908,7 +1908,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "5ef51c65e9ff0db255710bb10be5930b449b18f9fa0bb8096d3068653c669870",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1924,12 +1924,12 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+        "text": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34264#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2054,16 +2054,16 @@
         "requirement_ref": "STU-WEB-046",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30125,
-            "end_line": 30126,
-            "body_sha256": "35493ed9cbe06a418e74c4556453ba6b1562d00394fe84323b88c6250461220f",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30147,
+            "end_line": 30147,
+            "body_sha256": "6da74814b703ceb6a63fe0b983896c3f53595d751d659e740b647d10ff8766ad",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-046] Colouring-scheme priority.** Priority selects which scheme owns a text region when more than one applies; the shipped bands are 1 (plain text fallback), 5 (whole-document wrapper schemes such as templates and library items), 10 (comment schemes), 20 (embedded script and expression languages), and 50 (top-level document languages). Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.\n",
+        "complete_clause_body": "**[STU-WEB-046] Colouring-scheme priority.** The shipped bands remain 1 (plain text fallback), 5 (whole-document wrapper schemes such as templates and library items), 10 (comment schemes), 20 (embedded script and expression languages), and 50 (top-level document languages). Studio MUST first establish region eligibility and nesting from the document language and exact declared opening/closing delimiters. At the same byte position, the longest valid opening delimiter wins; among eligible candidates for that same region, sort by numeric priority ascending, then `scheme_id` lexicographic ascending. Text band 1 is eligible only when no language owns the region. An exact closing delimiter restores the enclosing owner. Duplicate ambiguous boundary definitions MUST be diagnosed at registration rather than silently shadowed. Every region-ownership receipt MUST deterministically record the region byte range, original eligible candidates, delimiter/nesting decision, winning scheme and enclosing owner, so a model can ask what language a byte range is in. These are Studio design rules; vendor runtime comparator behavior is not asserted.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2073,12 +2073,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
+        "step": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
         "requirement_ref": "STU-WEB-046"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language.",
         "requirement_ref": "STU-WEB-046"
       },
       {
@@ -2098,15 +2098,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-046",
-        "behavior": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
-        "state_and_recovery_contract": "Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order.",
+        "behavior": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
+        "state_and_recovery_contract": "Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2177,23 +2176,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order. Check this claim explicitly: Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
-        "expected": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language. Check current qualified acceptance: MT-34264/AC-001",
+        "expected": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-046 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-046 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-046 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
-          "negative_path": "Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order.",
+          "consumer_assertion": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
+          "negative_path": "Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2211,7 +2211,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2225,7 +2226,7 @@
       "Unbounded swarm queue, stale revision, cancellation or data loss",
       "Duplicated UI/manual/diagnostic owner",
       "Asset proof substituted for production embedding/native editable decoder",
-      "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch."
+      "Prior v02.207 ambiguity resolved by canonical v02.208 STU-WEB-046; actual provider/data/consumer proof remains required."
     ],
     "minimum_controls": [
       "Bounded actual consumer plus failure/loss/cancel path",
@@ -2396,7 +2397,73 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30147,
+          "end_line": 30147,
+          "body_sha256": "6da74814b703ceb6a63fe0b983896c3f53595d751d659e740b647d10ff8766ad",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30125,
+          "end_line": 30126,
+          "body_sha256": "35493ed9cbe06a418e74c4556453ba6b1562d00394fe84323b88c6250461220f",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json",
+        "git_blob_oid": "014ce551c9c62f62b7a82dd1a35f4763d9c66c45",
+        "raw_sha256": "d509365fe4a862894255b90150d15a9146cad2dc7914bccbb823eab5633f9743"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "5ef51c65e9ff0db255710bb10be5930b449b18f9fa0bb8096d3068653c669870",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping",
+        "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch."
+      ],
+      "prior_preparation_red_team": {
+        "required": true,
+        "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+        "risks": [
+          "No-op foundation or canned oracle PASS",
+          "Hidden kernel/GPU/codec dependency closure",
+          "Unbounded swarm queue, stale revision, cancellation or data loss",
+          "Duplicated UI/manual/diagnostic owner",
+          "Asset proof substituted for production embedding/native editable decoder",
+          "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch."
+        ],
+        "minimum_controls": [
+          "Bounded actual consumer plus failure/loss/cancel path",
+          "Closed selectable DAG and clean dependency proof",
+          "Bounded admission and canonical runtime adapter; no private scheduler",
+          "Reuse canonical Controls/Argus/UserManual owners",
+          "Retain all original acceptance and independent later embedding proof",
+          "Resolve exact source ambiguity through existing owner/spec decision before affected implementation; no inferred correction."
+        ]
+      }
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2528,7 +2595,7 @@
         "original_text": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
         "original_row_sha256": "0fac8ec7ae77624b69ccfbf0c9024805e83740afae267d182dd374cbe4935762",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+        "semantic_fulfillment": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34264-ASSET-WEB"
@@ -2538,7 +2605,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+            "required_behavior": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2547,13 +2614,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
-          "negative_path": "Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order.",
+          "consumer_assertion": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
+          "negative_path": "Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2592,7 +2659,7 @@
           "original_text": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
           "original_row_sha256": "0fac8ec7ae77624b69ccfbf0c9024805e83740afae267d182dd374cbe4935762",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+          "semantic_fulfillment": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34264-ASSET-WEB"
@@ -2602,7 +2669,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in.",
+              "required_behavior": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2611,13 +2678,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
-            "negative_path": "Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order.",
+            "consumer_assertion": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
+            "negative_path": "Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Studio MUST resolve overlapping schemes by priority and MUST record the winning scheme per region so a model can ask what language a byte range is in. Current v02.208 enrichment: Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2636,5 +2703,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

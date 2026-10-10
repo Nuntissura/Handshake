@@ -162,18 +162,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-154",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30606",
-        "verbatim": "**[STU-WEB-154] `panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037]. The diagnostic MUST name both panels and their priorities.",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30704",
+        "verbatim": "**[STU-WEB-154] `panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a band-6 refinement has a missing or invalid registered band-5 generic target, a null or invalid discriminator definition, or an invalid same-node refinement pair, enforcing [STU-WEB-033], [STU-WEB-037] and [STU-WEB-042]. The diagnostic MUST name both panel identities, their priorities and the precise reason; if a referenced target is missing, it names the declared missing target identity. The named generic sibling is the only suppression target and band 50 receives no such privilege. A valid discriminator that does not match an ordinary selection makes the panel ineligible; it MUST NOT produce a registry or document error.",
         "heading": "### 14.28.11 Validation Descriptor Catalogue",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30606,
-            "end_line": 30607,
-            "body_sha256": "00be01b5f8a61ddc90ab3eac396551bc7548e5d9990fd7fd5e95861daecc22d8",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30704,
+            "end_line": 30704,
+            "body_sha256": "934e7babfdca0ea6f673c6db49a25888e6baafaa2d3fe8303f766219053b03b7",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -182,7 +182,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1383,7 +1383,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "b904e8104e2551163b03cf66c5546638314090f42af3bf25301e37fc0d5c55f6",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1400,17 +1400,17 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+        "text": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34378#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "The diagnostic MUST name both panels and their priorities.",
+        "text": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34378#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1535,16 +1535,16 @@
         "requirement_ref": "STU-WEB-154",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30606,
-            "end_line": 30607,
-            "body_sha256": "00be01b5f8a61ddc90ab3eac396551bc7548e5d9990fd7fd5e95861daecc22d8",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30704,
+            "end_line": 30704,
+            "body_sha256": "934e7babfdca0ea6f673c6db49a25888e6baafaa2d3fe8303f766219053b03b7",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-154] `panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037]. The diagnostic MUST name both panels and their priorities.\n",
+        "complete_clause_body": "**[STU-WEB-154] `panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a band-6 refinement has a missing or invalid registered band-5 generic target, a null or invalid discriminator definition, or an invalid same-node refinement pair, enforcing [STU-WEB-033], [STU-WEB-037] and [STU-WEB-042]. The diagnostic MUST name both panel identities, their priorities and the precise reason; if a referenced target is missing, it names the declared missing target identity. The named generic sibling is the only suppression target and band 50 receives no such privilege. A valid discriminator that does not match an ordinary selection makes the panel ineligible; it MUST NOT produce a registry or document error.",
         "method_operands": "Exact fields, tables, ordered vocabularies and defaults in complete_clause_body; missing pinned assets remain prerequisites",
         "source_revision_precondition": "One immutable document/configuration/source revision; external authority accessed only through published granted ports",
         "unit_kind": "validator",
@@ -1554,12 +1554,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
+        "step": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
         "requirement_ref": "STU-WEB-154"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
         "requirement_ref": "STU-WEB-154"
       },
       {
@@ -1579,15 +1579,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-154",
-        "behavior": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-        "state_and_recovery_contract": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+        "behavior": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+        "state_and_recovery_contract": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Approved revised refinement policy awaits copy-first spec publication; current original clause retained, changed predicate cannot dispatch before authority."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -1658,23 +1657,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation. Check this original claim explicitly: `panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
-        "expected": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other. Check current qualified acceptance: MT-34378/AC-001",
+        "expected": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-154 clause/table versus actual consumer; original claims AC-001"
+          "Complete STU-WEB-154 clause/table versus actual consumer; original claims AC-001",
+          "Canonical v02.208 STU-WEB-154 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-          "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+          "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+          "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -1695,23 +1695,24 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation. Check this original claim explicitly: The diagnostic MUST name both panels and their priorities.",
-        "expected": "The diagnostic MUST name both panels and their priorities.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other. Check current qualified acceptance: MT-34378/AC-002",
+        "expected": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-154 clause/table versus actual consumer; original claims AC-002"
+          "Complete STU-WEB-154 clause/table versus actual consumer; original claims AC-002",
+          "Canonical v02.208 STU-WEB-154 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-          "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+          "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+          "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -1729,7 +1730,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -1743,7 +1745,7 @@
       "Unbounded swarm queue, stale revision, cancellation or data loss",
       "Duplicated UI/manual/diagnostic owner",
       "Asset proof substituted for production embedding/native editable decoder",
-      "Approved revised refinement policy awaits copy-first spec publication; current original clause retained, changed predicate cannot dispatch before authority."
+      "Prior v02.207 ambiguity resolved by canonical v02.208 STU-WEB-154; actual provider/data/consumer proof remains required."
     ],
     "minimum_controls": [
       "Bounded actual consumer plus failure/loss/cancel path",
@@ -1920,7 +1922,73 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30704,
+          "end_line": 30704,
+          "body_sha256": "934e7babfdca0ea6f673c6db49a25888e6baafaa2d3fe8303f766219053b03b7",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30606,
+          "end_line": 30607,
+          "body_sha256": "00be01b5f8a61ddc90ab3eac396551bc7548e5d9990fd7fd5e95861daecc22d8",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json",
+        "git_blob_oid": "68b69677ee51a307f2d4e1116522391d9a1d8be0",
+        "raw_sha256": "99811eb541f19d7c364eba8e61c8817128d391a5c34b1b5e3fc077c621913f43"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "b904e8104e2551163b03cf66c5546638314090f42af3bf25301e37fc0d5c55f6",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping",
+        "Approved revised refinement policy awaits copy-first spec publication; current original clause retained, changed predicate cannot dispatch before authority."
+      ],
+      "prior_preparation_red_team": {
+        "required": true,
+        "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+        "risks": [
+          "No-op foundation or canned oracle PASS",
+          "Hidden kernel/GPU/codec dependency closure",
+          "Unbounded swarm queue, stale revision, cancellation or data loss",
+          "Duplicated UI/manual/diagnostic owner",
+          "Asset proof substituted for production embedding/native editable decoder",
+          "Approved revised refinement policy awaits copy-first spec publication; current original clause retained, changed predicate cannot dispatch before authority."
+        ],
+        "minimum_controls": [
+          "Bounded actual consumer plus failure/loss/cancel path",
+          "Closed selectable DAG and clean dependency proof",
+          "Bounded admission and canonical runtime adapter; no private scheduler",
+          "Reuse canonical Controls/Argus/UserManual owners",
+          "Retain all original acceptance and independent later embedding proof",
+          "Resolve exact named source/policy prerequisite through its existing owner before affected dispatch; original acceptance and independent host proof remain required."
+        ]
+      }
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2053,7 +2121,7 @@
         "original_text": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
         "original_row_sha256": "bd49a23ecc572711d35408ea2c18c973821f8f066bc244cede9a555187de2eb4",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+        "semantic_fulfillment": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34378-ASSET-WEB"
@@ -2063,7 +2131,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+            "required_behavior": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2072,13 +2140,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-          "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+          "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+          "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2092,7 +2160,7 @@
         "original_text": "The diagnostic MUST name both panels and their priorities.",
         "original_row_sha256": "286deae292ef50fc028a5ef05f90be37f008f064ef416cbfca177c17cf1ae002",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The diagnostic MUST name both panels and their priorities.",
+        "semantic_fulfillment": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34378-ASSET-WEB"
@@ -2102,7 +2170,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "The diagnostic MUST name both panels and their priorities.",
+            "required_behavior": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2111,13 +2179,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-          "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+          "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+          "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The diagnostic MUST name both panels and their priorities. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2163,7 +2231,7 @@
           "original_text": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
           "original_row_sha256": "bd49a23ecc572711d35408ea2c18c973821f8f066bc244cede9a555187de2eb4",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+          "semantic_fulfillment": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34378-ASSET-WEB"
@@ -2173,7 +2241,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037].",
+              "required_behavior": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2182,13 +2250,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-            "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+            "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+            "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "`panel_discriminator_does_not_outrank`.** The web-authoring validator MUST reject, with severity `error`, a document or command in which a discriminated panel does not outrank the generic panel it refines, so the refinement can never win, enforcing [STU-WEB-037]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2202,7 +2270,7 @@
           "original_text": "The diagnostic MUST name both panels and their priorities.",
           "original_row_sha256": "286deae292ef50fc028a5ef05f90be37f008f064ef416cbfca177c17cf1ae002",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The diagnostic MUST name both panels and their priorities.",
+          "semantic_fulfillment": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34378-ASSET-WEB"
@@ -2212,7 +2280,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "The diagnostic MUST name both panels and their priorities.",
+              "required_behavior": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2221,13 +2289,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-            "negative_path": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation.",
+            "consumer_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+            "negative_path": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The diagnostic MUST name both panels and their priorities. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2246,5 +2314,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:25:39.579877+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

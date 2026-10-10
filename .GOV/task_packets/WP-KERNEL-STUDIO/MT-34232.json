@@ -162,18 +162,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-015",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:29950",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:29950",
         "verbatim": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.",
         "heading": "### 14.28.1 Document types, tag libraries and the attribute vocabulary",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
             "start_line": 29950,
-            "end_line": 29951,
-            "body_sha256": "d98faecc153bd91df785a99c67227c197413628355dabe3746d624941611c771",
+            "end_line": 29965,
+            "body_sha256": "042a4d07b1901b446b5f246f0c9cebb940d4708ebbeb23d65147e148bc63a8c4",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -182,7 +182,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1914,7 +1914,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "ace95d5f80612236ea95b6a8d87ad83ec5c6c1551ceeef66c508985c72df9b3d",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1931,17 +1931,17 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+        "text": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34232#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+        "text": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34232#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2066,16 +2066,16 @@
         "requirement_ref": "STU-WEB-015",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
             "start_line": 29950,
-            "end_line": 29951,
-            "body_sha256": "d98faecc153bd91df785a99c67227c197413628355dabe3746d624941611c771",
+            "end_line": 29965,
+            "body_sha256": "042a4d07b1901b446b5f246f0c9cebb940d4708ebbeb23d65147e148bc63a8c4",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.\n",
+        "complete_clause_body": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.\n\nThe following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path.\n\n| Declaration ID | JSON-encoded literal | UTF8 SHA256 |\n|---|---|---|\n| `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` |\n| `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` |\n| `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15fa3b89c90f6eeb10544ae9` |\n| `html_5` | `\"<!doctype html>\"` | `fe26c59e91ac8de694b2531dc3bdc1b7faf471d3d7e4e00870af60f5f22897cb` |\n| `xhtml_1_transitional` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Transitional//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\\\">\"` | `7f3c0066fcfae37e040afe3c1f769d0100cff916b62ceaa0f4030d455807ac12` |\n| `xhtml_1_strict` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Strict//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\\\">\"` | `cf72f33d973cce2de3d1dfd34fc95951a4bb4a866785f18a56e25a56fd484eed` |\n| `xhtml_11` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.1//EN\\\" \\\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\\\">\"` | `eda292944b8af7ac65569a2a06741a646b72e62cc68ae15621d536b98f173025` |\n| `xhtml_1_frameset` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Frameset//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\\\">\"` | `9b62ccbf25cd4870301dad586c7df6276e14de0ad872758e48aed0053664c404` |\n| `xhtml_mobile_1` | `\"<!DOCTYPE html PUBLIC \\\"-//WAPFORUM//DTD XHTML Mobile 1.0//EN\\\" \\\"http://www.wapforum.org/DTD/xhtml-mobile10.dtd\\\">\"` | `3a10e18d5f391ce8ad702429dd6c751e9454de0b63127f200d3242feafa5f29c` |\n| `xslt_1` | `\"<!DOCTYPE xsl:stylesheet  [\\n\\t<!ENTITY nbsp   \\\"&#160;\\\">\\n\\t<!ENTITY copy   \\\"&#169;\\\">\\n\\t<!ENTITY reg    \\\"&#174;\\\">\\n\\t<!ENTITY trade  \\\"&#8482;\\\">\\n\\t<!ENTITY mdash  \\\"&#8212;\\\">\\n\\t<!ENTITY ldquo  \\\"&#8220;\\\">\\n\\t<!ENTITY rdquo  \\\"&#8221;\\\"> \\n\\t<!ENTITY pound  \\\"&#163;\\\">\\n\\t<!ENTITY yen    \\\"&#165;\\\">\\n\\t<!ENTITY euro   \\\"&#8364;\\\">\\n]>\\n\\t\\t\\t\"` | `26aff3d0af763e71c714d330417de2027ec24f02e6e980b22f60fcf7f1f8bbef` |",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2171,12 +2171,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
+        "step": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
         "requirement_ref": "STU-WEB-015"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
         "requirement_ref": "STU-WEB-015"
       },
       {
@@ -2196,8 +2196,8 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-015",
-        "behavior": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-        "state_and_recovery_contract": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+        "behavior": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+        "state_and_recovery_contract": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body"
       }
     ],
@@ -2274,23 +2274,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path. Check this claim explicitly: Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
-        "expected": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation. Check current qualified acceptance: MT-34232/AC-001",
+        "expected": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-015 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-015 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-015 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+          "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+          "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2311,23 +2312,24 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path. Check this claim explicitly: Each carries its literal declaration string, which MUST be emitted verbatim.",
-        "expected": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation. Check current qualified acceptance: MT-34232/AC-002",
+        "expected": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-015 clause/table versus actual output; exact original claim AC-002"
+          "Complete STU-WEB-015 clause/table versus actual output; exact original claim AC-002",
+          "Canonical v02.208 STU-WEB-015 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+          "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+          "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2345,7 +2347,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2536,7 +2539,52 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 29950,
+          "end_line": 29965,
+          "body_sha256": "042a4d07b1901b446b5f246f0c9cebb940d4708ebbeb23d65147e148bc63a8c4",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 29950,
+          "end_line": 29951,
+          "body_sha256": "d98faecc153bd91df785a99c67227c197413628355dabe3746d624941611c771",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json",
+        "git_blob_oid": "04f24d349368799247189b6416da27d31906d1a8",
+        "raw_sha256": "8e2895ea1fc4e2023dbd783e0e25bb1bc6745aaac2b23cd7f2e1f7ddf13fddbe"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "ace95d5f80612236ea95b6a8d87ad83ec5c6c1551ceeef66c508985c72df9b3d",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping"
+      ]
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2669,7 +2717,7 @@
         "original_text": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
         "original_row_sha256": "89cb38ce1b52d24a7e129c73e4398520b78836d8bb9cd97da55c82604b7b183d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+        "semantic_fulfillment": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34232-ASSET-WEB"
@@ -2679,7 +2727,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+            "required_behavior": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2688,13 +2736,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+          "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+          "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2708,7 +2756,7 @@
         "original_text": "Each carries its literal declaration string, which MUST be emitted verbatim.",
         "original_row_sha256": "6a9c41fcbceec29ceb37416551123cb9d33385f385ff73ce7356beb63b0095f6",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+        "semantic_fulfillment": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34232-ASSET-WEB"
@@ -2718,7 +2766,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+            "required_behavior": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2727,13 +2775,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-          "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+          "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+          "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Each carries its literal declaration string, which MUST be emitted verbatim. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2779,7 +2827,7 @@
           "original_text": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
           "original_row_sha256": "89cb38ce1b52d24a7e129c73e4398520b78836d8bb9cd97da55c82604b7b183d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+          "semantic_fulfillment": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34232-ASSET-WEB"
@@ -2789,7 +2837,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`.",
+              "required_behavior": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2798,13 +2846,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-            "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+            "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+            "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2818,7 +2866,7 @@
           "original_text": "Each carries its literal declaration string, which MUST be emitted verbatim.",
           "original_row_sha256": "6a9c41fcbceec29ceb37416551123cb9d33385f385ff73ce7356beb63b0095f6",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+          "semantic_fulfillment": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34232-ASSET-WEB"
@@ -2828,7 +2876,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Each carries its literal declaration string, which MUST be emitted verbatim.",
+              "required_behavior": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2837,13 +2885,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-            "negative_path": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path.",
+            "consumer_assertion": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+            "negative_path": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Each carries its literal declaration string, which MUST be emitted verbatim. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2862,5 +2910,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

@@ -156,18 +156,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-020",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:29975",
-        "verbatim": "**[STU-WEB-020] Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:29990",
+        "verbatim": "**[STU-WEB-020] Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:",
         "heading": "### 14.28.1 Document types, tag libraries and the attribute vocabulary",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 29975,
-            "end_line": 29993,
-            "body_sha256": "194101539091bb3103d48dc9364a929784ab5551b706f91386d0b902e80c7297",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 29990,
+            "end_line": 30007,
+            "body_sha256": "5315fc97db05994ddfaacbcd7b278db426297f9cf08a0fbecae35ff9c55b203f",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -176,7 +176,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1908,7 +1908,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "d49e34c735719dd425dd825857e0227dbdc060ffb003180b7e78de204b36181e",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1924,12 +1924,12 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+        "text": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34237#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2054,16 +2054,16 @@
         "requirement_ref": "STU-WEB-020",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 29975,
-            "end_line": 29993,
-            "body_sha256": "194101539091bb3103d48dc9364a929784ab5551b706f91386d0b902e80c7297",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 29990,
+            "end_line": 30007,
+            "body_sha256": "5315fc97db05994ddfaacbcd7b278db426297f9cf08a0fbecae35ff9c55b203f",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-020] Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n| Key | Domain | Meaning |\n|---|---|---|\n| `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag |\n| `nlbeforetag_min` | 0 | lower clamp when the formatter compresses |\n| `nlbeforetag_max` | 2 | upper clamp when the formatter expands |\n| `nlaftertag` | 0 \\| 1 | newlines after the closing tag |\n| `nlaftertag_min` | 0 | lower clamp |\n| `nlaftertag_max` | 2 | upper clamp |\n| `nlbeforecontents` | 0 \\| 1 | newlines before the tag's contents |\n| `nlaftercontents` | 0 \\| 1 | newlines after the tag's contents |\n| `indentcontents` | yes \\| no | indent the contents one level |\n| `formatcontents` | yes \\| no | when `no`, the contents are verbatim and the formatter MUST NOT touch them |\n| `preserveattrcase` | yes | when present, attribute-name case is preserved verbatim |\n\n`formatcontents: no` is what protects `<pre>`, `<script>`, `<style>` and `<textarea>` content; a formatter that reflows inside those elements is a defect. `preserveattrcase` is what protects the SVG and namespaced attribute vocabularies.\n",
+        "complete_clause_body": "**[STU-WEB-020] Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n| Key | Domain | Meaning |\n|---|---|---|\n| `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag |\n| `nlbeforetag_min` | 0 | lower clamp when the formatter compresses |\n| `nlbeforetag_max` | 2 | upper clamp when the formatter expands |\n| `nlaftertag` | 0 \\| 1 | newlines after the closing tag |\n| `nlaftertag_min` | 0 | lower clamp |\n| `nlaftertag_max` | 2 | upper clamp |\n| `nlbeforecontents` | 0 \\| 1 | newlines before the tag's contents |\n| `nlaftercontents` | 0 \\| 1 | newlines after the tag's contents |\n| `indentcontents` | yes \\| no | indent the contents one level |\n| `formatcontents` | yes \\| no | when `no`, the contents are verbatim and the formatter MUST NOT touch them |\n| `preserveattrcase` | yes | when present, attribute-name case is preserved verbatim |\n\n`formatcontents: no` is what protects `<pre>`, `<script>`, `<style>` and `<textarea>` content; a formatter that reflows inside those elements is a defect. `preserveattrcase` is what protects the SVG and namespaced attribute vocabularies.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2082,12 +2082,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
+        "step": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
         "requirement_ref": "STU-WEB-020"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes.",
         "requirement_ref": "STU-WEB-020"
       },
       {
@@ -2107,8 +2107,8 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-020",
-        "behavior": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
-        "state_and_recovery_contract": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
+        "behavior": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
+        "state_and_recovery_contract": "Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body"
       }
     ],
@@ -2185,23 +2185,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key. Check this claim explicitly: Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
-        "expected": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes. Check current qualified acceptance: MT-34237/AC-001",
+        "expected": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-020 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-020 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-020 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
-          "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
+          "consumer_assertion": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
+          "negative_path": "Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2219,7 +2220,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2404,7 +2406,52 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 29990,
+          "end_line": 30007,
+          "body_sha256": "5315fc97db05994ddfaacbcd7b278db426297f9cf08a0fbecae35ff9c55b203f",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 29975,
+          "end_line": 29993,
+          "body_sha256": "194101539091bb3103d48dc9364a929784ab5551b706f91386d0b902e80c7297",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json",
+        "git_blob_oid": "8c133bae96b97048438a0957d9a49811fb6d9fca",
+        "raw_sha256": "d0921592d8263d9cbe5776c01eff8edb06155fe33428a6d03a425b21e64b9b60"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "d49e34c735719dd425dd825857e0227dbdc060ffb003180b7e78de204b36181e",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping"
+      ]
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2536,7 +2583,7 @@
         "original_text": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
         "original_row_sha256": "9e740e5a6c3f5732d1187085e202392512f4dbfa4b98bd24a074fb1b2aaacb10",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+        "semantic_fulfillment": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34237-ASSET-WEB"
@@ -2546,7 +2593,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+            "required_behavior": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2555,13 +2602,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
-          "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
+          "consumer_assertion": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
+          "negative_path": "Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2600,7 +2647,7 @@
           "original_text": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
           "original_row_sha256": "9e740e5a6c3f5732d1187085e202392512f4dbfa4b98bd24a074fb1b2aaacb10",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+          "semantic_fulfillment": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34237-ASSET-WEB"
@@ -2610,7 +2657,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+              "required_behavior": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2619,13 +2666,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
-            "negative_path": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key.",
+            "consumer_assertion": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
+            "negative_path": "Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2644,5 +2691,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:01:07.203547+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

@@ -2,8 +2,8 @@
   "schema_id": "hsk.studio_web_preparation@1",
   "file_id": "STUDIO-WEB-PREPARATION-20261010",
   "owner_chat": "01a1235c-aa2e-7dc1-869d-35d620a0cbb1",
-  "updated_at": "2026-10-10T02:31:09.859764+00:00",
-  "status": "REMAINING80_AUTHORED_FROZEN_PENDING_PUBLICATION_AND_AFFECTED_SPEC208_BINDINGS",
+  "updated_at": "2026-10-10T02:58:55.671201+00:00",
+  "status": "SPEC208_EXACT16_BINDINGS_AUTHORED_FROZEN_PENDING_COORDINATOR_PUBLICATION",
   "grant_commit": "3204afc136f605fa6dfef859f57d42b2bd07d2a3",
   "scope_lanes": {
     "Handshake (Product)": "NONE",
@@ -65,8 +65,8 @@
       "planned_proof_cases": "Select html/xml/svg/wml/xslt/jsp_tag_library/none; reject unknown context, then inspect tag/rule resolution for each legal context."
     },
     "STU-WEB-015": {
-      "method": "Offer ten doctype IDs with literal declaration payloads and choose html_5 for a new HTML document; preserve chosen literal bytes on conversion. Approved resolution: Exact inline literal bytes govern all ten IDs, including mm_html_401 -> html_401_strict; html_5 default; installation path is provenance only.",
-      "planned_proof_cases": "Create default HTML and convert all ten IDs; compare emitted UTF8 bytes/hashes to inline payloads including XSLT trailing whitespace; run without a Dreamweaver installation path."
+      "method": "Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency.",
+      "planned_proof_cases": "Create default HTML and convert all ten IDs, comparing exact source208 literal payload bytes/hashes including XSLT trailing whitespace without vendor installation."
     },
     "STU-WEB-016": {
       "method": "Resolve referenced non-source MIME by exact thirteen-extension table; unlisted extension uses application/octet-stream and receipt warning.",
@@ -85,8 +85,8 @@
       "planned_proof_cases": "Round-trip yes/no/xml end modes and empty/nonempty/null tag kinds; invalid token reports load error with source bytes retained."
     },
     "STU-WEB-020": {
-      "method": "Apply declared per-tag newline/indent/content/case rules only in explicit formatting; protect pre/script/style/textarea contents and namespaced attribute case. Approved resolution: All eleven explicit table keys govern over the ten-key heading; preserveattrcase included.",
-      "planned_proof_cases": "Format protected content/namespaced attributes byte-preservingly; exercise all eleven table keys/domains and reject an unknown twelfth key."
+      "method": "All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim.",
+      "planned_proof_cases": "Exercise every key/domain and protected pre/script/style/textarea/namespaced-attribute case; reject unknown twelfth key and compare protected bytes."
     },
     "STU-WEB-021": {
       "method": "Decode attribute name/type/case flag and ordered value/caption entries; attach allowed_values only to enumerated type.",
@@ -137,8 +137,8 @@
       "planned_proof_cases": "Load different binding order and selection kinds; inspect same results from declarative matching, including no-match fallback."
     },
     "STU-WEB-033": {
-      "method": "Decode nine panel fields with optional discriminator/context/render flags and required stable author namespace; validate document type eligibility.",
-      "planned_proof_cases": "Serialize complete and minimal records; missing required field or colliding namespace reports registration error before selection."
+      "method": "Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege.",
+      "planned_proof_cases": "Register valid6-to5 pair and invalid/missing target, selector/scope/type/context mismatch and null discriminator; inspect typed registration findings and no privilege for band50."
     },
     "STU-WEB-034": {
       "method": "Parse only literal, pipe alternation, wildcard, locked, comment and namespaced selector forms; reject regex/script predicates; apply document case rules.",
@@ -149,12 +149,12 @@
       "planned_proof_cases": "Select node, descendant and locked descendant; verify applicable scopes and inside_locked-before-exact-before-within ordering at equal priority."
     },
     "STU-WEB-036": {
-      "method": "Represent priority as integer with declared bands1/5/6/10/50; sort ascending, and preserve band6-versus5 refinement conflict pending spec decision.",
-      "planned_proof_cases": "Exercise each band plus invalid sixth-band registration; ascending result is visible and conflicting refinement expectation is reported, never silently inverted."
+      "method": "Keep bands1/5/6/10/50 and numeric ascending ordering; eligible band6 suppresses only its named same-node band5 generic before sorting; band1 remains eligible and band50 receives no override.",
+      "planned_proof_cases": "Resolve valid6-to5 refinement with band1 and band50 competitors; band1 remains first, only named5 is suppressed, unrelated5 remains eligible and band50 discriminator does not override numeric order."
     },
     "STU-WEB-037": {
-      "method": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-      "planned_proof_cases": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm."
+      "method": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+      "planned_proof_cases": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence."
     },
     "STU-WEB-038": {
       "method": "Gate panel eligibility on server_model/document_mode/capability/feature_flag closed keys; unmet requirement removes candidate instead of rendering disabled.",
@@ -165,32 +165,32 @@
       "planned_proof_cases": "Toggle each flag with same selection and verify same chosen panels; live-view readonly setter rejects write without changing eligibility."
     },
     "STU-WEB-040": {
-      "method": "Filter eligible bindings, sort priority/scope/discriminator/panel_id, select primary, retain different-band secondaries and suppress same-band peers.",
-      "planned_proof_cases": "Permute registration/iteration order and inspect identical ordered receipt; tie cases cover locked/exact/within, discriminator and lexical ID."
+      "method": "Eligibility requires document_types/context/binds_to scope plus matching discriminator and optional can_claim true. One eligible candidate per panel uses nearest matching ancestor then stable nodeID; retain original candidates/match nodes, apply named same-node6-to5 suppression, then numeric ascending/scope inside_locked-exact-within/discriminator/panel_id order and original primary-secondary-sameband rules.",
+      "planned_proof_cases": "Shuffle registration/iteration order and resolve repeated ancestor matches, exact/within/locked scopes, band1/5/6/10/50 and same-band ties; compare identical ordered output and receipts, only same selected-node named generic suppressed."
     },
     "STU-WEB-041": {
-      "method": "Emit receipt containing selection identity, full candidate reasons/ranks, primary, ordered secondaries and suppressed reasons through command port.",
-      "planned_proof_cases": "Query why panel appears without screenshot; compare receipt to resolution result and ensure suppressed peers stay inspectable but not authoritative."
+      "method": "Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node.",
+      "planned_proof_cases": "Inspect successful, unmatched and refinement-suppressed resolutions; receipt retains suppressed original candidate and both IDs/priorities/node, distinguishes reasons and is command-readable without treating receipt as authority."
     },
     "STU-WEB-042": {
-      "method": "Analyze binding equivalence, discriminator ordering, unknown tags/kinds and author namespace collisions when registry loads.",
-      "planned_proof_cases": "Load each defect independently and together; diagnostics arrive before selection, valid registry loads without heuristic script matching."
+      "method": "Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege.",
+      "planned_proof_cases": "Load identical ranking ties, unknown selector, author-prefix collision and each invalid refinement relation; inspect registration errors naming exact definitions; valid unmatched discriminator produces no registry/document error."
     },
     "STU-WEB-043": {
       "method": "Publish binding/resolution state and ordered control descriptors with stable author IDs, kind/value/domain/enabled flag and typed setter via shared command/Argus ports.",
       "planned_proof_cases": "Read and set each control headlessly using stable namespace; disabled or invalid-domain setter reports denial and retains prior value."
     },
     "STU-WEB-044": {
-      "method": "Declare can_claim/initialize_ui/inspect/apply hook boundary; evaluate refinement after matching, initialize once, inspect current selection and apply via StudioCommand. Approved resolution: Four allowed hook names; inspect/apply mandatory, can_claim/initialize_ui optional. Never invoke missing optional hooks or fake no-ops; shared Controls initialization explicit.",
-      "planned_proof_cases": "Exercise inspect/apply-only and all-four-hook panels; optional hooks invoked only when present, declarative matching before can_claim, shared Controls explicitly initialized, apply through StudioCommand."
+      "method": "Hook vocabulary is exactly can_claim/initialize_ui/inspect/apply; inspect/apply mandatory, other two optional; no missing hook call or fake no-op, shared Controls initialized explicitly and apply emits normal StudioCommand.",
+      "planned_proof_cases": "Exercise two-hook and four-hook panels with explicit shared Controls initialization; optional can_claim follows declarative matching, no absent hook invoked, apply retains command/receipt/undo/promotion authority."
     },
     "STU-WEB-045": {
       "method": "Decode colouring scheme identity/applicability/priority/case/tag flags, keyword lists, delimiters, embedded delimiters, tag specs and sample text.",
       "planned_proof_cases": "Load whole-document and embedded-only schemes, round-trip every field and reject malformed delimiter records with source location."
     },
     "STU-WEB-046": {
-      "method": "Resolve overlapping language regions using declared scheme priorities and retain winner per byte range for command inspection.",
-      "planned_proof_cases": "Overlap fallback/wrapper/comment/embedded/top-level regions and inspect winners; equal-priority ambiguity is surfaced rather than guessed from iteration order."
+      "method": "Determine region language/delimiter/nesting eligibility first; longest valid opener at same byte position, then ascending priority and lexical scheme_id for eligible same-region candidates; Text1 only unowned fallback, exact closer restores enclosing owner and duplicate ambiguous boundaries diagnose at registration.",
+      "planned_proof_cases": "Color nested HTML/script/comment regions with overlapping opener prefixes, equal priorities, exact close and malformed/ambiguous boundaries; compare deterministic region owner/receipt/enclosing restoration independent of registration order; Text1 never displaces an owned language."
     },
     "STU-WEB-047": {
       "method": "Scan exact declared opening/closing delimiter pairs into revision-bound embedded ranges and route colouring/hints/validation/comments to owning scheme.",
@@ -229,12 +229,12 @@
       "planned_proof_cases": "Validate known-invalid and valid markup then read typed diagnostics via command surface; compare byte ranges to unchanged bytes and reject stale diagnostic revision."
     },
     "STU-WEB-056": {
-      "method": "Load CSS/markup/script default records and resolve document override above site override above shipped values; represent unset limits distinctly from0. Approved resolution: Explicit markup nine enabled/fourteen disabled govern over8/15 labels; exact69-option script data binds jquery/mocha. Five nativefalse limit sentinels map to Studio unset/no-limit, neverzero.",
-      "planned_proof_cases": "Exercise all explicit markup9/14 and CSS3/32 members plus all69 script keys/defaults; jquery/mocha/browser/devel/worker true, maxerr50/indent4; distinguish unset fromzero for five limits."
+      "method": "Preserve CSS35 exact3/32 and markup23 exact9/14 members; closed69 script defaults include jquery/mocha/browser/devel/worker, maxerr50/indent4, remaining booleanfalse, globals empty map and five null/unset limits distinct fromzero.",
+      "planned_proof_cases": "Read all69 closed defaults and exact CSS/markup members through actual consumer; apply document-over-site overrides, verify globals map and unset versuszero limits; missing provider or configuration fails typed, not canned parity."
     },
     "STU-WEB-057": {
-      "method": "Expose per-site language level3/5/6/current configuration with ecma_version/module/JSX and explicit opt-in rule overrides. Approved resolution: Pinned levels3/5/6 use module/JSX/browser/jquery. Studio constructor-super-only and every-other-rule-off govern over45 vendor error rules. Current numeric level/provider compatibility remain pending.",
-      "planned_proof_cases": "Select levels3/5/6 and inspect module/JSX/browser/jquery and constructor-super error with every-other-rule-off; current numeric level requires actual provider pin and may not be guessed."
+      "method": "Retain numeric3/5/6 compatibility profiles with module/JSX/browser/jquery and constructor-super error/othersoff; current is an immutable module-release capability/profile pin, with actual provider/release compatibility proof owned by source foundation before activation; unsupported combinations fail typed.",
+      "planned_proof_cases": "Inspect pinned3/5/6 profiles and release-pinned current alias; use actual selected provider to prove support/explicit normalization or typed unsupported capability, no wallclock/vendor inference or silent coercion; provider pin remains pending until actual proof."
     },
     "STU-WEB-058": {
       "method": "Run linter over selection/document/site through shared batch port and return WEB055 diagnostics using language and rule IDs.",
@@ -361,8 +361,8 @@
       "planned_proof_cases": "Generate mapped and unmapped breakpoint cases; inspect exact mapping and warning naming each unmapped design breakpoint without silently dropping it."
     },
     "STU-WEB-089": {
-      "method": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
-      "planned_proof_cases": "Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch."
+      "method": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
+      "planned_proof_cases": "Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts."
     },
     "STU-WEB-090": {
       "method": "Represent template type and editable-region declarations over StudioDocument; compose nested-template locks through ancestry and emit permitted instance edits as text patches.",
@@ -601,8 +601,8 @@
       "planned_proof_cases": "Drive actual consumer where two panel bindings tie on every declarative ranking field except panel_id, then a nearest valid/control case; assert error panel_binding_unresolvable_tie fires only on violation and names both panel IDs at registration; compare source bytes/receipts for forbidden silent mutation."
     },
     "STU-WEB-154": {
-      "method": "Implement panel_discriminator_does_not_outrank at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
-      "planned_proof_cases": "Drive actual consumer where a discriminator refinement cannot outrank its generic sibling under current published policy, then a nearest valid/control case; assert error panel_discriminator_does_not_outrank fires only on violation and names both panel IDs/priorities; copy-first amended law must publish before changed predicate; compare source bytes/receipts for forbidden silent mutation."
+      "method": "Keep panel_discriminator_does_not_outrank severity error for invalid/null discriminator definition, missing/invalid registered band5 generic target or invalid same-node refinement pair; name both IDs/priorities/reason, no band50 privilege; valid unmatched discriminator only ineligible.",
+      "planned_proof_cases": "Register missing/wrong-band generic, null/invalid discriminator and invalid selector/scope/type/context pair; assert precise error IDs/priorities/reason; matching same-node pair suppresses only target, valid nonmatch causes no registry/document error and different selected nodes cannot suppress each other."
     },
     "STU-WEB-155": {
       "method": "Implement panel_author_id_collision at the owning validation boundary with severity error; inspect the exact predicate and diagnostic contract from the full clause; expose shared descriptor ports.",
@@ -661,16 +661,16 @@
       "planned_proof_cases": "Enumerate exported source-owned descriptors and manual surfaces; verify vendor names appear only in provenance, while exact technical references remain reproducible."
     },
     "STU-WEB-141": {
-      "method": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-      "planned_proof_cases": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection."
+      "method": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+      "planned_proof_cases": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation."
     },
     "STU-WEB-142": {
       "method": "Carry both declared open items and any named blocked dependency as explicit first acceptance/prerequisite, including presentation default decision and export-only versus IO gate direction.",
       "planned_proof_cases": "Inspect both133/136 records and their first dependency outcomes; hidden/greyed interim implementation can proceed, while unresolved final preference and unproven reverse fixture gate cannot be silently counted complete."
     },
     "STU-WEB-143": {
-      "method": "Carry complete current normative tables/constants/rows and exact source anchors into every owning source contract; preserve source-versus-Studio bounds and unresolved data prerequisites.",
-      "planned_proof_cases": "Compare each touched contract's complete body/definition ranges against immutable source and pinned actual data; truncated table, missing default or provisional panel metadata fails preparation rather than becoming a canned green check."
+      "method": "Carry every touched complete table/constant/default and current anchor, using nine original binding fields plus conditional refines_panel_id and exact208 resolver policy; original numeric provenance and complete scope remain.",
+      "planned_proof_cases": "Compare owned input bodies/ranges and pinned datasets against all touched table rows/constants/defaults; include new conditional field and resolver order; truncated/missing asset data cannot count as complete proof."
     },
     "STU-WEB-144": {
       "method": "Reconcile exact source-declared unit-kind group counts and174 total independently of the retained existing180 Web contract population; do not delete six existing historical records to force equality.",
@@ -5165,11 +5165,6 @@
     "canonical_sha256": "dea425cbd597d3b6e5d7aba5840117aca728ef925a03bea94bef6b1a4afea00d"
   },
   "open_source_decisions": {
-    "STU-WEB-036": "Lower-wins priorities and reserved5/6 bands conflict with WEB037/089 band6 pre-emption; exact ordering decision required.",
-    "STU-WEB-037": "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator.",
-    "STU-WEB-046": "Relative scheme-priority direction/tie policy is not fully stated; require exact owning colouring contract before overlapping-region dispatch.",
-    "STU-WEB-057": "Current numeric level/provider compatibility remain pending; pinned3/5/6 module/JSX/browser/jquery literal data resolved.",
-    "STU-WEB-089": "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required.",
     "STU-WEB-098": "Pinned full647 snippet payload/folder/version corpus required before parity; sizing prose cannot reconstruct literal entries.",
     "STU-WEB-100": "Pinned444 catalog entries and358 implementation identities with wired/command-only memberships required; distinct source populations must reconcile.",
     "STU-WEB-101": "Explicit category member counts total222, catalog444; require pinned full/subset membership reconciliation, never trim or duplicate rows.",
@@ -5182,10 +5177,9 @@
     "STU-WEB-123": "Pinned26 capability profile definitions and exception resource required; no guessed browser compatibility.",
     "STU-WEB-124": "Eight table identities/literals are complete; per-model extension/signature/delimiter/charset data require pinned actual resource.",
     "STU-WEB-132": "Full command/shortcut/locale layout corpus absent from clause; bind actual immutable records before sizing/parity claim.",
-    "STU-WEB-141": "Pending copy-first spec proposal is not authority; apply changed binding vocabulary only after actual spec publication, without re-deriving IDs.",
-    "STU-WEB-143": "Any touched complete table requires exact body and pinned asset payloads; no source-summary or truncated-claim substitute.",
     "STU-WEB-144": "Derived174 units and existing180 retained Web contracts are distinct populations; preserve all existing IDs/history and reconcile exact unit keys.",
-    "STU-WEB-154": "Approved revised refinement policy awaits copy-first spec publication; current original clause retained, changed predicate cannot dispatch before authority."
+    "STU-WEB-057": "Owning source foundation preactivation requires actual selected lint provider/release and immutable module-release current profile capability/support-or-normalization proof; no provider/numeric edition chosen.",
+    "STU-WEB-143": "Actual touched upstream datasets still require complete pinned payloads; canonical208 binding vocabulary/resolution is now settled."
   },
   "runtime_or_parity_claim": "NONE; planned methods only; unresolved provider/assets/features/timeouts block dispatch",
   "validation_scope": "JSON readback, original/native history and unmentioned-key preservation, exact source range/hash, HBR52 reference set, existing host AC mapping, scoped diff only",
@@ -5467,7 +5461,7 @@
     "original_frozen_rows_are_published_base_evidence": true
   },
   "proposed_spec_enrichment": {
-    "status": "FROZEN_PROPOSAL_PENDING_ROOT_COPY_FIRST_SPEC_AUTHORITY",
+    "status": "APPLIED_TO_PUBLISHED_SPEC208_AUTHORITY_NO_RUNTIME_PROOF",
     "base_publication_commit": "2786cc5112aadf77459d2af4a80fdfb4176d2c87",
     "base_report_sha256": "40e43f3c407cda55e39da27a7ed2c63b98e0936b676486c755ab13b51dc74a6b",
     "source_file_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -5676,7 +5670,8 @@
     "runtime_executed": false,
     "spec_written": false,
     "mt_written": false,
-    "original100_untouched_after_publication": true
+    "original100_untouched_after_publication": true,
+    "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69"
   },
   "remaining80_authoring": {
     "frozen_rows": [
@@ -9588,7 +9583,7 @@
     "dispatch_authorized": false,
     "preservation_verified": true,
     "report_unchanged": true,
-    "status": "AUTHORED_FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "status": "PUBLISHED_BC5569_PRIOR_SPEC208_DELTA",
     "report_unchanged_meaning": "Report95e5 remained untouched during source80 authoring; source snapshot now bound into this released report",
     "focused_preparation_check": {
       "files": 80,
@@ -9605,17 +9600,12 @@
     "source_subdirectory": "handshake-studio-assets"
   },
   "current_freeze": {
-    "paths_and_raw_hashes_ref": "#/remaining80_authoring/frozen_rows",
-    "path_count": 80,
-    "raw_snapshot_sha256": "78943d02e0c75991bfc468a314550405a1bfe34cc8e362ba4c007d117182b45d",
+    "paths_and_raw_hashes_ref": "#/spec208_delta/frozen_rows",
+    "path_count": 16,
+    "raw_snapshot_sha256": "459bdef6d54c53b0aed97762f637bcd9bb4727bbdd2c48673af679889ede080d",
     "report_path": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/web-team/preparation.json",
     "immutable_until_coordinator_publication": true,
-    "original100_source_files_untouched_by_this_cohort": true,
-    "history_refs": [
-      "#/fixed_freeze",
-      "#/approved_resolution_delta",
-      "#/proposed_spec_enrichment"
-    ],
+    "unaffected164_byte_unchanged": true,
     "runtime_authorized": false,
     "canonical_output_commit": null,
     "canonical_output_sha256": null
@@ -9623,8 +9613,8 @@
   "spec208_transition": {
     "copy_first_input_report_sha256": "95e5f193ce2cbb5ec297fe3a8427c5b211d783c9df3dba2efa50607a65943c17",
     "root_input_captured_and_hold_released": true,
-    "canonical_publication_status": "PENDING_COORDINATOR_FRESH_REMOTE_ACK",
-    "affected_binding_grant_status": "PENDING_EXACT_DELTA_GRANT_AFTER_PUBLICATION",
+    "canonical_publication_status": "VERIFIED_NATIVE_AND_FRESH_REMOTE_ACK",
+    "affected_binding_grant_status": "GRANTED_EXACT16_SOURCE_BINDINGS_AUTHORED",
     "proposed_clause_refs": [
       "STU-WEB-015",
       "STU-WEB-020",
@@ -9643,8 +9633,580 @@
       "STU-WEB-143",
       "STU-WEB-154"
     ],
-    "published_authority_claimed": false,
+    "published_authority_claimed": true,
     "blanket_corpus_repin_authorized": false,
-    "original_native_history_preserved": true
-  }
+    "original_native_history_preserved": true,
+    "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+    "source_module_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb"
+  },
+  "spec208_delta": {
+    "status": "AUTHORED_FROZEN_PENDING_COORDINATOR_PUBLICATION",
+    "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+    "source_module_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+    "preimage_contract_publication": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+    "preimage_report_sha256": "cc350ad9bd1fed0f1d8479be13a546658ef16db91129e1ffee750cb5f2aeef0b",
+    "frozen_rows": [
+      {
+        "mt_id": "MT-34232",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json",
+        "requirement_ref": "STU-WEB-015",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "8e2895ea1fc4e2023dbd783e0e25bb1bc6745aaac2b23cd7f2e1f7ddf13fddbe",
+        "raw_sha256": "13ffd66b368f137d95ea068121674b66e9fecfb4323f3c6440135f94fd3512ca",
+        "byte_count": 192790,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 29950,
+          "end_line": 29965,
+          "body_sha256": "042a4d07b1901b446b5f246f0c9cebb940d4708ebbeb23d65147e148bc63a8c4",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34232/AC-001",
+          "MT-34232/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34237",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json",
+        "requirement_ref": "STU-WEB-020",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "d0921592d8263d9cbe5776c01eff8edb06155fe33428a6d03a425b21e64b9b60",
+        "raw_sha256": "ffe377f278a2c8407f759b9c46f7d2d9040e2ac7c6cc1cc89b45b629cdb9cbc7",
+        "byte_count": 179668,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 29990,
+          "end_line": 30007,
+          "body_sha256": "5315fc97db05994ddfaacbcd7b278db426297f9cf08a0fbecae35ff9c55b203f",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34237/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34251",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json",
+        "requirement_ref": "STU-WEB-033",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "db755250aeebd4dbcd163bc5a6366e3a645dceaefeae71ff921c22bdc38d92ff",
+        "raw_sha256": "c1d21ac61542f31c9607fb715bf89b9e27b8d0183dff237bf06be64ae99427e0",
+        "byte_count": 191369,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30062,
+          "end_line": 30077,
+          "body_sha256": "3edf96c421f72d9be283561b3552656cb11f4c629b0830c30cbb976d3b82121c",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "active_acceptance_criteria",
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34251/ASSET-AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": true
+      },
+      {
+        "mt_id": "MT-34254",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34254.json",
+        "requirement_ref": "STU-WEB-036",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "31054fe59e0c693399fb392e6dbdf83226eb6d0a0f20155a5eee63feffbdc7ea",
+        "raw_sha256": "7cd2b2a23079396a97c0826d166151ff38013b40e2fbfbe6851c37da6784aabc",
+        "byte_count": 180446,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30102,
+          "end_line": 30114,
+          "body_sha256": "ecfe058ac7a9b7b924c24ac709a3d3bb92ee9afd2447c2f1edbd7cba4e5b7f22",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34254/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34255",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json",
+        "requirement_ref": "STU-WEB-037",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "66ad4cda80ff9e9b5bd9331b9b2e282094888c401e493b4699d091aee8441033",
+        "raw_sha256": "30db6b44a8a2516e4cda3a627cffb86024f7e13d8a22ca2103337b5f21e2cd23",
+        "byte_count": 185916,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30116,
+          "end_line": 30116,
+          "body_sha256": "3ce6eddd8890ccf8f8653b6f002ba106606781334b5e57e7cff66a201beec18a",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34255/AC-001",
+          "MT-34255/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34258",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34258.json",
+        "requirement_ref": "STU-WEB-040",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "fd7eea721c4b7be5e40642aac928bee6950fb1c02b94f982abe2b970464b8d71",
+        "raw_sha256": "f6690c684ee032935a2aa61b4f0ee959ae7ce03cf344e49951c539625e16ddc3",
+        "byte_count": 192067,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30122,
+          "end_line": 30131,
+          "body_sha256": "8d5eaf7635acec34d10f858f6f3d18660cfe693a65124e6ddeebb0f914efb3ce",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34258/AC-001",
+          "MT-34258/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34259",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json",
+        "requirement_ref": "STU-WEB-041",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "96a35f69ba6bd88b543587e78bd1064e37c6b896aab1a5801b29abc6a7438846",
+        "raw_sha256": "3d70188e6ca2f05906213af7735a9c78bf811cc9dd5b238c3cce838e550586de",
+        "byte_count": 188901,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30133,
+          "end_line": 30133,
+          "body_sha256": "eb769656afd9736d90fd6f21ea47ceab28797694309cffe3c57170e8901e66e4",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34259/AC-001",
+          "MT-34259/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34260",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json",
+        "requirement_ref": "STU-WEB-042",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "a2c77c01f530d87ff9333d680d897abe4711b75fbf380ace404de0b2e8dafd90",
+        "raw_sha256": "bddc46d976b4a0f12b01245a798110e378462ad3413b92dfdb5bac393fbfdb38",
+        "byte_count": 178194,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30135,
+          "end_line": 30135,
+          "body_sha256": "ff39b34d02f8d9c5af1eda48c863f97d3b262a1022aebc212c163d77e48fc904",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34260/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34262",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34262.json",
+        "requirement_ref": "STU-WEB-044",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "da99e2b6945d31e550da3f5bd0d2892cc29c23755d792b35d4d26bba5a5fcd8c",
+        "raw_sha256": "ad84fe9ec4522444ca135ae5f3bb1981fc12a676c60ba5f4b460a754a7578dcc",
+        "byte_count": 194030,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30139,
+          "end_line": 30139,
+          "body_sha256": "346938137b553c69dfe9eaf5d6f4de289d66c966aebce8b145e044d75b5f1278",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34262/AC-001",
+          "MT-34262/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34264",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34264.json",
+        "requirement_ref": "STU-WEB-046",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "d509365fe4a862894255b90150d15a9146cad2dc7914bccbb823eab5633f9743",
+        "raw_sha256": "2de0c75c645385daa7f71067f632db559b1ac6a29ed01d2a3de09bb84f020387",
+        "byte_count": 176136,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30147,
+          "end_line": 30147,
+          "body_sha256": "6da74814b703ceb6a63fe0b983896c3f53595d751d659e740b647d10ff8766ad",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34264/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34275",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34275.json",
+        "requirement_ref": "STU-WEB-056",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "855fd83982f3f9627aa4d6decde05ff6addac61e61a19598fb9aeb5c3ca2094e",
+        "raw_sha256": "a00c8b58bf7cacca28154d72ae688001c1016602364a6c1908cfb40fc2695bff",
+        "byte_count": 183260,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30180,
+          "end_line": 30260,
+          "body_sha256": "02320b672341eacbfd3c0e0b75c132d4aca4bbd120df3393383380b67ca17263",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34275/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34276",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34276.json",
+        "requirement_ref": "STU-WEB-057",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "5a25ad7ad01c98bfa7bfbe6f922665139a977855874033509ff84a1f0218b7dd",
+        "raw_sha256": "c7cc52598dcb2175d9c412b79d72b9c8c3996e9e2f8577c3f55722b9181ed026",
+        "byte_count": 194370,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30262,
+          "end_line": 30262,
+          "body_sha256": "79031283eb8d5a001f0d6ac795c7a1930667e2329f660ce75889ed3a5c4f4466",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34276/AC-001",
+          "MT-34276/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34316",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json",
+        "requirement_ref": "STU-WEB-089",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "70900d2aaa8a0373af9efd04b3f0e60554afd801ad4509bda58c89ddafe87b9f",
+        "raw_sha256": "6ed447ad5807335ae8cb21a45e4b0806405b5f4b876792c43d5134d374197887",
+        "byte_count": 173466,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30482,
+          "end_line": 30482,
+          "body_sha256": "3c6babd4e442947191d3e69b58df6ceef67132a5af85107c420e1765c679da96",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34316/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-34378",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34378.json",
+        "requirement_ref": "STU-WEB-154",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "99811eb541f19d7c364eba8e61c8817128d391a5c34b1b5e3fc077c621913f43",
+        "raw_sha256": "ea25d8bd4fc31ae22fd37fedb0a4f6c67b2e2ea7c82b308403defbff51cffe0e",
+        "byte_count": 148814,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30704,
+          "end_line": 30704,
+          "body_sha256": "934e7babfdca0ea6f673c6db49a25888e6baafaa2d3fe8303f766219053b03b7",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-34378/AC-001",
+          "MT-34378/AC-002"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      },
+      {
+        "mt_id": "MT-35402",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json",
+        "requirement_ref": "STU-WEB-141",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "01501af74a4baf36d9a2a685190286dcd9c1fd52d5fd0aff910605d57b7439d7",
+        "raw_sha256": "9ee97feac7dba4b3e070f564e549b3610828ec75e2e43a5ec503dd111d2feb73",
+        "byte_count": 162907,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30636,
+          "end_line": 30647,
+          "body_sha256": "9f4c1991c8a42ff07233b265b7623edcb83f445ff934988256cbcadae662fe70",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "active_acceptance_criteria",
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-35402/ASSET-AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": true
+      },
+      {
+        "mt_id": "MT-35404",
+        "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35404.json",
+        "requirement_ref": "STU-WEB-143",
+        "preimage_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "preimage_raw_sha256": "ff2e86a7cf47d028c4198be6d2da36bfcc20b1e69b33959960411d3bf8147e8f",
+        "raw_sha256": "3b47af893f6b99ba8b205e391cb3daec4fc3d12bb9896ec2bb1b15b12dec3e47",
+        "byte_count": 145044,
+        "source_range": {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30658,
+          "end_line": 30658,
+          "body_sha256": "3e75fa24e5fff2eff2fc3496969ea00aab1356071e775cd9ddfefa16129bbcad",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        },
+        "changed_top_level_keys": [
+          "authority_migration",
+          "closure_unit",
+          "context_capsule",
+          "execution",
+          "fulfillment",
+          "proof",
+          "red_team",
+          "updated_at_utc"
+        ],
+        "qualified_current_acceptance_refs": [
+          "MT-35404/AC-001"
+        ],
+        "prior_native_original_payload_unchanged": true,
+        "prior_active_derivation_snapshot_recorded": false
+      }
+    ],
+    "unaffected164_raw_snapshot_sha256": "bce3aa8dfb9908ea8c33ea9f19517947e0246edf16fd84505db34dc53c36f4aa",
+    "unaffected164_byte_unchanged": true,
+    "unchanged_current_acceptance_ids": true,
+    "original_native_scope_AC_payload_identity_history_unchanged": true,
+    "derived_current_mirrors_updated": 2,
+    "qualified_map_occurrences_verified": 48,
+    "provider_release_current_profile_capability_proof": "PENDING_OWNING_SOURCE_FOUNDATION_BEFORE_ACTIVATION",
+    "runtime_executed": false,
+    "dispatch_authorized": false,
+    "gameplan_check": "PASS 34/34",
+    "raw_snapshot_sha256": "459bdef6d54c53b0aed97762f637bcd9bb4727bbdd2c48673af679889ede080d"
+  },
+  "freeze_history": [
+    {
+      "freeze": {
+        "paths_and_raw_hashes_ref": "#/remaining80_authoring/frozen_rows",
+        "path_count": 80,
+        "raw_snapshot_sha256": "78943d02e0c75991bfc468a314550405a1bfe34cc8e362ba4c007d117182b45d",
+        "report_path": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/web-team/preparation.json",
+        "immutable_until_coordinator_publication": true,
+        "original100_source_files_untouched_by_this_cohort": true,
+        "history_refs": [
+          "#/fixed_freeze",
+          "#/approved_resolution_delta",
+          "#/proposed_spec_enrichment"
+        ],
+        "runtime_authorized": false,
+        "canonical_output_commit": null,
+        "canonical_output_sha256": null
+      },
+      "canonical_publication_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+      "published_report_sha256": "cc350ad9bd1fed0f1d8479be13a546658ef16db91129e1ffee750cb5f2aeef0b"
+    }
+  ]
 }

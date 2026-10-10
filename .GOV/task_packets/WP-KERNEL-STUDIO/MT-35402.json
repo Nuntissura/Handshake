@@ -149,18 +149,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-141",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30538",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30636",
         "verbatim": "**[STU-WEB-141] Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else:",
         "heading": "### 14.28.10 Microtask Derivation",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30538,
-            "end_line": 30550,
-            "body_sha256": "ae8a091dc25437b75a9e4c7797974f7ac649bc6317208f42dc004f4dc29c3f66",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30636,
+            "end_line": 30647,
+            "body_sha256": "9f4c1991c8a42ff07233b265b7623edcb83f445ff934988256cbcadae662fe70",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -169,7 +169,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1370,7 +1370,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "61825a724873e4a693158ca126f71c890abdc8859b8d2c8f8d31083a7d420de9",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1386,12 +1386,12 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+        "text": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-35402#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -1516,16 +1516,16 @@
         "requirement_ref": "STU-WEB-141",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30538,
-            "end_line": 30550,
-            "body_sha256": "ae8a091dc25437b75a9e4c7797974f7ac649bc6317208f42dc004f4dc29c3f66",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30636,
+            "end_line": 30647,
+            "body_sha256": "9f4c1991c8a42ff07233b265b7623edcb83f445ff934988256cbcadae662fe70",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-141] Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else:\n\n1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **document-model rule** ([STU-WEB-003], [STU-WEB-004]), or an **execution guarantee or pipeline binding** ([STU-WEB-120], [STU-WEB-131], [STU-WEB-132], [STU-WEB-135]), where that clause can be implemented and proven independently of its siblings.\n2. Each **validation-descriptor clause** in sub-section 14.28.11, [STU-WEB-146] through [STU-WEB-167]. Each of the 22 descriptors named in [STU-WEB-137] is stated as its own clause precisely so it yields its own microtask: a check is a unit of implementable, independently provable work, and one microtask reading \"implement 22 checks\" is not implementable by the small models these contracts are sized for. A descriptor list inside a single clause, whether as prose or as a table, is one unit to any derivation tool and therefore loses 21 units of real work.\n3. Each **declared open item** \u2014 in this module exactly two, [STU-WEB-133] and [STU-WEB-136]. Each yields a microtask under [STU-WEB-142], not nothing.\n\nNo other unit yields a microtask. Exactly 6 clauses in this module yield nothing, and they are:\n\n- **Pure pointer clauses** \u2014 [STU-WEB-005]. Each restates a clause that already carries the contract; the microtask lives there.\n- **This derivation sub-section itself** \u2014 its five clauses yield nothing.\n\nEvery other clause yields at least one unit. This list is the module's declared non-yielding set and is the authority a derivation tool reconciles against.\n",
+        "complete_clause_body": "**[STU-WEB-141] Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else:\n\n1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional `refines_panel_id` record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **document-model rule** ([STU-WEB-003], [STU-WEB-004]), or an **execution guarantee or pipeline binding** ([STU-WEB-120], [STU-WEB-131], [STU-WEB-132], [STU-WEB-135]), where that clause can be implemented and proven independently of its siblings.\n2. Each **validation-descriptor clause** in sub-section 14.28.11, [STU-WEB-146] through [STU-WEB-167]. Each of the 22 descriptors named in [STU-WEB-137] is stated as its own clause precisely so it yields its own microtask: a check is a unit of implementable, independently provable work, and one microtask reading \"implement 22 checks\" is not implementable by the small models these contracts are sized for. A descriptor list inside a single clause, whether as prose or as a table, is one unit to any derivation tool and therefore loses 21 units of real work.\n3. Each **declared open item** \u2014 in this module exactly two, [STU-WEB-133] and [STU-WEB-136]. Each yields a microtask under [STU-WEB-142], not nothing.\n\nNo other unit yields a microtask. Exactly 6 clauses in this module yield nothing, and they are:\n\n- **Pure pointer clauses** \u2014 [STU-WEB-005]. Each restates a clause that already carries the contract; the microtask lives there.\n- **This derivation sub-section itself** \u2014 its five clauses yield nothing.\n\nEvery other clause yields at least one unit. This list is the module's declared non-yielding set and is the authority a derivation tool reconciles against.",
         "method_operands": "Exact fields, tables, ordered vocabularies and defaults in complete_clause_body; missing pinned assets remain prerequisites",
         "source_revision_precondition": "One immutable document/configuration/source revision; external authority accessed only through published granted ports",
         "unit_kind": "clause",
@@ -1535,12 +1535,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
+        "step": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
         "requirement_ref": "STU-WEB-141"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
         "requirement_ref": "STU-WEB-141"
       },
       {
@@ -1560,15 +1560,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-141",
-        "behavior": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-        "state_and_recovery_contract": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+        "behavior": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+        "state_and_recovery_contract": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Pending copy-first spec proposal is not authority; apply changed binding vocabulary only after actual spec publication, without re-deriving IDs."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -1639,24 +1638,25 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection. Check this original claim explicitly: Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation. Check current qualified acceptance: MT-35402/ASSET-AC-001",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Every full-scope requirement and governing source range",
           "Actual owner consumer plus negative path",
           "Independent actual output",
-          "Complete STU-WEB-141 clause/table versus actual consumer; original claims ASSET-AC-001"
+          "Complete STU-WEB-141 clause/table versus actual consumer; original claims ASSET-AC-001",
+          "Canonical v02.208 STU-WEB-141 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+        "expected": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-          "negative_path": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+          "consumer_assertion": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+          "negative_path": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -1673,7 +1673,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -1687,7 +1688,7 @@
       "Unbounded swarm queue, stale revision, cancellation or data loss",
       "Duplicated UI/manual/diagnostic owner",
       "Asset proof substituted for production embedding/native editable decoder",
-      "Pending copy-first spec proposal is not authority; apply changed binding vocabulary only after actual spec publication, without re-deriving IDs."
+      "Prior v02.207 ambiguity resolved by canonical v02.208 STU-WEB-141; actual provider/data/consumer proof remains required."
     ],
     "minimum_controls": [
       "Bounded actual consumer plus failure/loss/cancel path",
@@ -1851,7 +1852,92 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30636,
+          "end_line": 30647,
+          "body_sha256": "9f4c1991c8a42ff07233b265b7623edcb83f445ff934988256cbcadae662fe70",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30538,
+          "end_line": 30550,
+          "body_sha256": "ae8a091dc25437b75a9e4c7797974f7ac649bc6317208f42dc004f4dc29c3f66",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json",
+        "git_blob_oid": "bb0df8a80c6ce9ce2aa55a8a38f94072854abc8e",
+        "raw_sha256": "01501af74a4baf36d9a2a685190286dcd9c1fd52d5fd0aff910605d57b7439d7"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "61825a724873e4a693158ca126f71c890abdc8859b8d2c8f8d31083a7d420de9",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping",
+        "Pending copy-first spec proposal is not authority; apply changed binding vocabulary only after actual spec publication, without re-deriving IDs."
+      ],
+      "prior_preparation_red_team": {
+        "required": true,
+        "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+        "risks": [
+          "No-op foundation or canned oracle PASS",
+          "Hidden kernel/GPU/codec dependency closure",
+          "Unbounded swarm queue, stale revision, cancellation or data loss",
+          "Duplicated UI/manual/diagnostic owner",
+          "Asset proof substituted for production embedding/native editable decoder",
+          "Pending copy-first spec proposal is not authority; apply changed binding vocabulary only after actual spec publication, without re-deriving IDs."
+        ],
+        "minimum_controls": [
+          "Bounded actual consumer plus failure/loss/cancel path",
+          "Closed selectable DAG and clean dependency proof",
+          "Bounded admission and canonical runtime adapter; no private scheduler",
+          "Reuse canonical Controls/Argus/UserManual owners",
+          "Retain all original acceptance and independent later embedding proof",
+          "Resolve exact named source/policy prerequisite through its existing owner before affected dispatch; original acceptance and independent host proof remain required."
+        ]
+      }
+    },
+    "prior_derivation_snapshots": [
+      {
+        "field": "active_acceptance_criteria",
+        "spec_version": "v02.207",
+        "native_contract_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "native_contract_path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json",
+        "native_contract_raw_sha256": "01501af74a4baf36d9a2a685190286dcd9c1fd52d5fd0aff910605d57b7439d7",
+        "raw_json_utf8": "[\n    {\n      \"id\": \"ASSET-AC-001\",\n      \"criterion\": \"Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \\u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]\",\n      \"source\": \"Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim.\"\n    }\n  ]",
+        "raw_json_sha256": "fa0c788ec253c88b7366921e7b5f8e6930236af2b07a88bdc3a168507e543192",
+        "payload": [
+          {
+            "id": "ASSET-AC-001",
+            "criterion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+            "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
+          }
+        ],
+        "purpose": "Prior derivation snapshot; no longer current acceptance authority"
+      }
+    ]
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -1983,7 +2069,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+        "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35402-ASSET-WEB"
@@ -1993,7 +2079,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+            "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2002,13 +2088,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-          "negative_path": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+          "consumer_assertion": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+          "negative_path": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2038,7 +2124,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35402-ASSET-WEB"
@@ -2048,7 +2134,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+              "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2057,13 +2143,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-            "negative_path": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+            "consumer_assertion": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+            "negative_path": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2079,7 +2165,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35402-ASSET-WEB"
@@ -2089,7 +2175,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+              "required_behavior": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2098,13 +2184,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Expose deterministic clause/unit-kind derivation metadata using the exact yielding and nonyielding sets; preserve every existing MT intent while reconciling derivation count separately.",
-            "negative_path": "Apply exact derivation rule to immutable source and inspect unit keys; six nonyielding clauses add no new units, existing retained records remain historical; unresolved current spec amendment blocks authoritative changed-rule projection.",
+            "consumer_assertion": "Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment.",
+            "negative_path": "Derive exact declared unit keys from immutable208 source, retain six nonyielding clauses and existing historical records separately; conditional field adds no unit and no ID re-derivation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2123,12 +2209,12 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:25:39.579877+00:00",
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
-      "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
+      "criterion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] \u2014 including the nine original binding fields plus conditional refines_panel_id record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...] Current v02.208 enrichment: Preserve mechanical derivation unit rule and yielding/nonyielding sets, replacing nine-field shorthand with nine original binding fields plus conditional refines_panel_id; no new unit or MT identity from enrichment. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35402.json#/execution/inputs/1/complete_clause_body",
+      "source": "Current v02.208 verified full clause plus preserved native original scope; mirrors closure_unit.materialized_acceptance under the same ID."
     }
   ]
 }

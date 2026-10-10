@@ -162,18 +162,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-037",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30096",
-        "verbatim": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node \u2014 for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30116",
+        "verbatim": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node, for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort. The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration. A discriminator alone grants no override to another band, including band 50, and a band-1 candidate remains eligible.",
         "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30096,
-            "end_line": 30097,
-            "body_sha256": "e38bd0e0deafee7f934934a939356eb0e60e3eb917d0f6fe994f821d8d0d25a4",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30116,
+            "end_line": 30116,
+            "body_sha256": "3ce6eddd8890ccf8f8653b6f002ba106606781334b5e57e7cff66a201beec18a",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -182,7 +182,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1914,7 +1914,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "aa7354b84c67599afb06504754aebaecb52818f1c7ae600e71d4d9616a51d500",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1931,17 +1931,17 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+        "text": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34255#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+        "text": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34255#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2066,16 +2066,16 @@
         "requirement_ref": "STU-WEB-037",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30096,
-            "end_line": 30097,
-            "body_sha256": "e38bd0e0deafee7f934934a939356eb0e60e3eb917d0f6fe994f821d8d0d25a4",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30116,
+            "end_line": 30116,
+            "body_sha256": "3ce6eddd8890ccf8f8653b6f002ba106606781334b5e57e7cff66a201beec18a",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node \u2014 for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.\n",
+        "complete_clause_body": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node, for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort. The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration. A discriminator alone grants no override to another band, including band 50, and a band-1 candidate remains eligible.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2085,12 +2085,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
+        "step": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
         "requirement_ref": "STU-WEB-037"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
         "requirement_ref": "STU-WEB-037"
       },
       {
@@ -2110,15 +2110,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-037",
-        "behavior": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-        "state_and_recovery_contract": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+        "behavior": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+        "state_and_recovery_contract": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2189,23 +2188,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm. Check this claim explicitly: When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
-        "expected": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence. Check current qualified acceptance: MT-34255/AC-001",
+        "expected": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-037 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-037 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-037 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-          "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+          "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+          "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2226,23 +2226,24 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm. Check this claim explicitly: A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
-        "expected": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence. Check current qualified acceptance: MT-34255/AC-002",
+        "expected": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-037 clause/table versus actual output; exact original claim AC-002"
+          "Complete STU-WEB-037 clause/table versus actual output; exact original claim AC-002",
+          "Canonical v02.208 STU-WEB-037 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-          "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+          "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+          "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2260,7 +2261,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2274,7 +2276,7 @@
       "Unbounded swarm queue, stale revision, cancellation or data loss",
       "Duplicated UI/manual/diagnostic owner",
       "Asset proof substituted for production embedding/native editable decoder",
-      "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator."
+      "Prior v02.207 ambiguity resolved by canonical v02.208 STU-WEB-037; actual provider/data/consumer proof remains required."
     ],
     "minimum_controls": [
       "Bounded actual consumer plus failure/loss/cancel path",
@@ -2451,7 +2453,73 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30116,
+          "end_line": 30116,
+          "body_sha256": "3ce6eddd8890ccf8f8653b6f002ba106606781334b5e57e7cff66a201beec18a",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30096,
+          "end_line": 30097,
+          "body_sha256": "e38bd0e0deafee7f934934a939356eb0e60e3eb917d0f6fe994f821d8d0d25a4",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json",
+        "git_blob_oid": "6a3073d67465ece0db339a5f7f366dc066b7da0a",
+        "raw_sha256": "66ad4cda80ff9e9b5bd9331b9b2e282094888c401e493b4699d091aee8441033"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "aa7354b84c67599afb06504754aebaecb52818f1c7ae600e71d4d9616a51d500",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping",
+        "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator."
+      ],
+      "prior_preparation_red_team": {
+        "required": true,
+        "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+        "risks": [
+          "No-op foundation or canned oracle PASS",
+          "Hidden kernel/GPU/codec dependency closure",
+          "Unbounded swarm queue, stale revision, cancellation or data loss",
+          "Duplicated UI/manual/diagnostic owner",
+          "Asset proof substituted for production embedding/native editable decoder",
+          "Lower-winning priority contradicts typical6 over5 example and WEB036 ascending order; do not invert comparator."
+        ],
+        "minimum_controls": [
+          "Bounded actual consumer plus failure/loss/cancel path",
+          "Closed selectable DAG and clean dependency proof",
+          "Bounded admission and canonical runtime adapter; no private scheduler",
+          "Reuse canonical Controls/Argus/UserManual owners",
+          "Retain all original acceptance and independent later embedding proof",
+          "Resolve exact source ambiguity through existing owner/spec decision before affected implementation; no inferred correction."
+        ]
+      }
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2584,7 +2652,7 @@
         "original_text": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
         "original_row_sha256": "0ed3b2343a1d95b580fd200fec9174dd355ebe4b8b9324c5ce57b7ab20f745ef",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+        "semantic_fulfillment": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34255-ASSET-WEB"
@@ -2594,7 +2662,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+            "required_behavior": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2603,13 +2671,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-          "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+          "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+          "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2623,7 +2691,7 @@
         "original_text": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
         "original_row_sha256": "2ee68efc5a2e735b6dd1cd8dfffbeb7e23a57a824e4732c23bce82c6cdf92f56",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+        "semantic_fulfillment": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34255-ASSET-WEB"
@@ -2633,7 +2701,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+            "required_behavior": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2642,13 +2710,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-          "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+          "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+          "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2694,7 +2762,7 @@
           "original_text": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
           "original_row_sha256": "0ed3b2343a1d95b580fd200fec9174dd355ebe4b8b9324c5ce57b7ab20f745ef",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+          "semantic_fulfillment": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34255-ASSET-WEB"
@@ -2704,7 +2772,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+              "required_behavior": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2713,13 +2781,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-            "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+            "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+            "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2733,7 +2801,7 @@
           "original_text": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
           "original_row_sha256": "2ee68efc5a2e735b6dd1cd8dfffbeb7e23a57a824e4732c23bce82c6cdf92f56",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+          "semantic_fulfillment": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34255-ASSET-WEB"
@@ -2743,7 +2811,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+              "required_behavior": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2752,13 +2820,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Match discriminator field/value after declarative eligibility; report generic/refinement ordering defects at registration.",
-            "negative_path": "Register meta and viewport-meta siblings and inspect defect/result; retain lower-wins versus6-over5 contradiction as unresolved, no guessed priority algorithm.",
+            "consumer_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible.",
+            "negative_path": "Resolve matching and nonmatching viewport discriminator plus missing/invalid generic target; inspect only named same-node suppression, unmatched normal selection has no error, protected1 and plugin50 retain declared precedence.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Match discriminator on the selected node; valid eligible band6 suppresses only named registered band5 sibling with refinement_superseded; invalid target/definition/pair is registration error and unmatched valid discriminator is merely ineligible. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34255.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2777,5 +2845,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }

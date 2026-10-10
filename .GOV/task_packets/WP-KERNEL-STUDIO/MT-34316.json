@@ -156,18 +156,18 @@
     "specification_anchor_refs": [
       {
         "id": "STU-WEB-089",
-        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30384",
-        "verbatim": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). A responsive document with no viewport declaration is a lint warning, not an error.",
+        "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30482",
+        "verbatim": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033]). A responsive document with no viewport declaration is a lint warning, not an error.",
         "heading": "### 14.28.5 Responsive authoring: media queries and breakpoints",
         "section": "14.28",
-        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
         "verified_source_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30384,
-            "end_line": 30387,
-            "body_sha256": "35fcc1d2fc5a15f76b5bb9749445bee885f528ae0ad72e668291343f2a8c32a7",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30482,
+            "end_line": 30482,
+            "body_sha256": "3c6babd4e442947191d3e69b58df6ceef67132a5af85107c420e1765c679da96",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
@@ -176,7 +176,7 @@
       }
     ],
     "read_context": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
       ".GOV/codex/Handshake_Codex_v1.4.md",
       ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
@@ -1908,7 +1908,7 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "fa7f0732552f28cd385d49d334f65c15c277d56d80275336014f2808fbb1ad3e",
+    "context_digest": null,
     "module_maintenance_refs": [
       ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance"
     ]
@@ -1924,12 +1924,12 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+        "text": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34316#/fulfillment/legacy_acceptance_map/0"
       }
     ],
     "spec_basis_refs": [
-      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
@@ -2054,16 +2054,16 @@
         "requirement_ref": "STU-WEB-089",
         "definition_ranges": [
           {
-            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
-            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
-            "start_line": 30384,
-            "end_line": 30387,
-            "body_sha256": "35fcc1d2fc5a15f76b5bb9749445bee885f528ae0ad72e668291343f2a8c32a7",
+            "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+            "start_line": 30482,
+            "end_line": 30482,
+            "body_sha256": "3c6babd4e442947191d3e69b58df6ceef67132a5af85107c420e1765c679da96",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). A responsive document with no viewport declaration is a lint warning, not an error.\n\n---\n",
+        "complete_clause_body": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033]). A responsive document with no viewport declaration is a lint warning, not an error.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2073,12 +2073,12 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
+        "step": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
         "requirement_ref": "STU-WEB-089"
       },
       {
         "n": 2,
-        "step": "Exercise the owned behavior and its natural failure/recovery cases: Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch.",
+        "step": "Exercise the owned behavior and its natural failure/recovery cases: Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts.",
         "requirement_ref": "STU-WEB-089"
       },
       {
@@ -2098,15 +2098,14 @@
       "Candidate-bound loss/cancel/revision and closure evidence",
       {
         "requirement_ref": "STU-WEB-089",
-        "behavior": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
-        "state_and_recovery_contract": "Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch.",
+        "behavior": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
+        "state_and_recovery_contract": "Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts.",
         "source_body_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body"
       }
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
-      "Scope expansion requires owning contract; no capacity stopping",
-      "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
+      "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
     "contract_dependency_kind": "depends_on_completion",
@@ -2177,23 +2176,24 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch. Check this claim explicitly: Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
-        "expected": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+        "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts. Check current qualified acceptance: MT-34316/AC-001",
+        "expected": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
           "Production consumer and negative/cancel/loss path",
           "Independent assessment of actual output",
-          "Complete STU-WEB-089 clause/table versus actual output; exact original claim AC-001"
+          "Complete STU-WEB-089 clause/table versus actual output; exact original claim AC-001",
+          "Canonical v02.208 STU-WEB-089 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
-          "negative_path": "Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch.",
+          "consumer_assertion": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
+          "negative_path": "Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts.",
           "oracle": "Compare actual consumer output to complete clause fields/table and immutable input bytes/revision. Provider/data absence, cancellation or unresolved source decision cannot count as PASS.",
           "shared_batch_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/29/maintenance_contracts/build_selection",
           "same_unchanged_input_shared_proof": true
@@ -2211,7 +2211,8 @@
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-web/**"
+      "handshake-studio-assets/crates/hsk-studio-web/**",
+      ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md"
     ],
     "extra_build_proofs": [],
     "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
@@ -2225,7 +2226,7 @@
       "Unbounded swarm queue, stale revision, cancellation or data loss",
       "Duplicated UI/manual/diagnostic owner",
       "Asset proof substituted for production embedding/native editable decoder",
-      "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
+      "Prior v02.207 ambiguity resolved by canonical v02.208 STU-WEB-089; actual provider/data/consumer proof remains required."
     ],
     "minimum_controls": [
       "Bounded actual consumer plus failure/loss/cancel path",
@@ -2396,7 +2397,73 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "spec208_binding": {
+      "current_spec_version": "v02.208",
+      "canonical_spec_commit": "0a890f25cb1786fde010d90f79ee62dbfb39cb69",
+      "current_source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "current_source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+      "current_definition_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "start_line": 30482,
+          "end_line": 30482,
+          "body_sha256": "3c6babd4e442947191d3e69b58df6ceef67132a5af85107c420e1765c679da96",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_active_source_ranges": [
+        {
+          "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+          "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+          "start_line": 30384,
+          "end_line": 30387,
+          "body_sha256": "35fcc1d2fc5a15f76b5bb9749445bee885f528ae0ad72e668291343f2a8c32a7",
+          "hash_encoding": "UTF8 line text joined LF, no final LF",
+          "range_kind": "normative_clause"
+        }
+      ],
+      "prior_native_contract": {
+        "commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json",
+        "git_blob_oid": "c40c6b7783a5c79e648692c5c53736e7b6ebffbb",
+        "raw_sha256": "70900d2aaa8a0373af9efd04b3f0e60554afd801ad4509bda58c89ddafe87b9f"
+      },
+      "prior_spec207_archive_ref": ".GOV/spec/spec_archive/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "prior_spec207_archive_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+      "original_scope_and_acceptance_are_historical_native_fields": true,
+      "prior_context_digest": "fa7f0732552f28cd385d49d334f65c15c277d56d80275336014f2808fbb1ad3e",
+      "current_context_digest": "NULL_OPTIONAL_PER_RENEWED_V2_TEMPLATE_NO_CURRENT_COMPUTED_DIGEST_CLAIMED",
+      "current_claim_authority": "closure_unit.materialized_acceptance with unchanged acceptance_refs",
+      "runtime_proof_claimed": false,
+      "prior_preparation_stop_conditions": [
+        "Exact recorded blocker with required dependency",
+        "Scope expansion requires owning contract; no capacity stopping",
+        "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
+      ],
+      "prior_preparation_red_team": {
+        "required": true,
+        "profile": "STUDIO_ASSET_FIRST_PRESERVATION",
+        "risks": [
+          "No-op foundation or canned oracle PASS",
+          "Hidden kernel/GPU/codec dependency closure",
+          "Unbounded swarm queue, stale revision, cancellation or data loss",
+          "Duplicated UI/manual/diagnostic owner",
+          "Asset proof substituted for production embedding/native editable decoder",
+          "Band6 viewport refinement cannot pre-empt band5 under WEB036 lower-wins comparator; owner decision required."
+        ],
+        "minimum_controls": [
+          "Bounded actual consumer plus failure/loss/cancel path",
+          "Closed selectable DAG and clean dependency proof",
+          "Bounded admission and canonical runtime adapter; no private scheduler",
+          "Reuse canonical Controls/Argus/UserManual owners",
+          "Retain all original acceptance and independent later embedding proof",
+          "Resolve exact source ambiguity through existing owner/spec decision before affected implementation; no inferred correction."
+        ]
+      }
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2528,7 +2595,7 @@
         "original_text": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
         "original_row_sha256": "d5ab85f0aed02761d63f819e6d77015be09d70e3846fab280dc7313325c9e5a7",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+        "semantic_fulfillment": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34316-ASSET-WEB"
@@ -2538,7 +2605,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+            "required_behavior": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2547,13 +2614,13 @@
             "hsk-studio-web"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
-          "negative_path": "Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch.",
+          "consumer_assertion": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
+          "negative_path": "Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts.",
           "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2592,7 +2659,7 @@
           "original_text": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
           "original_row_sha256": "d5ab85f0aed02761d63f819e6d77015be09d70e3846fab280dc7313325c9e5a7",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+          "semantic_fulfillment": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34316-ASSET-WEB"
@@ -2602,7 +2669,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+              "required_behavior": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2611,13 +2678,13 @@
               "hsk-studio-web"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Declare viewport-meta dedicated binding/discriminator with stated band6 and lint missing viewport as warning; consume shared contextual owner.",
-            "negative_path": "Select viewport meta versus generic meta and inspect binding receipt; missing declaration is warning, band6-versus5 contradiction remains unresolved before dispatch.",
+            "consumer_assertion": "Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning.",
+            "negative_path": "Edit viewport through typed inspector and compare named same-node generic suppression; generic/viewport nonmatches and missing viewport warning remain correct, registered target mandatory and protected1 still pre-empts.",
             "oracle": "Actual source consumer output compared to complete source ranges and original claim; separate exact host consumer remains mandatory."
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6). Current v02.208 enrichment: Viewport inspector uses binds_to meta, discriminator field=name/value=viewport, band6 and refines_panel_id referencing registered band5 generic meta without invented literal ID; missing viewport remains warning. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34316.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2636,5 +2703,5 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
 }
