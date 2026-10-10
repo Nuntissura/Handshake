@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 13
+generation: 17
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -31,10 +31,11 @@ steps:
 - {id: GP-013, role: builder, at: before_dispatch, do: verify selected MT35528 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, exists: true}, source: KB-START-001; published lease c66eddd4, state: retired}
 - {id: GP-014, role: builder, at: any, do: confirm minified JSON reads use selectors and bounded output, check: {type: confirm}, source: 'infra: rg matched entire 30MB minified report', state: active}
 - {id: GP-015, role: builder, at: before_dispatch, do: 'confirm owned output, pinned compiler and target disk have no competing build', check: {type: confirm}, source: CX-984-008; KB-CARGO-IO-001, state: active}
-- {id: GP-016, role: builder, at: before_dispatch, do: verify selected Accord MT35529 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json, exists: true}, source: KB-IMPL-001; verified predecessor source verdict, state: active}
-- {id: GP-017, role: builder, at: before_dispatch, do: require Accord parser uses is_multiple_of cancellation interval, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs, contains: self.at.is_multiple_of(256)}, source: 'lint: lib.rs732 manual_is_multiple_of', state: active}
+- {id: GP-016, role: builder, at: before_dispatch, do: verify selected Accord MT35529 contract exists, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json, exists: true}, source: KB-IMPL-001; verified predecessor source verdict, state: retired}
+- {id: GP-017, role: builder, at: before_dispatch, do: require Accord parser uses is_multiple_of cancellation interval, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs, contains: self.at.is_multiple_of(256)}, source: 'lint: lib.rs732 manual_is_multiple_of', state: retired}
 - {id: GP-018, role: integration_validator, at: before_round, do: require literal Studio GAMEPLAN_PATH binding in runtime command, check: {type: confirm}, source: 'infra: hook selected WP012 from interpolated gameplan env', state: retired}
 - {id: GP-019, role: any, at: before_round, do: require Studio-scoped pointer before leading Set-Location runtime binding, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/.gameplan-active, contains: gameplan.yaml}, source: 'infra: hook ignores shell env and resolves leading directory pointer', state: active}
 - {id: GP-020, role: integration_validator, at: before_round, do: confirm native SHA256 separately retained and Git clean-filter blobs reconcile, check: {type: confirm}, source: 'infra: raw CRLF worktree vs LF Git byte equality false', state: active}
 - {id: GP-021, role: integration_validator, at: before_round, do: require named case stdout stderr exit saved before oracle assertions, check: {type: confirm}, source: 'infra: selection assertion ran before evidence persistence', state: active}
-- {id: GP-022, role: builder, at: before_dispatch, do: require recorded workspace example-array rejection before scoped parser repair, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, contains: selected_manifest_unsupported_example_array}, source: 'runtime: selected Accord [[example]] rejected by workspace probe', state: active}
+- {id: GP-022, role: builder, at: before_dispatch, do: require recorded workspace example-array rejection before scoped parser repair, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, contains: selected_manifest_unsupported_example_array}, source: 'runtime: selected Accord [[example]] rejected by workspace probe', state: retired}
+- {id: GP-023, role: builder, at: before_dispatch, do: require selected Observe MT35530 contract and predecessor binding, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json, contains: MT-35529-SOURCE-FOUNDATION-V1}, source: KB-IMPL-001; independently passed workspace and Accord, state: active}
