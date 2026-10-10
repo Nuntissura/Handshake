@@ -2554,10 +2554,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every color-bearing value carries StudioColorProfile",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+          "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-238-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2591,10 +2595,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Decode-boundary conversion",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+          "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-238-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2628,10 +2636,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Untagged rejected",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+          "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-238-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2665,10 +2677,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Validated",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+          "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-238-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2791,10 +2807,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Every color-bearing value carries StudioColorProfile",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+            "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-238-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2828,10 +2848,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Decode-boundary conversion",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+            "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-238-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2865,10 +2889,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Untagged rejected",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+            "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-238-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -2902,10 +2930,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Validated",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Convert external values once into canonical tagged values before swatch, paint, gradient, text and adjustment commands execute.",
+            "negative_path": "Reject untagged triples and stale profile references across each path; serialize accepted tags and independently read them back.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_238 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-238-KERNEL-AC-004",
           "later_embedding_required": true,

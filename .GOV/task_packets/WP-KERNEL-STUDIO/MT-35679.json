@@ -246,7 +246,7 @@
     "title": "Generative result lands as local authority + promotion [STU-VEC-040] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2500,11 +2500,52 @@
         "semantic_fulfillment": "Generative result lands as editable local content via PromotionGate with KernelActor attribution",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-137-ASSET-NIB",
-          "MT-137-ASSET-KERNEL_BINDINGS"
+          "MT-137-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical generative-result envelope carrying ordinary vector/pattern/recolor payload,provider identity,KernelActor,resource scope and expected revision. Source case: Deliver STUDIO-MODULE-NIB asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+            "required_behavior": "Generative result lands as editable local content via PromotionGate with KernelActor attribution",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-137#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Roundtrip accepted-shape payload through existing document/command ports and inspect exact editable primitive/schema identities and attribution. Exact requirement: Generative result lands as editable local content via PromotionGate with KernelActor attribution",
+          "negative_path": "Reject missing provenance/actor,unknown primitive or unsupported payload with explicit loss; no parallel generated-content document or bypass grant type.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35679",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-137-KERNEL-AC-001",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Generative result lands as editable local content via PromotionGate with KernelActor attribution Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36195",
+          "MT-36216"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
@@ -2517,24 +2558,6 @@
             "required_behavior": "Generative result lands as editable local content via PromotionGate with KernelActor attribution",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-nib",
-            "hsk-studio-kernel-bindings"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Generative result lands as editable local content via PromotionGate with KernelActor attribution",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-137-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Generative result lands as editable local content via PromotionGate with KernelActor attribution Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36195",
-          "MT-36216"
         ]
       },
       {
@@ -2546,25 +2569,42 @@
         "semantic_fulfillment": "Fails closed on direct write",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-137-ASSET-NIB"
+          "MT-137-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical generative-result envelope carrying ordinary vector/pattern/recolor payload,provider identity,KernelActor,resource scope and expected revision. Source case: Deliver STUDIO-MODULE-NIB asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Fails closed on direct write",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-137#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Fails closed on direct write",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip accepted-shape payload through existing document/command ports and inspect exact editable primitive/schema identities and attribution. Exact requirement: Fails closed on direct write",
+          "negative_path": "Reject missing provenance/actor,unknown primitive or unsupported payload with explicit loss; no parallel generated-content document or bypass grant type.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35679",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-137-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2572,6 +2612,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Fails closed on direct write",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2657,4 +2705,3 @@
     "source_parent_mt": "MT-137"
   }
 }
-

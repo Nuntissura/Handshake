@@ -271,7 +271,7 @@
     "title": "Sections + page numbering [STU-LAY-014] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2678,28 +2678,42 @@
         "semantic_fulfillment": "Named sections restart numbering with all number styles",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-150-ASSET-LAYOUT"
+          "MT-150-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define section name,start,derived range,numbering style,prefix/marker,continue_numbering and export-state fields through canonical schema. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Named sections restart numbering with all number styles",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-150#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "typed_input": "Immutable Folio page order/revision and canonical section IDs; name/prefix/marker strings, page-start reference, continue_numbering boolean, page_number_start count1..999999, shared union number-style enum with section-valid subset, include-prefix boolean and requested include-export flag.",
-          "typed_output": "Canonical section-range/numbering mutation plan with inverse, typed constraint errors and explicit unsupported/loss report for per-section export gap.",
-          "consumer_assertion": "Consumer inserts sections, disables continuation before setting start, renders Roman/Arabic/locale styles through shared numbering formatter and checks each page's section-derived number plus prefix/marker.",
-          "negative_path": "Duplicate starts/prefixes, blank name, forbidden prefix chars, sixth prefix character, out-ofrange start, invalid section-style member, stale revision/cancel refuse atomically; default section delete hard-refused; per-section export flag SPEC_GAP blocks that assertion.",
-          "oracle": "Independent canonical section/page reread compares explicit partition, derived length and formatter outputs; imported prefixes remain untruncated in loss payload and inverse restores original numbering.",
-          "terminal_proof_ref": "MT-150#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Roundtrip fourteen legal section-style tokens and exact prefix/name validation through real Layout section consumer. Exact requirement: Named sections restart numbering with all number styles",
+          "negative_path": "Reject duplicate start/prefix,blank name,comma/plus or >5-character prefix; retain imported5..8 conflict/loss and default-section deletion prohibition.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35685",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-150-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2710,6 +2724,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Named sections restart numbering with all number styles",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2721,28 +2743,42 @@
         "semantic_fulfillment": "Prefix/marker",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-150-ASSET-LAYOUT"
+          "MT-150-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define section name,start,derived range,numbering style,prefix/marker,continue_numbering and export-state fields through canonical schema. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Prefix/marker",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-150#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "typed_input": "Immutable Folio page order/revision and canonical section IDs; name/prefix/marker strings, page-start reference, continue_numbering boolean, page_number_start count1..999999, shared union number-style enum with section-valid subset, include-prefix boolean and requested include-export flag.",
-          "typed_output": "Canonical section-range/numbering mutation plan with inverse, typed constraint errors and explicit unsupported/loss report for per-section export gap.",
-          "consumer_assertion": "Consumer inserts sections, disables continuation before setting start, renders Roman/Arabic/locale styles through shared numbering formatter and checks each page's section-derived number plus prefix/marker.",
-          "negative_path": "Duplicate starts/prefixes, blank name, forbidden prefix chars, sixth prefix character, out-ofrange start, invalid section-style member, stale revision/cancel refuse atomically; default section delete hard-refused; per-section export flag SPEC_GAP blocks that assertion.",
-          "oracle": "Independent canonical section/page reread compares explicit partition, derived length and formatter outputs; imported prefixes remain untruncated in loss payload and inverse restores original numbering.",
-          "terminal_proof_ref": "MT-150#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Roundtrip fourteen legal section-style tokens and exact prefix/name validation through real Layout section consumer. Exact requirement: Prefix/marker",
+          "negative_path": "Reject duplicate start/prefix,blank name,comma/plus or >5-character prefix; retain imported5..8 conflict/loss and default-section deletion prohibition.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35685",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-150-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2753,6 +2789,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Prefix/marker",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2764,28 +2808,42 @@
         "semantic_fulfillment": "Include-on-export",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-150-ASSET-LAYOUT"
+          "MT-150-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define section name,start,derived range,numbering style,prefix/marker,continue_numbering and export-state fields through canonical schema. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Include-on-export",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-150#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "typed_input": "Immutable Folio page order/revision and canonical section IDs; name/prefix/marker strings, page-start reference, continue_numbering boolean, page_number_start count1..999999, shared union number-style enum with section-valid subset, include-prefix boolean and requested include-export flag.",
-          "typed_output": "Canonical section-range/numbering mutation plan with inverse, typed constraint errors and explicit unsupported/loss report for per-section export gap.",
-          "consumer_assertion": "Consumer inserts sections, disables continuation before setting start, renders Roman/Arabic/locale styles through shared numbering formatter and checks each page's section-derived number plus prefix/marker.",
-          "negative_path": "Duplicate starts/prefixes, blank name, forbidden prefix chars, sixth prefix character, out-ofrange start, invalid section-style member, stale revision/cancel refuse atomically; default section delete hard-refused; per-section export flag SPEC_GAP blocks that assertion.",
-          "oracle": "Independent canonical section/page reread compares explicit partition, derived length and formatter outputs; imported prefixes remain untruncated in loss payload and inverse restores original numbering.",
-          "terminal_proof_ref": "MT-150#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Roundtrip fourteen legal section-style tokens and exact prefix/name validation through real Layout section consumer. Exact requirement: Include-on-export",
+          "negative_path": "Reject duplicate start/prefix,blank name,comma/plus or >5-character prefix; retain imported5..8 conflict/loss and default-section deletion prohibition.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35685",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-150-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2796,6 +2854,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Include-on-export",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2807,28 +2873,42 @@
         "semantic_fulfillment": "StudioPageSpread-scoped",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-150-ASSET-LAYOUT"
+          "MT-150-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define section name,start,derived range,numbering style,prefix/marker,continue_numbering and export-state fields through canonical schema. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "StudioPageSpread-scoped",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-150#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "typed_input": "Immutable Folio page order/revision and canonical section IDs; name/prefix/marker strings, page-start reference, continue_numbering boolean, page_number_start count1..999999, shared union number-style enum with section-valid subset, include-prefix boolean and requested include-export flag.",
-          "typed_output": "Canonical section-range/numbering mutation plan with inverse, typed constraint errors and explicit unsupported/loss report for per-section export gap.",
-          "consumer_assertion": "Consumer inserts sections, disables continuation before setting start, renders Roman/Arabic/locale styles through shared numbering formatter and checks each page's section-derived number plus prefix/marker.",
-          "negative_path": "Duplicate starts/prefixes, blank name, forbidden prefix chars, sixth prefix character, out-ofrange start, invalid section-style member, stale revision/cancel refuse atomically; default section delete hard-refused; per-section export flag SPEC_GAP blocks that assertion.",
-          "oracle": "Independent canonical section/page reread compares explicit partition, derived length and formatter outputs; imported prefixes remain untruncated in loss payload and inverse restores original numbering.",
-          "terminal_proof_ref": "MT-150#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Roundtrip fourteen legal section-style tokens and exact prefix/name validation through real Layout section consumer. Exact requirement: StudioPageSpread-scoped",
+          "negative_path": "Reject duplicate start/prefix,blank name,comma/plus or >5-character prefix; retain imported5..8 conflict/loss and default-section deletion prohibition.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35685",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-150-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2839,6 +2919,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "StudioPageSpread-scoped",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2931,4 +3019,3 @@
     "source_parent_mt": "MT-150"
   }
 }
-

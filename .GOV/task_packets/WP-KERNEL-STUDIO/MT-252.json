@@ -2430,10 +2430,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Per-plate preview",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+          "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-252-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2467,10 +2471,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Configurable ink-limit view",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+          "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-252-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2504,10 +2512,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Per-ink coverage readouts",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+          "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-252-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2541,10 +2553,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Argus-inspectable",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+          "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-252-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2669,10 +2685,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Per-plate preview",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+            "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-252-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2706,10 +2726,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Configurable ink-limit view",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+            "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-252-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2743,10 +2767,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Per-ink coverage readouts",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+            "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-252-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -2780,10 +2808,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Argus-inspectable",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Derive cursor readouts and threshold warnings from those buffers without changing plate data.",
+            "negative_path": "Independent sum/readout comparison proves spot plates remain distinct; invalid threshold or unresolved ink fails explicitly.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_252 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-252-KERNEL-AC-004",
           "later_embedding_required": true,

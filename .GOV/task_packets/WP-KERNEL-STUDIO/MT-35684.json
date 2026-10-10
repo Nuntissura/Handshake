@@ -268,7 +268,7 @@
     "title": "Automatic recovery + document-states surface [STU-LAY-013] / STUDIO-MODULE-CHRONICLE owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2581,35 +2581,42 @@
         "semantic_fulfillment": "Document-states jump beyond linear undo",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-149-ASSET-LAYOUT",
           "MT-149-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-            "required_behavior": "Document-states jump beyond linear undo",
-            "only_owner_root_may_change": true
-          },
-          {
             "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "scope": "Project ledger-backed recoverable/session states via Chronicle history ports and construct one revision-bound jump/recover/snapshot proposal. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Document-states jump beyond linear undo",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-149#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-chronicle"
           ],
-          "typed_input": "Immutable canonical per-file history/Chronicle port revision and authorized state IDs, current Folio revision, configurable recovery locator, requested recovery/history jump target and layout snapshot references.",
-          "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
-          "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
-          "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
-          "terminal_proof_ref": "MT-149#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Consume actual retained inverse/snapshot artifacts and inspect exact restored content plus state ordering without private recovery store. Exact requirement: Document-states jump beyond linear undo",
+          "negative_path": "Missing/corrupt/unauthorized snapshot or stale revision refuses recover; partial replay cannot appear clean and actual crash/durable replay remains host proof.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35684",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-149-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2622,6 +2629,20 @@
         "host_adoption_mt_refs": [
           "MT-36197",
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Document-states jump beyond linear undo",
+            "only_owner_root_may_change": true
+          },
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "Document-states jump beyond linear undo",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2633,35 +2654,42 @@
         "semantic_fulfillment": "Kernel-history-backed, no private store",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-149-ASSET-LAYOUT",
           "MT-149-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-            "required_behavior": "Kernel-history-backed, no private store",
-            "only_owner_root_may_change": true
-          },
-          {
             "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "scope": "Project ledger-backed recoverable/session states via Chronicle history ports and construct one revision-bound jump/recover/snapshot proposal. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Kernel-history-backed, no private store",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-149#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-chronicle"
           ],
-          "typed_input": "Immutable canonical per-file history/Chronicle port revision and authorized state IDs, current Folio revision, configurable recovery locator, requested recovery/history jump target and layout snapshot references.",
-          "typed_output": "History-state inspection projection, typed recover/jump request and refusal/loss descriptor tied to canonical state/revision; no second undo store.",
-          "consumer_assertion": "Public Layout consumer lists non-linear history states and selects a prior recorded state through real published Chronicle port; projection preserves exact state IDs and configurable recovery locator.",
-          "negative_path": "Unavailable history port, missing/corrupt snapshot, unauthorized state, stale revision or cancellation returns refusal without changing Folio; incomplete recovery must not present a clean recovered document or silently drop edits.",
-          "oracle": "Independent canonical history-port reread compares exact requested state and resulting graph revision; independent host crash/relaunch/recovery proof scoped only to the harness-started managed test process remains host task requirement and is not satisfied by source synthetic history.",
-          "terminal_proof_ref": "MT-149#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Consume actual retained inverse/snapshot artifacts and inspect exact restored content plus state ordering without private recovery store. Exact requirement: Kernel-history-backed, no private store",
+          "negative_path": "Missing/corrupt/unauthorized snapshot or stale revision refuses recover; partial replay cannot appear clean and actual crash/durable replay remains host proof.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35684",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-149-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2674,6 +2702,20 @@
         "host_adoption_mt_refs": [
           "MT-36197",
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Kernel-history-backed, no private store",
+            "only_owner_root_may_change": true
+          },
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "Kernel-history-backed, no private store",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2759,4 +2801,3 @@
     "source_parent_mt": "MT-149"
   }
 }
-

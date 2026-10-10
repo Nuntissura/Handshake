@@ -2403,10 +2403,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "4 rendering intents",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+          "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-250-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2440,10 +2444,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Independent BPC toggle",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+          "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-250-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2477,10 +2485,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Selectable on convert and on proof",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+          "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-250-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2595,10 +2607,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "4 rendering intents",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+            "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-250-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2632,10 +2648,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Independent BPC toggle",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+            "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-250-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2669,10 +2689,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Selectable on convert and on proof",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume all four intents crossed with BPC on/off over an actual source/destination profile pair.",
+            "negative_path": "Reference output comparison detects wrong vendor integer mapping; invalid intent rejects without choosing a default.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_250 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-250-KERNEL-AC-003",
           "later_embedding_required": true,

@@ -2535,10 +2535,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Hunspell dictionary stack",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+          "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-229-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2572,10 +2576,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Per-language user dicts",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+          "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-229-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2609,10 +2617,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Inline spell-check",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+          "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-229-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2646,10 +2658,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Text/GREP/glyph find-change with scope/toggles/saved queries",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+          "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-229-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2683,10 +2699,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Match-font optional",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+          "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-229-KERNEL-AC-005",
         "later_embedding_required": true,
@@ -2823,10 +2843,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Hunspell dictionary stack",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+            "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-229-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2860,10 +2884,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Per-language user dicts",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+            "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-229-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2897,10 +2925,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Inline spell-check",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+            "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-229-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -2934,10 +2966,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Text/GREP/glyph find-change with scope/toggles/saved queries",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+            "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-229-KERNEL-AC-004",
           "later_embedding_required": true,
@@ -2971,10 +3007,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Match-font optional",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume saved query/include flags across selected documents/stories and deterministic optional installed-font match.",
+            "negative_path": "Regex/dictionary/resource failures and inaccessible hidden/locked scope reject explicitly; optional generative font suggestion never blocks offline proofing.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_229 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-229-KERNEL-AC-005",
           "later_embedding_required": true,

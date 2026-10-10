@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 24
+generation: 26
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -39,3 +39,10 @@ steps:
 - {id: GP-023, role: builder, at: before_submit, do: compare unchanged frozen bytes with staged Git-normalized bytes and retain both hashes, check: {type: confirm}, source: 'infra: core.autocrlf normalized CRLF staged MT33453; only exact configured newline conversion permitted', state: retired}
 - {id: GP-024, role: builder, at: before_round, do: confirm command authors allocated JSON only; embedded future argv executes no product process, check: {type: confirm}, source: 'infra: future argv text selected stale WP012 gate; explicit Studio selector required', state: active}
 - {id: GP-025, role: builder, at: before_submit, do: verify existing contract keys and constraint meanings retained or explicitly mapped before freeze, check: {type: confirm}, source: 'infra: Pigment suffix patches dropped red_team/updated_at_utc and three active AC fields', state: active}
+- {id: GP-026, role: builder, at: before_round, do: pass only selected case to readonly generator within Windows argv limit, check: {type: confirm}, source: 'infra: combined final36 concrete payload exceeded CreateProcess argv limit before mutation', state: active}
+- {id: GP-027, role: builder, at: before_round, do: retain actual PDF legacy map shape and derive owned behavior from unchanged source requirement, check: {type: confirm}, source: 'infra: PDF001 legacy map lacks owner_contributions and semantic_fulfillment; no mutation on failed generation', state: active}
+- {id: GP-028, role: builder, at: before_round, do: preserve existing executable slice pointer and fill absent semantics from exact parent fields, check: {type: confirm}, source: 'infra: Date slice scope_fulfillment contains executable_mt_ref only; missing exact_requirement_refs', state: active}
+- {id: GP-029, role: builder, at: before_submit, do: compare optional preserved payload without inventing foundation wrapper, check: {type: confirm}, source: 'infra: Controls foundation35553 has no preserved_original in native baseline', state: active}
+- {id: GP-030, role: builder, at: before_round, do: emit only changed projection rows for existing contract repair, check: {type: confirm}, source: 'infra: full before-after pair exceeded bounded output before mutation', state: active}
+- {id: GP-031, role: builder, at: before_submit, do: require NUL stdin pathspec for large explicit Git staging cohorts, check: {type: confirm}, source: 'infra: Windows argv length blocked783-file git add; bounded stdin pathspec preserves exact scope', state: active}
+- {id: GP-032, role: builder, at: before_submit, do: require bounded scalar summaries and explicit UTF8 for large JSON inspection, check: {type: confirm}, source: 'infra: whole index metadata print exceeded output bound and default cp1252 failed', state: active}

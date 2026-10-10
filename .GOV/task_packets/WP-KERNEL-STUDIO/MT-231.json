@@ -2644,10 +2644,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "StudioColorProfile@1 primitive (model/bit-depth/ICC-OCIO)",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+          "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-231-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2686,13 +2690,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism",
-            "hsk-studio-folio"
+            "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Document",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+          "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-231-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2727,10 +2734,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Placed-asset profiles",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+          "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-231-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2764,10 +2775,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No fork",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+          "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-231-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2891,10 +2906,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "StudioColorProfile@1 primitive (model/bit-depth/ICC-OCIO)",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+            "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-231-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2933,13 +2952,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-prism",
-              "hsk-studio-folio"
+              "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Document",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+            "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-231-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2974,10 +2996,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Placed-asset profiles",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+            "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-231-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -3011,10 +3037,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "No fork",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Decode, serialize and resolve RGB/CMYK/Lab/Gray profile-bearing paints through the same Folio primitive; reject a model/depth/profile mismatch or unresolved profile before command publication.",
+            "negative_path": "Read serialized values back with a separate consumer; missing profile cannot silently become device RGB.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_231 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-231-KERNEL-AC-004",
           "later_embedding_required": true,

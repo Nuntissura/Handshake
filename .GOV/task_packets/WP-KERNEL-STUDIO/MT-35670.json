@@ -305,7 +305,7 @@
     "title": "Vector domain binding: studio.vector command family + kind=vector layer + engine boundary [STU-VEC-001,STU-VEC-041,STU-VEC-042,STU-VEC-045] / STUDIO-MODULE-FOLIO owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2996,25 +2996,42 @@
         "semantic_fulfillment": "Studio.vector command family routes through VectorEngine boundary",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "Studio.vector command family routes through VectorEngine boundary",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Studio.vector command family routes through VectorEngine boundary",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: Studio.vector command family routes through VectorEngine boundary",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3022,6 +3039,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Studio.vector command family routes through VectorEngine boundary",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3033,25 +3058,42 @@
         "semantic_fulfillment": "EventLedger",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "EventLedger",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "EventLedger",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: EventLedger",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3059,6 +3101,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "EventLedger",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3070,25 +3120,42 @@
         "semantic_fulfillment": "Typed SurrealDB authority",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "Typed SurrealDB authority",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Typed SurrealDB authority",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: Typed SurrealDB authority",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3096,6 +3163,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Typed SurrealDB authority",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3107,25 +3182,42 @@
         "semantic_fulfillment": "Lossless promotion",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "Lossless promotion",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Lossless promotion",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: Lossless promotion",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3133,6 +3225,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Lossless promotion",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3144,25 +3244,42 @@
         "semantic_fulfillment": "Precision at API boundary",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "Precision at API boundary",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Precision at API boundary",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: Precision at API boundary",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3170,6 +3287,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Precision at API boundary",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3181,25 +3306,42 @@
         "semantic_fulfillment": "No GPU dependency leak",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "No GPU dependency leak",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No GPU dependency leak",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: No GPU dependency leak",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3207,6 +3349,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "No GPU dependency leak",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3218,25 +3368,42 @@
         "semantic_fulfillment": "PostgreSQL/SQLite rejected",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-081"
+          "MT-081-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Bind vector-kind StudioLayer to canonical StudioVectorPath/Network and stable document IDs,retaining zoom/artboard-independent authored precision. Source case: Typed vector delta, preserved source geometry, revision guard, explicit loss receipt and headless geometry inspection consumed by Folio and embedding adapter. Standalone source closure requires canonical remote publication and independent public consumer proof; all original host acceptance remains separately pending MT-36195.",
             "required_behavior": "PostgreSQL/SQLite rejected",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-081#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "PostgreSQL/SQLite rejected",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Promote path to network in immutable document and roundtrip source geometry before real Nib consumer; explicit reverse flatten carries loss. Exact requirement: PostgreSQL/SQLite rejected",
+          "negative_path": "Reject invalid topology,stale revision or silent reverse flatten; Folio does not persist EventLedger/database/private vector document authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35670",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -3244,6 +3411,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "PostgreSQL/SQLite rejected",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -3394,4 +3569,3 @@
     "source_parent_mt": "MT-081"
   }
 }
-

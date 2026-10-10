@@ -253,7 +253,7 @@
     "title": "Preflight rule categories + structured findings to command surface [STU-LAY-057] / STUDIO-MODULE-HARNESS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2519,28 +2519,42 @@
         "semantic_fulfillment": "All seven preflight rule categories fire",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-183-ASSET-LAYOUT"
+          "MT-183-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Exercise actual preflight rule consumers for links/PPI,color/plates/overprint,ink,images/geometry,effects,text/fonts/overset,document and accessibility/data freshness. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "All seven preflight rule categories fire",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-183#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-harness"
           ],
-          "typed_input": "Immutable canonical document/resource/font/colour/ink/geometry/text/accessibility/data revisions, shared profile rule instances with typed thresholds/units and stable rule IDs; seven category bindings and severity/layer/page scope.",
-          "typed_output": "Seven-category shared rule registration and revision-bound structured finding stream/count with typed unavailable/partial-support diagnostics.",
-          "consumer_assertion": "Public model consumer receives independently triggered and repaired findings for every named rule across all seven categories, including fill/stroke/text ink thresholds and stale data/TOC/xref; UI consumer projects identical finding IDs and canonical object/page refs.",
-          "negative_path": "Missing font/colour/ink/dictionary/link/data provider, unbound numerical thresholds or full_feature false blocks corresponding proof, never absent finding counted clear. Cancel/stale snapshot rejects partial count; unsupported passthrough/effect assessment remains loss/unknown. Structured findings persist on failing and canceled runs.",
-          "oracle": "Independent canonical resource/geometry/Type/Chromata state and analytically calculated threshold cases reconcile offending refs/pages/severity; independent full expected rule census before/after repairing one defect verifies no unrelated finding vanished; shared public API output inspected rather than UI count alone.",
-          "terminal_proof_ref": "MT-183#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Use real selected resource/font/color/type/link providers and independently inspect each offending object/page/severity/fix plus diagnostic/capture state. Exact requirement: All seven preflight rule categories fire",
+          "negative_path": "Missing provider or numerical threshold blocks corresponding proof; canceled/stale partial count never clear and warnings/findings survive failed runs.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35694",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-183-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2551,6 +2565,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "All seven preflight rule categories fire",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2562,28 +2584,42 @@
         "semantic_fulfillment": "Findings exposed as structured model-steerable output",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-183-ASSET-LAYOUT"
+          "MT-183-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Exercise actual preflight rule consumers for links/PPI,color/plates/overprint,ink,images/geometry,effects,text/fonts/overset,document and accessibility/data freshness. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Findings exposed as structured model-steerable output",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-183#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-harness"
           ],
-          "typed_input": "Immutable canonical document/resource/font/colour/ink/geometry/text/accessibility/data revisions, shared profile rule instances with typed thresholds/units and stable rule IDs; seven category bindings and severity/layer/page scope.",
-          "typed_output": "Seven-category shared rule registration and revision-bound structured finding stream/count with typed unavailable/partial-support diagnostics.",
-          "consumer_assertion": "Public model consumer receives independently triggered and repaired findings for every named rule across all seven categories, including fill/stroke/text ink thresholds and stale data/TOC/xref; UI consumer projects identical finding IDs and canonical object/page refs.",
-          "negative_path": "Missing font/colour/ink/dictionary/link/data provider, unbound numerical thresholds or full_feature false blocks corresponding proof, never absent finding counted clear. Cancel/stale snapshot rejects partial count; unsupported passthrough/effect assessment remains loss/unknown. Structured findings persist on failing and canceled runs.",
-          "oracle": "Independent canonical resource/geometry/Type/Chromata state and analytically calculated threshold cases reconcile offending refs/pages/severity; independent full expected rule census before/after repairing one defect verifies no unrelated finding vanished; shared public API output inspected rather than UI count alone.",
-          "terminal_proof_ref": "MT-183#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Use real selected resource/font/color/type/link providers and independently inspect each offending object/page/severity/fix plus diagnostic/capture state. Exact requirement: Findings exposed as structured model-steerable output",
+          "negative_path": "Missing provider or numerical threshold blocks corresponding proof; canceled/stale partial count never clear and warnings/findings survive failed runs.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35694",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-183-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2594,6 +2630,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Findings exposed as structured model-steerable output",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2676,4 +2720,3 @@
     "source_parent_mt": "MT-183"
   }
 }
-

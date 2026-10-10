@@ -276,7 +276,7 @@
     "title": "StudioSwatch primitive + swatch kinds [STU-COL-007] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2717,25 +2717,42 @@
         "semantic_fulfillment": "StudioSwatch@1 with all 6 kinds",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-239-ASSET-PRISM"
+          "MT-239-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical process/global/spot/mixed_ink/mixed_ink_group/tint plus reserved None/Paper/Registration/Black swatch variants,profile value and optional group. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "StudioSwatch@1 with all 6 kinds",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-239#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "StudioSwatch@1 with all 6 kinds",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip spot optional Lab and tint/base/stepped-ink dependencies through published swatch consumer while preserving exact identities. Exact requirement: StudioSwatch@1 with all 6 kinds",
+          "negative_path": "Reject unknown kind,unresolved base/profile or cycles; reserved deletion prohibition stays typed and no ad-hoc swatch primitive.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35724",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-239-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2743,6 +2760,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "StudioSwatch@1 with all 6 kinds",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2754,25 +2779,42 @@
         "semantic_fulfillment": "Reserved built-ins",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-239-ASSET-PRISM"
+          "MT-239-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical process/global/spot/mixed_ink/mixed_ink_group/tint plus reserved None/Paper/Registration/Black swatch variants,profile value and optional group. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Reserved built-ins",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-239#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Reserved built-ins",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip spot optional Lab and tint/base/stepped-ink dependencies through published swatch consumer while preserving exact identities. Exact requirement: Reserved built-ins",
+          "negative_path": "Reject unknown kind,unresolved base/profile or cycles; reserved deletion prohibition stays typed and no ad-hoc swatch primitive.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35724",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-239-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2780,6 +2822,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "Reserved built-ins",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2791,25 +2841,42 @@
         "semantic_fulfillment": "Profile-tagged",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-239-ASSET-PRISM"
+          "MT-239-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical process/global/spot/mixed_ink/mixed_ink_group/tint plus reserved None/Paper/Registration/Black swatch variants,profile value and optional group. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Profile-tagged",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-239#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Profile-tagged",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip spot optional Lab and tint/base/stepped-ink dependencies through published swatch consumer while preserving exact identities. Exact requirement: Profile-tagged",
+          "negative_path": "Reject unknown kind,unresolved base/profile or cycles; reserved deletion prohibition stays typed and no ad-hoc swatch primitive.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35724",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-239-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2817,6 +2884,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "Profile-tagged",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2828,25 +2903,42 @@
         "semantic_fulfillment": "Swatch panel",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-239-ASSET-PRISM"
+          "MT-239-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical process/global/spot/mixed_ink/mixed_ink_group/tint plus reserved None/Paper/Registration/Black swatch variants,profile value and optional group. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Swatch panel",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-239#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Swatch panel",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip spot optional Lab and tint/base/stepped-ink dependencies through published swatch consumer while preserving exact identities. Exact requirement: Swatch panel",
+          "negative_path": "Reject unknown kind,unresolved base/profile or cycles; reserved deletion prohibition stays typed and no ad-hoc swatch primitive.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35724",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-239-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2854,6 +2946,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "Swatch panel",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2865,25 +2965,42 @@
         "semantic_fulfillment": "No fork",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-239-ASSET-PRISM"
+          "MT-239-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical process/global/spot/mixed_ink/mixed_ink_group/tint plus reserved None/Paper/Registration/Black swatch variants,profile value and optional group. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "No fork",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-239#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No fork",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip spot optional Lab and tint/base/stepped-ink dependencies through published swatch consumer while preserving exact identities. Exact requirement: No fork",
+          "negative_path": "Reject unknown kind,unresolved base/profile or cycles; reserved deletion prohibition stays typed and no ad-hoc swatch primitive.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35724",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-239-KERNEL-AC-005",
         "later_embedding_required": true,
@@ -2891,6 +3008,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "No fork",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2989,4 +3114,3 @@
     "source_parent_mt": "MT-239"
   }
 }
-

@@ -269,7 +269,7 @@
     "title": "Grids & guides + smart guides [STU-LAY-050,STU-LAY-051] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2588,12 +2588,58 @@
         "semantic_fulfillment": "Baseline/document/column/margin/ruler guides on StudioLayoutGrid",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-179-ASSET-LAYOUT",
-          "MT-179-ASSET-ACCORD",
-          "MT-179-ASSET-FOLIO"
+          "MT-179-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define canonical baseline/document/frame grids,column/margin/ruler guides,color/threshold/lock/inheritance and independent grid/guide/object snap toggles. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+            "required_behavior": "Baseline/document/column/margin/ruler guides on StudioLayoutGrid",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-179#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Roundtrip guide and baseline-snap request through Layout/Type/Controls consumers with explicit zoom/unit/precision context. Exact requirement: Baseline/document/column/margin/ruler guides on StudioLayoutGrid",
+          "negative_path": "Reject overflow threshold,invalid page/locked guide or unbound subdivision/tie policy; pure schema cannot invent snapping defaults.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35689",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-179-KERNEL-AC-001",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Baseline/document/column/margin/ruler guides on StudioLayoutGrid Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "./MT-36197.json",
+          "./MT-36189.json",
+          "./MT-36191.json"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36197",
+          "MT-36189",
+          "MT-36191"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-LAYOUT",
             "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
@@ -2612,32 +2658,6 @@
             "required_behavior": "Baseline/document/column/margin/ruler guides on StudioLayoutGrid",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-layout"
-          ],
-          "typed_input": "Immutable canonical StudioLayoutGrid/Folio revision and page/spread/frame geometry in pt; document baseline/grid and custom frame baseline scopes, thresholds5..4000percent, integer guide snap zone1..36px with bound viewport conversion; ruler/liquid discriminator, guide parent override flags; per-construct snaps and shared Controls drag events.",
-          "typed_output": "Reversible grid/guide graph delta and deterministic shared Controls snap/hint descriptors with scope-aware locks, candidate inspection and typed bounds errors.",
-          "consumer_assertion": "Public Type consumer snaps baseline lines using document/custom-frame grids; public Controls consumer drags against edges/centres and sees dimension/spacing hints with each construct toggled independently; guide consumer copies pages and deletes every canonical spread guide including unloaded ones.",
-          "negative_path": "Threshold/snap-zone overflow, locked/invalid page guide, absent Type/Controls/viewport provider or unbound grid subdivision/relative zero/tie policy blocks proof. Stale revision/cancel refuses graph change and clears transient hints; unsupported inherited guide loss explicit. Argus host adoption remains separate pending.",
-          "oracle": "Independent canonical grid/guide reread checks both scopes and full delete set; analytical geometry oracle calculates candidates/distance under zoom; independent shared Controls visual inspection verifies hints/readability and toggles without separate layout interaction engine; undo restores IDs.",
-          "terminal_proof_ref": "MT-179#/proof/checks",
-          "status": "PENDING_NOT_RUN"
-        },
-        "later_embedding_ref": "MT-179-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Baseline/document/column/margin/ruler guides on StudioLayoutGrid Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "later_embedding_refs": [
-          "./MT-36197.json",
-          "./MT-36189.json",
-          "./MT-36191.json"
-        ],
-        "host_adoption_mt_refs": [
-          "MT-36197",
-          "MT-36189",
-          "MT-36191"
         ]
       },
       {
@@ -2649,35 +2669,42 @@
         "semantic_fulfillment": "Smart guides",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-179-ASSET-LAYOUT",
           "MT-179-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-            "required_behavior": "Smart guides",
-            "only_owner_root_may_change": true
-          },
-          {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
-            "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
+            "scope": "Define canonical baseline/document/frame grids,column/margin/ruler guides,color/threshold/lock/inheritance and independent grid/guide/object snap toggles. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Smart guides",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-179#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "typed_input": "Immutable canonical StudioLayoutGrid/Folio revision and page/spread/frame geometry in pt; document baseline/grid and custom frame baseline scopes, thresholds5..4000percent, integer guide snap zone1..36px with bound viewport conversion; ruler/liquid discriminator, guide parent override flags; per-construct snaps and shared Controls drag events.",
-          "typed_output": "Reversible grid/guide graph delta and deterministic shared Controls snap/hint descriptors with scope-aware locks, candidate inspection and typed bounds errors.",
-          "consumer_assertion": "Public Type consumer snaps baseline lines using document/custom-frame grids; public Controls consumer drags against edges/centres and sees dimension/spacing hints with each construct toggled independently; guide consumer copies pages and deletes every canonical spread guide including unloaded ones.",
-          "negative_path": "Threshold/snap-zone overflow, locked/invalid page guide, absent Type/Controls/viewport provider or unbound grid subdivision/relative zero/tie policy blocks proof. Stale revision/cancel refuses graph change and clears transient hints; unsupported inherited guide loss explicit. Argus host adoption remains separate pending.",
-          "oracle": "Independent canonical grid/guide reread checks both scopes and full delete set; analytical geometry oracle calculates candidates/distance under zoom; independent shared Controls visual inspection verifies hints/readability and toggles without separate layout interaction engine; undo restores IDs.",
-          "terminal_proof_ref": "MT-179#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Roundtrip guide and baseline-snap request through Layout/Type/Controls consumers with explicit zoom/unit/precision context. Exact requirement: Smart guides",
+          "negative_path": "Reject overflow threshold,invalid page/locked guide or unbound subdivision/tie policy; pure schema cannot invent snapping defaults.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35689",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-179-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2690,6 +2717,20 @@
         "host_adoption_mt_refs": [
           "MT-36197",
           "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Smart guides",
+            "only_owner_root_may_change": true
+          },
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
+            "required_behavior": "Smart guides",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2782,4 +2823,3 @@
     "source_parent_mt": "MT-179"
   }
 }
-

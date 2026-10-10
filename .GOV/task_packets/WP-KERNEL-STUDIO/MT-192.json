@@ -3005,14 +3005,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-          "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-          "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-          "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+          "selected_features": [],
+          "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+          "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-192-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -3046,14 +3048,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-          "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-          "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-          "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+          "selected_features": [],
+          "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+          "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-192-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -3087,14 +3091,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-          "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-          "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-          "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+          "selected_features": [],
+          "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+          "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-192-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -3128,14 +3134,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-          "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-          "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-          "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+          "selected_features": [],
+          "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+          "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-192-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -3169,14 +3177,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-          "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-          "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-          "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+          "selected_features": [],
+          "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+          "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-192-KERNEL-AC-005",
         "later_embedding_required": true,
@@ -3311,14 +3321,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-            "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-            "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-            "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+            "selected_features": [],
+            "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+            "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-192-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -3352,14 +3364,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-            "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-            "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-            "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+            "selected_features": [],
+            "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+            "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-192-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -3393,14 +3407,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-            "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-            "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-            "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+            "selected_features": [],
+            "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+            "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-192-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -3434,14 +3450,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-            "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-            "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-            "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+            "selected_features": [],
+            "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+            "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-192-KERNEL-AC-004",
           "later_embedding_required": true,
@@ -3475,14 +3493,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Selected owner and declared closure, current source-successor requirements; exact targets/features/timeouts materialize before coding/handoff.",
-            "consumer_assertion": "Current auto_size_type off/height_only/width_only/height_and_width/height_and_width_proportional; nine auto_size_reference anchors with explicit compatible adjustment; independent minimum flags/values; separate truncation_mode/max_lines retaining underlying characters and typed overset/truncated outcomes. Obsolete three-mode capture is not active acceptance.",
-            "negative_path": "Drive each legal enumeration/composition plus invalid combination, preservation and deterministic outcome.",
-            "oracle": "Independent actual output at exact revision/input; old captured enumeration/exclusion cannot be oracle."
+            "selected_features": [],
+            "consumer_assertion": "Consume reflowed bounds/ellipsis/overset and start/end anchors after narrow/wide resize on the same story.",
+            "negative_path": "Verify truncated text remains stored and anchors survive resize; invalid maximum lines/nonfinite bounds reject without losing overflow.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_192 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-192-KERNEL-AC-005",
           "later_embedding_required": true,

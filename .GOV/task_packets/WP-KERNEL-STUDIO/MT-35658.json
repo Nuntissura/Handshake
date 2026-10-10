@@ -424,7 +424,7 @@
     "title": "Text shaping engine core (TextEngine, native Rust) [STU-TYP shaping,STU-CON-001] / STUDIO-MODULE-KERNEL_BINDINGS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2891,25 +2891,42 @@
         "semantic_fulfillment": "Native TextEngine shapes text with OpenType",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-018-ASSET-TYPE"
+          "MT-018-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Bind text shaping commands to published Type port with exact story revision,font-resource grant,OpenType feature/axis request and attributed proposal intent. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Native TextEngine shapes text with OpenType",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-018#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-kernel-bindings"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Native TextEngine shapes text with OpenType",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Invoke actual native Rust shaper through portable adapter and reconcile glyph IDs/clusters/advances/bidi order with direct Type result. Exact requirement: Native TextEngine shapes text with OpenType",
+          "negative_path": "Deny font resource or use stale story and reject; missing resolver is typed unavailable,never platform/cloud fallback or accepted host write.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35658",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-018-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2917,6 +2934,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Native TextEngine shapes text with OpenType",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2928,25 +2953,42 @@
         "semantic_fulfillment": "Variable fonts",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-018-ASSET-TYPE"
+          "MT-018-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Bind text shaping commands to published Type port with exact story revision,font-resource grant,OpenType feature/axis request and attributed proposal intent. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Variable fonts",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-018#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-kernel-bindings"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Variable fonts",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Invoke actual native Rust shaper through portable adapter and reconcile glyph IDs/clusters/advances/bidi order with direct Type result. Exact requirement: Variable fonts",
+          "negative_path": "Deny font resource or use stale story and reject; missing resolver is typed unavailable,never platform/cloud fallback or accepted host write.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35658",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-018-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2954,6 +2996,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Variable fonts",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2965,25 +3015,42 @@
         "semantic_fulfillment": "No external dependency",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-018-ASSET-TYPE"
+          "MT-018-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Bind text shaping commands to published Type port with exact story revision,font-resource grant,OpenType feature/axis request and attributed proposal intent. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "No external dependency",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-018#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-kernel-bindings"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No external dependency",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Invoke actual native Rust shaper through portable adapter and reconcile glyph IDs/clusters/advances/bidi order with direct Type result. Exact requirement: No external dependency",
+          "negative_path": "Deny font resource or use stale story and reject; missing resolver is typed unavailable,never platform/cloud fallback or accepted host write.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35658",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-018-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2991,6 +3058,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "No external dependency",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -3082,4 +3157,3 @@
     "source_parent_mt": "MT-018"
   }
 }
-

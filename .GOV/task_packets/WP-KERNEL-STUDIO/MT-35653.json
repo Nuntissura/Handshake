@@ -533,7 +533,7 @@
     "title": "Raster compositor engine core (RasterEngine) [STU-RAS compositor,STU-CON-001] / STUDIO-MODULE-KERNEL_BINDINGS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -3189,11 +3189,54 @@
         "semantic_fulfillment": "Tiled raster compositor and non-destructive adjustment/live-filter plan over immutable revision.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-017",
-          "MT-35650"
+          "MT-017-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Adapt RasterEngine/Composite render requests with immutable revision,ROI,profile,selected CPU/GPU capability and typed unsupported/device-loss results. Source case: STUDIO-MODULE-COMPOSITE standalone contribution: Revision-bound immutable static render plan,exact dependency addresses/damage and explicit unsupported/loss result",
+            "required_behavior": "Tiled raster compositor and non-destructive adjustment/live-filter plan over immutable revision.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-017#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-kernel-bindings"
+          ],
+          "features": [],
+          "consumer_assertion": "Invoke selected real compositor through portable binding and inspect actual pixels plus declared epsilon/profile policy against independent reference. Exact requirement: Tiled raster compositor and non-destructive adjustment/live-filter plan over immutable revision.",
+          "negative_path": "Reject missing device/profile/blend provider and revoked grant; no GPU implementation in kernel binding and CPU-GPU equality alone is not an oracle.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35653",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Tiled raster compositor and non-destructive adjustment/live-filter plan over immutable revision. Actual authorized Handshake host consumer proof remains separately mandatory.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36204"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
@@ -3206,25 +3249,6 @@
             "required_behavior": "Own tiled pixel buffer, layer/compositor primitive algorithms and non-destructive pipeline.",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
-          ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "authored_graph_lowers_order_masks_fanout; static_cpu_gpu_consumer_same_plan; static_closure_no_nle_audio_native; independent_blend_reference",
-          "negative_path": "Reject dependency cycle/missing port/unsupported blend/profile,stale graph/cancel/budget and device unavailable before sink publication; CPU-GPU equality alone not oracle",
-          "oracle": "Independent authored graph/address reconciliation and analytic/original-produced pixels for declared blend set; actual GPU readback separately backend-qualified"
-        },
-        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Tiled raster compositor and non-destructive adjustment/live-filter plan over immutable revision. Actual authorized Handshake host consumer proof remains separately mandatory.",
-        "status": "PENDING",
-        "later_embedding_refs": [
-          "MT-36204#/source_acceptance_coverage"
-        ],
-        "host_adoption_mt_refs": [
-          "MT-36204"
         ]
       },
       {
@@ -3236,11 +3260,54 @@
         "semantic_fulfillment": "Canonical blend modes and applicability produce independently checked pixel results.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-35650",
-          "MT-017"
+          "MT-017-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Adapt RasterEngine/Composite render requests with immutable revision,ROI,profile,selected CPU/GPU capability and typed unsupported/device-loss results. Source case: STUDIO-MODULE-COMPOSITE standalone contribution: Revision-bound immutable static render plan,exact dependency addresses/damage and explicit unsupported/loss result",
+            "required_behavior": "Canonical blend modes and applicability produce independently checked pixel results.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-017#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-kernel-bindings"
+          ],
+          "features": [],
+          "consumer_assertion": "Invoke selected real compositor through portable binding and inspect actual pixels plus declared epsilon/profile policy against independent reference. Exact requirement: Canonical blend modes and applicability produce independently checked pixel results.",
+          "negative_path": "Reject missing device/profile/blend provider and revoked grant; no GPU implementation in kernel binding and CPU-GPU equality alone is not an oracle.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35653",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Canonical blend modes and applicability produce independently checked pixel results. Actual authorized Handshake host consumer proof remains separately mandatory.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36204"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-PIGMENT",
             "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
@@ -3253,25 +3320,6 @@
             "required_behavior": "Consume blend operations in deterministic layer/effect order.",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
-          ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "authored_graph_lowers_order_masks_fanout; static_cpu_gpu_consumer_same_plan; static_closure_no_nle_audio_native; independent_blend_reference",
-          "negative_path": "Reject dependency cycle/missing port/unsupported blend/profile,stale graph/cancel/budget and device unavailable before sink publication; CPU-GPU equality alone not oracle",
-          "oracle": "Independent authored graph/address reconciliation and analytic/original-produced pixels for declared blend set; actual GPU readback separately backend-qualified"
-        },
-        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Canonical blend modes and applicability produce independently checked pixel results. Actual authorized Handshake host consumer proof remains separately mandatory.",
-        "status": "PENDING",
-        "later_embedding_refs": [
-          "MT-36204#/source_acceptance_coverage"
-        ],
-        "host_adoption_mt_refs": [
-          "MT-36204"
         ]
       },
       {
@@ -3283,32 +3331,42 @@
         "semantic_fulfillment": "Real GPU rendering/readback of selected raster/effect plan at exact revision/profile, with typed unavailable/device-loss.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-017",
-          "MT-35655"
+          "MT-017-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
-            "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "Publish actual plan through neutral renderer ports.",
-            "only_owner_root_may_change": true
-          },
-          {
-            "owning_module_ref": "STUDIO-MODULE-RENDER_GPU",
-            "scope": "wgpu backend/device lifecycle, residency and budgets; GPU API types hidden from document/contracts.",
-            "required_behavior": "Execute on selected supported device/backend, bound work/readback and return actual pixels and receipt.",
-            "only_owner_root_may_change": true
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Adapt RasterEngine/Composite render requests with immutable revision,ROI,profile,selected CPU/GPU capability and typed unsupported/device-loss results. Source case: STUDIO-MODULE-COMPOSITE standalone contribution: Revision-bound immutable static render plan,exact dependency addresses/damage and explicit unsupported/loss result",
+            "required_behavior": "Real GPU rendering/readback of selected raster/effect plan at exact revision/profile, with typed unavailable/device-loss.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-017#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-composite"
+            "hsk-studio-kernel-bindings"
           ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "authored_graph_lowers_order_masks_fanout; static_cpu_gpu_consumer_same_plan; static_closure_no_nle_audio_native; independent_blend_reference",
-          "negative_path": "Reject dependency cycle/missing port/unsupported blend/profile,stale graph/cancel/budget and device unavailable before sink publication; CPU-GPU equality alone not oracle",
-          "oracle": "Independent authored graph/address reconciliation and analytic/original-produced pixels for declared blend set; actual GPU readback separately backend-qualified"
+          "features": [],
+          "consumer_assertion": "Invoke selected real compositor through portable binding and inspect actual pixels plus declared epsilon/profile policy against independent reference. Exact requirement: Real GPU rendering/readback of selected raster/effect plan at exact revision/profile, with typed unavailable/device-loss.",
+          "negative_path": "Reject missing device/profile/blend provider and revoked grant; no GPU implementation in kernel binding and CPU-GPU equality alone is not an oracle.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35653",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
@@ -3321,6 +3379,20 @@
         "host_adoption_mt_refs": [
           "MT-36204",
           "MT-36206"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
+            "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
+            "required_behavior": "Publish actual plan through neutral renderer ports.",
+            "only_owner_root_may_change": true
+          },
+          {
+            "owning_module_ref": "STUDIO-MODULE-RENDER_GPU",
+            "scope": "wgpu backend/device lifecycle, residency and budgets; GPU API types hidden from document/contracts.",
+            "required_behavior": "Execute on selected supported device/backend, bound work/readback and return actual pixels and receipt.",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3332,12 +3404,58 @@
         "semantic_fulfillment": "Fixed-backend byte stability and declared per-effect/profile epsilon equivalence across actual CPU/GPU outputs.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-017",
-          "MT-35656",
-          "MT-35655"
+          "MT-017-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Adapt RasterEngine/Composite render requests with immutable revision,ROI,profile,selected CPU/GPU capability and typed unsupported/device-loss results. Source case: STUDIO-MODULE-COMPOSITE standalone contribution: Revision-bound immutable static render plan,exact dependency addresses/damage and explicit unsupported/loss result",
+            "required_behavior": "Fixed-backend byte stability and declared per-effect/profile epsilon equivalence across actual CPU/GPU outputs.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-017#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-kernel-bindings"
+          ],
+          "features": [],
+          "consumer_assertion": "Invoke selected real compositor through portable binding and inspect actual pixels plus declared epsilon/profile policy against independent reference. Exact requirement: Fixed-backend byte stability and declared per-effect/profile epsilon equivalence across actual CPU/GPU outputs.",
+          "negative_path": "Reject missing device/profile/blend provider and revoked grant; no GPU implementation in kernel binding and CPU-GPU equality alone is not an oracle.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35653",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Fixed-backend byte stability and declared per-effect/profile epsilon equivalence across actual CPU/GPU outputs. Actual authorized Handshake host consumer proof remains separately mandatory.",
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage",
+          "MT-36206#/source_acceptance_coverage",
+          "MT-36205#/source_acceptance_coverage"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36204",
+          "MT-36206",
+          "MT-36205"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
@@ -3356,29 +3474,6 @@
             "required_behavior": "Compute actual GPU pixels/readback under selected backend.",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
-          ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "authored_graph_lowers_order_masks_fanout; static_cpu_gpu_consumer_same_plan; static_closure_no_nle_audio_native; independent_blend_reference",
-          "negative_path": "Reject dependency cycle/missing port/unsupported blend/profile,stale graph/cancel/budget and device unavailable before sink publication; CPU-GPU equality alone not oracle",
-          "oracle": "Independent authored graph/address reconciliation and analytic/original-produced pixels for declared blend set; actual GPU readback separately backend-qualified"
-        },
-        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Fixed-backend byte stability and declared per-effect/profile epsilon equivalence across actual CPU/GPU outputs. Actual authorized Handshake host consumer proof remains separately mandatory.",
-        "status": "PENDING",
-        "later_embedding_refs": [
-          "MT-36204#/source_acceptance_coverage",
-          "MT-36206#/source_acceptance_coverage",
-          "MT-36205#/source_acceptance_coverage"
-        ],
-        "host_adoption_mt_refs": [
-          "MT-36204",
-          "MT-36206",
-          "MT-36205"
         ]
       }
     ],
@@ -3517,4 +3612,3 @@
     "source_parent_mt": "MT-017"
   }
 }
-

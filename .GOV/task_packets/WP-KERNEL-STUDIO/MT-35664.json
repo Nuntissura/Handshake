@@ -550,7 +550,7 @@
     "title": "Layout/reflow engine core (LayoutEngine) [STU-LAY,STU-CON-001] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -3132,25 +3132,42 @@
         "semantic_fulfillment": "LayoutEngine reflow",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-020"
+          "MT-020-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Expose LayoutEngine page/spread,text-frame threading,grid/autolayout/constraint/anchored-object/text-wrap inputs and geometry/overset outcomes with exact units/revisions. Source case: STUDIO-MODULE-LAYOUT standalone contribution: Revision-bound page/frame/story composition and shared solver proposals with typed overset/placement diagnostics and reversible deltas; native reflow/constraint parity requires separately mapped host proof",
             "required_behavior": "LayoutEngine reflow",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-020#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "thread_reflow_type_consumer; shared_constraint_solver_consumer; wrap_anchor_reflow; invalid_thread_recovery",
-          "negative_path": "Broken/cyclic thread,missing Type/Components/Nib port,unresolved font/solver pin,invalid units,cancel/overload or stale target rejects complete proposal without story/graph replacement; corrected references/fonts/resources retry; solver tolerance and actual shaping output oracle bind before dispatch",
-          "oracle": "Independent canonical story/thread/frame reread, explicit simple page/anchor geometry and independently composed reference-authored multi-frame text; inspect same storyID plus inverse restoration; missing solver/Type produces NOT_PROVEN not synthetic correctness"
+          "features": [],
+          "consumer_assertion": "Roundtrip threaded-frame and constraint requests through real separately selected Layout consumer; preserve stable frame IDs and typed geometry/overset. Exact requirement: LayoutEngine reflow",
+          "negative_path": "Reject cyclic frame chain,contradictory constraint or mixed/nonfinite unit before consumer invocation; pure Accord closure contains no layout solver implementation.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35664",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36197#/source_acceptance_coverage",
         "later_embedding_required": true,
@@ -3161,6 +3178,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "LayoutEngine reflow",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3172,25 +3197,42 @@
         "semantic_fulfillment": "Auto-layout/constraint solver",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-020"
+          "MT-020-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Expose LayoutEngine page/spread,text-frame threading,grid/autolayout/constraint/anchored-object/text-wrap inputs and geometry/overset outcomes with exact units/revisions. Source case: STUDIO-MODULE-LAYOUT standalone contribution: Revision-bound page/frame/story composition and shared solver proposals with typed overset/placement diagnostics and reversible deltas; native reflow/constraint parity requires separately mapped host proof",
             "required_behavior": "Auto-layout/constraint solver",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-020#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "thread_reflow_type_consumer; shared_constraint_solver_consumer; wrap_anchor_reflow; invalid_thread_recovery",
-          "negative_path": "Broken/cyclic thread,missing Type/Components/Nib port,unresolved font/solver pin,invalid units,cancel/overload or stale target rejects complete proposal without story/graph replacement; corrected references/fonts/resources retry; solver tolerance and actual shaping output oracle bind before dispatch",
-          "oracle": "Independent canonical story/thread/frame reread, explicit simple page/anchor geometry and independently composed reference-authored multi-frame text; inspect same storyID plus inverse restoration; missing solver/Type produces NOT_PROVEN not synthetic correctness"
+          "features": [],
+          "consumer_assertion": "Roundtrip threaded-frame and constraint requests through real separately selected Layout consumer; preserve stable frame IDs and typed geometry/overset. Exact requirement: Auto-layout/constraint solver",
+          "negative_path": "Reject cyclic frame chain,contradictory constraint or mixed/nonfinite unit before consumer invocation; pure Accord closure contains no layout solver implementation.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35664",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36197#/source_acceptance_coverage",
         "later_embedding_required": true,
@@ -3201,6 +3243,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Auto-layout/constraint solver",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3212,25 +3262,42 @@
         "semantic_fulfillment": "Correctness proven",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-020"
+          "MT-020-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Expose LayoutEngine page/spread,text-frame threading,grid/autolayout/constraint/anchored-object/text-wrap inputs and geometry/overset outcomes with exact units/revisions. Source case: STUDIO-MODULE-LAYOUT standalone contribution: Revision-bound page/frame/story composition and shared solver proposals with typed overset/placement diagnostics and reversible deltas; native reflow/constraint parity requires separately mapped host proof",
             "required_behavior": "Correctness proven",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-020#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "thread_reflow_type_consumer; shared_constraint_solver_consumer; wrap_anchor_reflow; invalid_thread_recovery",
-          "negative_path": "Broken/cyclic thread,missing Type/Components/Nib port,unresolved font/solver pin,invalid units,cancel/overload or stale target rejects complete proposal without story/graph replacement; corrected references/fonts/resources retry; solver tolerance and actual shaping output oracle bind before dispatch",
-          "oracle": "Independent canonical story/thread/frame reread, explicit simple page/anchor geometry and independently composed reference-authored multi-frame text; inspect same storyID plus inverse restoration; missing solver/Type produces NOT_PROVEN not synthetic correctness"
+          "features": [],
+          "consumer_assertion": "Roundtrip threaded-frame and constraint requests through real separately selected Layout consumer; preserve stable frame IDs and typed geometry/overset. Exact requirement: Correctness proven",
+          "negative_path": "Reject cyclic frame chain,contradictory constraint or mixed/nonfinite unit before consumer invocation; pure Accord closure contains no layout solver implementation.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35664",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36197#/source_acceptance_coverage",
         "later_embedding_required": true,
@@ -3241,6 +3308,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Correctness proven",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -3376,4 +3451,3 @@
     "source_parent_mt": "MT-020"
   }
 }
-

@@ -258,7 +258,7 @@
     "title": "StudioTextStory primitive + text_kind discriminator [STU-TYP-001,STU-TYP-002] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2583,25 +2583,42 @@
         "semantic_fulfillment": "StudioTextStory@1 with text_kind {point,area,path}",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-191-ASSET-TYPE"
+          "MT-191-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define hsk.studio.text_story@1 range/paragraph/style references and point/area/path text_kind on one canonical story ID. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "StudioTextStory@1 with text_kind {point,area,path}",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-191#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "StudioTextStory@1 with text_kind {point,area,path}",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip a styled mixed-range story and consume actual point-to-area conversion while preserving all characters,paragraph attributes and style bindings. Exact requirement: StudioTextStory@1 with text_kind {point,area,path}",
+          "negative_path": "Reject malformed range/missing style or unknown text_kind before decode; conversion cannot create separate point/artistic/frame story primitives.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35700",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-191-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2609,6 +2626,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "StudioTextStory@1 with text_kind {point,area,path}",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2620,25 +2645,42 @@
         "semantic_fulfillment": "Non-destructive point/area conversion",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-191-ASSET-TYPE"
+          "MT-191-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define hsk.studio.text_story@1 range/paragraph/style references and point/area/path text_kind on one canonical story ID. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Non-destructive point/area conversion",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-191#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Non-destructive point/area conversion",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip a styled mixed-range story and consume actual point-to-area conversion while preserving all characters,paragraph attributes and style bindings. Exact requirement: Non-destructive point/area conversion",
+          "negative_path": "Reject malformed range/missing style or unknown text_kind before decode; conversion cannot create separate point/artistic/frame story primitives.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35700",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-191-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2646,6 +2688,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Non-destructive point/area conversion",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2657,25 +2707,42 @@
         "semantic_fulfillment": "Single primitive, no forks",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-191-ASSET-TYPE"
+          "MT-191-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define hsk.studio.text_story@1 range/paragraph/style references and point/area/path text_kind on one canonical story ID. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Single primitive, no forks",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-191#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Single primitive, no forks",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip a styled mixed-range story and consume actual point-to-area conversion while preserving all characters,paragraph attributes and style bindings. Exact requirement: Single primitive, no forks",
+          "negative_path": "Reject malformed range/missing style or unknown text_kind before decode; conversion cannot create separate point/artistic/frame story primitives.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35700",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-191-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2683,6 +2750,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Single primitive, no forks",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2771,4 +2846,3 @@
     "source_parent_mt": "MT-191"
   }
 }
-

@@ -2391,10 +2391,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Working spaces, mismatch policies, embed-on-export, assign (retag) vs convert (intent) profile",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Use actual source/destination ICC resources and named intent for a tagged conversion, with exact document working-space bindings.",
+          "negative_path": "Assign keeps components identical while convert preserves appearance within the declared oracle tolerance; missing/invalid profile fails without retagging.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_234 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-234-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2428,10 +2432,14 @@
           "selected_packages": [
             "hsk-studio-prism"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Wide-gamut ICC",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Use actual source/destination ICC resources and named intent for a tagged conversion, with exact document working-space bindings.",
+          "negative_path": "Assign keeps components identical while convert preserves appearance within the declared oracle tolerance; missing/invalid profile fails without retagging.",
+          "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+          "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_234 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-234-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2537,10 +2545,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Working spaces, mismatch policies, embed-on-export, assign (retag) vs convert (intent) profile",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Use actual source/destination ICC resources and named intent for a tagged conversion, with exact document working-space bindings.",
+            "negative_path": "Assign keeps components identical while convert preserves appearance within the declared oracle tolerance; missing/invalid profile fails without retagging.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_234 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-234-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2574,10 +2586,14 @@
             "selected_packages": [
               "hsk-studio-prism"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Wide-gamut ICC",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Use actual source/destination ICC resources and named intent for a tagged conversion, with exact document working-space bindings.",
+            "negative_path": "Assign keeps components identical while convert preserves appearance within the declared oracle tolerance; missing/invalid profile fails without retagging.",
+            "oracle": "Independent profile/sample/plate/serialized-output reader; exact source requirements and retained host assertions remain distinct",
+            "feature_policy": "Only declared package dependency closure; required ICC/OCIO resources and checked-in HBR test entrypoint/deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-prism --no-default-features --test mt_234 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-234-KERNEL-AC-002",
           "later_embedding_required": true,

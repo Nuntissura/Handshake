@@ -268,7 +268,7 @@
     "title": "Live preflight engine + preflight profiles [STU-LAY-055,STU-LAY-056] / STUDIO-MODULE-HARNESS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2642,28 +2642,42 @@
         "semantic_fulfillment": "Live preflight with count/status/page-range",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-182-ASSET-LAYOUT"
+          "MT-182-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Drive actual live/export preflight with profile/document revision,page-range/layer/pasteboard/nonprinting scope and embedded-versus-working profile selection. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Live preflight with count/status/page-range",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-182#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-harness"
           ],
-          "typed_input": "Immutable canonical document/profile/catalog revisions; seven preflight roles, stable rule IDs/full_feature, instance parameter seven-kind union and four severity values; page-range/all-page/selected/all-document scope, three layer modes, embedded/working policy and pasteboard/nonprinting/off/new-document embed flags.",
-          "typed_output": "Reversible profile/embed deltas and shared validation process request returning structured scoped findings/count/status with distinct profile-name/type errors.",
-          "consumer_assertion": "Public preflight consumer changes active document and observes updated count/status over selected page range, toggles live-off and layer modes; portable recipient imports/embeds same profile and receives same rule parameters, then export invokes same revision-bound engine.",
-          "negative_path": "Duplicate profile name and illegal-name errors distinct; unbound illegal-character/type-range policy, absent rule/provider or full_feature false must block unsupported assertion rather than green. Stale result is discarded, cancel ends process without changing profile; portable unknown rule/parameter loss explicit.",
-          "oracle": "Independent canonical profile/catalog/process reread verifies seven roles and stable instances; independent document/rule oracle compares expected page-filtered finding census; imported profile semantic comparison and export receipt verify same selected policy and revision.",
-          "terminal_proof_ref": "MT-182#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Inspect real structured rule count/status/fix output and selected source render at changed/empty/error states; profile portable roundtrip retains exact rules. Exact requirement: Live preflight with count/status/page-range",
+          "negative_path": "Discard stale results,refuse unsupported full_feature/provider/rule and expose duplicate/illegal profile-name errors; missing rule result cannot count clear.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35693",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-182-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2674,6 +2688,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Live preflight with count/status/page-range",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2685,28 +2707,42 @@
         "semantic_fulfillment": "Run-on-export",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-182-ASSET-LAYOUT"
+          "MT-182-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Drive actual live/export preflight with profile/document revision,page-range/layer/pasteboard/nonprinting scope and embedded-versus-working profile selection. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Run-on-export",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-182#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-harness"
           ],
-          "typed_input": "Immutable canonical document/profile/catalog revisions; seven preflight roles, stable rule IDs/full_feature, instance parameter seven-kind union and four severity values; page-range/all-page/selected/all-document scope, three layer modes, embedded/working policy and pasteboard/nonprinting/off/new-document embed flags.",
-          "typed_output": "Reversible profile/embed deltas and shared validation process request returning structured scoped findings/count/status with distinct profile-name/type errors.",
-          "consumer_assertion": "Public preflight consumer changes active document and observes updated count/status over selected page range, toggles live-off and layer modes; portable recipient imports/embeds same profile and receives same rule parameters, then export invokes same revision-bound engine.",
-          "negative_path": "Duplicate profile name and illegal-name errors distinct; unbound illegal-character/type-range policy, absent rule/provider or full_feature false must block unsupported assertion rather than green. Stale result is discarded, cancel ends process without changing profile; portable unknown rule/parameter loss explicit.",
-          "oracle": "Independent canonical profile/catalog/process reread verifies seven roles and stable instances; independent document/rule oracle compares expected page-filtered finding census; imported profile semantic comparison and export receipt verify same selected policy and revision.",
-          "terminal_proof_ref": "MT-182#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Inspect real structured rule count/status/fix output and selected source render at changed/empty/error states; profile portable roundtrip retains exact rules. Exact requirement: Run-on-export",
+          "negative_path": "Discard stale results,refuse unsupported full_feature/provider/rule and expose duplicate/illegal profile-name errors; missing rule result cannot count clear.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35693",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-182-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2717,6 +2753,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Run-on-export",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2728,28 +2772,42 @@
         "semantic_fulfillment": "Editable/portable/embeddable profiles",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-182-ASSET-LAYOUT"
+          "MT-182-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Drive actual live/export preflight with profile/document revision,page-range/layer/pasteboard/nonprinting scope and embedded-versus-working profile selection. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Editable/portable/embeddable profiles",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-182#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-harness"
           ],
-          "typed_input": "Immutable canonical document/profile/catalog revisions; seven preflight roles, stable rule IDs/full_feature, instance parameter seven-kind union and four severity values; page-range/all-page/selected/all-document scope, three layer modes, embedded/working policy and pasteboard/nonprinting/off/new-document embed flags.",
-          "typed_output": "Reversible profile/embed deltas and shared validation process request returning structured scoped findings/count/status with distinct profile-name/type errors.",
-          "consumer_assertion": "Public preflight consumer changes active document and observes updated count/status over selected page range, toggles live-off and layer modes; portable recipient imports/embeds same profile and receives same rule parameters, then export invokes same revision-bound engine.",
-          "negative_path": "Duplicate profile name and illegal-name errors distinct; unbound illegal-character/type-range policy, absent rule/provider or full_feature false must block unsupported assertion rather than green. Stale result is discarded, cancel ends process without changing profile; portable unknown rule/parameter loss explicit.",
-          "oracle": "Independent canonical profile/catalog/process reread verifies seven roles and stable instances; independent document/rule oracle compares expected page-filtered finding census; imported profile semantic comparison and export receipt verify same selected policy and revision.",
-          "terminal_proof_ref": "MT-182#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Inspect real structured rule count/status/fix output and selected source render at changed/empty/error states; profile portable roundtrip retains exact rules. Exact requirement: Editable/portable/embeddable profiles",
+          "negative_path": "Discard stale results,refuse unsupported full_feature/provider/rule and expose duplicate/illegal profile-name errors; missing rule result cannot count clear.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35693",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-182-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2760,6 +2818,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Editable/portable/embeddable profiles",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2849,4 +2915,3 @@
     "source_parent_mt": "MT-182"
   }
 }
-

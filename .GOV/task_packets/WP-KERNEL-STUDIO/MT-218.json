@@ -2477,10 +2477,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Full OpenType feature-group surface per-range",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+          "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-218-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2514,10 +2518,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Applied at shaping (stream intact)",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+          "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-218-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2551,10 +2559,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Font-gated",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+          "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-218-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2588,10 +2600,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Availability reported",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+          "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-218-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2716,10 +2732,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Full OpenType feature-group surface per-range",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+            "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-218-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2753,10 +2773,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Applied at shaping (stream intact)",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+            "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-218-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2790,10 +2814,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Font-gated",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+            "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-218-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -2827,10 +2855,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Availability reported",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Consume ligature/alternate/figure/caps/mark feature choices into glyph receipts while preserving Unicode text.",
+            "negative_path": "Undeclared features are inert with availability disclosure; malformed tag rejects and true glyph substitution cannot be claimed from schema alone.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_218 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-218-KERNEL-AC-004",
           "later_embedding_required": true,

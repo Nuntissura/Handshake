@@ -265,7 +265,7 @@
     "title": "Raster focus-stack / seamless-blend (auto-blend layers) composite op [STU-RAS-051,STU-CON-007] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2664,29 +2664,42 @@
         "semantic_fulfillment": "Auto-align",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-067"
+          "MT-067-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
-            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define multi-layer focus-stack/seamless-blend request with source identities,alignment transforms,region mask/weight,profile and explicit cancellation/budget outcomes. Source case: Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Auto-align",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-067#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-pigment"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; features=[]; exact provider/source lock",
-          "consumer_assertion": "Real stack consumer invokes published alignment and compares independent analytic/original control point residuals; failed alignment explicit.",
-          "negative_path": "denied/unaligned/incompatible/empty source, missing quality/tie policy, bad transform, cancel/stale/work limits no partial composite; corrected current input retries.",
-          "oracle": "Independent source-produced Photoshop focus-stack/panorama/exposure outputs and analytic alignment/mask/source reread; visual actual artifact comparison required.",
-          "planned_test_target": "focus_stack_composite",
-          "planned_case": "auto_align_consumer",
-          "timeout_seconds": 60,
-          "unresolved_prerequisites": "Exact sharpness/exposure metric/tie/seam-pyramid/provider pins and original focus/panorama/HDR corpus unresolved."
+          "features": [],
+          "consumer_assertion": "Roundtrip actual multi-source request/result and consume published align/statistical-stack/masking/HDR ports without reimplementing algorithms. Exact requirement: Auto-align",
+          "negative_path": "Reject mismatched source closure,invalid transform/mask or nonfinite weight before blend; no invented provider or silently accepted partial composite.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35668",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
@@ -2695,7 +2708,15 @@
         "host_adoption_mt_refs": [
           "MT-36194"
         ],
-        "qualified_original_acceptance_ref": "MT-067/AC-001"
+        "qualified_original_acceptance_ref": "MT-067/AC-001",
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
+            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "required_behavior": "Auto-align",
+            "only_owner_root_may_change": true
+          }
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2706,29 +2727,42 @@
         "semantic_fulfillment": "Per-region sharpest/best-exposed blend -> seamless masked composite",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-067"
+          "MT-067-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
-            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define multi-layer focus-stack/seamless-blend request with source identities,alignment transforms,region mask/weight,profile and explicit cancellation/budget outcomes. Source case: Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Per-region sharpest/best-exposed blend -> seamless masked composite",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-067#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-pigment"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; features=[]; exact provider/source lock",
-          "consumer_assertion": "Source focus/exposure fixtures produce actual region-selected seamless composite; independently compare each chosen mask/region and original-produced expected image/source preservation.",
-          "negative_path": "denied/unaligned/incompatible/empty source, missing quality/tie policy, bad transform, cancel/stale/work limits no partial composite; corrected current input retries.",
-          "oracle": "Independent source-produced Photoshop focus-stack/panorama/exposure outputs and analytic alignment/mask/source reread; visual actual artifact comparison required.",
-          "planned_test_target": "focus_stack_composite",
-          "planned_case": "sharp_exposed_masked_blend",
-          "timeout_seconds": 60,
-          "unresolved_prerequisites": "Exact sharpness/exposure metric/tie/seam-pyramid/provider pins and original focus/panorama/HDR corpus unresolved."
+          "features": [],
+          "consumer_assertion": "Roundtrip actual multi-source request/result and consume published align/statistical-stack/masking/HDR ports without reimplementing algorithms. Exact requirement: Per-region sharpest/best-exposed blend -> seamless masked composite",
+          "negative_path": "Reject mismatched source closure,invalid transform/mask or nonfinite weight before blend; no invented provider or silently accepted partial composite.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35668",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
@@ -2737,7 +2771,15 @@
         "host_adoption_mt_refs": [
           "MT-36194"
         ],
-        "qualified_original_acceptance_ref": "MT-067/AC-002"
+        "qualified_original_acceptance_ref": "MT-067/AC-002",
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
+            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "required_behavior": "Per-region sharpest/best-exposed blend -> seamless masked composite",
+            "only_owner_root_may_change": true
+          }
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2748,29 +2790,42 @@
         "semantic_fulfillment": "Deterministic",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-067"
+          "MT-067-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
-            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define multi-layer focus-stack/seamless-blend request with source identities,alignment transforms,region mask/weight,profile and explicit cancellation/budget outcomes. Source case: Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Deterministic",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-067#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-pigment"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; features=[]; exact provider/source lock",
-          "consumer_assertion": "Same ordered source hashes/settings/seed yields exact mask/output hashes via actual consumer; tie order declared, sourcechanged invalidates old result.",
-          "negative_path": "denied/unaligned/incompatible/empty source, missing quality/tie policy, bad transform, cancel/stale/work limits no partial composite; corrected current input retries.",
-          "oracle": "Independent source-produced Photoshop focus-stack/panorama/exposure outputs and analytic alignment/mask/source reread; visual actual artifact comparison required.",
-          "planned_test_target": "focus_stack_composite",
-          "planned_case": "deterministic_replay",
-          "timeout_seconds": 60,
-          "unresolved_prerequisites": "Exact sharpness/exposure metric/tie/seam-pyramid/provider pins and original focus/panorama/HDR corpus unresolved."
+          "features": [],
+          "consumer_assertion": "Roundtrip actual multi-source request/result and consume published align/statistical-stack/masking/HDR ports without reimplementing algorithms. Exact requirement: Deterministic",
+          "negative_path": "Reject mismatched source closure,invalid transform/mask or nonfinite weight before blend; no invented provider or silently accepted partial composite.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35668",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
@@ -2779,7 +2834,15 @@
         "host_adoption_mt_refs": [
           "MT-36194"
         ],
-        "qualified_original_acceptance_ref": "MT-067/AC-003"
+        "qualified_original_acceptance_ref": "MT-067/AC-003",
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
+            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "required_behavior": "Deterministic",
+            "only_owner_root_may_change": true
+          }
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2790,29 +2853,42 @@
         "semantic_fulfillment": "Visually verified",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-067"
+          "MT-067-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
-            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define multi-layer focus-stack/seamless-blend request with source identities,alignment transforms,region mask/weight,profile and explicit cancellation/budget outcomes. Source case: Deliver STUDIO-MODULE-PIGMENT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Visually verified",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-067#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-pigment"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "--no-default-features; features=[]; exact provider/source lock",
-          "consumer_assertion": "Open actual composite versus original reference at seam/edge/subject detail/profile and masked edits; threshold/tolerance bound, source-phase render not sole selforacle.",
-          "negative_path": "denied/unaligned/incompatible/empty source, missing quality/tie policy, bad transform, cancel/stale/work limits no partial composite; corrected current input retries.",
-          "oracle": "Independent source-produced Photoshop focus-stack/panorama/exposure outputs and analytic alignment/mask/source reread; visual actual artifact comparison required.",
-          "planned_test_target": "focus_stack_composite",
-          "planned_case": "independent_visual_oracle",
-          "timeout_seconds": 60,
-          "unresolved_prerequisites": "Exact sharpness/exposure metric/tie/seam-pyramid/provider pins and original focus/panorama/HDR corpus unresolved."
+          "features": [],
+          "consumer_assertion": "Roundtrip actual multi-source request/result and consume published align/statistical-stack/masking/HDR ports without reimplementing algorithms. Exact requirement: Visually verified",
+          "negative_path": "Reject mismatched source closure,invalid transform/mask or nonfinite weight before blend; no invented provider or silently accepted partial composite.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35668",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
@@ -2821,7 +2897,15 @@
         "host_adoption_mt_refs": [
           "MT-36194"
         ],
-        "qualified_original_acceptance_ref": "MT-067/AC-004"
+        "qualified_original_acceptance_ref": "MT-067/AC-004",
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PIGMENT",
+            "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
+            "required_behavior": "Visually verified",
+            "only_owner_root_may_change": true
+          }
+        ]
       }
     ],
     "later_kernel": {
@@ -2923,4 +3007,3 @@
     "source_parent_mt": "MT-067"
   }
 }
-

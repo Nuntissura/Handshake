@@ -263,7 +263,7 @@
     "title": "Font management: sources + picker [STU-TYP-028,STU-TYP-029] / STUDIO-WORKSPACE owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2539,25 +2539,26 @@
         "semantic_fulfillment": "OS",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-227-ASSET-TYPE"
+          "MT-227-ASSET-WORKSPACE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Coordinate local/installed/project-embedded font resolver adapters and selected Type features without required cloud font service. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "OS",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-227#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-type"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "OS",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Inspect selected resolver closure and manifest inputs so local family/style/font-byte identities remain independently discoverable. Exact requirement: OS",
+          "negative_path": "Reject automatic download/subscription fallback or machine absolute path in published manifest; OS discovery is optional injected provider,not platform shaping.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
         },
         "later_embedding_ref": "MT-227-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2565,6 +2566,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "OS",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2576,25 +2585,26 @@
         "semantic_fulfillment": "Local-library font sources, no cloud dep",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-227-ASSET-TYPE"
+          "MT-227-ASSET-WORKSPACE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Coordinate local/installed/project-embedded font resolver adapters and selected Type features without required cloud font service. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Local-library font sources, no cloud dep",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-227#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-type"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Local-library font sources, no cloud dep",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Inspect selected resolver closure and manifest inputs so local family/style/font-byte identities remain independently discoverable. Exact requirement: Local-library font sources, no cloud dep",
+          "negative_path": "Reject automatic download/subscription fallback or machine absolute path in published manifest; OS discovery is optional injected provider,not platform shaping.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
         },
         "later_embedding_ref": "MT-227-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2602,6 +2612,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Local-library font sources, no cloud dep",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2613,25 +2631,26 @@
         "semantic_fulfillment": "Picker with glyph preview/search/filter/favorites/similar",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-227-ASSET-TYPE"
+          "MT-227-ASSET-WORKSPACE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-TYPE",
-            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "owning_module_ref": "STUDIO-WORKSPACE",
+            "scope": "Coordinate local/installed/project-embedded font resolver adapters and selected Type features without required cloud font service. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Picker with glyph preview/search/filter/favorites/similar",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-227#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-type"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Picker with glyph preview/search/filter/favorites/similar",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "features": [],
+          "consumer_assertion": "Inspect selected resolver closure and manifest inputs so local family/style/font-byte identities remain independently discoverable. Exact requirement: Picker with glyph preview/search/filter/favorites/similar",
+          "negative_path": "Reject automatic download/subscription fallback or machine absolute path in published manifest; OS discovery is optional injected provider,not platform shaping.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
         },
         "later_embedding_ref": "MT-227-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2639,6 +2658,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-TYPE",
+            "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
+            "required_behavior": "Picker with glyph preview/search/filter/favorites/similar",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2729,4 +2756,3 @@
     "source_parent_mt": "MT-227"
   }
 }
-

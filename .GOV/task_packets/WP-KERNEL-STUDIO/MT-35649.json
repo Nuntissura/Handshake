@@ -399,7 +399,7 @@
     "title": "Vector geometry engine core (VectorEngine) [STU-VEC geometry,STU-CON-001] / STUDIO-MODULE-KERNEL_BINDINGS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2743,32 +2743,42 @@
         "semantic_fulfillment": "Boolean kernels compile",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-016",
-          "MT-35649"
+          "MT-016-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "Boolean kernels compile",
-            "only_owner_root_may_change": true
-          },
-          {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
-            "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
+            "scope": "Adapt canonical vector geometry commands to selected Nib Send+Sync port and preserve StudioEngineError/actor/revision proposal semantics.",
             "required_behavior": "Boolean kernels compile",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-016#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-kernel-bindings"
           ],
-          "feature_policy": "--no-default-features; provider binding prerequisite",
-          "consumer_assertion": "path_network_branch_roundtrip; cubic_analytic_reference; boolean_known_regions; invalid_topology_recovery",
-          "negative_path": "Outofrange index,open invalidregion,nonfinite geometry,precision or operation-specific required preset/transfer unavailable rejects before replacing authored geometry; cancel/budget/stale proposals discarded; corrected snapshot retries; unbound source leaf version/tessellation tolerance and operation-specific required parameters remain explicit prerequisites",
-          "oracle": "Independent canonical network reread plus analytic cubic points/derivatives/areas and simple rectangle boolean regions; independent arrangement evaluator/source-authored cases for degenerate tangencies/holes; vendor parity never inferred from same kernel roundtrip"
+          "features": [],
+          "consumer_assertion": "Invoke one real vector boolean/measurement request through portable adapter and compare actual geometry to direct Nib result.",
+          "negative_path": "Remove provider or supply stale/invalid topology and return exact typed error; no false no-op or direct accepted host mutation.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35649",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/source_acceptance_coverage",
         "later_embedding_required": true,
@@ -2781,6 +2791,20 @@
         "host_adoption_mt_refs": [
           "MT-36195",
           "MT-36216"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Boolean kernels compile",
+            "only_owner_root_may_change": true
+          },
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
+            "required_behavior": "Boolean kernels compile",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],

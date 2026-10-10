@@ -279,7 +279,7 @@
     "title": "Native Studio operator shell pane (egui/wgpu/AccessKit) [STU-UNI-001,STU-UNI-005,STU-MDL-002] / STUDIO-MODULE-HARNESS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2712,25 +2712,42 @@
         "semantic_fulfillment": "Native Studio pane renders with stable author_ids",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-009-ASSET-CONTROLS"
+          "MT-009-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
-            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Consume the actual Controls document/layer/selection/tool/proposal/validation/history/export descriptors in selected egui0.33 headless Harness.",
             "required_behavior": "Native Studio pane renders with stable author_ids",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-009#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-controls"
+            "hsk-studio-harness"
           ],
-          "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies Native Studio pane renders with stable author_ids with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
-          "negative_path": "Exact cases in MT-009#/execution/implementation_steps",
-          "oracle": "Independent actual outputs specified by MT-009-ASSET-AC-001; unavailable provider means NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Drive stable author_ids, inspect UI state and actual render at normal/constrained viewport and empty/error state through egui_kittest/AccessKit path.",
+          "negative_path": "Remove a target or request global keyboard/cursor/focus drive and fail; no second document state or substituted text dump can prove layout.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35640",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
@@ -2738,6 +2755,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "required_behavior": "Native Studio pane renders with stable author_ids",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2749,11 +2774,52 @@
         "semantic_fulfillment": "UI-state snapshot",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-009-ASSET-CONTROLS",
-          "MT-009-ASSET-FOLIO"
+          "MT-009-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Consume the actual Controls document/layer/selection/tool/proposal/validation/history/export descriptors in selected egui0.33 headless Harness.",
+            "required_behavior": "UI-state snapshot",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-009#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-harness"
+          ],
+          "features": [],
+          "consumer_assertion": "Drive stable author_ids, inspect UI state and actual render at normal/constrained viewport and empty/error state through egui_kittest/AccessKit path.",
+          "negative_path": "Remove a target or request global keyboard/cursor/focus drive and fail; no second document state or substituted text dump can prove layout.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35640",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-36213,MT-36191",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Qualified source MT-009/AC-002; actual host adoption MT-36213, MT-36191 independently proves: UI-state snapshot",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36213",
+          "MT-36191"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
@@ -2766,23 +2832,6 @@
             "required_behavior": "UI-state snapshot",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-controls"
-          ],
-          "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies UI-state snapshot with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
-          "negative_path": "Exact cases in MT-009#/execution/implementation_steps",
-          "oracle": "Independent actual outputs specified by MT-009-ASSET-AC-002; unavailable provider means NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-36213,MT-36191",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-009/AC-002; actual host adoption MT-36213, MT-36191 independently proves: UI-state snapshot",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36213",
-          "MT-36191"
         ]
       },
       {
@@ -2794,25 +2843,42 @@
         "semantic_fulfillment": "Unified surface",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-009-ASSET-CONTROLS"
+          "MT-009-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
-            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Consume the actual Controls document/layer/selection/tool/proposal/validation/history/export descriptors in selected egui0.33 headless Harness.",
             "required_behavior": "Unified surface",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-009#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-controls"
+            "hsk-studio-harness"
           ],
-          "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies Unified surface with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
-          "negative_path": "Exact cases in MT-009#/execution/implementation_steps",
-          "oracle": "Independent actual outputs specified by MT-009-ASSET-AC-003; unavailable provider means NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Drive stable author_ids, inspect UI state and actual render at normal/constrained viewport and empty/error state through egui_kittest/AccessKit path.",
+          "negative_path": "Remove a target or request global keyboard/cursor/focus drive and fail; no second document state or substituted text dump can prove layout.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35640",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
@@ -2820,6 +2886,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "required_behavior": "Unified surface",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2831,25 +2905,42 @@
         "semantic_fulfillment": "Quiet",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-009-ASSET-CONTROLS"
+          "MT-009-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
-            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Consume the actual Controls document/layer/selection/tool/proposal/validation/history/export descriptors in selected egui0.33 headless Harness.",
             "required_behavior": "Quiet",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-009#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-controls"
+            "hsk-studio-harness"
           ],
-          "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies Quiet with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
-          "negative_path": "Exact cases in MT-009#/execution/implementation_steps",
-          "oracle": "Independent actual outputs specified by MT-009-ASSET-AC-004; unavailable provider means NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Drive stable author_ids, inspect UI state and actual render at normal/constrained viewport and empty/error state through egui_kittest/AccessKit path.",
+          "negative_path": "Remove a target or request global keyboard/cursor/focus drive and fail; no second document state or substituted text dump can prove layout.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35640",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
@@ -2857,6 +2948,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+            "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
+            "required_behavior": "Quiet",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],

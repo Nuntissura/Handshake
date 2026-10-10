@@ -253,7 +253,7 @@
     "title": "Studio module skeleton + engine crate boundary [STU-ARC-001,STU-ARC-002] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2505,12 +2505,53 @@
         "semantic_fulfillment": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization.",
         "architecture_disposition": "EXPLICIT_35_ASSET_CLOSURES_PLUS_LATER_KERNEL_BINDING_SUPERSESSION_NO_MEGA_CRATE",
         "asset_contribution_refs": [
-          "MT-001-ASSET-WORKSPACE",
-          "MT-001-ASSET-ACCORD",
-          "MT-001-ASSET-KERNEL_BINDINGS"
+          "MT-001-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Expose preserved RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port signatures, StudioEngineError and stable event families through Accord without runtime provider types.",
+            "required_behavior": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-001#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Compile two separately selected dummy-caller implementations of the published traits and serialize exact IDs/units/revision/error envelopes; inspect schema and trait bounds.",
+          "negative_path": "Reject an unknown ID prefix,nonfinite unit or incompatible contract version; dependency metadata must exclude kernel/native/database/GPU/codec.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35619",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-001-KERNEL-AC-001",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36189",
+          "MT-36216",
+          "MT-36224"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-WORKSPACE",
             "scope": "Virtual workspace/lockfile/toolchain/dependency-selection/mirror provenance; owns MT001 coordination, not Accord domain semantics",
@@ -2529,26 +2570,6 @@
             "required_behavior": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization.",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "STUDIO-WORKSPACE",
-            "hsk-studio-accord",
-            "hsk-studio-kernel-bindings"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-001-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Publish all 35 real module foundations and workspace coordination through host-neutral typed contracts; later wire the actual Handshake Studio kernel binding through AppState without separate initialization. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36189",
-          "MT-36216",
-          "MT-36224"
         ]
       },
       {
@@ -2560,18 +2581,59 @@
         "semantic_fulfillment": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers.",
         "architecture_disposition": "EXPLICIT_35_ASSET_CLOSURES_PLUS_LATER_KERNEL_BINDING_SUPERSESSION_NO_MEGA_CRATE",
         "asset_contribution_refs": [
-          "MT-001-ASSET-ACCORD",
-          "MT-001-ASSET-PIGMENT",
-          "MT-001-ASSET-NIB",
-          "MT-001-ASSET-LAYOUT",
-          "MT-001-ASSET-TYPE",
-          "MT-001-ASSET-PRISM",
-          "MT-001-ASSET-RENDER_CPU",
-          "MT-001-ASSET-RENDER_GPU",
-          "MT-001-ASSET-KERNEL_BINDINGS"
+          "MT-001-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Expose preserved RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port signatures, StudioEngineError and stable event families through Accord without runtime provider types.",
+            "required_behavior": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers.",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-001#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Compile two separately selected dummy-caller implementations of the published traits and serialize exact IDs/units/revision/error envelopes; inspect schema and trait bounds.",
+          "negative_path": "Reject an unknown ID prefix,nonfinite unit or incompatible contract version; dependency metadata must exclude kernel/native/database/GPU/codec.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35619",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-001-KERNEL-AC-003",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36189",
+          "MT-36216",
+          "MT-36194",
+          "MT-36195",
+          "MT-36197",
+          "MT-36196",
+          "MT-36193",
+          "MT-36205",
+          "MT-36206"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
             "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
@@ -2626,38 +2688,6 @@
             "required_behavior": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers.",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-accord",
-            "hsk-studio-pigment",
-            "hsk-studio-nib",
-            "hsk-studio-layout",
-            "hsk-studio-type",
-            "hsk-studio-prism",
-            "hsk-studio-render-cpu",
-            "hsk-studio-render-gpu",
-            "hsk-studio-kernel-bindings"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-001-KERNEL-AC-003",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Preserve RasterEngine/VectorEngine/LayoutEngine/TextEngine/ColorEngine/RenderEngine Send+Sync port semantics through Accord and the owning independent providers, plus approved new domain ports; exercise real dependency-closed consumers. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36189",
-          "MT-36216",
-          "MT-36194",
-          "MT-36195",
-          "MT-36197",
-          "MT-36196",
-          "MT-36193",
-          "MT-36205",
-          "MT-36206"
         ]
       }
     ],

@@ -2435,10 +2435,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Type-style resolution engine binding StudioTypeStyle/StudioStyleRegistry (no fork)",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+          "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-225-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2472,10 +2476,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Inheritance/next-style/override support",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+          "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-225-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2509,10 +2517,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Storage upstream",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+          "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-225-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2626,10 +2638,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Type-style resolution engine binding StudioTypeStyle/StudioStyleRegistry (no fork)",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+            "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-225-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2663,10 +2679,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Inheritance/next-style/override support",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+            "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-225-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2700,10 +2720,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Storage upstream",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Reflow character/paragraph/object-frame style changes using the existing registry and lifecycle ports.",
+            "negative_path": "Cycle/missing style rejects; clearing local overrides changes resolved values without Type taking ownership of registry storage/UI.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_225 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-225-KERNEL-AC-003",
           "later_embedding_required": true,

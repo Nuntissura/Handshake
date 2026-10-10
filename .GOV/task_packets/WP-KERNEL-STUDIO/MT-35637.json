@@ -257,7 +257,7 @@
     "title": "Sandbox -> PromotionGate wiring for Studio [STU-ARC-005,STU-PW-002,STU-PW-003] / STUDIO-MODULE-CHRONICLE owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2589,11 +2589,52 @@
         "semantic_fulfillment": "Sandbox->validation->promotion lifecycle enforced",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-006-ASSET-KERNEL_BINDINGS",
-          "MT-006-ASSET-ACCORD"
+          "MT-006-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Represent sandbox-produced commandbatch as one proposed patch/aggregate inverse against exact immutable revision for validation and promotion request.",
+            "required_behavior": "Sandbox->validation->promotion lifecycle enforced",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-006#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-chronicle"
+          ],
+          "features": [],
+          "consumer_assertion": "Stage a multi-step edit,validate its complete result and apply/reverse the pure transaction consumer without persisting host authority.",
+          "negative_path": "Fail a middle command or stale expected revision and discard staged result atomically; denied promotion produces no accepted history/event intent.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35637",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-006-KERNEL-AC-001",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Sandbox->validation->promotion lifecycle enforced Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36216",
+          "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
@@ -2606,24 +2647,6 @@
             "required_behavior": "Sandbox->validation->promotion lifecycle enforced",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-kernel-bindings",
-            "hsk-studio-accord"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Sandbox->validation->promotion lifecycle enforced",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-006-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Sandbox->validation->promotion lifecycle enforced Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36216",
-          "MT-36189"
         ]
       },
       {
@@ -2635,25 +2658,42 @@
         "semantic_fulfillment": "Direct-write fails closed",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-006-ASSET-KERNEL_BINDINGS"
+          "MT-006-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
-            "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Represent sandbox-produced commandbatch as one proposed patch/aggregate inverse against exact immutable revision for validation and promotion request.",
             "required_behavior": "Direct-write fails closed",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-006#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-kernel-bindings"
+            "hsk-studio-chronicle"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Direct-write fails closed",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Stage a multi-step edit,validate its complete result and apply/reverse the pure transaction consumer without persisting host authority.",
+          "negative_path": "Fail a middle command or stale expected revision and discard staged result atomically; denied promotion produces no accepted history/event intent.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35637",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-006-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2661,6 +2701,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36216"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
+            "required_behavior": "Direct-write fails closed",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2672,11 +2720,52 @@
         "semantic_fulfillment": "Idempotent promotion",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-006-ASSET-KERNEL_BINDINGS",
-          "MT-006-ASSET-ACCORD"
+          "MT-006-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Represent sandbox-produced commandbatch as one proposed patch/aggregate inverse against exact immutable revision for validation and promotion request.",
+            "required_behavior": "Idempotent promotion",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-006#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-chronicle"
+          ],
+          "features": [],
+          "consumer_assertion": "Stage a multi-step edit,validate its complete result and apply/reverse the pure transaction consumer without persisting host authority.",
+          "negative_path": "Fail a middle command or stale expected revision and discard staged result atomically; denied promotion produces no accepted history/event intent.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35637",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-006-KERNEL-AC-003",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Idempotent promotion Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36216",
+          "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
@@ -2689,24 +2778,6 @@
             "required_behavior": "Idempotent promotion",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-kernel-bindings",
-            "hsk-studio-accord"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Idempotent promotion",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-006-KERNEL-AC-003",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Idempotent promotion Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36216",
-          "MT-36189"
         ]
       }
     ],

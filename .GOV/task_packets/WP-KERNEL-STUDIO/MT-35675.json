@@ -274,7 +274,7 @@
     "title": "Drawing modes: draw-normal / draw-behind / draw-inside [STU-VEC-046] / STUDIO-MODULE-FOLIO owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2712,25 +2712,42 @@
         "semantic_fulfillment": "Three drawing modes persisted",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-094-ASSET-NIB"
+          "MT-094-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Persist shared draw-normal/draw-behind/draw-inside tool state and canonical insertion/clip edges in Folio graph for all five drawing tools. Source case: Typed drawing-mode state and insertion/clip proposal consumed by Pen/Freehand/Shapes/Brush/Blob and Folio. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
             "required_behavior": "Three drawing modes persisted",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-094#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Three drawing modes persisted",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Apply pen/pencil/shape/brush/blob proposals to the same mode/selection snapshot and compare expected sibling placement or exact clip target. Exact requirement: Three drawing modes persisted",
+          "negative_path": "Inside without valid container,stale selection or canceled draw creates no orphan clip/geometry; fallback to normal is forbidden.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35675",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -2738,6 +2755,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Three drawing modes persisted",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2749,25 +2774,42 @@
         "semantic_fulfillment": "Model-readable",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-094-ASSET-NIB"
+          "MT-094-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Persist shared draw-normal/draw-behind/draw-inside tool state and canonical insertion/clip edges in Folio graph for all five drawing tools. Source case: Typed drawing-mode state and insertion/clip proposal consumed by Pen/Freehand/Shapes/Brush/Blob and Folio. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
             "required_behavior": "Model-readable",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-094#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Model-readable",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Apply pen/pencil/shape/brush/blob proposals to the same mode/selection snapshot and compare expected sibling placement or exact clip target. Exact requirement: Model-readable",
+          "negative_path": "Inside without valid container,stale selection or canceled draw creates no orphan clip/geometry; fallback to normal is forbidden.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35675",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -2775,6 +2817,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Model-readable",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2786,25 +2836,42 @@
         "semantic_fulfillment": "Uniform across tools",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-094-ASSET-NIB"
+          "MT-094-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Persist shared draw-normal/draw-behind/draw-inside tool state and canonical insertion/clip edges in Folio graph for all five drawing tools. Source case: Typed drawing-mode state and insertion/clip proposal consumed by Pen/Freehand/Shapes/Brush/Blob and Folio. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
             "required_behavior": "Uniform across tools",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-094#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Uniform across tools",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Apply pen/pencil/shape/brush/blob proposals to the same mode/selection snapshot and compare expected sibling placement or exact clip target. Exact requirement: Uniform across tools",
+          "negative_path": "Inside without valid container,stale selection or canceled draw creates no orphan clip/geometry; fallback to normal is forbidden.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35675",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -2812,6 +2879,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Uniform across tools",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2823,25 +2898,42 @@
         "semantic_fulfillment": "Author_id",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-094-ASSET-NIB"
+          "MT-094-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Persist shared draw-normal/draw-behind/draw-inside tool state and canonical insertion/clip edges in Folio graph for all five drawing tools. Source case: Typed drawing-mode state and insertion/clip proposal consumed by Pen/Freehand/Shapes/Brush/Blob and Folio. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
             "required_behavior": "Author_id",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-094#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Author_id",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Apply pen/pencil/shape/brush/blob proposals to the same mode/selection snapshot and compare expected sibling placement or exact clip target. Exact requirement: Author_id",
+          "negative_path": "Inside without valid container,stale selection or canceled draw creates no orphan clip/geometry; fallback to normal is forbidden.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35675",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -2849,6 +2941,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Author_id",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2860,25 +2960,42 @@
         "semantic_fulfillment": "Manual entry",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-094-ASSET-NIB"
+          "MT-094-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-NIB",
-            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Persist shared draw-normal/draw-behind/draw-inside tool state and canonical insertion/clip edges in Folio graph for all five drawing tools. Source case: Typed drawing-mode state and insertion/clip proposal consumed by Pen/Freehand/Shapes/Brush/Blob and Folio. Canonical remote source and independent consumer proof required; retained host acceptance separately pending MT-36195.",
             "required_behavior": "Manual entry",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-094#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-nib"
+            "hsk-studio-folio"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Manual entry",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Apply pen/pencil/shape/brush/blob proposals to the same mode/selection snapshot and compare expected sibling placement or exact clip target. Exact requirement: Manual entry",
+          "negative_path": "Inside without valid container,stale selection or canceled draw creates no orphan clip/geometry; fallback to normal is forbidden.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35675",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
@@ -2886,6 +3003,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-NIB",
+            "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
+            "required_behavior": "Manual entry",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -3021,4 +3146,3 @@
     "source_parent_mt": "MT-094"
   }
 }
-

@@ -258,7 +258,7 @@
     "title": "Typography determinism binding to native TextEngine [STU-TYP-008] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2459,11 +2459,52 @@
         "semantic_fulfillment": "Deterministic byte-identical layout",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-198-ASSET-TYPE",
           "MT-198-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Publish complete deterministic Type input key,font/dictionary digests,OpenType features/axes,script/bidi/units and glyph-run result schema. Source case: Deliver STUDIO-MODULE-TYPE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+            "required_behavior": "Deterministic byte-identical layout",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-198#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Roundtrip key/result through a real separately selected Type caller and compare identical explicit key semantics. Exact requirement: Deterministic byte-identical layout",
+          "negative_path": "Reject missing input digest,unknown required enum or incompatible version; no OS shaping type leaks into Send+Sync contract.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35709",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-198-KERNEL-AC-002",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Deterministic byte-identical layout Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36196",
+          "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-TYPE",
             "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
@@ -2476,24 +2517,6 @@
             "required_behavior": "Deterministic byte-identical layout",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-accord"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Deterministic byte-identical layout",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-198-KERNEL-AC-002",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Deterministic byte-identical layout Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36196",
-          "MT-36189"
         ]
       }
     ],
@@ -2575,4 +2598,3 @@
     "source_parent_mt": "MT-198"
   }
 }
-

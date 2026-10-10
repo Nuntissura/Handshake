@@ -249,7 +249,7 @@
     "title": "StudioValidationDescriptor catalog scaffold [STU-VAL-001,STU-CON-001] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2637,25 +2637,42 @@
         "semantic_fulfillment": "Descriptor",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-005-ASSET-HARNESS"
+          "MT-005-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-HARNESS",
-            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioValidationDescriptor/receipt code,severity,target locator,suggested_fix and candidate/resource context fields from one schema.",
             "required_behavior": "Descriptor",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-005#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-harness"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Descriptor",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip descriptor and receipt through actual validation consumers and compare stable code/type fields,including warning-versus-rejection semantics.",
+          "negative_path": "Reject missing/unknown required code and malformed suggested-fix target; do not infer acceptance from severity alone or create private validation authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35634",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-005-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2663,6 +2680,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "required_behavior": "Descriptor",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2674,25 +2699,42 @@
         "semantic_fulfillment": "Receipt types present",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-005-ASSET-HARNESS"
+          "MT-005-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-HARNESS",
-            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioValidationDescriptor/receipt code,severity,target locator,suggested_fix and candidate/resource context fields from one schema.",
             "required_behavior": "Receipt types present",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-005#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-harness"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Receipt types present",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip descriptor and receipt through actual validation consumers and compare stable code/type fields,including warning-versus-rejection semantics.",
+          "negative_path": "Reject missing/unknown required code and malformed suggested-fix target; do not infer acceptance from severity alone or create private validation authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35634",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-005-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2700,6 +2742,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "required_behavior": "Receipt types present",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2711,25 +2761,42 @@
         "semantic_fulfillment": "Stable codes",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-005-ASSET-HARNESS"
+          "MT-005-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-HARNESS",
-            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioValidationDescriptor/receipt code,severity,target locator,suggested_fix and candidate/resource context fields from one schema.",
             "required_behavior": "Stable codes",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-005#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-harness"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Stable codes",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip descriptor and receipt through actual validation consumers and compare stable code/type fields,including warning-versus-rejection semantics.",
+          "negative_path": "Reject missing/unknown required code and malformed suggested-fix target; do not infer acceptance from severity alone or create private validation authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35634",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-005-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2737,6 +2804,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "required_behavior": "Stable codes",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2748,25 +2823,42 @@
         "semantic_fulfillment": "Suggested_fix pointer",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-005-ASSET-HARNESS"
+          "MT-005-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-HARNESS",
-            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioValidationDescriptor/receipt code,severity,target locator,suggested_fix and candidate/resource context fields from one schema.",
             "required_behavior": "Suggested_fix pointer",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-005#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-harness"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Suggested_fix pointer",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip descriptor and receipt through actual validation consumers and compare stable code/type fields,including warning-versus-rejection semantics.",
+          "negative_path": "Reject missing/unknown required code and malformed suggested-fix target; do not infer acceptance from severity alone or create private validation authority.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35634",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-005-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2774,6 +2866,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
+            "required_behavior": "Suggested_fix pointer",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],

@@ -463,7 +463,7 @@
     "title": "Color engine + ICC/OCIO CMM core (ColorEngine) [STU-COL,STU-CON-001] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2969,25 +2969,42 @@
         "semantic_fulfillment": "ColorEngine CMM with ICC/OCIO",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-019-ASSET-PRISM"
+          "MT-019-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define profile-tagged color samples RGB/CMYK/Lab/Gray,8/16/32-bit,ICC/OCIO transform identity,intent,proof/display separation and typed unsupported outcomes. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "ColorEngine CMM with ICC/OCIO",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-019#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "ColorEngine CMM with ICC/OCIO",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip neutral/saturated/HDR transform requests/results through published Prism port without mutable global profile or provider handle leakage. Exact requirement: ColorEngine CMM with ICC/OCIO",
+          "negative_path": "Reject unknown intent,missing required profile/config and nonfinite sample; no implicit device-color or platform CMM fallback.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35660",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-019-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2995,6 +3012,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "ColorEngine CMM with ICC/OCIO",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3006,25 +3031,42 @@
         "semantic_fulfillment": "Soft-proof",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-019-ASSET-PRISM"
+          "MT-019-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define profile-tagged color samples RGB/CMYK/Lab/Gray,8/16/32-bit,ICC/OCIO transform identity,intent,proof/display separation and typed unsupported outcomes. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Soft-proof",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-019#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Soft-proof",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip neutral/saturated/HDR transform requests/results through published Prism port without mutable global profile or provider handle leakage. Exact requirement: Soft-proof",
+          "negative_path": "Reject unknown intent,missing required profile/config and nonfinite sample; no implicit device-color or platform CMM fallback.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35660",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-019-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -3032,6 +3074,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "Soft-proof",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -3043,25 +3093,42 @@
         "semantic_fulfillment": "Correctness proven",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-019-ASSET-PRISM"
+          "MT-019-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-PRISM",
-            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define profile-tagged color samples RGB/CMYK/Lab/Gray,8/16/32-bit,ICC/OCIO transform identity,intent,proof/display separation and typed unsupported outcomes. Source case: Deliver STUDIO-MODULE-PRISM asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Correctness proven",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-019#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-prism"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Correctness proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Roundtrip neutral/saturated/HDR transform requests/results through published Prism port without mutable global profile or provider handle leakage. Exact requirement: Correctness proven",
+          "negative_path": "Reject unknown intent,missing required profile/config and nonfinite sample; no implicit device-color or platform CMM fallback.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35660",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-019-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -3069,6 +3136,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-PRISM",
+            "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
+            "required_behavior": "Correctness proven",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -3160,4 +3235,3 @@
     "source_parent_mt": "MT-019"
   }
 }
-

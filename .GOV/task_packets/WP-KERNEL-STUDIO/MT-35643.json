@@ -284,7 +284,7 @@
     "title": "Per-file StudioHistoryEntry undo/redo (ledger-backed) [STU-HIS-001,STU-HIS-002,STU-HIS-003] / STUDIO-MODULE-KERNEL_BINDINGS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2580,11 +2580,52 @@
         "semantic_fulfillment": "History-query API",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-011-ASSET-CHRONICLE",
           "MT-011-ASSET-KERNEL_BINDINGS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+            "scope": "Expose Chronicle query/undo/redo/revert request adapters with stable history lineage,document revision,actor and durable event reference ports.",
+            "required_behavior": "History-query API",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-011#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-kernel-bindings"
+          ],
+          "features": [],
+          "consumer_assertion": "Drive real Chronicle semantic cursor through portable adapter and compare restored content plus exact receipt/history intent.",
+          "negative_path": "Remove inverse artifact or change property precondition and reject; actual durable EventLedger replay/native history remain mapped host proof.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-kernel-bindings",
+            "--no-default-features",
+            "--test",
+            "mt_35643",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-011-KERNEL-AC-004",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "History-query API Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36192",
+          "MT-36216"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
             "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
@@ -2597,24 +2638,6 @@
             "required_behavior": "History-query API",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-chronicle",
-            "hsk-studio-kernel-bindings"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "History-query API",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-011-KERNEL-AC-004",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "History-query API Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36192",
-          "MT-36216"
         ]
       }
     ],

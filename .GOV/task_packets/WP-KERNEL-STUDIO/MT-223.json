@@ -2411,10 +2411,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "All 9 variable types with options",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+          "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-223-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2448,10 +2452,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Edit updates every inserted instance",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+          "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-223-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2485,10 +2493,14 @@
           "selected_packages": [
             "hsk-studio-type"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Running header/footer",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_features": [],
+          "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+          "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-223-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2602,10 +2614,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "All 9 variable types with options",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+            "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-223-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -2639,10 +2655,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Edit updates every inserted instance",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+            "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-223-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -2676,10 +2696,14 @@
             "selected_packages": [
               "hsk-studio-type"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Running header/footer",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_features": [],
+            "consumer_assertion": "Update a variable once and consume every referencing instance, including running-header first/last-on-page selection.",
+            "negative_path": "Unavailable metadata/style reference yields diagnostic; deterministic output uses supplied date context, never ambient clock or hidden filename.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_223 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-223-KERNEL-AC-003",
           "later_embedding_required": true,

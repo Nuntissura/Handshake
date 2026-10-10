@@ -3362,13 +3362,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-          "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Actual Layout paragraph consumer is required.",
-          "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-          "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+          "selected_features": [],
+          "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+          "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-200-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -3409,13 +3412,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-          "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Actual Layout paragraph consumer is required.",
-          "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-          "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+          "selected_features": [],
+          "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+          "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-200-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -3463,14 +3469,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-          "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Shared configured GUI/model controls and actual Layout paragraph consumer are required.",
-          "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-          "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+          "selected_features": [],
+          "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+          "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-200-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -3518,14 +3526,16 @@
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-type",
-            "hsk-studio-layout",
-            "hsk-studio-controls"
+            "hsk-studio-type"
           ],
-          "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-          "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Shared configured GUI/model controls and actual Layout paragraph consumer are required.",
-          "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-          "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+          "selected_features": [],
+          "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+          "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+          "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+          "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+          "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+          "timeout_seconds": 120,
+          "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
         },
         "later_embedding_ref": "MT-200-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -3657,13 +3667,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-            "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Actual Layout paragraph consumer is required.",
-            "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-            "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+            "selected_features": [],
+            "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+            "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-200-KERNEL-AC-001",
           "later_embedding_required": true,
@@ -3704,13 +3717,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-            "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Actual Layout paragraph consumer is required.",
-            "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-            "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+            "selected_features": [],
+            "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+            "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-200-KERNEL-AC-002",
           "later_embedding_required": true,
@@ -3758,14 +3774,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-            "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Shared configured GUI/model controls and actual Layout paragraph consumer are required.",
-            "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-            "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+            "selected_features": [],
+            "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+            "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-200-KERNEL-AC-003",
           "later_embedding_required": true,
@@ -3813,14 +3831,16 @@
           ],
           "asset_proof_recipe": {
             "selected_packages": [
-              "hsk-studio-type",
-              "hsk-studio-layout",
-              "hsk-studio-controls"
+              "hsk-studio-type"
             ],
-            "feature_policy": "Separate owner claims/roots and selected ports; one configured control mechanic, no Type-to-GUI or all-engine dependency.",
-            "consumer_assertion": "Current per-paragraph composition_scope single_line/every_line and composition_engine latin_cjk/world_ready/adornment are independent; all six combinations compose. Extensible composer_name registry, explicit-field override, CJK kinsoku/mojikumi/leading and deterministic invalid/error behavior remain mandatory. Four closed composer values are historical only. Shared configured GUI/model controls and actual Layout paragraph consumer are required.",
-            "negative_path": "All six combinations, invalid axis/composer override, unchanged explicit fields, deterministic reflow, GUI availability/Argus and typed model errors.",
-            "oracle": "Independent glyph/line/reflow output plus exact-revision structured and visual shared-control inspection; obsolete four-value enumeration is historical only."
+            "selected_features": [],
+            "consumer_assertion": "Consume the same story and width under each choice into deterministic line-break and glyph-position receipts.",
+            "negative_path": "Invalid composer rejects; CJK prohibited start/end characters and RTL shaping cannot disappear under a default composer.",
+            "oracle": "Independent actual glyph/paint/bytes/serialized-output reader reconciled to exact retained requirements; no source proof closes host assertions",
+            "feature_policy": "Only owning package dependency closure; checked-in HBR entrypoint/resource and per-test deadline config bound before dispatch",
+            "planned_command": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-type --no-default-features --test mt_200 -- --nocapture",
+            "timeout_seconds": 120,
+            "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
           },
           "later_embedding_ref": "MT-200-KERNEL-AC-004",
           "later_embedding_required": true,

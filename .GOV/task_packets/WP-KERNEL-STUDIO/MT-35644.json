@@ -271,7 +271,7 @@
     "title": "StudioEditProposal propose-work path (CRDT draft + DCC inbox) [STU-PW-001,STU-PW-004] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2673,25 +2673,42 @@
         "semantic_fulfillment": "StudioEditProposal path live",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-012-ASSET-CHRONICLE"
+          "MT-012-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioEditProposal typed commandbatch,before/after capture references,structured diff and validation receipt fields while preserving ai_edit_proposal identity.",
             "required_behavior": "StudioEditProposal path live",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-012#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-chronicle"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "StudioEditProposal path live",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Serialize a multi-operation proposal and compare its JsonSchema with actual command/diff/capture consumers.",
+          "negative_path": "Reject missing capture revision,unknown command schema or mismatched candidate validation receipt; no proposal becomes accepted authority by serialization.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35644",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-012-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2699,6 +2716,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "StudioEditProposal path live",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2710,25 +2735,42 @@
         "semantic_fulfillment": "Draft-only until promoted",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-012-ASSET-CHRONICLE"
+          "MT-012-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioEditProposal typed commandbatch,before/after capture references,structured diff and validation receipt fields while preserving ai_edit_proposal identity.",
             "required_behavior": "Draft-only until promoted",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-012#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-chronicle"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Draft-only until promoted",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Serialize a multi-operation proposal and compare its JsonSchema with actual command/diff/capture consumers.",
+          "negative_path": "Reject missing capture revision,unknown command schema or mismatched candidate validation receipt; no proposal becomes accepted authority by serialization.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35644",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-012-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2736,6 +2778,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "Draft-only until promoted",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2747,25 +2797,42 @@
         "semantic_fulfillment": "DCC inbox",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-012-ASSET-CHRONICLE"
+          "MT-012-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioEditProposal typed commandbatch,before/after capture references,structured diff and validation receipt fields while preserving ai_edit_proposal identity.",
             "required_behavior": "DCC inbox",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-012#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-chronicle"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "DCC inbox",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Serialize a multi-operation proposal and compare its JsonSchema with actual command/diff/capture consumers.",
+          "negative_path": "Reject missing capture revision,unknown command schema or mismatched candidate validation receipt; no proposal becomes accepted authority by serialization.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35644",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-012-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2773,6 +2840,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "DCC inbox",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2784,25 +2859,42 @@
         "semantic_fulfillment": "Rejected persists replayable",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-012-ASSET-CHRONICLE"
+          "MT-012-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
-            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Define StudioEditProposal typed commandbatch,before/after capture references,structured diff and validation receipt fields while preserving ai_edit_proposal identity.",
             "required_behavior": "Rejected persists replayable",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-012#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-chronicle"
+            "hsk-studio-accord"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Rejected persists replayable",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Serialize a multi-operation proposal and compare its JsonSchema with actual command/diff/capture consumers.",
+          "negative_path": "Reject missing capture revision,unknown command schema or mismatched candidate validation receipt; no proposal becomes accepted authority by serialization.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35644",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-012-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2810,6 +2902,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36192"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
+            "required_behavior": "Rejected persists replayable",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],

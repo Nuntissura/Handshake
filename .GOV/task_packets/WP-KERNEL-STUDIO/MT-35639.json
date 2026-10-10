@@ -257,7 +257,7 @@
     "title": "StudioRenderHarness (headless render capture) [STU-QUIET-005,STU-VAL-004,STU-MDL-002] / STUDIO-MODULE-HARNESS owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2472,11 +2472,52 @@
         "semantic_fulfillment": "Render harness captures headlessly",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-008-ASSET-SESSION",
           "MT-008-ASSET-HARNESS"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-HARNESS",
+            "scope": "Capture selected immutable document region/frame through actual selected renderer with profile,revision,grant and renderer-version metadata.",
+            "required_behavior": "Render harness captures headlessly",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-008#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-harness"
+          ],
+          "features": [],
+          "consumer_assertion": "Inspect real captured pixels and structured diff against source document in headless Harness; preserve original/proxy resolution distinction.",
+          "negative_path": "Change revision or revoke grant between request and capture and reject stale evidence; absent renderer/capture is NOT_PROVEN,never an uninspected screenshot PASS.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-harness",
+            "--no-default-features",
+            "--test",
+            "mt_35639",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-008-KERNEL-AC-001",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Render harness captures headlessly Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36214",
+          "MT-36215"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-SESSION",
             "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
@@ -2489,24 +2530,6 @@
             "required_behavior": "Render harness captures headlessly",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-session",
-            "hsk-studio-harness"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Render harness captures headlessly",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-008-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Render harness captures headlessly Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36214",
-          "MT-36215"
         ]
       }
     ],

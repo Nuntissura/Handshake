@@ -270,7 +270,7 @@
     "title": "Headless/Quiet law enforcement + negative-input harness [STU-QUIET-001,STU-QUIET-002,STU-QUIET-004] / STUDIO-MODULE-CHRONICLE owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2694,25 +2694,42 @@
         "semantic_fulfillment": "Headless/quiet proven",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-014-ASSET-SESSION"
+          "MT-014-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-SESSION",
-            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Bind cancel/failure rollback to Chronicle staged transaction and inverse ownership while retaining process-lifecycle attribution only as external context.",
             "required_behavior": "Headless/quiet proven",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-014#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-session"
+            "hsk-studio-chronicle"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Headless/quiet proven",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Cancel a quiet multi-step source operation before promotion and inspect unchanged snapshot,discarded staged patch and bounded inverse outcome.",
+          "negative_path": "Late cancellation or missing inverse cannot silently mark accepted change undone; actual process start/reclaim stays existing host owner,never Chronicle's process manager.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35646",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-014-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2720,6 +2737,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36214"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-SESSION",
+            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "required_behavior": "Headless/quiet proven",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2731,25 +2756,42 @@
         "semantic_fulfillment": "No OS-input automation",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-014-ASSET-SESSION"
+          "MT-014-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-SESSION",
-            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Bind cancel/failure rollback to Chronicle staged transaction and inverse ownership while retaining process-lifecycle attribution only as external context.",
             "required_behavior": "No OS-input automation",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-014#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-session"
+            "hsk-studio-chronicle"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No OS-input automation",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Cancel a quiet multi-step source operation before promotion and inspect unchanged snapshot,discarded staged patch and bounded inverse outcome.",
+          "negative_path": "Late cancellation or missing inverse cannot silently mark accepted change undone; actual process start/reclaim stays existing host owner,never Chronicle's process manager.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35646",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-014-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2757,6 +2799,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36214"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-SESSION",
+            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "required_behavior": "No OS-input automation",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2768,25 +2818,42 @@
         "semantic_fulfillment": "No focus steal",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-014-ASSET-SESSION"
+          "MT-014-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-SESSION",
-            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Bind cancel/failure rollback to Chronicle staged transaction and inverse ownership while retaining process-lifecycle attribution only as external context.",
             "required_behavior": "No focus steal",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-014#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-session"
+            "hsk-studio-chronicle"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "No focus steal",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Cancel a quiet multi-step source operation before promotion and inspect unchanged snapshot,discarded staged patch and bounded inverse outcome.",
+          "negative_path": "Late cancellation or missing inverse cannot silently mark accepted change undone; actual process start/reclaim stays existing host owner,never Chronicle's process manager.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35646",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-014-KERNEL-AC-003",
         "later_embedding_required": true,
@@ -2794,6 +2861,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36214"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-SESSION",
+            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "required_behavior": "No focus steal",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2805,25 +2880,42 @@
         "semantic_fulfillment": "Processes reclaimed",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-014-ASSET-SESSION"
+          "MT-014-ASSET-CHRONICLE"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-SESSION",
-            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
+            "scope": "Bind cancel/failure rollback to Chronicle staged transaction and inverse ownership while retaining process-lifecycle attribution only as external context.",
             "required_behavior": "Processes reclaimed",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-014#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-session"
+            "hsk-studio-chronicle"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Processes reclaimed",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "features": [],
+          "consumer_assertion": "Cancel a quiet multi-step source operation before promotion and inspect unchanged snapshot,discarded staged patch and bounded inverse outcome.",
+          "negative_path": "Late cancellation or missing inverse cannot silently mark accepted change undone; actual process start/reclaim stays existing host owner,never Chronicle's process manager.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-chronicle",
+            "--no-default-features",
+            "--test",
+            "mt_35646",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-014-KERNEL-AC-004",
         "later_embedding_required": true,
@@ -2831,6 +2923,14 @@
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36214"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-SESSION",
+            "scope": "Headless single-document operation orchestration, provider registration and test ports. Multi-output delivery captures immutable revision/presets/output verification and uses existing Job Runtime via a port for queue/watchfolder/cancel/retry, without a second job database or queue authority. No built-in all-engine mega dependency.",
+            "required_behavior": "Processes reclaimed",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],

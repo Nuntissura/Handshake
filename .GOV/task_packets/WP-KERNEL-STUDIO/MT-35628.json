@@ -256,7 +256,7 @@
     "title": "Canonical StudioDocument + primitive types (schemars) [STU-DOC-001,STU-DOC-002,STU-CON-001,STU-CON-002] / STUDIO-MODULE-ACCORD owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2593,11 +2593,52 @@
         "semantic_fulfillment": "Derive JsonSchema",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-002-ASSET-FOLIO",
           "MT-002-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Bind StudioDocument/layer/artboard/spread IDs,physical units,revision and schema-version envelopes to Accord's canonical serialization and JsonSchema.",
+            "required_behavior": "Derive JsonSchema",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-002#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Serialize a populated document-reference envelope and consume it through Folio's published schema; compare exact stable IDs and unit meaning after roundtrip.",
+          "negative_path": "Reject wrong primitive prefix,unknown required schema version or mixed/nonfinite units before document decode; never introduce provider implementations.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35628",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-002-KERNEL-AC-003",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Derive JsonSchema Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36191",
+          "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-FOLIO",
             "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
@@ -2610,24 +2651,6 @@
             "required_behavior": "Derive JsonSchema",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-folio",
-            "hsk-studio-accord"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Derive JsonSchema",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-002-KERNEL-AC-003",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Derive JsonSchema Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36191",
-          "MT-36189"
         ]
       },
       {
@@ -2639,11 +2662,52 @@
         "semantic_fulfillment": "Schema-id consts match 14.23",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-002-ASSET-FOLIO",
           "MT-002-ASSET-ACCORD"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-ACCORD",
+            "scope": "Bind StudioDocument/layer/artboard/spread IDs,physical units,revision and schema-version envelopes to Accord's canonical serialization and JsonSchema.",
+            "required_behavior": "Schema-id consts match 14.23",
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-002#/closure_unit"
+          }
+        ],
+        "asset_proof_recipe": {
+          "selected_packages": [
+            "hsk-studio-accord"
+          ],
+          "features": [],
+          "consumer_assertion": "Serialize a populated document-reference envelope and consume it through Folio's published schema; compare exact stable IDs and unit meaning after roundtrip.",
+          "negative_path": "Reject wrong primitive prefix,unknown required schema version or mixed/nonfinite units before document decode; never introduce provider implementations.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--test",
+            "mt_35628",
+            "--",
+            "--nocapture"
+          ]
+        },
+        "later_embedding_ref": "MT-002-KERNEL-AC-004",
+        "later_embedding_required": true,
+        "later_embedding_assertion": "Schema-id consts match 14.23 Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "status": "PENDING",
+        "host_adoption_mt_refs": [
+          "MT-36191",
+          "MT-36189"
+        ],
+        "source_parent_owner_contributions_context": [
           {
             "owning_module_ref": "STUDIO-MODULE-FOLIO",
             "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
@@ -2656,24 +2720,6 @@
             "required_behavior": "Schema-id consts match 14.23",
             "only_owner_root_may_change": true
           }
-        ],
-        "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-folio",
-            "hsk-studio-accord"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Schema-id consts match 14.23",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "later_embedding_ref": "MT-002-KERNEL-AC-004",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Schema-id consts match 14.23 Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING",
-        "host_adoption_mt_refs": [
-          "MT-36191",
-          "MT-36189"
         ]
       }
     ],

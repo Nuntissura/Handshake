@@ -256,7 +256,7 @@
     "title": "Tables: creation, import, structure, and flow [STU-LAY-035:creation/import/setup/structure/flow/nesting] / STUDIO-MODULE-FOLIO owned slice",
     "group": "STUDIO_ASSET_FEATURE_SPLIT",
     "version": 2,
-    "contract_revision": 4
+    "contract_revision": 5
   },
   "parent": {
     "wp_contract_revision": null,
@@ -2527,28 +2527,42 @@
         "semantic_fulfillment": "Table object flowed in StudioTextStory with creation/import/setup/structure/flow/nesting",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-166-ASSET-LAYOUT"
+          "MT-166-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Keep one structured table object inside StudioTextStory with stable cell/content/nested-table and header/footer identities. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Table object flowed in StudioTextStory with creation/import/setup/structure/flow/nesting",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-166#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-folio"
           ],
-          "typed_input": "Immutable canonical Folio StudioTextStory/table revision and MT-004 foundation table handles; body/header/footer/column counts; separators and import format/source range/formatting/link policy; typed structure commands, row/column/header/display/direction/stroke-order/caption enums and Type frame chain.",
-          "typed_output": "Revision-bound foundation table/story delta, typed structure/import errors, repeated header/footer flow fragments and reversible selection/identity remap.",
-          "consumer_assertion": "Public table consumer creates and converts tables with explicit separators, imports native spreadsheet/word-processor table data with formatting/link choices, mutates structure and follows nested tables across multiple Type frames/pages; foundation consumer rereads the same table IDs and three header repeat scopes.",
-          "negative_path": "Invalid cell range, too-small split, nested text-frame placement and header/footer count violations remain distinct errors; absent decoder/Type/foundation pins blocks proof. Stale revision or cancel applies no partial rows; unsupported native formatting/link loss is explicit. Numeric count limits not specified remain unresolved, never fabricated.",
-          "oracle": "Independent foundation/Folio reread reconciles cell IDs, sections, rows/columns and undo; native source decoder oracle reconciles imported cell values/formatting; independent Type fragment inspection counts repeats by column/frame/page, including skip boundaries.",
-          "terminal_proof_ref": "MT-166#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Apply real insert/delete/merge/split/sort proposal and inspect reversible identity/index remap,threaded-flow references and repeated header/footer payload. Exact requirement: Table object flowed in StudioTextStory with creation/import/setup/structure/flow/nesting",
+          "negative_path": "Reject invalid range,nested frame placement or stale revision without partial rows; unsupported imported formatting/link loss remains explicit.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35688",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-166-KERNEL-AC-001",
         "later_embedding_required": true,
@@ -2559,6 +2573,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Table object flowed in StudioTextStory with creation/import/setup/structure/flow/nesting",
+            "only_owner_root_may_change": true
+          }
         ]
       },
       {
@@ -2570,28 +2592,42 @@
         "semantic_fulfillment": "Reuses foundation storage",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-166-ASSET-LAYOUT"
+          "MT-166-ASSET-FOLIO"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
+        "asset_phase": "OWNED_SOURCE_CONTRIBUTION_ONLY_DISTINCT_HOST_ACCEPTANCE",
         "owner_contributions": [
           {
-            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
-            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "owning_module_ref": "STUDIO-MODULE-FOLIO",
+            "scope": "Keep one structured table object inside StudioTextStory with stable cell/content/nested-table and header/footer identities. Source case: Deliver STUDIO-MODULE-LAYOUT asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
             "required_behavior": "Reuses foundation storage",
-            "only_owner_root_may_change": true
+            "only_owner_root_may_change": true,
+            "claim_extent": "OWNED_SOURCE_CONTRIBUTION_ONLY_NOT_FULL_PARENT_OR_HOST_VERDICT",
+            "source_parent_full_acceptance_ref": "MT-166#/closure_unit"
           }
         ],
         "asset_proof_recipe": {
           "selected_packages": [
-            "hsk-studio-layout"
+            "hsk-studio-folio"
           ],
-          "typed_input": "Immutable canonical Folio StudioTextStory/table revision and MT-004 foundation table handles; body/header/footer/column counts; separators and import format/source range/formatting/link policy; typed structure commands, row/column/header/display/direction/stroke-order/caption enums and Type frame chain.",
-          "typed_output": "Revision-bound foundation table/story delta, typed structure/import errors, repeated header/footer flow fragments and reversible selection/identity remap.",
-          "consumer_assertion": "Public table consumer creates and converts tables with explicit separators, imports native spreadsheet/word-processor table data with formatting/link choices, mutates structure and follows nested tables across multiple Type frames/pages; foundation consumer rereads the same table IDs and three header repeat scopes.",
-          "negative_path": "Invalid cell range, too-small split, nested text-frame placement and header/footer count violations remain distinct errors; absent decoder/Type/foundation pins blocks proof. Stale revision or cancel applies no partial rows; unsupported native formatting/link loss is explicit. Numeric count limits not specified remain unresolved, never fabricated.",
-          "oracle": "Independent foundation/Folio reread reconciles cell IDs, sections, rows/columns and undo; native source decoder oracle reconciles imported cell values/formatting; independent Type fragment inspection counts repeats by column/frame/page, including skip boundaries.",
-          "terminal_proof_ref": "MT-166#/proof/checks",
-          "status": "PENDING_NOT_RUN"
+          "features": [],
+          "consumer_assertion": "Apply real insert/delete/merge/split/sort proposal and inspect reversible identity/index remap,threaded-flow references and repeated header/footer payload. Exact requirement: Reuses foundation storage",
+          "negative_path": "Reject invalid range,nested frame placement or stale revision without partial rows; unsupported imported formatting/link loss remains explicit.",
+          "oracle": "Independent actual selected consumer output against complete canonical source case and candidate. Mocks/counts/self-authored status alone are NOT_PROVEN.",
+          "hbr_test_entrypoint_binding": "Bind HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE.",
+          "planned_command_argv": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-folio",
+            "--no-default-features",
+            "--test",
+            "mt_35688",
+            "--",
+            "--nocapture"
+          ]
         },
         "later_embedding_ref": "MT-166-KERNEL-AC-002",
         "later_embedding_required": true,
@@ -2602,6 +2638,14 @@
         ],
         "host_adoption_mt_refs": [
           "MT-36197"
+        ],
+        "source_parent_owner_contributions_context": [
+          {
+            "owning_module_ref": "STUDIO-MODULE-LAYOUT",
+            "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
+            "required_behavior": "Reuses foundation storage",
+            "only_owner_root_may_change": true
+          }
         ]
       }
     ],
@@ -2686,4 +2730,3 @@
     "source_parent_mt": "MT-166"
   }
 }
-
