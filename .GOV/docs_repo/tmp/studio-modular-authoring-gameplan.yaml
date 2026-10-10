@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 26
+generation: 28
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -43,6 +43,8 @@ steps:
 - {id: GP-027, role: builder, at: before_round, do: retain actual PDF legacy map shape and derive owned behavior from unchanged source requirement, check: {type: confirm}, source: 'infra: PDF001 legacy map lacks owner_contributions and semantic_fulfillment; no mutation on failed generation', state: active}
 - {id: GP-028, role: builder, at: before_round, do: preserve existing executable slice pointer and fill absent semantics from exact parent fields, check: {type: confirm}, source: 'infra: Date slice scope_fulfillment contains executable_mt_ref only; missing exact_requirement_refs', state: active}
 - {id: GP-029, role: builder, at: before_submit, do: compare optional preserved payload without inventing foundation wrapper, check: {type: confirm}, source: 'infra: Controls foundation35553 has no preserved_original in native baseline', state: active}
-- {id: GP-030, role: builder, at: before_round, do: emit only changed projection rows for existing contract repair, check: {type: confirm}, source: 'infra: full before-after pair exceeded bounded output before mutation', state: active}
-- {id: GP-031, role: builder, at: before_submit, do: require NUL stdin pathspec for large explicit Git staging cohorts, check: {type: confirm}, source: 'infra: Windows argv length blocked783-file git add; bounded stdin pathspec preserves exact scope', state: active}
+- {id: GP-030, role: builder, at: before_round, do: require only changed projection rows in existing contract repair output, check: {type: confirm}, source: 'infra: full before-after pair exceeded bounded output before mutation', state: active}
+- {id: GP-031, role: builder, at: any, do: require ASCII JSON for Windows source reads and one nonduplicated clause body, check: {type: confirm}, source: 'infra: duplicated17 scope/anchor read truncated; raw source unicode failed cp1252 before full read', state: active}
+- {id: GP-033, role: builder, at: before_submit, do: require NUL stdin pathspec for large explicit Git staging cohorts, check: {type: confirm}, source: 'infra: invalid duplicate GP031 + Windows argv length blocked783 git add; NUL stdin retains exact staging scope', state: active}
 - {id: GP-032, role: builder, at: before_submit, do: require bounded scalar summaries and explicit UTF8 for large JSON inspection, check: {type: confirm}, source: 'infra: whole index metadata print exceeded output bound and default cp1252 failed', state: active}
+- {id: GP-034, role: builder, at: before_submit, do: verify active step IDs unique and serialize shared gameplan writes, check: {type: confirm}, source: 'infra: concurrent writers allocated GP031 twice; coordinator alone writes step list', state: active}
