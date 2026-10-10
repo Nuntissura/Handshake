@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "base_wp_id": "WP-KERNEL-STUDIO",
   "created_at_utc": "2026-10-09T19:03:43.989264+00:00",
-  "updated_at_utc": "2026-10-10T00:27:30.231601+00:00",
+  "updated_at_utc": "2026-10-10T00:39:30.168332+00:00",
   "source_control": {
     "merge_base_sha": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
     "canonical_branch": "codex/handshake-studio-assets",
@@ -5985,11 +5985,6 @@
           "MT-33450",
           "MT-33451",
           "MT-33452",
-          "MT-35343",
-          "MT-35344",
-          "MT-35345",
-          "MT-35347",
-          "MT-35348",
           "MT-35588",
           "MT-35589",
           "MT-35591",
@@ -6011,7 +6006,14 @@
           "MT-36216"
         ],
         "lane": "implementation",
-        "surface_profile_refs": []
+        "surface_profile_refs": [],
+        "retained_authority_context_refs": [
+          ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35343",
+          ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35344",
+          ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35345",
+          ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35347",
+          ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35348"
+        ]
       },
       {
         "mt_id": "MT-36208",
@@ -45830,6 +45832,71 @@
         "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
         "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
         "reason": "Current IO168 explicitly declares IO170 yields no implementation unit. Retain original identity, payload/AC, native Git and prior allocation as MT content-authoring authority context; no source or host runtime bookkeeping implementation. Actual Press/PDF parameter and writer obligations remain required.",
+        "executable_source_gate": false,
+        "executable_host_gate": false,
+        "proof_kind": "existing_spec_authority_and_derivation_reconciliation",
+        "runtime_proof": "NOT_APPLICABLE_AUTHORITY_REFERENCE_NOT_PRODUCT_ACCEPTANCE"
+      },
+      "MT-35343": {
+        "mt_id": "MT-35343",
+        "original_scope_ref": "./MT-35343.json#/preserved_original/payload/scope",
+        "spec_anchor": "STU-IO-100",
+        "spec_exclusion_anchor": "STU-IO-168",
+        "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
+        "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+        "reason": "Current IO168 explicitly declares STU-IO-100 yields no implementation unit. Retain original identity, complete payload/AC/native Git and prior allocation as authority context; no executable source/host bookkeeping gate. Genuine export/parameter/provider/amendment obligations remain required; unknown bounds pass unclamped and encoder errors surface.",
+        "executable_source_gate": false,
+        "executable_host_gate": false,
+        "proof_kind": "existing_spec_authority_and_derivation_reconciliation",
+        "runtime_proof": "NOT_APPLICABLE_AUTHORITY_REFERENCE_NOT_PRODUCT_ACCEPTANCE"
+      },
+      "MT-35344": {
+        "mt_id": "MT-35344",
+        "original_scope_ref": "./MT-35344.json#/preserved_original/payload/scope",
+        "spec_anchor": "STU-IO-168",
+        "spec_exclusion_anchor": "STU-IO-168",
+        "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
+        "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+        "reason": "Current IO168 explicitly declares STU-IO-168 yields no implementation unit. Retain original identity, complete payload/AC/native Git and prior allocation as authority context; no executable source/host bookkeeping gate. Genuine export/parameter/provider/amendment obligations remain required; unknown bounds pass unclamped and encoder errors surface.",
+        "executable_source_gate": false,
+        "executable_host_gate": false,
+        "proof_kind": "existing_spec_authority_and_derivation_reconciliation",
+        "runtime_proof": "NOT_APPLICABLE_AUTHORITY_REFERENCE_NOT_PRODUCT_ACCEPTANCE"
+      },
+      "MT-35345": {
+        "mt_id": "MT-35345",
+        "original_scope_ref": "./MT-35345.json#/preserved_original/payload/scope",
+        "spec_anchor": "STU-IO-169",
+        "spec_exclusion_anchor": "STU-IO-168",
+        "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
+        "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+        "reason": "Current IO168 explicitly declares STU-IO-169 yields no implementation unit. Retain original identity, complete payload/AC/native Git and prior allocation as authority context; no executable source/host bookkeeping gate. Genuine export/parameter/provider/amendment obligations remain required; unknown bounds pass unclamped and encoder errors surface.",
+        "executable_source_gate": false,
+        "executable_host_gate": false,
+        "proof_kind": "existing_spec_authority_and_derivation_reconciliation",
+        "runtime_proof": "NOT_APPLICABLE_AUTHORITY_REFERENCE_NOT_PRODUCT_ACCEPTANCE"
+      },
+      "MT-35347": {
+        "mt_id": "MT-35347",
+        "original_scope_ref": "./MT-35347.json#/preserved_original/payload/scope",
+        "spec_anchor": "STU-IO-171",
+        "spec_exclusion_anchor": "STU-IO-168",
+        "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
+        "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+        "reason": "Current IO168 explicitly declares STU-IO-171 yields no implementation unit. Retain original identity, complete payload/AC/native Git and prior allocation as authority context; no executable source/host bookkeeping gate. Genuine export/parameter/provider/amendment obligations remain required; unknown bounds pass unclamped and encoder errors surface.",
+        "executable_source_gate": false,
+        "executable_host_gate": false,
+        "proof_kind": "existing_spec_authority_and_derivation_reconciliation",
+        "runtime_proof": "NOT_APPLICABLE_AUTHORITY_REFERENCE_NOT_PRODUCT_ACCEPTANCE"
+      },
+      "MT-35348": {
+        "mt_id": "MT-35348",
+        "original_scope_ref": "./MT-35348.json#/preserved_original/payload/scope",
+        "spec_anchor": "STU-IO-172",
+        "spec_exclusion_anchor": "STU-IO-168",
+        "spec_source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md#STU-IO-168",
+        "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+        "reason": "Current IO168 explicitly declares STU-IO-172 yields no implementation unit. Retain original identity, complete payload/AC/native Git and prior allocation as authority context; no executable source/host bookkeeping gate. Genuine export/parameter/provider/amendment obligations remain required; unknown bounds pass unclamped and encoder errors surface.",
         "executable_source_gate": false,
         "executable_host_gate": false,
         "proof_kind": "existing_spec_authority_and_derivation_reconciliation",

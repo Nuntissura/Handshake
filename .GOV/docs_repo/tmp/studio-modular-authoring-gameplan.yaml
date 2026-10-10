@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 28
+generation: 29
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -48,3 +48,4 @@ steps:
 - {id: GP-033, role: builder, at: before_submit, do: require NUL stdin pathspec for large explicit Git staging cohorts, check: {type: confirm}, source: 'infra: invalid duplicate GP031 + Windows argv length blocked783 git add; NUL stdin retains exact staging scope', state: active}
 - {id: GP-032, role: builder, at: before_submit, do: require bounded scalar summaries and explicit UTF8 for large JSON inspection, check: {type: confirm}, source: 'infra: whole index metadata print exceeded output bound and default cp1252 failed', state: active}
 - {id: GP-034, role: builder, at: before_submit, do: verify active step IDs unique and serialize shared gameplan writes, check: {type: confirm}, source: 'infra: concurrent writers allocated GP031 twice; coordinator alone writes step list', state: active}
+- {id: GP-035, role: builder, at: before_submit, do: verify each source range against its own source_ref and file hash, check: {type: confirm}, source: 'infra: reused Studio buffer for security source range; capsule correct, actual source reread required', state: active}
