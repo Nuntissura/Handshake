@@ -1496,14 +1496,19 @@
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
           "scope": "Readonly source workspace descriptor",
-          "status": "FAIL_SOURCE_DESCRIPTOR",
-          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+          "status": "SOURCE_DESCRIPTOR_REPAIR_PROVEN",
+          "reason": "Actual descriptor now names approved Nib sha2/kurbo subset. Original full manual/host obligations remain pending",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+            "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-after.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-command.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-result.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor-result.json"
           ]
         },
         "later_host": {
@@ -1538,14 +1543,19 @@
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
           "scope": "Readonly source workspace descriptor",
-          "status": "FAIL_SOURCE_DESCRIPTOR",
-          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+          "status": "SOURCE_DESCRIPTOR_REPAIR_PROVEN",
+          "reason": "Actual descriptor now names approved Nib sha2/kurbo subset. Original full manual/host obligations remain pending",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+            "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-after.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-command.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-result.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor-result.json"
           ]
         },
         "later_host": {
@@ -1580,14 +1590,19 @@
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
           "scope": "Readonly source workspace descriptor",
-          "status": "FAIL_SOURCE_DESCRIPTOR",
-          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+          "status": "SOURCE_DESCRIPTOR_REPAIR_PROVEN",
+          "reason": "Actual descriptor now names approved Nib sha2/kurbo subset. Original full manual/host obligations remain pending",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+            "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-after.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-command.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-result.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor-result.json"
           ]
         },
         "later_host": {
@@ -1622,14 +1637,19 @@
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING",
         "asset_validation": {
           "scope": "Readonly source workspace descriptor",
-          "status": "FAIL_SOURCE_DESCRIPTOR",
-          "reason": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
+          "status": "SOURCE_DESCRIPTOR_REPAIR_PROVEN",
+          "reason": "Actual descriptor now names approved Nib sha2/kurbo subset. Original full manual/host obligations remain pending",
           "proof_refs": [
-            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+            "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
           ],
           "evidence_refs": [
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
-            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-independent-oracle.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-before.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-after.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-command.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-result.json",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor.stdout",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor-result.json"
           ]
         },
         "later_host": {
@@ -3173,6 +3193,43 @@
       ],
       "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
       "later_kernel": "PENDING"
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-NIB-DESCRIPTOR-REPAIR-V7",
+      "mt_id": "MT-35528",
+      "verdict": "PASS_V7",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+      "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "observed_at": "2026-10-10T14:06:00.883262+00:00",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "resolved_findings": [
+        {
+          "finding_id": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+          "status": "RESOLVED_ACTUAL_DESCRIPTOR_OBSERVED",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
+          ]
+        }
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Stale HELP would fail expected parsed descriptor equality",
+        "Unrelated source changes would fail exact singleHELP replacement or54unchanged native hashes"
+      ],
+      "BOUNDARY_PROBES": [
+        "Newly compiled actual standalone probe descriptor; streams/exit persisted before oracle"
+      ],
+      "RESIDUAL_UNCERTAINTY": [
+        "Selected policy graph does not certify all library implementation purity",
+        "Full36 and distinct host/adoption/native acceptance remain PENDING"
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "later_kernel": "PENDING"
     }
   ],
   "blockers": [],
@@ -3238,11 +3295,11 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "FAIL_V7",
+    "status": "PASS_V7",
     "active": true,
-    "validator_verdict": "FAIL_V7",
+    "validator_verdict": "PASS_V7",
     "contract_preparation_only": false,
-    "blocked_on": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
+    "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
     "completed_by": null
   },
@@ -6056,6 +6113,43 @@
         "observed_at": "2026-10-10T14:03:53.951419+00:00",
         "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\logs\\descriptor-repair-static-evidence.json",
         "evidence_sha256": "94111eba0f9be7f26bc88b47b91e8b550ced510b16ee518c05dc9d42a0d8032b"
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "scope": "standalone_source_foundation_only",
+        "status": "PASS_V7",
+        "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
+        "candidate_tree": "2bdf2b8d6a65fb904d5518e2a393f42b9f045340",
+        "observed_at": "2026-10-10T14:06:00.883262+00:00",
+        "evidence_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-independent-oracle.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-before.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-identity-after.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-command.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-compile-result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor.stdout",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\help-v7-descriptor-result.json"
+        ],
+        "checks": {
+          "rustc1_97_1_Dwarnings_exit": 0,
+          "actual_descriptor_exit": 0,
+          "expected_single_field_delta": true,
+          "prepost55_native_git_identity_equal": true,
+          "other54_native_inputs_unchanged": true,
+          "exact_entire_source_single_HELP_replacement": true
+        },
+        "reuse": {
+          "from_candidate": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+          "proof_refs": [
+            "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+          ],
+          "reason": "Entire executable validation logic unchanged; selected graph3/lock17/Windowsactive13 and negative3 reused; all54 other native closure inputs unchanged for Nib/Observe runtime",
+          "owning_tests_not_repeated": true
+        },
+        "full_fulfillment": "PENDING",
+        "later_kernel": "PENDING"
       }
     ],
     "source_only_diagnostic_tiers": [
@@ -6076,26 +6170,14 @@
       }
     ],
     "source_runtime_result": {
-      "status": "FAIL_V7",
+      "status": "PASS_V7",
       "scope": "standalone_source_foundation_only",
-      "candidate_commit": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+      "candidate_commit": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
       "proof_refs": [
-        "MT-35528-INDEPENDENT-SOURCE-NIB-REGISTRY-V7"
+        "MT-35528-INDEPENDENT-NIB-DESCRIPTOR-REPAIR-PROOF-V7"
       ],
       "full_fulfillment": "PENDING",
-      "later_kernel": "PENDING",
-      "finding": {
-        "finding_id": "MT-35528-NIB-DESCRIPTOR-OWNER-OMISSION",
-        "status": "OPEN",
-        "source_ref": "handshake-studio-assets/tools/workspace-probe.rs:1024",
-        "expected": "Selection descriptor names actual approved Nib sha2/kurbo owner subset",
-        "observed": "Actual selected Nib closure accepted but emitted selection HELP lists Folio/Chronicle/Pigment/Prism only",
-        "remediation": "Update only descriptor selection text to include approved Nib sha2/kurbo owner subset; compile affected probe and independently inspect actual descriptor; reuse unchanged graph/runtime proof with exact input mapping",
-        "evidence_refs": [
-          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-descriptor.stdout",
-          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\nib-v7-selected.stdout"
-        ]
-      }
+      "later_kernel": "PENDING"
     }
   },
   "remediation": [
