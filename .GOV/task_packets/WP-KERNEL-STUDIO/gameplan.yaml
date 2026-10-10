@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 11
+generation: 13
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -36,3 +36,5 @@ steps:
 - {id: GP-018, role: integration_validator, at: before_round, do: require literal Studio GAMEPLAN_PATH binding in runtime command, check: {type: confirm}, source: 'infra: hook selected WP012 from interpolated gameplan env', state: retired}
 - {id: GP-019, role: any, at: before_round, do: require Studio-scoped pointer before leading Set-Location runtime binding, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/.gameplan-active, contains: gameplan.yaml}, source: 'infra: hook ignores shell env and resolves leading directory pointer', state: active}
 - {id: GP-020, role: integration_validator, at: before_round, do: confirm native SHA256 separately retained and Git clean-filter blobs reconcile, check: {type: confirm}, source: 'infra: raw CRLF worktree vs LF Git byte equality false', state: active}
+- {id: GP-021, role: integration_validator, at: before_round, do: require named case stdout stderr exit saved before oracle assertions, check: {type: confirm}, source: 'infra: selection assertion ran before evidence persistence', state: active}
+- {id: GP-022, role: builder, at: before_dispatch, do: require recorded workspace example-array rejection before scoped parser repair, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json, contains: selected_manifest_unsupported_example_array}, source: 'runtime: selected Accord [[example]] rejected by workspace probe', state: active}
