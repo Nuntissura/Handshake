@@ -149,7 +149,7 @@
     "title": "DERIVATION RULE (NORMATIVE; supersedes cut rules 1 and 2 of [STU-RAS-173])",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -190,1172 +190,1413 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "cross_boundary_default_deny_negative_suite",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "same_project_and_cross_project_isolation_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "mixed_scope_derivation_non_widening_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "concurrent_revocation_and_context_switch_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "remote_delegation_and_sync_scope_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_ledger_replay",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_session_trace",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_reconnect_and_promotion",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_cross_lane_trace_comparison",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_trace_projection_replay",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "concurrent_session_test_run",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "concurrency_primitive_test_run",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "parallel_operator_agent_ui_test_run",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "typed_routing_test_run",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "renderer_console_error_report",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP owns no GUI. Verify negative owned-GUI scope; any visible shared consuming integration requires later viewport/state matrix, never an invented module panel.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "capture_matrix",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "trace_projection_inspection",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "headless_run_with_focus_audit",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "automation_path_audit",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "process_lifecycle_test_run",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "foreground_exception_declaration_and_operator_warning",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "user_manual_diff_in_same_commit",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "no_context_model_operation_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "manual_self_consistency_test",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
-        "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
-        "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
-        "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
-        "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
-        "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
-        "assessment": "APPLIES",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
       },
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
-        "assessment": "CONDITIONAL",
-        "reason": "STUDIO-MODULE-DEVELOP scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "trigger_assessment_basis": {
-          "resource": true,
+          "resource": false,
           "owned_gui": false,
           "collaborative_state": false,
-          "queue_or_inflight": true,
+          "queue_or_inflight": false,
           "interop_or_remote": false,
           "uuid_generation": false,
           "parked_ai": false
         },
         "scope_evidence_refs": [
-          "MT-35311#/scope",
-          "MT-35311#/context_capsule/specification_anchor_refs"
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
         ],
         "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
-        "proof_status": "PENDING_NOT_RUN",
-        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
-        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35311/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "scope_evidence_refs": [
+          "MT-35311#/execution",
+          "MT-35311#/activation",
+          "MT-35311#/fulfillment/authority_reference_ref"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "NOT_APPLICABLE_NONEXECUTABLE_REFERENCE",
+        "asset_proof_destination": null,
+        "embedding_proof_destination": null,
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION",
+        "trigger_assessment_basis": {
+          "resource": false,
+          "owned_gui": false,
+          "collaborative_state": false,
+          "queue_or_inflight": false,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "parked_ai": false
+        }
       }
     ],
     "runtime_lane_refs": [
@@ -1386,7 +1627,7 @@
     "context_digest": "7b0332459b03636c6c484137f89a20eb8464fa809529d1e098fb54de9211679e"
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-DEVELOP asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
     "requirement_refs": [
       "STU-RAS-175"
     ],
@@ -1424,99 +1665,15 @@
     "module_ref": "STUDIO-MODULE-DEVELOP",
     "build_unit_ref": "STUDIO-MODULE-DEVELOP",
     "write_scope_source": "allowed_write_paths",
-    "depends_on": [
-      "MT-35528",
-      "MT-35529",
-      "MT-35530",
-      "MT-35531",
-      "MT-35532",
-      "MT-35533",
-      "MT-35534",
-      "MT-35535",
-      "MT-35536",
-      "MT-35537",
-      "MT-35538",
-      "MT-35539",
-      "MT-35540",
-      "MT-35541",
-      "MT-35542",
-      "MT-35543",
-      "MT-35544",
-      "MT-35545",
-      "MT-35546",
-      "MT-35547",
-      "MT-35548",
-      "MT-35549",
-      "MT-35550",
-      "MT-35551",
-      "MT-35552",
-      "MT-35553",
-      "MT-35554",
-      "MT-35555",
-      "MT-35556",
-      "MT-35557",
-      "MT-35558",
-      "MT-35559",
-      "MT-35560",
-      "MT-35561",
-      "MT-35562",
-      "MT-35563"
-    ],
+    "depends_on": [],
     "start_precondition": {
       "dispatch_allowed": false,
-      "required_conditions": [
-        "SPEC207_PUBLICATION",
-        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
-        "FOCUSED_RECIPE_OWNER_FEATURE_SELECTION_AND_TIMEOUT_APPROVED_BEFORE_CODING",
-        "INDEPENDENT_CONTRACT_REVIEW",
-        "STUDIO_ALL_36_FOUNDATIONS_PASSED",
-        "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING",
-        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND"
-      ],
-      "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
-      "foundation_members": [
-        "MT-35528",
-        "MT-35529",
-        "MT-35530",
-        "MT-35531",
-        "MT-35532",
-        "MT-35533",
-        "MT-35534",
-        "MT-35535",
-        "MT-35536",
-        "MT-35537",
-        "MT-35538",
-        "MT-35539",
-        "MT-35540",
-        "MT-35541",
-        "MT-35542",
-        "MT-35543",
-        "MT-35544",
-        "MT-35545",
-        "MT-35546",
-        "MT-35547",
-        "MT-35548",
-        "MT-35549",
-        "MT-35550",
-        "MT-35551",
-        "MT-35552",
-        "MT-35553",
-        "MT-35554",
-        "MT-35555",
-        "MT-35556",
-        "MT-35557",
-        "MT-35558",
-        "MT-35559",
-        "MT-35560",
-        "MT-35561",
-        "MT-35562",
-        "MT-35563"
-      ],
+      "required_conditions": [],
+      "foundation_barrier_ref": null,
+      "foundation_members": [],
       "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
     },
-    "allowed_write_paths": [
-      "handshake-studio-assets/crates/hsk-studio-develop/**"
-    ],
+    "allowed_write_paths": [],
     "forbidden_write_paths": [
       ".GOV/**",
       "src/**",
@@ -1529,41 +1686,24 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-DEVELOP asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
-        "fulfillment_ref": "MT-35311#/fulfillment",
-        "module_catalog_ref": "STUDIO-MODULE-DEVELOP",
-        "immutable_input_and_revision_required": true
+        "requirement_refs": [
+          "STU-RAS-175"
+        ],
+        "derivation_disposition_source": "STU-RAS-176",
+        "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+        "reason": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine."
       }
     ],
-    "implementation_steps": [
-      {
-        "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
-      },
-      {
-        "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
-      },
-      {
-        "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
-      },
-      {
-        "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
-      }
-    ],
+    "implementation_steps": [],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
       "Scope expansion requires owning contract; no capacity stopping"
     ],
     "may_create_canonical_capability": false,
-    "contract_dependency_kind": "depends_on_completion",
+    "contract_dependency_kind": "retained_reference",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
       "owner_dir": null,
@@ -1603,107 +1743,11 @@
   },
   "proof": {
     "parent_proof_refs": [],
-    "checks": [
-      {
-        "check_id": "MT-35311-ASSET-AC-001",
-        "kind": "runtime",
-        "claim_refs": [
-          "AC-001"
-        ],
-        "command_or_method": null,
-        "expected": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-        "timeout_seconds": null,
-        "on_timeout": "record_timeout",
-        "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
-        ],
-        "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
-        }
-      },
-      {
-        "check_id": "MT-35311-ASSET-AC-002",
-        "kind": "runtime",
-        "claim_refs": [
-          "AC-002"
-        ],
-        "command_or_method": null,
-        "expected": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-        "timeout_seconds": null,
-        "on_timeout": "record_timeout",
-        "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
-        ],
-        "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
-        }
-      },
-      {
-        "check_id": "MT-35311-ASSET-AC-003",
-        "kind": "runtime",
-        "claim_refs": [
-          "AC-003"
-        ],
-        "command_or_method": null,
-        "expected": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-        "timeout_seconds": null,
-        "on_timeout": "record_timeout",
-        "evidence_required": [
-          "Exact owned candidate/input closure",
-          "Production consumer and negative/cancel/loss path",
-          "Independent assessment of actual output"
-        ],
-        "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
-        },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "materialization_timing": {
-          "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
-          "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
-        }
-      }
-    ],
+    "checks": [],
     "independent_review_required": true,
-    "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-develop/**"
-    ],
+    "relevant_input_paths": [],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "NON_EXECUTABLE_RETAINED_REFERENCE_NO_RUNTIME_VERDICT"
   },
   "red_team": {
     "required": true,
@@ -1724,14 +1768,14 @@
     ]
   },
   "activation": {
-    "disposition": "NON_AI_CURRENT_SCOPE",
-    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
-    "source_owner_resolution": "EXACT_CLAUSE_HEADING_WITH_COMPOUND_SCOPE_EVIDENCE",
+    "disposition": "NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE",
+    "implementation_state": "NOT_APPLICABLE_SPEC_NO_MT",
+    "source_owner_resolution": "STU-RAS-175",
     "semantic_trigger_flags": {
-      "resource": true,
+      "resource": false,
       "owned_gui": false,
       "collaborative_state": false,
-      "queue_or_inflight": true,
+      "queue_or_inflight": false,
       "interop_or_remote": false,
       "uuid_generation": false,
       "parked_ai": false
@@ -1895,52 +1939,17 @@
     "legacy_commands_dispatchable": false,
     "reason": "Preservation-first asset execution overrides old source locations and blanket studio-engine facade. Original obligations remain retained for later embedding, with explicit architecture reconciliation.",
     "status_exception": "PENDING retained during non-executable preparation; phase ready describes contract shape only.",
-    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes."
+    "legacy_acceptance_policy": "Exact old ID/text/scope/proof is retained history and mandatory semantic/production acceptance; old paths, commands and topology never grant active writes.",
+    "retained_reference_prior_contract_ref": "git:0a890f25cb1786fde010d90f79ee62dbfb39cb69:.GOV/task_packets/WP-KERNEL-STUDIO/MT-35311.json",
+    "retained_reference_disposition": "Root-approved exact STU-RAS-176 non-yielding context; original scope/AC/history retained, no implementation or host gate."
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
     "original_intent_retained": true,
     "all_foundations_barrier": {
       "id": "STUDIO-ALL-FOUNDATIONS",
-      "requires_all": [
-        "MT-35528",
-        "MT-35529",
-        "MT-35530",
-        "MT-35531",
-        "MT-35532",
-        "MT-35533",
-        "MT-35534",
-        "MT-35535",
-        "MT-35536",
-        "MT-35537",
-        "MT-35538",
-        "MT-35539",
-        "MT-35540",
-        "MT-35541",
-        "MT-35542",
-        "MT-35543",
-        "MT-35544",
-        "MT-35545",
-        "MT-35546",
-        "MT-35547",
-        "MT-35548",
-        "MT-35549",
-        "MT-35550",
-        "MT-35551",
-        "MT-35552",
-        "MT-35553",
-        "MT-35554",
-        "MT-35555",
-        "MT-35556",
-        "MT-35557",
-        "MT-35558",
-        "MT-35559",
-        "MT-35560",
-        "MT-35561",
-        "MT-35562",
-        "MT-35563"
-      ],
-      "condition": "Every declared real capability and negative path independently passed before feature dispatch"
+      "requires_all": [],
+      "condition": "Not an executable prerequisite; original allocation and foundation history retained as context."
     },
     "asset_slices": [
       {
@@ -1949,8 +1958,8 @@
         "build_unit_ref": "STUDIO-MODULE-DEVELOP",
         "source_root": "handshake-studio-assets/crates/hsk-studio-develop",
         "status": "PENDING",
-        "write_authority": "ONLY_THIS_OWNER_ROOT",
-        "execution_is_separate": true,
+        "write_authority": "NONE_RETAINED_AUTHORITY_CONTEXT",
+        "execution_is_separate": false,
         "scope_basis": [
           {
             "anchor": "STU-RAS-175",
@@ -1963,45 +1972,8 @@
           }
         ],
         "original_scope_ref": "MT-35311#/preserved_original/payload/scope",
-        "requires_foundation_mts": [
-          "MT-35528",
-          "MT-35529",
-          "MT-35530",
-          "MT-35531",
-          "MT-35532",
-          "MT-35533",
-          "MT-35534",
-          "MT-35535",
-          "MT-35536",
-          "MT-35537",
-          "MT-35538",
-          "MT-35539",
-          "MT-35540",
-          "MT-35541",
-          "MT-35542",
-          "MT-35543",
-          "MT-35544",
-          "MT-35545",
-          "MT-35546",
-          "MT-35547",
-          "MT-35548",
-          "MT-35549",
-          "MT-35550",
-          "MT-35551",
-          "MT-35552",
-          "MT-35553",
-          "MT-35554",
-          "MT-35555",
-          "MT-35556",
-          "MT-35557",
-          "MT-35558",
-          "MT-35559",
-          "MT-35560",
-          "MT-35561",
-          "MT-35562",
-          "MT-35563"
-        ],
-        "acceptance_fulfillment": "Exact legacy acceptance retained; owner domain contribution is reviewed before slice dispatch.",
+        "requires_foundation_mts": [],
+        "acceptance_fulfillment": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
         "acceptance_refs": [
           "AC-001",
           "AC-002",
@@ -2009,16 +1981,18 @@
         ],
         "scope_fulfillment": {
           "original_scope_digest": "54a1ec9f9ad49639953fcd79c94767c67177317ce1ea2dd4ffd18bd6423329a9",
-          "domain_responsibility": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
+          "domain_responsibility": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
           "exact_requirement_refs": [
             "STU-RAS-175"
           ],
           "original_scope_retained": true,
-          "fulfillment_required_even_without_separate_captured_ac": true
+          "fulfillment_required_even_without_separate_captured_ac": false
         },
         "parent_activation_ref": "MT-35311#/activation",
         "mandatory_parent_precondition_ref": "MT-35311#/execution/start_precondition",
-        "separate_execution_rule": "Separate owner claim does not bypass parent activation, all36 foundations, exact external capability proof or original acceptance; only this slice root is writable."
+        "separate_execution_rule": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "source_execution_gate": false,
+        "host_execution_gate": false
       }
     ],
     "compound_scope_rule": "Only primary owner executes under this MT claim; each other owner slice is an independently scoped execution unit requiring its own claim and evidence. Parent MT cannot complete until all slices plus later embedding acceptance are fulfilled.",
@@ -2030,32 +2004,28 @@
         "original_row_sha256": "0e62d006ca1788bec1531e00b40ed47778e7ef6ec161b0fc13cecaea058e7bb2",
         "lineage": "ORIGINAL_AC_RETAINED",
         "semantic_fulfillment": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
         "asset_contribution_refs": [
           "MT-35311-ASSET-DEVELOP"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-        "owner_contributions": [
-          {
-            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-            "required_behavior": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-            "only_owner_root_may_change": true
-          }
-        ],
+        "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+        "owner_contributions": [],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+          "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+          "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
         },
-        "later_embedding_ref": "MT-35311-KERNEL-AC-001",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "later_embedding_ref": null,
+        "later_embedding_required": false,
+        "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "status": "PENDING",
+        "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+        "later_embedding_refs": [],
+        "host_adoption_mt_refs": [],
+        "source_execution_gate": false,
+        "host_execution_gate": false
       },
       {
         "acceptance_id": "AC-002",
@@ -2064,32 +2034,28 @@
         "original_row_sha256": "e694e6b4827a20acefb527e9d9d6a04cb6c539816b8a21c75f3a77f60638a511",
         "lineage": "ORIGINAL_AC_RETAINED",
         "semantic_fulfillment": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
         "asset_contribution_refs": [
           "MT-35311-ASSET-DEVELOP"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-        "owner_contributions": [
-          {
-            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-            "required_behavior": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-            "only_owner_root_may_change": true
-          }
-        ],
+        "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+        "owner_contributions": [],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+          "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+          "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
         },
-        "later_embedding_ref": "MT-35311-KERNEL-AC-002",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "later_embedding_ref": null,
+        "later_embedding_required": false,
+        "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "status": "PENDING",
+        "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+        "later_embedding_refs": [],
+        "host_adoption_mt_refs": [],
+        "source_execution_gate": false,
+        "host_execution_gate": false
       },
       {
         "acceptance_id": "AC-003",
@@ -2098,42 +2064,34 @@
         "original_row_sha256": "d6b4c9867e2c841063a42f088ad502111c8a9a864a7f637c6db261a0aeca216f",
         "lineage": "ORIGINAL_AC_RETAINED",
         "semantic_fulfillment": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-        "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+        "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
         "asset_contribution_refs": [
           "MT-35311-ASSET-DEVELOP"
         ],
-        "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-        "owner_contributions": [
-          {
-            "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-            "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-            "required_behavior": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-            "only_owner_root_may_change": true
-          }
-        ],
+        "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+        "owner_contributions": [],
         "asset_proof_recipe": {
-          "selected_packages": [
-            "hsk-studio-develop"
-          ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "selected_packages": [],
+          "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+          "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+          "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
         },
-        "later_embedding_ref": "MT-35311-KERNEL-AC-003",
-        "later_embedding_required": true,
-        "later_embedding_assertion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "later_embedding_ref": null,
+        "later_embedding_required": false,
+        "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+        "status": "PENDING",
+        "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+        "later_embedding_refs": [],
+        "host_adoption_mt_refs": [],
+        "source_execution_gate": false,
+        "host_execution_gate": false
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
-      "all_original_acceptance_refs": [
-        "MT-35311-KERNEL-AC-001",
-        "MT-35311-KERNEL-AC-002",
-        "MT-35311-KERNEL-AC-003"
-      ],
+      "all_original_acceptance_refs": [],
       "original_acceptance": [
         {
           "id": "AC-001",
@@ -2161,7 +2119,7 @@
       "original_dependencies": [],
       "original_proof_commands": [],
       "dispatchable_in_asset_phase": false,
-      "production_requirement": "Concrete Handshake AppState/auth/EventLedger/CRDT/recovery/Argus/FlightRecorder/InternalDiagnostics/Palmistry consumer for each applicable retained requirement; asset proof never closes embedding.",
+      "production_requirement": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
       "architecture_disposition": "ARC002/009/010/018 independent owners and host-neutral bridge replace old studio-engine source placement; original acceptance payload remains exact and source reconciliation is mandatory.",
       "semantic_acceptance_map": [
         {
@@ -2171,32 +2129,28 @@
           "original_row_sha256": "0e62d006ca1788bec1531e00b40ed47778e7ef6ec161b0fc13cecaea058e7bb2",
           "lineage": "ORIGINAL_AC_RETAINED",
           "semantic_fulfillment": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-          "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+          "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
           "asset_contribution_refs": [
             "MT-35311-ASSET-DEVELOP"
           ],
-          "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-          "owner_contributions": [
-            {
-              "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-              "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-              "required_behavior": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-              "only_owner_root_may_change": true
-            }
-          ],
+          "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+          "owner_contributions": [],
           "asset_proof_recipe": {
-            "selected_packages": [
-              "hsk-studio-develop"
-            ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_packages": [],
+            "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+            "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+            "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+            "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
           },
-          "later_embedding_ref": "MT-35311-KERNEL-AC-001",
-          "later_embedding_required": true,
-          "later_embedding_assertion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "later_embedding_ref": null,
+          "later_embedding_required": false,
+          "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "status": "PENDING",
+          "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+          "later_embedding_refs": [],
+          "host_adoption_mt_refs": [],
+          "source_execution_gate": false,
+          "host_execution_gate": false
         },
         {
           "acceptance_id": "AC-002",
@@ -2205,32 +2159,28 @@
           "original_row_sha256": "e694e6b4827a20acefb527e9d9d6a04cb6c539816b8a21c75f3a77f60638a511",
           "lineage": "ORIGINAL_AC_RETAINED",
           "semantic_fulfillment": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-          "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+          "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
           "asset_contribution_refs": [
             "MT-35311-ASSET-DEVELOP"
           ],
-          "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-          "owner_contributions": [
-            {
-              "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-              "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-              "required_behavior": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-              "only_owner_root_may_change": true
-            }
-          ],
+          "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+          "owner_contributions": [],
           "asset_proof_recipe": {
-            "selected_packages": [
-              "hsk-studio-develop"
-            ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_packages": [],
+            "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+            "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+            "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+            "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
           },
-          "later_embedding_ref": "MT-35311-KERNEL-AC-002",
-          "later_embedding_required": true,
-          "later_embedding_assertion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "later_embedding_ref": null,
+          "later_embedding_required": false,
+          "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "status": "PENDING",
+          "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+          "later_embedding_refs": [],
+          "host_adoption_mt_refs": [],
+          "source_execution_gate": false,
+          "host_execution_gate": false
         },
         {
           "acceptance_id": "AC-003",
@@ -2239,34 +2189,35 @@
           "original_row_sha256": "d6b4c9867e2c841063a42f088ad502111c8a9a864a7f637c6db261a0aeca216f",
           "lineage": "ORIGINAL_AC_RETAINED",
           "semantic_fulfillment": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-          "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
+          "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
           "asset_contribution_refs": [
             "MT-35311-ASSET-DEVELOP"
           ],
-          "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
-          "owner_contributions": [
-            {
-              "owning_module_ref": "STUDIO-MODULE-DEVELOP",
-              "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-              "required_behavior": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-              "only_owner_root_may_change": true
-            }
-          ],
+          "asset_phase": "SOURCE_DERIVATION_CONTEXT",
+          "owner_contributions": [],
           "asset_proof_recipe": {
-            "selected_packages": [
-              "hsk-studio-develop"
-            ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "selected_packages": [],
+            "feature_policy": "No runtime target: current STU-RAS-176 explicitly excludes this pure-cross-reference or derivation context.",
+            "consumer_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+            "negative_path": "No source/host/runtime acceptance fabricated; genuine feature, enrichment and dependency-first obligations remain on their actual owners.",
+            "oracle": "Existing canonical spec/packet authority and full original scope/AC reconciliation; no runtime PASS."
           },
-          "later_embedding_ref": "MT-35311-KERNEL-AC-003",
-          "later_embedding_required": true,
-          "later_embedding_assertion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "later_embedding_ref": null,
+          "later_embedding_required": false,
+          "later_embedding_assertion": "STU-RAS-175 is non-yielding retained derivation context under STU-RAS-176. Preserve the five closed unit classes and authoritative markers: whole parameter tables stay one unit, catalogue subjects/enumerations/validation descriptors follow current rules, and no shortcut/preset/command rows create new units. Supersede only STU-RAS-173 rules1/2; rules3..6 still govern actual implementation. No Rust derivation parser or counter engine.",
+          "status": "PENDING",
+          "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311",
+          "later_embedding_refs": [],
+          "host_adoption_mt_refs": [],
+          "source_execution_gate": false,
+          "host_execution_gate": false
         }
-      ]
+      ],
+      "host_adoption_mt_refs": [],
+      "qualified_acceptance_to_host_adoption_mts": {},
+      "source_execution_gate": false,
+      "host_execution_gate": false,
+      "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311"
     },
     "unresolved_source_anchors": [],
     "dependency_reconciliation": {
@@ -2275,7 +2226,8 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
-    }
+    },
+    "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35311"
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T02:37:41.200Z"
 }
