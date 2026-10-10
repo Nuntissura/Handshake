@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 39
+generation: 41
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -61,3 +61,5 @@ steps:
 - {id: GP-043, role: builder, at: before_dispatch, do: require all source read_text/write_text explicit UTF8 before opening writable files, check: {type: confirm}, source: 'source: agent cp1252 Unicode write truncated owned Observe test; exact HEAD restored', state: active}
 - {id: GP-044, role: builder, at: before_dispatch, do: confirm isolated Cargo home resolves full locked workspace closure before offline use, check: {type: confirm}, source: 'infra: Observe cache lacked schemars; Cargo resolves other workspace owners even for scoped check', state: active}
 - {id: GP-045, role: builder, at: before_dispatch, do: forbid default token allocation before admitted Prism constructor reservation, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-prism/src/admitted.rs, not_contains: 'CancellationToken::default()'}, source: 'independent review: constructor default Accord token allocates Arc before byte admission', state: active}
+- {id: GP-046, role: builder, at: before_dispatch, do: verify Pigment damage minima do not shadow borrowed current pixel coordinates, check: {type: confirm}, source: 'compile: masked_patch bbox i64 minima shadow x/y references then invalid dereference', state: active}
+- {id: GP-047, role: builder, at: before_dispatch, do: verify Pigment Accepted indirection preserves wire and admits retained Box Patch layout before allocation, check: {type: confirm}, source: 'lint: Outcome Accepted336 bytes versus Failure88 triggers large_enum_variant; indirection must be counted', state: active}

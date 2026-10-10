@@ -2108,7 +2108,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-10T11:06:22.422998+00:00",
+  "updated_at_utc": "2026-10-10T11:37:48.033997+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2387,7 +2387,7 @@
     "selected_mt": "MT-35534",
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "runtime": "NOT_RUN",
-    "compile": "NOT_RUN",
+    "compile": "PASS_CHECK_AND_CLIPPY",
     "authority_blocker": {
       "id": "MT-35534-RESOLVED-BUFFER-FIELDS",
       "status": "RESOLVED_CANONICAL_FIELDS",
@@ -2400,7 +2400,7 @@
       "MT-35531-SOURCE-FOUNDATION-V1",
       "MT-35533-SOURCE-PRISM-TRANSFER-EXTENSION-V2"
     ],
-    "next_actor": "workspace owned Pigment source; parent owns manifests/lock/policy; folio owns Observe dependency extension",
+    "next_actor": "foundation_validator independent affected source/runtime acceptance; builder source frozen",
     "source_feature_policy": "CPU no-default-features; Accord/Folio/Prism/Observe; exact serde1.0.229 std+derive and serde_json1.0.151 std defaultfalse supporting consumer, sameexistingregistrylibraries/no new pins/GPU/codec/host",
     "per_test_timeout": "Four existing masked_patch exact filters; checked-in20s percase before handoff; no outer timeout",
     "batch_owner": "MT-35534",
@@ -2454,6 +2454,28 @@
         "runtime": "No silent caller profile stripping and no fallback to unbudgeted legacy conversion",
         "proof": "Actual SCPF/SHA descriptors and receipts; independent retained matrix/TRC and nonidentity numeric comparison; selected-route proof only, not original/vendor-file fidelity"
       }
-    }
+    },
+    "source_candidate": {
+      "commit": "8b0b9c34f04913c1aa8e300225be47bde477fb4e",
+      "tree": "022f11a4d48c921a4ca35e044f9bbc9d9c85d309",
+      "branch": "codex/handshake-studio-assets"
+    },
+    "builder_static_evidence": {
+      "proof_id": "MT-35534-BUILDER-FOUNDATION-STATIC-V1",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\logs\\foundation-builder-static-evidence.json",
+      "sha256": "d3617a2ce7b41e30b2a9db23d156307d9865e8d7dbafc5d6dd0ef2f243c70aba"
+    },
+    "static_repairs": [
+      {
+        "finding": "damage minima shadow borrowed coordinates E0614",
+        "status": "COMPILED_REPAIRED",
+        "gameplan": "GP-046"
+      },
+      {
+        "finding": "large_enum_variant Accepted Patch",
+        "status": "COMPILED_LINT_REPAIRED_INDEPENDENT_ACCOUNTING_PENDING",
+        "gameplan": "GP-047"
+      }
+    ]
   }
 }
