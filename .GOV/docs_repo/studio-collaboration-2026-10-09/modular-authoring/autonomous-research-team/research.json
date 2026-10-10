@@ -1,0 +1,1510 @@
+{
+  "schema_id": "hsk.studio_autonomous_research@1",
+  "file_id": "STUDIO-AUTONOMOUS-RESEARCH-20261010",
+  "status": "RESEARCH_COMPLETE_PROPOSALS_PENDING_ROOT_APPROVAL",
+  "assignment": {
+    "root_chat": "01a12168-a212-7991-8b69-454deae05b60",
+    "coordinator_chat": "01a122a7-3a48-72e0-9837-8c3ab6d23ae9",
+    "report_writer": "fresh autonomous research team parent",
+    "product_coding": "NOT_ACTIVATED",
+    "scope": "Three bounded disjoint source research/deliberation lanes; root approval/enrichment required before requirements change"
+  },
+  "lanes": {
+    "handshake_product": "Read-only source/primary-document research; no product edits or execution",
+    "repo_governance": "Sole requested tracked report; no contracts, indices, spec, authority, gameplans, scripts or status changes"
+  },
+  "authority_observed": {
+    "spec_version_at_start": "v02.208",
+    "hbr_version": "1.16.0",
+    "hbr_rule_count": 52,
+    "root_twins": "Read-only diff inspected; differences limited to Codex/Claude substitutions in protection and backup wording",
+    "packet_lifecycle": "STUB (NOT READY FOR DEV)",
+    "module_catalog_version": "v02.207 preparation",
+    "canonical_source_checkout_binding": "UNRESOLVED_PREPARATION_CONTINUES_NO_EXECUTION; root/branch/owner null",
+    "canonical_repository": "https://github.com/Nuntissura/assets",
+    "subtree": "handshake-studio-assets",
+    "module_count": 35,
+    "workspace_owner": "STUDIO-WORKSPACE",
+    "historical_studio_worktree": "C:/Users/Ilja Smets/.codex/worktrees/handshake-studio/wt-gov-kernel",
+    "historical_studio_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "historical_workspace_manifest_present": false,
+    "historical_studio_origin": "https://github.com/Nuntissura/Handshake",
+    "canonical_assets_checkout_state": "NOT_ESTABLISHED_REGISTRY_UNBOUND; no applicable recorded assets path found; not disk-wide absence proof"
+  },
+  "operator_decisions": {
+    "WB130": "Fold four kinds into existing layout + prototyping/timeline + Components + Interop-Fig/shared controls within one .handshake document; no new silo",
+    "WB131": "Single-witness basis accepted with limits in human/model UserManual; runtime/manual fidelity remains unproven",
+    "shape_preservation": "All 12 existing native capabilities retained with Studio provenance; exact 30 upstream literals kept separately"
+  },
+  "parent_findings": [
+    {
+      "id": "ART-RELEASE-001",
+      "finding": "Canonical assets source execution/publication is unbound in the inspected records. Historical Studio worktree is a Handshake repository worktree (origin Nuntissura/Handshake), not an independently verified assets checkout; absence of expected future source files is not a preparation defect.",
+      "evidence": [
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+          "pointer": "/canonical_source_checkout_binding"
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+          "pointer": "/workspace_owner/maintenance_contracts/embedding"
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+          "symbol": "execution.module_change_stage",
+          "observed": "standalone_source"
+        }
+      ],
+      "selected_proposal": "Use existing source MTs and exact canonical GitHub revision re-read before dependent host-adoption writes; immutable selected release, dependency/features and versioned host adapter.",
+      "rejected_alternative": "Treat the historical Handshake Studio checkout, catalog or copied source as canonical landing; patch module internals in Handshake first.",
+      "owners": [
+        "STUDIO-WORKSPACE/MT-35528",
+        "existing standalone_source MTs",
+        "existing host_adoption MTs"
+      ],
+      "spec_refs": [
+        "STU-ARC-009",
+        "STU-ARC-010",
+        "STU-ARC-016",
+        "CX-MODULE-LIFECYCLE-002",
+        "HBR-MODULE-LIFECYCLE-007"
+      ],
+      "risks_and_mitigations": [
+        {
+          "risk": "Customized destination or remote drift overwritten by local preparation",
+          "mitigation": "Fresh exact canonical branch/tree/subtree identity and destination census; preserve existing assets content; reject mismatched revision"
+        }
+      ],
+      "future_proof": [
+        "Actual canonical source checkout assignment and fresh GitHub revision/content read",
+        "Standalone selected contract proof first",
+        "Exact source/release pins and affected host compatibility/rollback proof"
+      ],
+      "evidence_limit": "GitHub web subtree fetch failed as restricted; remote contents/revision not verified in parent pass. No manifest/build/runtime proof. Applicable Handshake worktree inventory and catalog/packet refs do not establish disk-wide assets clone absence.",
+      "preparation_proposal": "Coordinator preserves requested new assets worktree preparation: resolve an existing authorized assets clone if recorded, or prepare the human-authorized assets worktree; bind exact canonical origin/root/branch/owner/commit/subtree to existing standalone_source MTs. This research does not perform Git/topology mutation."
+    },
+    {
+      "id": "ART-RELEASE-002",
+      "finding": "Selected package count alone cannot prove selected provider/feature closure.",
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "revision": "Rolling official docs read 2026-10-10",
+          "lines": [
+            218,
+            218
+          ],
+          "basis": "Lockfile resolution considers optional workspace dependencies; actual compilation feature selection is separate"
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/features.html",
+          "revision": "Rolling official docs read 2026-10-10",
+          "lines": [
+            105,
+            110
+          ],
+          "basis": "One dependency edge disabling default features cannot override another enabling them"
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/features.html",
+          "revision": "Rolling official docs read 2026-10-10",
+          "lines": [
+            140,
+            145
+          ],
+          "basis": "Selected package dependency features unify"
+        }
+      ],
+      "selected_proposal": "Keep virtual workspace resolver explicit and provider target/features reviewed in existing MT35528 and owning provider MTs. Inspect actual selected graph/feature closure at future activation rather than adding a new governance helper.",
+      "rejected_alternative": "Default all-engine facade or claim compartment isolation from 35 folder names.",
+      "owners": [
+        "STUDIO-WORKSPACE/MT-35528",
+        "existing provider module foundations"
+      ],
+      "spec_refs": [
+        "STU-ARC-002",
+        "STU-ARC-010",
+        "STU-ARC-016",
+        "STU-ARC-018"
+      ],
+      "risks_and_mitigations": [
+        {
+          "risk": "Native/GPU dependencies pulled into pure leaves or ARM development selection",
+          "mitigation": "Separate provider ownership; explicit selected dependency/features and target-specific boundaries"
+        }
+      ],
+      "future_proof": [
+        "Selected manifest/locked graph with feature closure",
+        "Affected warm rebuild fanout only when source implementation exists"
+      ],
+      "evidence_limit": "No materialized Studio Cargo.toml in inspected historical checkout; no actual dependency graph compiled or executed."
+    },
+    {
+      "id": "ART-PLATFORM-003",
+      "finding": "Rust official platform support covers both Windows ARM64 and x64 host tools; it does not prove provider/native behavior.",
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support.html",
+          "revision": "Rolling official docs read 2026-10-10",
+          "lines": [
+            18,
+            34
+          ],
+          "basis": "aarch64-pc-windows-msvc and x86_64-pc-windows-msvc listed Tier1 with host tools"
+        }
+      ],
+      "selected_proposal": "Keep portable pure-leaf module development selectable on ARM while pinning separately required x64 native production/provider evidence; unsupported providers return typed unavailable/loss outcomes.",
+      "rejected_alternative": "Use ARM compilation or toolchain support as vendor parity/native x64 production proof.",
+      "owners": [
+        "STUDIO-WORKSPACE/MT-35528",
+        "provider source MTs",
+        "distinct host_adoption MTs"
+      ],
+      "spec_refs": [
+        "STU-ARC-016",
+        "CX-PLATFORM-001",
+        "CX-PLATFORM-002"
+      ],
+      "risks_and_mitigations": [
+        {
+          "risk": "ABI/codec/plugin/device portability inferred from Rust target support",
+          "mitigation": "Pin actual provider revisions, native ABI/architecture and required platform; keep runtime proof separate"
+        }
+      ],
+      "future_proof": [
+        "Platform-specific selected provider compile/contract proof",
+        "Actual x64 production original/native proof and separately scoped ARM development evidence"
+      ],
+      "evidence_limit": "ARM-specific page fetch unavailable; platform overview inspected. No installed compiler/provider/SDK platform execution in this research."
+    }
+  ],
+  "limits": [
+    "Research findings require root approval/spec enrichment; report is not final contract review or validator verdict.",
+    "No builds, tests, validators, runtime runs, deployment, cleanup, process disruption, Git mutation, source code or authority edits performed.",
+    "Original vendor-produced parity oracles, native x64 production proof, manual/runtime fidelity and canonical assets remote landing remain future execution."
+  ],
+  "early_root_notifications": [
+    "Startup/authority scope",
+    "Presentation source operational constraints",
+    "Pinned SDK seconds comments",
+    "IDML/lightcraft gaps",
+    "Unbounded WP012 bus and source-first release/feature closure distinction"
+  ],
+  "decision_areas": {
+    "concurrency": {
+      "area": "source-host-concurrency-and-shared-observability",
+      "disposition": "PROPOSALS_ONLY_NOT_CANONICAL",
+      "host_source": {
+        "path": "../wtc-native-editors-v1",
+        "revision": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+        "dirty_state": "clean at initial and final reads",
+        "resolution": "WP012 packet contains obsolete ../wtc-WP-KERNEL-012 alias; actual existing wtc-native-editors-v1 is explicitly recorded by MT142 product_worktree",
+        "runtime_proof": "NOT_RUN"
+      },
+      "authority": {
+        "spec": "v02.208",
+        "spec_section": "14-studio-creative-suite.md:205-251",
+        "clauses": [
+          "STU-ARC-007",
+          "STU-ARC-008",
+          "STU-ARC-012",
+          "STU-ARC-013",
+          "STU-ARC-014",
+          "STU-ARC-015",
+          "STU-ARC-020"
+        ],
+        "hbr_version": "1.16.0",
+        "relevant_hbr_families": [
+          "SWARM",
+          "VIS",
+          "QUIET",
+          "MAN",
+          "HBR-INT-009"
+        ],
+        "module_catalog": "STUDIO_MODULES.json",
+        "catalog_caveat": "Catalog still identifies spec207; foundation/adoption entries describe planned capabilities, not materialized or proven source."
+      },
+      "findings": [
+        {
+          "id": "CONCURRENCY-01",
+          "finding": "Two existing host transports have materially different guarantees. ShellEventBus is unbounded and drain collects every queued event into a Vec. NativeEventEmitter already has a bounded single ordered worker and explicit Full/Closed outcomes. Reuse the latter semantics where applicable; do not treat the shell bus as bounded Studio admission.",
+          "evidence": [
+            {
+              "file": "src/frontend/handshake_native/src/event_bus.rs",
+              "symbols": [
+                "ShellEventSender::send",
+                "ShellEventReceiver::drain",
+                "new_shell_event_bus"
+              ],
+              "ranges": [
+                "47-84"
+              ],
+              "sha256": "bce2c229347adf57fa8d9593f8c6d6af82fd8cbe3ffe7a9f41817899a67e9c1d"
+            },
+            {
+              "file": "src/frontend/handshake_native/src/event_emitter.rs",
+              "symbols": [
+                "EMIT_PERMITS",
+                "NativeEventEmitter::new_with_error_ring",
+                "EmitError::Backpressure",
+                "EmitError::WorkerClosed"
+              ],
+              "ranges": [
+                "48-55",
+                "1223-1271",
+                "1419-1452"
+              ],
+              "sha256": "7453d85fbaefd826452cfe0aa09a6cfffa128d0dbf6a8103bf31f8752238d220"
+            }
+          ],
+          "selected_proposal": "Session owns bounded host-neutral job admission; immutable jobs/results carry reservation ownership through completion and snapshot retirement. KernelBindings maps admission/commit/telemetry ports to existing host owners. Separate reserved bounded cancellation/completion capacity from bulk preview work.",
+          "rejected_alternative": "One global Studio mutex plus unbounded shell notification transport, or assuming queue slot capacity bounds payload bytes.",
+          "risk": "Slot-bounded queues still permit unbounded payload allocation and waiting-task growth.",
+          "mitigation": "Admit before allocation/spawn; bound callers, slots and bytes independently; transfer RAII reservations to results and retained generations; return typed overload before accepting an edit.",
+          "future_proof": "Flood admission with variable payload sizes; demonstrate bounded waiting callers, bytes and result retention; cancel while bulk queue is full; verify completion/stop progress and no silent committed-edit loss."
+        },
+        {
+          "id": "CONCURRENCY-02",
+          "finding": "WP012 already extracted reusable concurrency primitives into handshake_storage_support. Application keyed_lock.rs is a re-export, not a second implementation. guarded_mutation owns a shared wall-clock deadline across keyed lock waits, attempts and sleeps, and observes shutdown cancellation.",
+          "evidence": [
+            {
+              "file": "src/backend/handshake_storage_support/src/keyed_lock.rs",
+              "symbols": [
+                "LockKey",
+                "KeyedLockRegistry",
+                "acquire_many_with_deadline",
+                "ordered_unique"
+              ],
+              "ranges": [
+                "64-164",
+                "217-362"
+              ],
+              "sha256": "004dde858472b222df468db2ff7bb86f2d413f9af25e1ff731a3e09d10ba1637"
+            },
+            {
+              "file": "src/backend/handshake_storage_support/src/retry.rs",
+              "symbols": [
+                "RetryPolicy::CONTRACT",
+                "RetryContext",
+                "Replay"
+              ],
+              "ranges": [
+                "12-85"
+              ],
+              "sha256": "ba5b524b10cd5d166f6400650d5a8772274f66d552145d90f6f613aec05020d6"
+            },
+            {
+              "file": "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+              "symbols": [
+                "guarded_mutation",
+                "classify_knowledge_error"
+              ],
+              "ranges": [
+                "125-206"
+              ],
+              "sha256": "39f654c96ca1a19583872bf2ce32f3db4fb49aba5fdb06dbb6da5523e8b91a5e"
+            }
+          ],
+          "selected_proposal": "Reuse the published primitive boundary after its canonical standalone lifecycle is resolved; leave actual SurrealDB transactions and error classification with host storage. Session admission must precede document authority acquisition; promotion rechecks principal, grant, revision and idempotency atomically.",
+          "rejected_alternative": "Copy the keyed-lock/retry implementation into Studio or claim an in-process lock provides distributed/database correctness.",
+          "important_distinction": "acquire_many_with_deadline retains earlier keyed locks while acquiring later ordered locks and releases them on failure. That algorithm must not be copied as multidimensional byte/resource admission: STU-ARC-012 requires releasing partial resource acquisition before waiting.",
+          "risk": "Retrying an outcome-unknown commit can duplicate an accepted edit.",
+          "mitigation": "Bind idempotency to principal/action/canonical payload hash/revision preconditions; reconcile canonical authority after ambiguous acknowledgment. Fence stale worker completions with lease epochs.",
+          "future_proof": "Independent lock registries over one owning embedded engine; same-key versus disjoint-key overlap; ambiguous commit acknowledgment restart reconciliation; stale epoch rejection; no unrelated write lock for reads.",
+          "existing_owner": "WP012 MT-142; storage_support and storage/surreal"
+        },
+        {
+          "id": "CONCURRENCY-03",
+          "finding": "The general diagnostics recorder takes a buffer mutex and deliberately holds it through the SPSC ring write. Removing this mutex would violate the writer's single-producer discipline. The heartbeat is a separate UI-thread-only lock-free path. Palmistry reads shared memory without writer cooperation.",
+          "evidence": [
+            {
+              "file": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+              "symbols": [
+                "DiagnosticsRecorder",
+                "BUFFER_CAP",
+                "record",
+                "heartbeat",
+                "snapshot_last_n"
+              ],
+              "ranges": [
+                "48-85",
+                "114-173"
+              ],
+              "sha256": "1eebcb2988cebad584a58958e7f856b075f6e855d972f6e6a0473bb68e3e18c7"
+            },
+            {
+              "file": "src/frontend/palmistry/src/ring_reader.rs",
+              "symbols": [
+                "PalmistryRingReader",
+                "open_with_retry",
+                "read_heartbeat"
+              ],
+              "ranges": [
+                "51-170"
+              ],
+              "sha256": "1cc34ec264260c7c139064c54c36a3c2f42a9e170ddf483b0ba15013538e41fd"
+            }
+          ],
+          "selected_proposal": "Observe emits host-neutral typed counters/outcomes; KernelBindings routes business events to Flight Recorder/EventLedger and allowlisted performance/liveness events to internal_diagnostics. Audio callbacks use preallocated bounded handoff to an off-thread aggregator which invokes the existing recorder.",
+          "rejected_alternative": "Calling general record() directly from realtime audio, or removing its mutex to advertise lock-free operation.",
+          "risk": "Existing comments call record non-blocking, but its actual mutex acquisition can wait; it is unsuitable as a realtime guarantee.",
+          "mitigation": "Keep realtime callback exclusions explicit in human/model manual and public ports; preserve single producer, typed no-content schema and dropped-event accounting.",
+          "future_proof": "Callback allocation/lock audit, bounded telemetry overflow, audio underrun/discontinuity outcomes, shutdown with active workers, and Palmistry observation while GUI is stalled.",
+          "existing_owners": [
+            "WP012 MT-081",
+            "MT-082",
+            "MT-086",
+            "MT-089",
+            "MT-090"
+          ]
+        },
+        {
+          "id": "CONCURRENCY-04",
+          "finding": "The native MCP already validates a stable client_session_id and derives attributed agent identity from token authority plus that ID. Stable controls/manual/Argus should consume this existing attribution seam instead of introducing another identity registry.",
+          "evidence": [
+            {
+              "file": "src/frontend/handshake_native/src/mcp/server.rs",
+              "symbols": [
+                "SwarmMcpServer",
+                "MAX_REQUESTS_PER_SEC",
+                "MAX_LINE_BYTES",
+                "client_session_id dispatch"
+              ],
+              "ranges": [
+                "54-103",
+                "457-482"
+              ],
+              "sha256": "f06247d5c87f6a2b2e9cb66199953fba31e7b6f11af40068129310d6603aaf10"
+            },
+            {
+              "file": "src/frontend/handshake_native/src/mcp/session.rs",
+              "symbols": [
+                "session_for_connection",
+                "session_for_client"
+              ],
+              "ranges": [
+                "644-651"
+              ],
+              "sha256": "52d0722c3ce802e74bc54a68bbcbf921f29bc5da154a46406f4058f28c213075"
+            },
+            {
+              "file": "src/frontend/handshake_native/src/accessibility/registry.rs",
+              "symbols": [
+                "DECLARED_IDENTITIES",
+                "assert_no_unnamed_interactive"
+              ],
+              "ranges": [
+                "1-110"
+              ],
+              "sha256": "fa87f5c07e7e00d93316c5476b1d79464ce6c85d33528fd2b66f56ea5dc301ce"
+            },
+            {
+              "file": "src/frontend/handshake_native/src/command_registry.rs",
+              "symbols": [
+                "AppCommand",
+                "CommandKind",
+                "EditorMenuEnableContext"
+              ],
+              "ranges": [
+                "1-100"
+              ],
+              "sha256": "9623d25b7b6271101213b9bc3a7f3d69ea6ee64452570a0dead6e0d5807570ce"
+            },
+            {
+              "file": "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+              "symbols": [
+                "WorksurfaceSnapshot",
+                "PaneInspection",
+                "WidgetInventory"
+              ],
+              "ranges": [
+                "22-95"
+              ],
+              "sha256": "b1c766d242a0ca6d2542cc7daa618a73415d126136d3aa3b1bdc01928c390ab3"
+            }
+          ],
+          "selected_proposal": "Controls publishes one capability descriptor consumed by GUI, tools, AccessKit, manuals and Argus; one host adapter reconciles agent_label to client_session_id. Extend existing inspection schema with revision/render/color/proxy/grant provenance rather than adding a parallel Studio debugger.",
+          "rejected_alternative": "New Studio-only command/manual/inspection registries or per-panel nearly identical controls.",
+          "risk": "Per-connection 100 requests/sec and 1MiB lines do not by themselves establish aggregate swarm bounds or document/job byte budgets.",
+          "mitigation": "Add aggregate actor/document/resource admission at existing host seam; preserve independent agent view/selection and operator focus. Existing request identity is attribution, not authorization proof.",
+          "future_proof": "Multiple attributed clients plus operator; isolated view/focus; stale and revoked grants; control/manual/tool descriptor consistency; fresh screenshot linked to exact action/revision rather than cached visual state.",
+          "existing_owners": [
+            "WP012 MT-103",
+            "MT-108",
+            "native MCP/AccessKit/command registry"
+          ]
+        }
+      ],
+      "affected_studio_foundations": {
+        "accord": "MT-35529",
+        "observe": "MT-35530",
+        "controls": "MT-35553",
+        "session": "MT-35554",
+        "kernel_bindings": "MT-35556",
+        "host_adoption": "Distinct host adoption authoring remains pending in catalog; do not patch WP012 or host internals from standalone source MTs."
+      },
+      "primary_external_evidence": [
+        {
+          "url": "https://docs.rs/tokio/latest/tokio/sync/mpsc/",
+          "observed_revision": "tokio 1.53.2",
+          "finding": "Bounded MPSC backpressure; clean shutdown closes receiver then consumes remaining messages."
+        },
+        {
+          "url": "https://docs.rs/tokio/latest/tokio/sync/mpsc/struct.Sender.html",
+          "observed_revision": "tokio 1.53.2",
+          "finding": "select cancellation of send drops unsent value; reserve permits separate cancellation from payload ownership. Dropping unused permit releases queue capacity."
+        },
+        {
+          "url": "https://docs.rs/tokio/latest/tokio/sync/struct.Semaphore.html",
+          "observed_revision": "tokio 1.53.2",
+          "finding": "Owned permits transfer resource lifetime. FIFO acquire_many can head-of-line block smaller requests, so semaphore fairness alone is not actor/document fairness."
+        },
+        {
+          "url": "https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html",
+          "observed_revision": "tokio 1.53.2",
+          "finding": "Started blocking work cannot be aborted; runtime shutdown timeout does not cancel it. Decoder/render cancellation therefore needs bounded chunks or an explicitly owned provider process boundary."
+        },
+        {
+          "url": "https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html",
+          "observed_revision": "tokio-util 0.7.20",
+          "finding": "Child cancellation isolation; cancellation is not atomic while propagation runs. Token cancellation is not a substitute for authoritative lease-epoch fencing."
+        }
+      ],
+      "limits": [
+        "Inspected source files and current local committed revision, not production execution.",
+        "Did not independently verify remote WP012 equality or run prior claimed proof artifacts.",
+        "Did not inspect complete MCP connection admission or claim absence of additional bounds outside opened sections.",
+        "Did not materialize standalone Studio source, release pins, host adapters, manuals or native parity proof.",
+        "Primary documentation informs proposals; actual selected dependency version must be pinned by owning source MT before implementation."
+      ]
+    },
+    "presentation": {
+      "status": "READ_ONLY_RESEARCH_COMPLETE",
+      "lanes": {
+        "Handshake (Product)": "Research only; no implementation or runtime proof",
+        "Repo Governance": "No edits"
+      },
+      "primary_finding": "The four presentation kinds can use existing owners, but their imported contracts must remain source-qualified. The pinned SDK comments specify seconds for duration and optional delay. Live official documentation additionally describes ON_CLICK delay normalization; this is separate, unpinned evidence.",
+      "evidence": [
+        {
+          "url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts",
+          "revision": "07157d96c58add71d234b13bfd55b53abdce76b8",
+          "version": "1.141.0",
+          "blob": "5c7faaeb0466585114b453026fbf8b79938cdc1c",
+          "sha256": "7102bde6771033114711975b1184210fbd9164c4616ebbaf6f11a7c281858bea",
+          "inspection": "Fetched exact raw bytes into memory; independently computed SHA256 matched the prior recapture. Source byte line numbers below are verified. Web-rendered text offsets differ and must not replace byte line anchors."
+        },
+        {
+          "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/whiteboard-gap-team/research.json",
+          "sha256": "59260229bc87742073a053e0df6f86a13b56c6e5f956dab2fff79f0667369948",
+          "inspection": "Read exact declarations, inheritance capture, shape vocabulary and mapping limits."
+        },
+        {
+          "path": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+          "sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+          "ranges": [
+            "5370 onward: STU-LAY-001 ordered page/spread containers",
+            "20412–20447: STU-PRO-116–121 transitions, easing and native duration contract",
+            "20840: STU-PRO-045 dual-audience manual/Argus",
+            "22033: STU-WB-105 existing native shape vocabulary",
+            "22111–22155: STU-WB-129–139 disposition and capture limitations"
+          ]
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+          "sha256": "1ab205bd687132981b7d9837e6c6c6b9e841255c465d838c9bc20813fcaef6ba",
+          "inspection": "Verified existing module responsibilities and foundation references. Catalog declares source modules PLANNED_NOT_IMPLEMENTED; declarations are not code proof."
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33604.json",
+          "sha256": "f95c5d9f112acd3dbe3d165bf6f24d2e864e909de2f2e38bd7bf05b6e4097027",
+          "inspection": "Still attributed to Nib with inherited WB130 gap text; human fold requires bounded reassessment by its owner, not wholesale rewrite or Nib ownership of all presentation behavior."
+        }
+      ],
+      "four_kind_contracts": [
+        {
+          "symbol": "SlideNode",
+          "lines": "12300–12324",
+          "direct_extends": [
+            "BaseFrameMixin"
+          ],
+          "specific_fields": [
+            "readonly type: SLIDE",
+            "isSkippedSlide: boolean"
+          ],
+          "methods": [
+            "clone",
+            "getSlideTransition",
+            "setSlideTransition"
+          ],
+          "selected_ownership": {
+            "Folio": "Identity, document hierarchy, immutable graph references and revisions",
+            "Layout": "Content/container ordering and applicable frame layout surfaces",
+            "Components": "Authored transition/action semantics and interaction state",
+            "Pulse": "Canonical tick scheduling and playback skip behavior",
+            "Interop-Fig": "Exact source kind, restrictions, transition record and mapping/loss provenance",
+            "Controls": "Configure existing navigation, selection and contextual controls"
+          }
+        },
+        {
+          "symbol": "SlideRowNode",
+          "lines": "12325–12337",
+          "direct_extends": [
+            "OpaqueNodeMixin",
+            "ChildrenMixin"
+          ],
+          "specific_fields": [
+            "readonly type: SLIDE_ROW"
+          ],
+          "methods": [
+            "clone"
+          ],
+          "selected_ownership": {
+            "Folio": "Ordered child references and parent relationships",
+            "Layout": "Row/container projection and ordering operations",
+            "Interop-Fig": "Source hierarchy constraints and imported behavior provenance"
+          }
+        },
+        {
+          "symbol": "SlideGridNode",
+          "lines": "12338–12350",
+          "direct_extends": [
+            "OpaqueNodeMixin",
+            "ChildrenMixin"
+          ],
+          "specific_fields": [
+            "readonly type: SLIDE_GRID"
+          ],
+          "methods": [
+            "clone: declared but documented to throw"
+          ],
+          "selected_ownership": {
+            "Folio": "Document-local hierarchy references",
+            "Layout": "Existing container/navigation projection",
+            "Interop-Fig": "Single-grid source restriction and unsupported clone behavior"
+          }
+        },
+        {
+          "symbol": "InteractiveSlideElementNode",
+          "lines": "12351–12367",
+          "direct_extends": [
+            "OpaqueNodeMixin"
+          ],
+          "specific_fields": [
+            "readonly type: INTERACTIVE_SLIDE_ELEMENT",
+            "readonly interactiveSlideElementType"
+          ],
+          "interactive_literals": [
+            "POLL",
+            "EMBED",
+            "FACEPILE",
+            "ALIGNMENT",
+            "YOUTUBE"
+          ],
+          "methods": [
+            "clone"
+          ],
+          "selected_ownership": {
+            "Components": "Typed interaction role, action/variable logic and explicit unavailable behavior",
+            "Folio": "Layer identity and document references",
+            "Interop-Fig": "Vendor role literals, imported payload preservation and loss receipts",
+            "Controls": "Existing contextual control mechanics",
+            "Pulse": "Scheduling only when a published action needs time"
+          },
+          "limit": "This declaration exposes a kind discriminator, not poll questions/results, facepile participant payloads, alignment rules, embed controls or a local YouTube implementation. Do not invent those as captured fields."
+        }
+      ],
+      "inheritance_contract": {
+        "BaseFrameMixin": {
+          "lines": "9372–9430",
+          "direct_extends": [
+            "BaseNodeMixin",
+            "SceneNodeMixin",
+            "ChildrenMixin",
+            "ContainerMixin",
+            "DeprecatedBackgroundMixin",
+            "GeometryMixin",
+            "ComplexStrokesMixin",
+            "CornerMixin",
+            "RectangleCornerMixin",
+            "BlendMixin",
+            "ConstraintMixin",
+            "LayoutMixin",
+            "ExportMixin",
+            "IndividualStrokesMixin",
+            "AutoLayoutMixin",
+            "GridLayoutMixin",
+            "AspectRatioLockMixin",
+            "AnnotationsMixin",
+            "DevStatusMixin"
+          ],
+          "own_fields": [
+            "readonly detachedInfo: DetachedInfo | null",
+            "layoutGrids",
+            "gridStyleId",
+            "clipsContent",
+            "guides",
+            "inferredAutoLayout: InferredAutoLayoutResult | null"
+          ],
+          "own_method": "setGridStyleIdAsync"
+        },
+        "OpaqueNodeMixin": {
+          "lines": "9433–9435",
+          "direct_extends": [
+            "BaseNodeMixin",
+            "SceneNodeMixin",
+            "ExportMixin",
+            "DimensionAndPositionMixin"
+          ]
+        },
+        "transitive_boundary": [
+          {
+            "symbol": "BaseNodeMixin",
+            "lines": "6306–6465",
+            "extends": [
+              "PluginDataMixin",
+              "DevResourcesMixin"
+            ],
+            "owners": "Folio identities/hierarchy; Interop-Fig foreign metadata; existing shared model/diagnostic adapters",
+            "preserve": "Nullable parent; undefined top-level-frame result; removed/read-only identity observations"
+          },
+          {
+            "symbol": "SceneNodeMixin",
+            "lines": "6584–6749",
+            "extends": [
+              "ExplicitVariableModesMixin",
+              "MotionNodeMixin"
+            ],
+            "owners": "Folio scene state; Components references/variables/modes; Pulse motion schedule",
+            "preserve": "Nullable componentPropertyReferences; optional bound/inferred variable projections; empty maps/arrays are distinct from unavailable fields"
+          },
+          {
+            "symbol": "ChildrenMixin",
+            "lines": "6972–7224",
+            "extends": [],
+            "owners": "Folio child references; Layout order operations; existing shared traversal",
+            "preserve": "Readonly child projection; nullable lookup results; child insertion/traversal methods"
+          },
+          {
+            "symbol": "DimensionAndPositionMixin",
+            "lines": "7238–7336",
+            "owners": "Layout geometry; Folio stored/reference state",
+            "preserve": "Readonly dimensions/absolute transform; nullable size constraints and absolute bounds"
+          },
+          {
+            "symbol": "LayoutMixin",
+            "lines": "7337–7486",
+            "extends": [
+              "DimensionAndPositionMixin",
+              "AutoLayoutChildrenMixin",
+              "GridChildrenMixin"
+            ],
+            "owners": "Layout",
+            "preserve": "Nullable render bounds; sizing modes and transform/resize operations remain subject to kind restrictions"
+          },
+          {
+            "symbol": "GeometryMixin",
+            "lines": "8886–8912",
+            "extends": [
+              "MinimalStrokesMixin",
+              "MinimalFillsMixin"
+            ],
+            "owners": "Nib geometry; existing Pigment/appearance owners",
+            "preserve": "Mixed sentinels and nullable outline result"
+          },
+          {
+            "symbol": "BlendMixin",
+            "lines": "7539–7602",
+            "extends": [
+              "MinimalBlendMixin"
+            ],
+            "owners": "Existing appearance/compositing owners",
+            "preserve": "Mask/effect fields without duplicating their algorithms in Layout"
+          },
+          {
+            "symbol": "AutoLayoutMixin",
+            "lines": "7636–8146",
+            "owners": "Layout",
+            "preserve": "All existing layout modes, sizing/alignment/wrap semantics and nullable counterAxisSpacing"
+          },
+          {
+            "symbol": "GridLayoutMixin",
+            "lines": "8206–8463",
+            "owners": "Layout",
+            "preserve": "Track arrays, ordering and positioning semantics; do not confuse frame-grid layout with SlideGrid hierarchy"
+          },
+          {
+            "symbol": "ExportMixin",
+            "lines": "8982–9081",
+            "owners": "Existing export/package owners; Interop-Fig source mapping",
+            "preserve": "Typed overload-specific output contracts; inheritance does not prove supported export formats"
+          }
+        ],
+        "capture_parser_defect": "Prior research.json ChildrenMixin.extends contains a generic-method fragment parsed as inheritance. Actual declaration has no extends. Consume its inspected declaration/source, not this malformed metadata value.",
+        "full_field_reference": "Existing research.json#/inspected_plugin_declarations_and_inheritance contains complete captured mixin declarations; retain that data with the verified source hash and correct ChildrenMixin metadata in any consuming proposal.",
+        "complete_transitive_mixin_captures_and_owner_routing": {
+          "BaseFrameMixin": {
+            "line_start": 9372,
+            "line_end": 9430,
+            "extends": [
+              "BaseNodeMixin",
+              "SceneNodeMixin",
+              "ChildrenMixin",
+              "ContainerMixin",
+              "DeprecatedBackgroundMixin",
+              "GeometryMixin",
+              "ComplexStrokesMixin",
+              "CornerMixin",
+              "RectangleCornerMixin",
+              "BlendMixin",
+              "ConstraintMixin",
+              "LayoutMixin",
+              "ExportMixin",
+              "IndividualStrokesMixin",
+              "AutoLayoutMixin",
+              "GridLayoutMixin",
+              "AspectRatioLockMixin",
+              "AnnotationsMixin",
+              "DevStatusMixin"
+            ],
+            "declaration": "interface BaseFrameMixin\n  extends\n    BaseNodeMixin,\n    SceneNodeMixin,\n    ChildrenMixin,\n    ContainerMixin,\n    DeprecatedBackgroundMixin,\n    GeometryMixin,\n    ComplexStrokesMixin,\n    CornerMixin,\n    RectangleCornerMixin,\n    BlendMixin,\n    ConstraintMixin,\n    LayoutMixin,\n    ExportMixin,\n    IndividualStrokesMixin,\n    AutoLayoutMixin,\n    GridLayoutMixin,\n    AspectRatioLockMixin,\n    AnnotationsMixin,\n    DevStatusMixin {\n  readonly detachedInfo: DetachedInfo | null\n  layoutGrids: ReadonlyArray<LayoutGrid>\n  gridStyleId: string\n  setGridStyleIdAsync(styleId: string): Promise<void>\n  clipsContent: boolean\n  guides: ReadonlyArray<Guide>\n  inferredAutoLayout: InferredAutoLayoutResult | null\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9372",
+            "selected_existing_owner_routing": "Folio hierarchy; Layout frame/container geometry; Components references; existing appearance owners; Interop-Fig provenance",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "OpaqueNodeMixin": {
+            "line_start": 9433,
+            "line_end": 9435,
+            "extends": [
+              "BaseNodeMixin",
+              "SceneNodeMixin",
+              "ExportMixin",
+              "DimensionAndPositionMixin"
+            ],
+            "declaration": "interface OpaqueNodeMixin\n  extends BaseNodeMixin, SceneNodeMixin, ExportMixin, DimensionAndPositionMixin {}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9433",
+            "selected_existing_owner_routing": "Folio identity/scene; Layout geometry; existing export owners; Interop-Fig source preservation",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "BaseNodeMixin": {
+            "line_start": 6306,
+            "line_end": 6465,
+            "extends": [
+              "PluginDataMixin",
+              "DevResourcesMixin"
+            ],
+            "declaration": "interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {\n  readonly id: string\n  readonly parent: (BaseNode & ChildrenMixin) | null\n  name: string\n  readonly removed: boolean\n  toString(): string\n  remove(): void\n  setRelaunchData(data: { [command: string]: string }): void\n  getRelaunchData(): {\n    [command: string]: string\n  }\n  readonly isAsset: boolean\n  getCSSAsync(): Promise<{\n    [key: string]: string\n  }>\n  getTopLevelFrame(): FrameNode | undefined\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6306",
+            "selected_existing_owner_routing": "Folio identity/parent/name/removal; Controls relaunch/navigation projection; Interop-Fig foreign metadata; shared diagnostic adapters",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "SceneNodeMixin": {
+            "line_start": 6584,
+            "line_end": 6749,
+            "extends": [
+              "ExplicitVariableModesMixin",
+              "MotionNodeMixin"
+            ],
+            "declaration": "interface SceneNodeMixin extends ExplicitVariableModesMixin, MotionNodeMixin {\n  visible: boolean\n  locked: boolean\n  readonly stuckNodes: SceneNode[]\n  readonly attachedConnectors: ConnectorNode[]\n  componentPropertyReferences:\n    | {\n        [nodeProperty in 'visible' | 'characters' | 'mainComponent']?: string\n      }\n    | null\n  readonly boundVariables?: {\n    readonly [field in VariableBindableNodeField]?: VariableAlias\n  } & {\n    readonly [field in VariableBindableTextField]?: VariableAlias[]\n  } & {\n    readonly fills?: VariableAlias[]\n    readonly strokes?: VariableAlias[]\n    readonly effects?: VariableAlias[]\n    readonly layoutGrids?: VariableAlias[]\n    readonly componentProperties?: {\n      readonly [propertyName: string]: VariableAlias\n    }\n    readonly textRangeFills?: VariableAlias[]\n  }\n  setBoundVariable(\n    field: VariableBindableNodeField | VariableBindableTextField,\n    variableId: string | null,\n  ): void\n  setBoundVariable(\n    field: VariableBindableNodeField | VariableBindableTextField,\n    variable: Variable | null,\n  ): void\n  readonly inferredVariables?: {\n    readonly [field in VariableBindableNodeField]?: VariableAlias[]\n  } & {\n    readonly fills?: VariableAlias[][]\n    readonly strokes?: VariableAlias[][]\n  }\n  resolvedVariableModes: {\n    [collectionId: string]: string\n  }\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6584",
+            "selected_existing_owner_routing": "Folio visibility/lock/scene references; Components variable/property projections; Pulse motion scheduling",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ChildrenMixin": {
+            "line_start": 6972,
+            "line_end": 7224,
+            "extends": [],
+            "declaration": "interface ChildrenMixin {\n  readonly children: ReadonlyArray<SceneNode>\n  appendChild(child: SceneNode): void\n  insertChild(index: number, child: SceneNode): void\n  findChildren(callback?: (node: SceneNode) => boolean): SceneNode[]\n  findChild(callback: (node: SceneNode) => boolean): SceneNode | null\n  findAll(callback?: (node: SceneNode) => boolean): SceneNode[]\n  findOne(callback: (node: SceneNode) => boolean): SceneNode | null\n  findAllWithCriteria<T extends NodeType[]>(\n    criteria: FindAllCriteria<T>,\n  ): Array<\n    {\n      type: T[number]\n    } & SceneNode\n  >\n  findWidgetNodesByWidgetId(widgetId: string): Array<WidgetNode>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6972",
+            "metadata_correction": "Exact declaration is interface ChildrenMixin {; copied legacy generic-fragment extends metadata rejected only in this disposable report.",
+            "selected_existing_owner_routing": "Folio ordered references; Layout child ordering; shared traversal",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ContainerMixin": {
+            "line_start": 7603,
+            "line_end": 7611,
+            "extends": [],
+            "declaration": "interface ContainerMixin {\n  expanded: boolean\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7603",
+            "selected_existing_owner_routing": "Controls tree expansion projection; Folio preserved source property",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "DeprecatedBackgroundMixin": {
+            "line_start": 7612,
+            "line_end": 7635,
+            "extends": [],
+            "declaration": "interface DeprecatedBackgroundMixin {\n  backgrounds: ReadonlyArray<Paint>\n  backgroundStyleId: string\n}\ndeclare type StrokeCap =\n  | 'NONE'\n  | 'ROUND'\n  | 'SQUARE'\n  | 'ARROW_LINES'\n  | 'ARROW_EQUILATERAL'\n  | 'DIAMOND_FILLED'\n  | 'TRIANGLE_FILLED'\n  | 'CIRCLE_FILLED'\ndeclare type StrokeJoin = 'MITER' | 'BEVEL' | 'ROUND'\ndeclare type HandleMirroring = 'NONE' | 'ANGLE' | 'ANGLE_AND_LENGTH'",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7612",
+            "selected_existing_owner_routing": "Pigment appearance; Interop-Fig deprecated source field preservation",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "GeometryMixin": {
+            "line_start": 8886,
+            "line_end": 8912,
+            "extends": [
+              "MinimalStrokesMixin",
+              "MinimalFillsMixin"
+            ],
+            "declaration": "interface GeometryMixin extends MinimalStrokesMixin, MinimalFillsMixin {\n  strokeCap: StrokeCap | PluginAPI['mixed']\n  strokeMiterLimit: number\n  outlineStroke(): VectorNode | null\n  readonly fillGeometry: VectorPaths\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8886",
+            "selected_existing_owner_routing": "Nib geometry; Pigment fill/stroke references",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ComplexStrokesMixin": {
+            "line_start": 8913,
+            "line_end": 8937,
+            "extends": [],
+            "declaration": "interface ComplexStrokesMixin {\n  variableWidthStrokeProperties: VariableWidthStrokeProperties | null\n  complexStrokeProperties: ComplexStrokeProperties\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8913",
+            "selected_existing_owner_routing": "Nib stroke geometry; Pigment stroke appearance",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "CornerMixin": {
+            "line_start": 8938,
+            "line_end": 8960,
+            "extends": [],
+            "declaration": "interface CornerMixin {\n  cornerRadius: number | PluginAPI['mixed']\n  cornerSmoothing: number\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8938",
+            "selected_existing_owner_routing": "Nib corner geometry; Layout frame geometry configuration",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "RectangleCornerMixin": {
+            "line_start": 8961,
+            "line_end": 8981,
+            "extends": [],
+            "declaration": "interface RectangleCornerMixin {\n  topLeftRadius: number\n  topRightRadius: number\n  bottomLeftRadius: number\n  bottomRightRadius: number\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8961",
+            "selected_existing_owner_routing": "Nib individual corner geometry; Layout frame configuration",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "BlendMixin": {
+            "line_start": 7539,
+            "line_end": 7602,
+            "extends": [
+              "MinimalBlendMixin"
+            ],
+            "declaration": "interface BlendMixin extends MinimalBlendMixin {\n  isMask: boolean\n  maskType: MaskType\n  effects: ReadonlyArray<Effect>\n  effectStyleId: string\n  setEffectStyleIdAsync(styleId: string): Promise<void>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7539",
+            "selected_existing_owner_routing": "Composite blend/effect semantics; Pigment appearance references",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ConstraintMixin": {
+            "line_start": 7225,
+            "line_end": 7237,
+            "extends": [],
+            "declaration": "interface ConstraintMixin {\n  constraints: Constraints\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7225",
+            "selected_existing_owner_routing": "Layout constraints; Components responsive component semantics",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "LayoutMixin": {
+            "line_start": 7337,
+            "line_end": 7486,
+            "extends": [
+              "DimensionAndPositionMixin",
+              "AutoLayoutChildrenMixin",
+              "GridChildrenMixin"
+            ],
+            "declaration": "interface LayoutMixin\n  extends DimensionAndPositionMixin, AutoLayoutChildrenMixin, GridChildrenMixin {\n  readonly absoluteRenderBounds: Rect | null\n  constrainProportions: boolean\n  rotation: number\n  layoutSizingHorizontal: 'FIXED' | 'HUG' | 'FILL'\n  layoutSizingVertical: 'FIXED' | 'HUG' | 'FILL'\n  resize(width: number, height: number): void\n  resizeWithoutConstraints(width: number, height: number): void\n  rescale(scale: number): void\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7337",
+            "selected_existing_owner_routing": "Layout dimensions/transforms/sizing; Folio geometry references",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ExportMixin": {
+            "line_start": 8982,
+            "line_end": 9081,
+            "extends": [],
+            "declaration": "interface ExportMixin {\n  exportSettings: ReadonlyArray<ExportSettings>\n  exportAsync(settings?: ExportSettings): Promise<Uint8Array>\n  exportAsync(settings: ExportSettingsSVGString): Promise<string>\n  exportAsync(settings: ExportSettingsREST): Promise<Object>\n  exportAsync(\n    settings: ExportSettingsMP4 | ExportSettingsGIF | ExportSettingsWEBM,\n  ): Promise<Uint8Array>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8982",
+            "selected_existing_owner_routing": "Package format/export contract; existing format writer owners; Interop-Fig preservation/loss",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "IndividualStrokesMixin": {
+            "line_start": 8717,
+            "line_end": 8729,
+            "extends": [],
+            "declaration": "interface IndividualStrokesMixin {\n  strokeTopWeight: number\n  strokeBottomWeight: number\n  strokeLeftWeight: number\n  strokeRightWeight: number\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8717",
+            "selected_existing_owner_routing": "Nib stroke geometry; Layout per-side frame stroke layout configuration",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "AutoLayoutMixin": {
+            "line_start": 7636,
+            "line_end": 8146,
+            "extends": [],
+            "declaration": "interface AutoLayoutMixin {\n  layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID'\n  paddingLeft: number\n  paddingRight: number\n  paddingTop: number\n  paddingBottom: number\n  horizontalPadding: number\n  verticalPadding: number\n  primaryAxisSizingMode: 'FIXED' | 'AUTO'\n  counterAxisSizingMode: 'FIXED' | 'AUTO'\n  strokesIncludedInLayout: boolean\n  layoutWrap: 'NO_WRAP' | 'WRAP'\n  primaryAxisAlignItems:\n    'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN' | 'SPACE_EVENLY' | 'SPACE_AROUND'\n  counterAxisAlignItems: 'MIN' | 'MAX' | 'CENTER' | 'BASELINE'\n  counterAxisAlignContent: 'AUTO' | 'SPACE_BETWEEN'\n  itemSpacing: number\n  counterAxisSpacing: number | null\n  itemReverseZIndex: boolean\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7636",
+            "selected_existing_owner_routing": "Layout auto-layout mechanics; Components publishes component constraints",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "GridLayoutMixin": {
+            "line_start": 8206,
+            "line_end": 8463,
+            "extends": [],
+            "declaration": "interface GridLayoutMixin {\n  gridRowCount: number\n  gridColumnCount: number\n  gridRowGap: number\n  gridColumnGap: number\n  gridRowSizes: Array<GridTrackSize>\n  gridColumnSizes: Array<GridTrackSize>\n  appendChildAt(node: SceneNode, rowIndex: number, columnIndex: number): void\n  gridAutoTracks: 'NONE' | 'ROWS'\n  gridItemsPositioning: 'MANUAL' | 'ROW_AUTO_FLOW'\n  reorderRows(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>\n  reorderColumns(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8206",
+            "selected_existing_owner_routing": "Layout track geometry/order mechanics",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "AspectRatioLockMixin": {
+            "line_start": 7487,
+            "line_end": 7538,
+            "extends": [],
+            "declaration": "interface AspectRatioLockMixin {\n  readonly targetAspectRatio: Vector | null\n  lockAspectRatio(): void\n  unlockAspectRatio(): void\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7487",
+            "selected_existing_owner_routing": "Layout constraint configuration; Nib geometry operation consumes lock",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "AnnotationsMixin": {
+            "line_start": 9489,
+            "line_end": 9499,
+            "extends": [],
+            "declaration": "interface AnnotationsMixin {\n  annotations: ReadonlyArray<Annotation>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9489",
+            "selected_existing_owner_routing": "Folio annotation references; Components dev/design metadata; Controls existing contextual display",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "DevStatusMixin": {
+            "line_start": 6571,
+            "line_end": 6583,
+            "extends": [],
+            "declaration": "interface DevStatusMixin {\n  devStatus: DevStatus\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6571",
+            "selected_existing_owner_routing": "Components dev/design status metadata; Interop-Fig source preservation; Controls display",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "DimensionAndPositionMixin": {
+            "line_start": 7238,
+            "line_end": 7336,
+            "extends": [],
+            "declaration": "interface DimensionAndPositionMixin {\n  x: number\n  y: number\n  readonly width: number\n  readonly height: number\n  minWidth: number | null\n  maxWidth: number | null\n  minHeight: number | null\n  maxHeight: number | null\n  relativeTransform: Transform\n  readonly absoluteTransform: Transform\n  readonly absoluteBoundingBox: Rect | null\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7238",
+            "selected_existing_owner_routing": "Layout geometry/constraints; Folio graph observations",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "PluginDataMixin": {
+            "line_start": 6466,
+            "line_end": 6522,
+            "extends": [],
+            "declaration": "interface PluginDataMixin {\n  getPluginData(key: string): string\n  setPluginData(key: string, value: string): void\n  getPluginDataKeys(): string[]\n  getSharedPluginData(namespace: string, key: string): string\n  setSharedPluginData(namespace: string, key: string, value: string): void\n  getSharedPluginDataKeys(namespace: string): string[]\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6466",
+            "selected_existing_owner_routing": "Interop-Fig foreign plugin key/value preservation with namespaces; Folio preserves data references, never vendor plugin runtime execution",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "DevResourcesMixin": {
+            "line_start": 6523,
+            "line_end": 6570,
+            "extends": [],
+            "declaration": "interface DevResourcesMixin {\n  getDevResourcesAsync(options?: { includeChildren?: boolean }): Promise<DevResourceWithNodeId[]>\n  addDevResourceAsync(url: string, name?: string): Promise<void>\n  editDevResourceAsync(\n    currentUrl: string,\n    newValue: {\n      name?: string\n      url?: string\n    },\n  ): Promise<void>\n  deleteDevResourceAsync(url: string): Promise<void>\n  setDevResourcePreviewAsync(url: string, preview: PlainTextElement): Promise<void>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6523",
+            "selected_existing_owner_routing": "Components dev-resource references; Interop-Fig foreign provenance; existing resource/privacy host adapters",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "ExplicitVariableModesMixin": {
+            "line_start": 10528,
+            "line_end": 10562,
+            "extends": [],
+            "declaration": "interface ExplicitVariableModesMixin {\n  explicitVariableModes: {\n    [collectionId: string]: string\n  }\n  clearExplicitVariableModeForCollection(collectionId: string): void\n  clearExplicitVariableModeForCollection(collection: VariableCollection): void\n  setExplicitVariableModeForCollection(collectionId: string, modeId: string): void\n  setExplicitVariableModeForCollection(collection: VariableCollection, modeId: string): void\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L10528",
+            "selected_existing_owner_routing": "Components variable collection/mode semantics; Folio reference graph",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "MotionNodeMixin": {
+            "line_start": 6750,
+            "line_end": 6909,
+            "extends": [],
+            "declaration": "interface MotionNodeMixin {\n  readonly animationStyles: AppliedAnimationStyle[]\n  readonly animations: Animations\n  readonly manualKeyframeTracks: ManualKeyframeTracks\n  readonly timelines: ReadonlyArray<Timeline>\n  applyAnimationStyle(styleId: string, animationStyleData?: AnimationStyleConfiguration): string\n  removeAnimationStyle(id: string): void\n  applyManualKeyframeTrack(field: KeyframeField, track: ManualKeyframeTrackInput): void\n  removeManualKeyframeTrack(field: KeyframeField): void\n  setTimelineDuration(id: string, duration: number): void\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6750",
+            "selected_existing_owner_routing": "Components authored transition/configuration; Pulse canonical scheduling; Interop-Fig source provenance",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "MinimalStrokesMixin": {
+            "line_start": 8648,
+            "line_end": 8716,
+            "extends": [],
+            "declaration": "interface MinimalStrokesMixin {\n  strokes: ReadonlyArray<Paint>\n  strokeStyleId: string\n  setStrokeStyleIdAsync(styleId: string): Promise<void>\n  strokeWeight: number | PluginAPI['mixed']\n  strokeJoin: StrokeJoin | PluginAPI['mixed']\n  strokeAlign: 'CENTER' | 'INSIDE' | 'OUTSIDE'\n  dashPattern: ReadonlyArray<number>\n  readonly strokeGeometry: VectorPaths\n  setStrokesAsync(strokes: ReadonlyArray<Paint>): Promise<void>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8648",
+            "selected_existing_owner_routing": "Nib stroke geometry; Pigment stroke paint/style references",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "MinimalFillsMixin": {
+            "line_start": 8730,
+            "line_end": 8766,
+            "extends": [],
+            "declaration": "interface MinimalFillsMixin {\n  fills: ReadonlyArray<Paint> | PluginAPI['mixed']\n  fillStyleId: string | PluginAPI['mixed']\n  setFillStyleIdAsync(styleId: string): Promise<void>\n  setFillsAsync(paints: ReadonlyArray<Paint>): Promise<void>\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8730",
+            "selected_existing_owner_routing": "Pigment paint/style semantics; Folio references; existing rendering owners",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "MinimalBlendMixin": {
+            "line_start": 9436,
+            "line_end": 9445,
+            "extends": [],
+            "declaration": "interface MinimalBlendMixin {\n  opacity: number\n  blendMode: BlendMode\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9436",
+            "selected_existing_owner_routing": "Composite blend/opacity semantics; Pigment appearance references",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "AutoLayoutChildrenMixin": {
+            "line_start": 8464,
+            "line_end": 8526,
+            "extends": [],
+            "declaration": "interface AutoLayoutChildrenMixin {\n  layoutAlign: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'INHERIT'\n  layoutGrow: number\n  layoutPositioning: 'AUTO' | 'ABSOLUTE'\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8464",
+            "selected_existing_owner_routing": "Layout child sizing/alignment; Components published constraints",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          },
+          "GridChildrenMixin": {
+            "line_start": 8527,
+            "line_end": 8631,
+            "extends": [],
+            "declaration": "interface GridChildrenMixin {\n  setGridChildPosition(rowIndex: number, columnIndex: number): void\n  readonly gridRowAnchorIndex: number\n  readonly gridColumnAnchorIndex: number\n  gridRowSpan: number\n  gridColumnSpan: number\n  gridChildHorizontalAlign: 'MIN' | 'CENTER' | 'MAX' | 'AUTO'\n  gridChildVerticalAlign: 'MIN' | 'CENTER' | 'MAX' | 'AUTO'\n}",
+            "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8527",
+            "selected_existing_owner_routing": "Layout grid child alignment/span semantics",
+            "routing_status": "RESEARCH_PROPOSAL_NOT_CANONICAL_REQUIREMENT"
+          }
+        },
+        "complete_capture_method": "Copied all31 relevant mixin declarations from existing inspected capture; existing whole pinned-source digest independently matched. No new parser or external research. Preserve optional/nullable/mixed/readonly distinctions in exact declarations. Owner routes are proposed port boundaries, not assertions of implemented runtime support."
+      },
+      "transition_contract": {
+        "symbol": "SlideTransition",
+        "lines": "12368–12418",
+        "styles": [
+          "NONE",
+          "DISSOLVE",
+          "SLIDE_FROM_LEFT",
+          "SLIDE_FROM_RIGHT",
+          "SLIDE_FROM_BOTTOM",
+          "SLIDE_FROM_TOP",
+          "PUSH_FROM_LEFT",
+          "PUSH_FROM_RIGHT",
+          "PUSH_FROM_BOTTOM",
+          "PUSH_FROM_TOP",
+          "MOVE_FROM_LEFT",
+          "MOVE_FROM_RIGHT",
+          "MOVE_FROM_TOP",
+          "MOVE_FROM_BOTTOM",
+          "SLIDE_OUT_TO_LEFT",
+          "SLIDE_OUT_TO_RIGHT",
+          "SLIDE_OUT_TO_TOP",
+          "SLIDE_OUT_TO_BOTTOM",
+          "MOVE_OUT_TO_LEFT",
+          "MOVE_OUT_TO_RIGHT",
+          "MOVE_OUT_TO_TOP",
+          "MOVE_OUT_TO_BOTTOM",
+          "SMART_ANIMATE"
+        ],
+        "curves": [
+          "EASE_IN",
+          "EASE_OUT",
+          "EASE_IN_AND_OUT",
+          "LINEAR",
+          "GENTLE",
+          "QUICK",
+          "BOUNCY",
+          "SLOW"
+        ],
+        "fields": {
+          "style": "readonly required closed discriminator",
+          "duration": "readonly required number; seconds verified at lines12397–12399",
+          "curve": "readonly required closed discriminator",
+          "timing": "readonly required record",
+          "timing.type": "readonly ON_CLICK | AFTER_DELAY",
+          "timing.delay": "readonly optional number; seconds verified at lines12414–12416"
+        },
+        "unknowns": "Pinned declaration supplies no defaults, hard/soft bounds, step or precision. An omitted delay is not proven equal to zero.",
+        "live_documentation": {
+          "url": "https://developers.figma.com/docs/plugins/api/SlideTransition/",
+          "observed": "ON_CLICK ignores delay and sets it to zero. NONE example includes duration0.3 and EASE_IN, but an example is not a default declaration.",
+          "classification": "Current unpinned same-upstream behavioral documentation; not independent corroboration and not a replacement for the pinned optional-field capture"
+        },
+        "selected_mapping": "Interop-Fig preserves the source record and explicit field presence. Components owns semantic conversion to STU-PRO-116–120; Pulse owns checked conversion into canonical integer ticks. Preserve source curve literals until an explicit verified function mapping exists.",
+        "rejected_mapping": "Do not alias vendor labels directly to native preset names or silently apply native STU-PRO-121 defaults/bounds. The native millisecond contract and source seconds contract are different provenance surfaces.",
+        "native_conflict": "STU-PRO-120 stores explicit easing function tuples rather than preset names; source SlideTransition contains names without tuples. Exact appearance equivalence remains unavailable until independently established. Typed preservation/unavailable outcomes are required."
+      },
+      "source_kind_restrictions": {
+        "SlideNode": {
+          "url": "https://developers.figma.com/docs/plugins/api/SlideNode/",
+          "observed": "Fixed1920x1080 frame; transformations prohibited; slides directly under rows.",
+          "proposal": "Keep source restrictions in the imported compatibility record. Do not impose them on every native Layout container."
+        },
+        "SlideRowNode": {
+          "url": "https://developers.figma.com/docs/plugins/api/SlideRowNode/",
+          "observed": "Rows directly under grid; row children are slides; row itself unavailable for UI selection/editing.",
+          "proposal": "Validate imported hierarchy explicitly while reusing native navigation."
+        },
+        "SlideGridNode": {
+          "url": "https://developers.figma.com/docs/plugins/api/SlideGridNode/",
+          "observed": "One grid per source document; top-level; rows only; unavailable for API creation and UI editing; clone throws.",
+          "proposal": "Reject unsupported source operations with typed outcomes rather than exposing declaration inheritance as capability proof."
+        },
+        "InteractiveSlideElementNode": {
+          "url": "https://developers.figma.com/docs/plugins/api/InteractiveSlideElementNode/",
+          "proposal": "Preserve exact role discriminator; define native behavior separately without cloud assumptions."
+        },
+        "conflict": "Generic clone documentation parents clones under currentPage, whereas kind documentation restricts slide/row parents. Preserve the documented conflict and require original-produced runtime evidence before claiming exact clone/reparent parity.",
+        "ordering": "Keep the prior verified createSlide/createSlideRow ordering and getSlideGrid→getCanvasGrid deprecation evidence. No new navigation owner."
+      },
+      "native_shape_preservation": {
+        "source_symbol": "ShapeWithTextNode",
+        "source_lines": "11495–11572",
+        "exact_import_union_ref": "Existing research.json#/recovered_shape_union;30 exact literals validated by whole-source hash equality",
+        "native_capabilities_to_preserve": [
+          "rectangle",
+          "rounded rectangle",
+          "ellipse",
+          "diamond",
+          "triangle",
+          "parallelogram",
+          "hexagon",
+          "cylinder",
+          "cloud",
+          "document",
+          "predefined-process",
+          "terminator"
+        ],
+        "selected": "Keep native vocabulary and all12 capabilities with Studio provenance, alongside exact source30-token vocabulary and explicit mapping/loss records.",
+        "rejected": "Replacing native12 with source30; guessed RECTANGLE/SQUARE equivalence; silently collapsing directional triangles/parallelograms; pretending cloud/terminator are recovered vendor literals.",
+        "owners": "Nib geometry; Interop-Fig source-token mapping; shared Controls picker configuration.",
+        "affected_mts": [
+          "MT-33580",
+          "MT-33603",
+          "MT-36195"
+        ]
+      },
+      "existing_owner_contract_routes": [
+        {
+          "module": "Folio",
+          "foundation": "MT-35531",
+          "existing_feature": [
+            "MT-002",
+            "MT-30020",
+            "MT-30021"
+          ],
+          "anchors": [
+            "STU-DOC-001",
+            "STU-DOC-002"
+          ],
+          "host_adoption": "MT-36191",
+          "proposal": "Presentation graph identity/hierarchy references within the one document."
+        },
+        {
+          "module": "Layout",
+          "foundation": "MT-35537",
+          "existing_feature": [
+            "MT-141",
+            "MT-142",
+            "MT-30656",
+            "MT-30661",
+            "MT-30662"
+          ],
+          "anchors": [
+            "STU-LAY-001",
+            "STU-LAY-002",
+            "STU-LAY-003"
+          ],
+          "host_adoption": "MT-36197",
+          "proposal": "Ordered content/container projection; preserve existing publication geometry semantics."
+        },
+        {
+          "module": "Components",
+          "foundation": "MT-35539",
+          "existing_feature": [
+            "MT-33230",
+            "MT-33231",
+            "MT-33232",
+            "MT-33233",
+            "MT-33234",
+            "MT-33235",
+            "MT-33236",
+            "MT-33249"
+          ],
+          "anchors": [
+            "STU-PRO-116",
+            "STU-PRO-117",
+            "STU-PRO-118",
+            "STU-PRO-119",
+            "STU-PRO-120",
+            "STU-PRO-121",
+            "STU-PRO-133"
+          ],
+          "host_adoption": "MT-36199",
+          "proposal": "Transition/action/variable semantics and interactive roles; published requests to Pulse for timing."
+        },
+        {
+          "module": "Pulse",
+          "foundation": "MT-35540",
+          "existing_feature": [
+            "MT-33687"
+          ],
+          "anchors": [
+            "STU-VID-012"
+          ],
+          "host_adoption": "MT-36200",
+          "proposal": "Scheduling using254016000000ticks/second; checked finite/range conversion and cancellation/recovery."
+        },
+        {
+          "module": "Interop-Fig",
+          "foundation": "MT-35550",
+          "host_adoption": "MT-36210",
+          "proposal": "Versioned source records, inheritance/constraints, field presence, exact enum tokens and mapping/loss receipts."
+        },
+        {
+          "module": "Controls",
+          "foundation": "MT-35553",
+          "host_adoption": "MT-36213",
+          "proposal": "Reuse existing shared mechanics and descriptor/manual projections."
+        },
+        {
+          "module": "Nib",
+          "foundation": "MT-35535",
+          "host_adoption": "MT-36195",
+          "proposal": "Retain geometry and native shape capability ownership. Reassess MT33604 disposition ownership without assigning all folded behavior to Nib."
+        }
+      ],
+      "minimal_future_proof": [
+        "Root publishes exact owning spec anchors; existing MT authors reconcile only affected contracts and source/host dependencies.",
+        "Standalone source implementation/release proof precedes independent remote reread and pinned host adoption.",
+        "Original-produced presentation corpus proves hierarchy, fixed source geometry, skipped slides, cloning restrictions, source23 styles, source8 curves, timing presence and ON_CLICK normalization.",
+        "Conversion proof distinguishes seconds/milliseconds/ticks, absent/zero, finite/range/rounding outcomes and incompatible easing functions.",
+        "Native source and host proof preserve all12 native shapes, including cloud/terminator, with explicit source mapping provenance.",
+        "Actual human/model UserManual and runtime descriptors state single-witness limits and unavailable fields; human acceptance alone proves neither manual fidelity nor implementation.",
+        "Host proof covers shared controls, no separate document/panel silo, Argus/headless navigation, undo/history and typed unsupported recovery."
+      ],
+      "limits": {
+        "original_capture": "Original bytes/version equality remains unproven.",
+        "independent_witness": "SDK/npm/docs/REST are same-upstream; no independent all-field witness established.",
+        "Studio_source_code": "No implemented Studio engine inspected; catalog currently declares planned source modules.",
+        "WP012_integration": "NOT_INSPECTED by this area1 subagent; no WP012 integration readiness recommendation.",
+        "execution": "No builds, tests, validators, runtime execution, Git mutations, new scripts or downloads to disk performed. Only this authorized disposable research note written; no tracked edits.",
+        "authority": "Findings are proposals pending root enrichment; not canonical requirements or final review verdict."
+      }
+    },
+    "interchange": {
+      "schema_id": "studio.research_note@1",
+      "file_id": "STUDIO-AUTONOMOUS-INTERCHANGE-20261010",
+      "authority": "NON_CANONICAL_RESEARCH_ONLY",
+      "scope": "Read-only area3; Handshake(Product): research/proposals only; Repo Governance: NONE except this disposable note",
+      "execution": "No builds, tests, validators, deployments, runtime, product/governance edits or Git mutations performed. Parent alone writes consolidated tracked report.",
+      "authority_basis": {
+        "spec": "SPEC_CURRENT resolved v02.208; 14-studio-creative-suite.md STU-IO-001..014 and167, matrix51 Lightroom exception",
+        "codex": "v1.5 compact, CX-503R, CX-MODULE-LIFECYCLE-001/002, CX-PLATFORM-001/002",
+        "role": "Kernel Builder protocol; assignment narrows to research only",
+        "hbr": "1.16.0; lifecycle001..007; no source/host execution activation",
+        "modules": "STUDIO_MODULES.json declares35 crates; source-root handshake-studio-assets in https://github.com/Nuntissura/assets; actual canonical remote module availability NOT_VERIFIED"
+      },
+      "findings": [
+        {
+          "id": "INT-IDML-001",
+          "priority": "HIGH",
+          "evidence": "designcraft66c7ce7 crates/idml/src/import.rs24-34 default_reader performs ambient std::fs::read;41-55 collects ZIP parts via unbounded read_to_end. Clamped reserve capacity is not an expanded-byte bound. run224-272 known preference dispatch ignores unmatched nodes. lib.rs37 explicitly records absent opaque roundtrip. export.rs40-64 rebuilds parts and discards write error, finish error returns empty bytes.",
+          "proposal": "Adapt the semantic codec in STUDIO-MODULE-INTEROP_LAYOUT standalone first: replace ambient reader with granted bounded asset port; reject archive entry/count/cumulative expansion limit breaches and duplicate names; retain raw unknown package/XML content indexed to source IDs; use fallible export and copy-first publication. Preserve unrelated vendor semantics while regenerating only edited owned fields.",
+          "rejected": "Use import_idml/export_idml wrappers directly or claim IDML native roundtrip because the crate supports read/write.",
+          "owners": [
+            "MT-35551 STUDIO-MODULE-INTEROP_LAYOUT",
+            "existing STU-IO-005/008/012 bindings; source author owns exact derived MT changes"
+          ],
+          "minimal_future_proof": "Vendor-produced package with unknown XML/parts survives edit-export-reimport; linked-file denial; compressed expansion/count bounds; injected export failure preserves original; fixture comparison and receipts then independent host proof. lib TODO list may lag actual imported types; do not infer all listed features absent without function-specific inspection."
+        },
+        {
+          "id": "INT-PSD-001",
+          "priority": "HIGH",
+          "evidence": "photocraft175603a crates/io/src/psd_import.rs480-482 preserved_blocks copies blocks except REGENERATED;518-531 conversion warns/defaults rather than failing on unknown color mode. psd_export.rs402-407 combines preserved raw blocks with regenerated content, keeping same exclusion list. This is inspectable preservation machinery, not native Photoshop fidelity proof.",
+          "proposal": "Reuse PSD parser/raw-block machinery through STUDIO-MODULE-INTEROP_PSD, with explicit supported semantic map, invalidation per edited field and receipt distinguishing preserved/rendered/transformed data. Escalate unknown color/profile conversion at adapter policy boundary instead of silently promoting warning-bearing RGB conversion.",
+          "rejected": "Rasterize entire PSD or accept all parse-success conversions as editable parity.",
+          "owners": [
+            "MT-35548 STUDIO-MODULE-INTEROP_PSD",
+            "STU-IO-003/004/005/008"
+          ],
+          "minimal_future_proof": "Real Photoshop-produced text/smart-object/mask/adjustment/unknown-block corpus with one editable change then native reopen; no-edit raw preservation, edit invalidation, profile correctness and PSD/PSB bounds. Original-produced oracle unavailable in this research."
+        },
+        {
+          "id": "INT-LRCAT-001",
+          "priority": "HIGH",
+          "evidence": "lightcraft88ea1a8 engine/src/lightroom_sqlite.rs11-18 limits;45-55 main Vec plus page overlay;87+ open_with_wal parses page bytes without linked SQL runtime. lightroom_catalog.rs236-244 caps each input1GiB;301-337 verifies committed WAL prefix;347-366 derives sibling -wal, opens it and compares source metadata. import595-604 mutates/persists lightcraft Session; test apply609+ writes local interop index/archive.",
+          "proposal": "Extract only internal bounded page/WAL primitives and fixed Lightroom field extraction into STUDIO-MODULE-INTEROP_LRCAT. Public entrypoint takes explicitly granted stable main/WAL handles, aggregate memory/time budget and cancellation. Emit typed proposals/provenance/loss; host ResourceBroker/sandbox/promotion writes CKC/Studio via SurrealDB/EventLedger only. Avoid publicly exporting generic Database/read_table.",
+          "rejected": "Import lightcraft engine/catalog/job wholesale, auto-open sibling WAL, preserve private catalog/index or expose generic query/database API.",
+          "owners": [
+            "MT-35562 STUDIO-MODULE-INTEROP_LRCAT",
+            "MT-35985/36024/36071 source companions",
+            "CX-503R and STU-IO-006 row51"
+          ],
+          "minimal_future_proof": "Corrupt/cyclic pages, committed and truncated WAL, main/WAL mismatches, revocation/cancel, aggregate memory bound, no sibling access without grant; parser fixtures prove only decoding. Independent real SurrealDB accepted-proposal durability/event proof remains mandatory."
+        },
+        {
+          "id": "INT-FIG-001",
+          "priority": "HIGH",
+          "evidence": "Current official Figma local-copy help confirms .fig/.jam/.deck/.buzz/.site/.make proprietary and changeable, omits comments/version history and makes new main components on import. Cached craft paths searched showed no Figma codec filename; whole source text scan produced no output but was not an exhaustive semantic decoder census. Native local-copy codec implementation remains NOT_INSPECTED/NOT_PROVEN. Official SDK witness proves typed API only, not container codec.",
+          "proposal": "Keep six-family format obligations separate from SDK/API coverage. Bind each claimed direction to exact source-format/version witness and original-produced fixtures; preserve unknown graph bytes and component remapping provenance. Respect WB130 layout/prototyping/Components/Interop-Fig shared owners within one .handshake document.",
+          "rejected": "Treat REST/plugin schema as a native local-copy specification; use cloud API as core workaround; silently flatten Slides wrappers.",
+          "owners": [
+            "MT-35550 STUDIO-MODULE-INTEROP_FIG",
+            "legacy MT-469 currently PACKAGE-bound in index; source author/root must settle precise feature slice mapping",
+            "STU-IO-004/008/011/013 and WB130"
+          ],
+          "minimal_future_proof": "Six vendor-generated copies tested separately, component/instance IDs and variables retained, known/unknown records receipts, native import reopen after edit. Scope omits source history/comments explicitly; no full parity claim from WB131 accepted single SDK witness."
+        },
+        {
+          "id": "INT-HOST-001",
+          "priority": "HIGH",
+          "evidence": "Read-only actual WP012 wtc-native-editors-v1 HEAD292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4. authority.rs1322-1386 authorize_request resolves64hex persisted session, native channel binding and exact resource action, then capability profile check and record_user_scope. preferences.rs1-16 and37-66 uses shared boundary and authenticated route layer. These inspected files were clean in scoped status; other working bytes were not certified. MT-154 execution.allowed_write_paths owns both files; lifecycle FAIL_V4 is observed record, not new verdict.",
+          "proposal": "Reuse host authorization service through published embedding ports; portable modules receive granted handles and actors, never account token/session resolution or root authority. Respect WP012 owned files: no integration edits until its owner publishes a compatible boundary and later host-adoption MT is activated.",
+          "rejected": "Studio-local authorization/plugin registry or copy WP012 private implementation into assets.",
+          "minimal_future_proof": "Independent authenticated host conformance, revocation, exact-resource denial and principal receipts, using pinned source release and current WP012 canonical bytes. Static source availability is not runtime readiness."
+        },
+        {
+          "id": "INT-PLATFORM-001",
+          "priority": "MEDIUM",
+          "evidence": "Rust current Windows MSVC docs list x64 and ARM64 Tier1 host tools and cross-compilation support. Inspected photocraft-psd Cargo dependency closure is thiserror/flate2/optional serde; designcraft-idml depends on geom/color/doc/quick-xml/zip. No platform proof executed. Adobe UXP Hybrid FAQ lists Windows x64, macOS x64/arm64; says supported Premiere/Photoshop, not Media Encoder/InDesign. This does not establish Windows ARM native hybrid availability.",
+          "proposal": "Maintain portable Rust parser/source contracts with separate x64 production and ARM development target receipts; explicit per-provider target capability. Keep optional Adobe binary adapters architecture-specific and outside core import dependency. Source changes first land/prove in assets; fresh independent GitHub revision read then immutable release/version/digest lock adoption in host.",
+          "rejected": "Infer Adobe hybrid ARM capability from Rust ARM support, cross-compile success as native production proof, or patch module internals in Handshake first.",
+          "minimal_future_proof": "Affected crate closure native x64 proof; ARM compile/contract proof and native ARM run when claimed, provider binary loading per actual target; clean install release-runtime dependency proof for optional UXP binary."
+        }
+      ],
+      "source_cache_root": "../gov_runtime/tools/studio-craft-source-cache",
+      "source_hashes": [
+        {
+          "path": "designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/lib.rs",
+          "sha256": "f9cc697e74c91eeddaff048713657e30f2f468bc9c723949e547fbd4bde1cd63"
+        },
+        {
+          "path": "designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs",
+          "sha256": "f7b738aa8968dad814860cd7bb23657d6993882895cc015332178637e0c06ba3"
+        },
+        {
+          "path": "designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/export.rs",
+          "sha256": "4bca382c5edd8d3d6ac1ead7193e4c2d6680add12576dd4c9fc00e2471147c05"
+        },
+        {
+          "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/io/src/psd_import.rs",
+          "sha256": "673002ba0c97105b57a2946731a25028939e69c0d33e555c741ffdc5c5f6b3f1"
+        },
+        {
+          "path": "photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/io/src/psd_export.rs",
+          "sha256": "214ba85d88e251db930ccfddfcbe0cd84c6379e192b4a4bbea256fd0718b8144"
+        },
+        {
+          "path": "lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs",
+          "sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a"
+        },
+        {
+          "path": "lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+          "sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/authority.rs",
+          "sha256": "f1a434c71d3d71150c99ecf9bea75ab2e2f524f6fda72bde668d054f28a41274"
+        },
+        {
+          "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/preferences.rs",
+          "sha256": "b67a977d08fda265dfabeefc77941b160a528c299501a1f2ae2cc262d89ead40"
+        }
+      ],
+      "primary_urls": [
+        "https://github.com/storytold/designcraft/blob/66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs",
+        "https://github.com/storytold/lightcraft/blob/88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+        "https://github.com/storytold/photocraft/blob/175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/io/src/psd_import.rs",
+        "https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/",
+        "https://developer.adobe.com/indesign/uxp/dom/api/e/export-format/",
+        "https://help.figma.com/hc/en-us/articles/8403626871063-Save-a-local-copy-of-files",
+        "https://helpx.adobe.com/lightroom-classic/desktop/manage-catalogs-and-files/lightroom-catalog-basics.html",
+        "https://www.sqlite.org/fileformat.html",
+        "https://doc.rust-lang.org/rustc/platform-support/windows-msvc.html",
+        "https://developer.adobe.com/uxp/guides/how-to/hybrid-plugins/faq"
+      ],
+      "limits": [
+        "Pinned GitHub source pages resolved and cached source inspected; cache whole-byte equality with upstream not independently reconciled this pass. Digests bind actually inspected local bytes.",
+        "Installed Adobe directories observed under C:/Program Files/Adobe including Photoshop2026/InDesign2026/Illustrator2026/Lightroom Classic/Premiere2026/After Effects2026. Lightroom root DLL/resources inventory inspected; no Lua files found in bounded recursive filename query. No proprietary Adobe engine source or SDK source availability claimed.",
+        "No Adobe original-produced parity corpus opened, no native app run, no implemented assets remote release verified. INDD/AI/PRPROJ/AEP/SESX decoders not inspected; IDML is no proof of INDD, PSD no proof of Illustrator native editing.",
+        "No full provider/engine/architecture sweep repeated; focused paths only. Research findings require root approval/enrichment; this team is not independent final contract review."
+      ]
+    }
+  },
+  "updated_at": "2026-10-10T04:58:39.2547901+00:00",
+  "authority_digests": [
+    {
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+      "sha256": "31c625177b4bcc9056c805379787bc01735074b225c37a470263b3a12e9714b0"
+    },
+    {
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "sha256": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43"
+    },
+    {
+      "path": ".GOV/spec/SPEC_CURRENT.md",
+      "sha256": "3eeb0598a84414e167167d3fff4879d5e7d13fe2b4555840e46f09deb2bb6d24"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+      "sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      "sha256": "1ab205bd687132981b7d9837e6c6c6b9e841255c465d838c9bc20813fcaef6ba"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+      "sha256": "02337521a617ec8316d921b7d979cd403a49e0757aca3d419ed74529c3e42e99"
+    }
+  ],
+  "parent_independent_source_reads": [
+    {
+      "worktree": "../wtc-native-editors-v1",
+      "path": "src/frontend/handshake_native/src/event_bus.rs",
+      "ranges": [
+        "47–84"
+      ],
+      "sha256": "bce2c229347adf57fa8d9593f8c6d6af82fd8cbe3ffe7a9f41817899a67e9c1d"
+    },
+    {
+      "worktree": "../wtc-native-editors-v1",
+      "path": "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "ranges": [
+        "114–173"
+      ],
+      "sha256": "1eebcb2988cebad584a58958e7f856b075f6e855d972f6e6a0473bb68e3e18c7"
+    },
+    {
+      "worktree": "../wtc-native-editors-v1",
+      "path": "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+      "ranges": [
+        "125–166"
+      ],
+      "sha256": "39f654c96ca1a19583872bf2ce32f3db4fb49aba5fdb06dbb6da5523e8b91a5e"
+    }
+  ],
+  "disposable_note_provenance": [
+    {
+      "area": "concurrency",
+      "path": "../Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team/concurrency.json",
+      "sha256": "de1a161d37a53d0f45be74d558a157d136b5058397bc7b544998ad5c8fca05e1",
+      "retention": "Recoverable team note; full evidence embedded in sole tracked report"
+    },
+    {
+      "retention": "Exact capture embedded in sole tracked report",
+      "path": "../Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team/presentation.json",
+      "area": "presentation",
+      "sha256": "c0cfb334be0cb82789e039bc398529458784cc45f47f7d3d1a1475333cbff215"
+    },
+    {
+      "retention": "Source evidence embedded in sole tracked report",
+      "path": "../Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team/interchange.json",
+      "area": "interchange",
+      "sha256": "347cc3aa34e59f07299720132e74c0a1f6ab71d2db9ef85a1eb0051a3d884e90"
+    }
+  ],
+  "primary_decisions": [
+    "Fold presentation kinds using existing Folio/Layout/Components/Pulse/Interop-Fig/Controls owners; preserve exact inherited contracts and source-qualified restrictions.",
+    "Preserve native12 shapes separately from upstream30 literals with explicit provenance; no guessed aliases.",
+    "Use bounded Session admission and existing host owner adapters, with byte/result lifetime and reserved cancel/completion capacity.",
+    "Adapt inspected semantic provider leaves standalone first; repair actual IDML grant/bounds/preservation/error gaps and keep Lightroom public interface fixed-purpose.",
+    "Preserve requested canonical assets worktree preparation; historical Handshake worktree is not that source owner, and registry-unbound is not proof of disk-wide absence."
+  ],
+  "parent_interchange_digest_reconciliation": "All nine source file hashes independently reread by parent matched the area3 note. Parent directly opened designcraft import.rs24–56 and export.rs40–65; these prove ambient reads, unbounded expansion and swallowed errors in inspected bytes, not runtime failure.",
+  "current_pointer_at_aggregation": "v02.208",
+  "next_actor": "Root decides/enriches proposals; coordinator owns Git/packet/index/partition/gameplan and canonical source worktree preparation; existing source authors reconcile only affected MTs. No implementation activation or validator verdict issued by this team."
+}
