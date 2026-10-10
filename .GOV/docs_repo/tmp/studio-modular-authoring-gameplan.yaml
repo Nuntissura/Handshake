@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 80
+generation: 81
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -98,3 +98,4 @@ steps:
 - {id: GP-082, role: orchestrator, at: before_submit, do: verify clause replacement preimages occur exactly once, check: {type: confirm}, source: 'infra: patch context matched part of a long clause; use unique complete preimages', state: active}
 - {id: GP-083, role: orchestrator, at: before_submit, do: verify actual source path via file inventory before Prism port read, check: {type: confirm}, source: 'infra: assumed studio-prism path absent; resolve actual crate path first', state: active}
 - {id: GP-084, role: orchestrator, at: before_submit, do: verify inserted spec clauses use canonical LF before manifest hashing and Git staging, check: {type: confirm}, source: 'infra: inserted CRLF clauses normalized by Git; native blob hash differed', state: active}
+- {id: GP-085, role: orchestrator, at: on_resume, do: require wait_threads snapshot or typed read_thread final extraction; forbid raw thread serialization, check: {type: confirm}, source: 'infra: resumed read_thread returned unbounded command history despite message character limit', state: active}
