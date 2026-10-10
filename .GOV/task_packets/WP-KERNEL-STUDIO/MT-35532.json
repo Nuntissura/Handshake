@@ -2012,7 +2012,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T09:34:50.660376+00:00",
+  "updated_at_utc": "2026-10-10T09:42:02.802281+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2237,7 +2237,7 @@
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "runtime": "NOT_RUN",
     "compile": "PASS_DEPENDENCY_TARGET_ONLY_NOT_FOUNDATION",
-    "next_actor": "Independent Chronicle workspace registry extension; then scoped real Chronicle implementation",
+    "next_actor": "folio scoped real Chronicle source implementation; parent compiler after frozen ownedfiles",
     "authority_blocker": {
       "id": "MT-35532-CANONICAL-PATCH-FIELDS",
       "status": "RESOLVED_CANONICAL_FIELDS",
@@ -2261,7 +2261,7 @@
       "MT-35532"
     ],
     "predecessor_verdicts": [
-      "MT-35528-SOURCE-PRISM-REGISTRY-EXTENSION-V4",
+      "MT-35528-SOURCE-CHRONICLE-REGISTRY-EXTENSION-V5",
       "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
       "MT-35530-SOURCE-FOUNDATION-V1",
       "MT-35531-SOURCE-FOUNDATION-V1"
@@ -2270,7 +2270,12 @@
     "source_feature_policy": "Accord+Folio+Observe declaredmoduleclosure; exactFolio pure schemars1.2.2/serde1.0.229/serde_json1.0.151 explicitfeatures/no defaults",
     "source_owner_search": "ExistingregisteredSTUDIO-MODULE-CHRONICLE; actualassetsChronicleabsent; no newhistory/revision/catalog owner",
     "per_test_timeout": "Checked-in bounded_case30s; no outertimeout",
-    "dependency_candidate": "3536975fed684e7bf81fb84aeee6f808554bb04a"
+    "dependency_candidate": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+    "prerequisite_candidate": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+    "prerequisite_proof_refs": [
+      "MT-35528-INDEPENDENT-CHRONICLE-REGISTRY-EXTENSION-V5",
+      "MT-35531-INDEPENDENT-FOLIO-SOURCE-PROOF-V1"
+    ]
   },
   "validation": {
     "proof_records": [
