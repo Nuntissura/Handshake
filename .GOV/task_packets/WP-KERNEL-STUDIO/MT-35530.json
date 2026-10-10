@@ -3118,7 +3118,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T10:41:43.884326+00:00",
+  "updated_at_utc": "2026-10-10T10:59:49.640696+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -3307,7 +3307,27 @@
     "per_test_timeout": "Checked-in foundation_contract bounded_case30s, no outer timeout",
     "lint": "PASS_STATIC",
     "candidate_commit": "4933a21a1f8afd6f8aba8c815337173a5708135b",
-    "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95"
+    "candidate_tree": "98397b9156402cd69397b8b05094f4afcfcc5f95",
+    "tile_diagnostic_dependency_extension": {
+      "status": "COMPILED_STATIC_PENDING_INDEPENDENT_RUNTIME",
+      "batch_owner": "MT-35534",
+      "covered_mts": [
+        "MT-35530",
+        "MT-35534"
+      ],
+      "authority": "Root explicit CON027-031 source continuation; existingObserveowner, no spec/newowner",
+      "base_candidate": "ea819a927e48c9d2ff65517ab1491db07c91c037",
+      "owned_files": [
+        "handshake-studio-assets/crates/hsk-studio-observe/**"
+      ],
+      "scope": "Closed bounded stable tile identity/samples/epoch/resource-byte-count detail through existing sink; preserve current v1/v2 bytecompatibility and independent accepted inputs",
+      "runtime": "NOT_RUN",
+      "next_actor": "Independent affected source review; runtime waits coherent clean source candidate",
+      "candidate_commit": "55338d29d86781a479a9437bdd0123fab66bfe81",
+      "candidate_tree": "4242d542d11f4864174f1801b7466fa837a66710",
+      "static_proof_ref": "MT-35530-BUILDER-RESOURCE-DETAIL-STATIC-V3",
+      "static_evidence_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35530\\studio-assets-kernel-builder\\logs\\resource-v3-builder-static-evidence.json"
+    }
   },
   "validation": {
     "proof_records": [

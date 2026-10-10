@@ -2201,7 +2201,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T10:41:43.891535+00:00",
+  "updated_at_utc": "2026-10-10T10:59:49.640696+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2529,6 +2529,29 @@
       "compile": "PASS_CHECK_AND_CLIPPY_COHERENT_CANDIDATE",
       "verdict_ref": "MT-35533-SOURCE-PRISM-TRANSFER-EXTENSION-V2",
       "independent_proof_ref": "MT-35533-INDEPENDENT-PRISM-TRANSFER-EXTENSION-PROOF-V2"
+    },
+    "provider_budget_dependency_extension": {
+      "status": "AUTHORIZED_IMPLEMENTATION_IN_PROGRESS",
+      "batch_owner": "MT-35534",
+      "covered_mts": [
+        "MT-35533",
+        "MT-35534"
+      ],
+      "authority": "Coordinator explicit source-only existing-owner decision on CON030/031 provider allocation blocker",
+      "base_candidate": "55338d29d86781a479a9437bdd0123fab66bfe81",
+      "owned_files": [
+        "handshake-studio-assets/crates/hsk-studio-prism/**"
+      ],
+      "scope": "Budget-aware provider admission/lifetime extension: inspected pinned moxcms bounds; parse/executor/cache/scratch/result reservations before allocation, rollback/release and retained cache/result lifetime; preserve prior APIs and acceptance",
+      "restrictions": [
+        "No invented memory multiplier",
+        "No global allocator",
+        "No new engine/owner/spec",
+        "No excluding provider allocation from aggregate accounting"
+      ],
+      "runtime": "NOT_RUN",
+      "independent_acceptance": "PENDING",
+      "next_actor": "folio Prism source and workspace Pigment caller adapter, parent static then independent actual proof"
     }
   },
   "validation": {

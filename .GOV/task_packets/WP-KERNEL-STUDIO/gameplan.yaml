@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 36
+generation: 38
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -58,3 +58,5 @@ steps:
 - {id: GP-040, role: builder, at: before_dispatch, do: verify crate source paths include crates and Git tree refs stay literal in PowerShell, check: {type: confirm}, source: 'resume: omitted crates path and unquoted HEAD^{tree} rejected read-only commands', state: active}
 - {id: GP-041, role: builder, at: before_dispatch, do: require Chronicle detail budget test direct default struct initialization, check: {type: confirm}, source: 'lint: detail test budget.reads reassignment triggers field_reassign_with_default', state: active}
 - {id: GP-042, role: integration_validator, at: before_round, do: require leading Studio Set-Location ends semicolon before next command, check: {type: confirm}, source: 'hook: CD_PREFIX regex requires separator; newline plus script selected WP012', state: active}
+- {id: GP-043, role: builder, at: before_dispatch, do: require all source read_text/write_text explicit UTF8 before opening writable files, check: {type: confirm}, source: 'source: agent cp1252 Unicode write truncated owned Observe test; exact HEAD restored', state: active}
+- {id: GP-044, role: builder, at: before_dispatch, do: confirm isolated Cargo home resolves full locked workspace closure before offline use, check: {type: confirm}, source: 'infra: Observe cache lacked schemars; Cargo resolves other workspace owners even for scoped check', state: active}

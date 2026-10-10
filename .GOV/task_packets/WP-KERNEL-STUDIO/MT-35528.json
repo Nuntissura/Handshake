@@ -3073,7 +3073,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T07:51:35.596692+00:00",
+  "updated_at_utc": "2026-10-10T10:51:05.293717+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -3351,6 +3351,20 @@
       "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-evidence.json",
       "observed_at": "2026-10-10T08:41:39.280372+00:00",
       "full_acceptance": "PENDING; original contract unchanged"
+    },
+    "pigment_owner_policy_extension": {
+      "status": "COMPILED_STATIC_PENDING_INDEPENDENT_SELECTION",
+      "candidate_commit": "b0dd1d72619e30dcfd529544b5f7361ba7846f1b",
+      "candidate_tree": "8593550dd87305071d92fc0f53ed13c5f33f7c65",
+      "affected_files": [
+        "handshake-studio-assets/Cargo.toml",
+        "handshake-studio-assets/Cargo.lock",
+        "handshake-studio-assets/tools/workspace-probe.rs",
+        "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml"
+      ],
+      "scope": "Sixth materialized manifest, pureFolioedge,11existingserde/serde_jsonownerpins; no library version/checksum changes",
+      "next_actor": "independent workspace selectedclosure/privacy/pin rejection proof after coherent sourcefreeze",
+      "runtime": "NOT_RUN"
     }
   },
   "validation": {
@@ -4914,6 +4928,44 @@
         "scope": "Chronicle owner allowlist/workspace selection only",
         "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\chronicle-policy-evidence.json",
         "observed_at": "2026-10-10T09:36:05.968252+00:00"
+      },
+      {
+        "proof_id": "MT-35528-BUILDER-PIGMENT-OWNER-PROBE-STATIC-V6",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35528"
+        ],
+        "scope": "compiler_static_only_workspace_policy; Pigment module code not compiled",
+        "candidate_commit": "b0dd1d72619e30dcfd529544b5f7361ba7846f1b",
+        "candidate_tree": "8593550dd87305071d92fc0f53ed13c5f33f7c65",
+        "command": [
+          "rustc",
+          "+1.97.1",
+          "--edition",
+          "2024",
+          "-D",
+          "warnings",
+          "handshake-studio-assets/tools/workspace-probe.rs",
+          "-o",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\cargo-target\\workspace-probe-pigment-v6.exe"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\logs\\pigment-owner-probe-static-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/tools/workspace-probe.rs": "7c87e178ac23688c9eabb9ae7919fe6651de782f467e53bddef106e45abf24ab",
+          "handshake-studio-assets/Cargo.toml": "9a2a5daa2fdd72d6acf76ab08c0b2ce7996b06cd5e411e92157f43fc1b9888ea",
+          "handshake-studio-assets/Cargo.lock": "e4cb7c1b528767e3463ba34a00e6d2e2c189dbeebb3748860c63d4f928f74aef",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml": "2703e6ca63607c3da4264551de9e13df99e30f96c9fa6af3e45ccd2e3b9a9591"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/tools/workspace-probe.rs": "7fdfdd0c172f76ff8c77c3b05d23589d92bb9b13",
+          "handshake-studio-assets/Cargo.toml": "9bd8442ae9ab252ebf69f2c61d4fe36015c71f91",
+          "handshake-studio-assets/Cargo.lock": "eb699b999fa1618dfcb23610d7b7fa8fa8e1d5c2",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-pigment/Cargo.toml": "1ffdd53c90b66f46ad3f255547852141332144ce"
+        },
+        "runtime": "NOT_RUN"
       }
     ],
     "source_only_diagnostic_tiers": [

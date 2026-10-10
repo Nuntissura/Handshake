@@ -1631,7 +1631,7 @@
       "MT-35531"
     ],
     "start_precondition": {
-      "dispatch_allowed": false,
+      "dispatch_allowed": true,
       "required_conditions": [
         "SPEC207_PUBLICATION",
         "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
@@ -1642,7 +1642,16 @@
       ],
       "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
       "foundation_members": [],
-      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
+      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+      "verified_conditions": {
+        "SPEC207_PUBLICATION": "Original lineage plus canonical v02.212 CON027-031 published/root approved",
+        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED": "Existing lease c66eddd44fe222509063df1ee4f0eee4e57ece8a continuation same builder",
+        "FOCUSED_RECIPE_OWNER_FEATURE_SELECTION_AND_TIMEOUT_APPROVED_BEFORE_CODING": "hsk-studio-pigment CPU no-default-features, exact existingserde pins/four masked_patch selectors20s",
+        "INDEPENDENT_CONTRACT_REVIEW": "foundation_validator PASS_PREPARATION 2026-10-10 actual currentfields/APIs; source-only not acceptance",
+        "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING": "Catalog Pigment reused, absent actual crate; FolioTileRef/PrismColorEngine/Observe owners retained",
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND": "Existing sole externalroot verified; parent owner directory/env concrete"
+      },
+      "prism_prerequisite_verdict": "MT-35533-SOURCE-PRISM-TRANSFER-EXTENSION-V2"
     },
     "allowed_write_paths": [
       "handshake-studio-assets/crates/hsk-studio-pigment/**"
@@ -1702,17 +1711,26 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35534/studio-assets-kernel-builder",
+      "env": {
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\cargo-target",
+        "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\cache\\cargo-home",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35534/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -1727,11 +1745,16 @@
     "capability_creation_binding": {
       "permission": "REUSE_OR_EXTEND_ONLY_NO_BLANKET_NEW_OWNER",
       "new_owner_authorization": false,
-      "exact_registered_primitive_candidates": [],
+      "exact_registered_primitive_candidates": [
+        "StudioRasterTile",
+        "StudioMask",
+        "Folio::TileRef"
+      ],
       "primitive_candidates_are_not_owner_absence_proof": true,
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/5",
-      "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
+      "status": "EXISTING_OWNER_VERIFIED_PIGMENT_SCOPE_BOUND",
+      "scoped_owner_evidence": "Catalog STUDIO-MODULE-PIGMENT existingCPUtileowner; actualassetscrate absent; FolioTileRef/PrismColorEngine/Observeports reused; no new owner"
     },
     "module_change_stage": "standalone_source"
   },
@@ -2026,7 +2049,7 @@
       "uuid_generation": false,
       "parked_ai": false
     },
-    "current_dispatch_authorized": false
+    "current_dispatch_authorized": true
   },
   "submissions": [],
   "verdicts": [],
@@ -2085,19 +2108,20 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-10T10:03:53.594132+00:00",
+  "updated_at_utc": "2026-10-10T10:46:35.656268+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "preparation",
+    "phase": "implementation",
     "status": "PENDING",
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "contract_preparation_only": true,
-    "blocked_on": "INDEPENDENT_PRISM_LINEAR_PROFILE_INSPECTION_EXTENSION"
+    "contract_preparation_only": false,
+    "blocked_on": null,
+    "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
   },
   "scope": {
     "summary": "Execute masked tile mutation with deterministic damaged region and immutable preimage.",
@@ -2116,7 +2140,7 @@
     "code_surfaces": [
       "handshake-studio-assets/crates/hsk-studio-pigment"
     ],
-    "source_status": "PLANNED_NOT_IMPLEMENTED",
+    "source_status": "IMPLEMENTATION_IN_PROGRESS",
     "proof_targets_materialization": "Foundation creates owned manifests/targets during coding; real executable results required before handoff, never before creation."
   },
   "hbr_obligations": [
@@ -2372,12 +2396,30 @@
     "predecessor_verdicts": [
       "MT-35528-SOURCE-CHRONICLE-REGISTRY-EXTENSION-V5",
       "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
-      "MT-35530-SOURCE-FOUNDATION-V1",
+      "MT-35530-SOURCE-OBSERVE-DETAIL-EXTENSION-V2",
       "MT-35531-SOURCE-FOUNDATION-V1",
-      "MT-35533-SOURCE-FOUNDATION-V1"
+      "MT-35533-SOURCE-PRISM-TRANSFER-EXTENSION-V2"
     ],
-    "next_actor": "Prism owner inspection/linear fixture extension then independent proof before Pigment coding",
-    "source_feature_policy": "No default features; Accord/Folio/Prism/Observe pure closure; no GPU/codec/host/provider added",
-    "per_test_timeout": "Four existing masked_patch exact filters; checked-in20s percase before handoff; no outer timeout"
+    "next_actor": "workspace owned Pigment source; parent owns manifests/lock/policy; folio owns Observe dependency extension",
+    "source_feature_policy": "CPU no-default-features; Accord/Folio/Prism/Observe; exact serde1.0.229 std+derive and serde_json1.0.151 std defaultfalse supporting consumer, sameexistingregistrylibraries/no new pins/GPU/codec/host",
+    "per_test_timeout": "Four existing masked_patch exact filters; checked-in20s percase before handoff; no outer timeout",
+    "batch_owner": "MT-35534",
+    "covered_mts": [
+      "MT-35534"
+    ],
+    "prerequisite_candidate": "ea819a927e48c9d2ff65517ab1491db07c91c037",
+    "independent_preparation_review": {
+      "result": "PASS_PREPARATION",
+      "executor": "foundation_validator",
+      "scope": "CurrentCON027-031+actualownerAPIs recipebeforecoding; no runtime acceptance",
+      "confirmed_requirements": [
+        "alpha-aware masked_replace equation/LE/grid coverage/currentrevision",
+        "opaque Prismvalidatedlinear transfer+realproviderconversion",
+        "caller epoch/byteaccounting/atomicfinalization accepted/rejected/reconciliation",
+        "existingObserve tile address/count extension",
+        "four exact owning20sselectors"
+      ],
+      "original_ac_hbr_preserved": true
+    }
   }
 }
