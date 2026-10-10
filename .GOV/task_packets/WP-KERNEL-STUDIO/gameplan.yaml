@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 59
+generation: 61
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -81,3 +81,5 @@ steps:
 - {id: GP-063, role: builder, at: before_dispatch, do: 'verify scoped reads use literal paths, JSON leaf selectors and YAML parser', check: {type: confirm}, source: 'source: minified full reads and wrong cwd/globs/YAML-as-JSON produced invalid oversized observations', state: active}
 - {id: GP-064, role: builder, at: before_dispatch, do: verify Type private module imports and Rust2024 patterns against first compiler errors, check: {type: confirm}, source: 'compile: private nested macro import, missing meter imports and Rust2024 ref patterns', state: active}
 - {id: GP-065, role: builder, at: before_dispatch, do: verify Type caller read bytes are slices and Observe constructor returns direct value, check: {type: confirm}, source: 'compile: fixture arrays differed in size and Observe new has no unwrap', state: active}
+- {id: GP-066, role: builder, at: before_dispatch, do: require preparation exit0 before Cargo and notes at most120 chars, check: {type: confirm}, source: failed prep confirmation did not stop separate Cargo launch, state: active}
+- {id: GP-067, role: builder, at: before_dispatch, do: verify Observe Outcome variants and scoped counts freshness receiver, check: {type: confirm}, source: 'compile: Outcome Failed absent and token scoped only in reconcile', state: active}
