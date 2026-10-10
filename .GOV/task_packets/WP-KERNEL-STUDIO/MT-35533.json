@@ -2201,7 +2201,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T11:06:22.419622+00:00",
+  "updated_at_utc": "2026-10-10T11:24:05.713305+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2531,7 +2531,7 @@
       "independent_proof_ref": "MT-35533-INDEPENDENT-PRISM-TRANSFER-EXTENSION-PROOF-V2"
     },
     "provider_budget_dependency_extension": {
-      "status": "AUTHORIZED_IMPLEMENTATION_IN_PROGRESS",
+      "status": "CONSTRUCTOR_REPAIR_COMPILED_PENDING_INDEPENDENT_BOUND_AND_RUNTIME",
       "batch_owner": "MT-35534",
       "covered_mts": [
         "MT-35533",
@@ -2551,7 +2551,7 @@
       ],
       "runtime": "NOT_RUN",
       "independent_acceptance": "PENDING",
-      "next_actor": "folio Prism source and workspace Pigment caller adapter, parent static then independent actual proof",
+      "next_actor": "Independent exact constructor repair/denial plus full admitted memory bound proof on coherent frozen candidate",
       "requested_allocation_unit_binding": {
         "binding_id": "STUDIO-PIGMENT-PRISM-REQUESTED-ALLOCATION-UNIT-20261010",
         "authority": "Coordinator explicit CON030 existing-owner allocation-unit decisions",
@@ -2585,7 +2585,32 @@
           "runtime": "No silent caller profile stripping and no fallback to unbudgeted legacy conversion",
           "proof": "Actual SCPF/SHA descriptors and receipts; independent retained matrix/TRC and nonidentity numeric comparison; selected-route proof only, not original/vendor-file fidelity"
         }
-      }
+      },
+      "candidate_commit": "100c35f80d99ab5b8797f03f7b6b414f1ea9f3fe",
+      "candidate_tree": "9e4623fbf674827e57d2376a6205cdc4aab68bc6",
+      "static_proof_ref": "MT-35533-BUILDER-ADMITTED-CONSTRUCTOR-REPAIR-STATIC-V3-R1",
+      "static_evidence_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\logs\\admitted-v3-constructor-repair-static-evidence.json",
+      "independent_source_findings": [
+        {
+          "finding_id": "MT-35533-ADMITTED-CONSTRUCTOR-TOKEN-ALLOCATION-V3",
+          "status": "SOURCE_REMEDIATED_STATIC_PASS_INDEPENDENT_RUNTIME_PENDING",
+          "candidate_commit": "22170366357d2ac1e05d8be58049f74c544ef028",
+          "source_evidence": [
+            "Prism admitted.rs constructor calls reserve with temporary CancellationToken::default()",
+            "Accord lib.rs CancellationToken derives Default over Arc<AtomicBool>"
+          ],
+          "observed": "Fresh token Arc allocation occurs before provider reservation, including constructor denial",
+          "remediation": "Allocation-free constructor admission helper or existing caller-borrowed token; preserve admitted API and original accepted semantics",
+          "reviewer": "foundation_validator; parent independently opened exact source",
+          "runtime": "NOT_RUN",
+          "acceptance_effect": "Budget acceptance blocked; prior compiler/lint remain static-only",
+          "remediation_candidate": "100c35f80d99ab5b8797f03f7b6b414f1ea9f3fe",
+          "remediation_static_proof": "MT-35533-BUILDER-ADMITTED-CONSTRUCTOR-REPAIR-STATIC-V3-R1"
+        }
+      ],
+      "prior_static_proof_refs": [
+        "MT-35533-BUILDER-ADMITTED-PROVIDER-STATIC-V3"
+      ]
     }
   },
   "validation": {
