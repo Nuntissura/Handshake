@@ -3177,7 +3177,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T12:14:35.060808+00:00",
+  "updated_at_utc": "2026-10-10T13:10:03.610883+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -3349,8 +3349,10 @@
   "implementation_state": {
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "selected_mt": "MT-35528",
-    "batch_owner": "MT-35528",
+    "batch_owner": "MT-35535",
     "covered_mts": [
+      "MT-35535",
+      "MT-35530",
       "MT-35528"
     ],
     "scope": "standalone_source",
@@ -3469,6 +3471,21 @@
       "scope": "Sixth materialized manifest, pureFolioedge,11existingserde/serde_jsonownerpins; no library version/checksum changes",
       "next_actor": "independent workspace selectedclosure/privacy/pin rejection proof after coherent sourcefreeze",
       "runtime": "NOT_RUN"
+    },
+    "nib_source_extension": {
+      "state": "IMPLEMENTATION_PENDING_NOT_VALIDATED",
+      "scope": "Materialize selected Nib member/exact provider registry/minimal lock and selected probe dependency closure; no sibling activation",
+      "authority": "PublishedCON032-036 and existing all36 source owner lease; existing owner extension only",
+      "source_base": "7532834ede6b382117428911100d333b2cfe513f",
+      "batch_owner": "MT-35535",
+      "covered_mts": [
+        "MT-35535",
+        "MT-35530",
+        "MT-35528"
+      ],
+      "runtime": "NOT_RUN",
+      "compile": "NOT_RUN",
+      "prior_verdict_preserved_for_unchanged_proof_only": "PASS_V6"
     }
   },
   "validation": {

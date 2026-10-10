@@ -2070,7 +2070,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T13:01:26.878862+00:00",
+  "updated_at_utc": "2026-10-10T13:10:03.600357+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2234,7 +2234,9 @@
     "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
     "batch_owner": "MT-35535",
     "covered_mts": [
-      "MT-35535"
+      "MT-35535",
+      "MT-35530",
+      "MT-35528"
     ],
     "session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
     "runtime": "NOT_RUN",
