@@ -1516,6 +1516,60 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35535#/execution",
       "host_proof_pending": true
+    },
+    "nib_current_field_binding": {
+      "publication_commit": "098f8fab77db18bc644f8f93066e19a7d6c58c5e",
+      "version": "v02.213",
+      "pointer_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "pointer_sha256": "83e87c39caed464d76591ebdac201515102802b694cc52dc85daa566f287758a",
+      "clauses": [
+        {
+          "id": "STU-CON-032",
+          "source_ref": ".GOV/spec/master-spec-v02.213/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22530,
+          "end_line": 22535,
+          "source_sha256": "10be1ee3df5c0fa1e392fb7e88d34fedef649e0312505fa37cca0f1ec888ecca",
+          "body_sha256": "e438825e8f89d4379de463ce5f57c6d0e8d1c3233e517e20bb300ade355a3c35",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-033",
+          "source_ref": ".GOV/spec/master-spec-v02.213/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22536,
+          "end_line": 22541,
+          "source_sha256": "10be1ee3df5c0fa1e392fb7e88d34fedef649e0312505fa37cca0f1ec888ecca",
+          "body_sha256": "db1b03e32a7dab00bbc918fe2c12c84cfc537274e664c9e61d4ee2f33f62c298",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-034",
+          "source_ref": ".GOV/spec/master-spec-v02.213/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22542,
+          "end_line": 22547,
+          "source_sha256": "10be1ee3df5c0fa1e392fb7e88d34fedef649e0312505fa37cca0f1ec888ecca",
+          "body_sha256": "6615464ff7de4ebd965daf82e84f488f1b7392a196743721d339877f1ce14076",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-035",
+          "source_ref": ".GOV/spec/master-spec-v02.213/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22548,
+          "end_line": 22553,
+          "source_sha256": "10be1ee3df5c0fa1e392fb7e88d34fedef649e0312505fa37cca0f1ec888ecca",
+          "body_sha256": "f2e28a573b6bc363fd7f480e555513d43ee771f9a8051a47f8a5d85f53f694dd",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-036",
+          "source_ref": ".GOV/spec/master-spec-v02.213/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22554,
+          "end_line": 22557,
+          "source_sha256": "10be1ee3df5c0fa1e392fb7e88d34fedef649e0312505fa37cca0f1ec888ecca",
+          "body_sha256": "1e8e668b1b0be970989b5d6efccf8b65f2b221510af05cb89615c5323e2b0b30",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ],
+      "preservation": "Original207 lineage/AC/HBR/catalogowner retained; supportingCON032-036 only; proposal-only/no host or fullfeature activation"
     }
   },
   "closure_unit": {
@@ -1658,17 +1712,26 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35535/studio-assets-kernel-builder",
+      "env": {
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\cargo-target",
+        "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\cache\\cargo-home",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35535/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -1683,11 +1746,16 @@
     "capability_creation_binding": {
       "permission": "REUSE_OR_EXTEND_ONLY_NO_BLANKET_NEW_OWNER",
       "new_owner_authorization": false,
-      "exact_registered_primitive_candidates": [],
+      "exact_registered_primitive_candidates": [
+        "PRIM-StudioVectorPath",
+        "PRIM-StudioVectorNetwork",
+        "PRIM-StudioStyleRegistry"
+      ],
       "primitive_candidates_are_not_owner_absence_proof": true,
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/6",
-      "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
+      "status": "EXISTING_NIB_OWNER_VERIFIED_SCOPE_BOUND",
+      "scoped_owner_evidence": "ActualcatalogNib + scopedassets/hostsearch; AccordexistingIDs/units + Observe/sharedhostowners consumed; no newcapabilityowner permission"
     },
     "module_change_stage": "standalone_source"
   },
@@ -1992,19 +2060,21 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T22:49:42.298Z",
+  "updated_at_utc": "2026-10-10T12:39:54.399716+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "blocked",
+    "phase": "preparation",
     "status": "PENDING",
     "active": false,
     "validator_verdict": "PENDING",
     "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "blocked_on": "NIB_BOUNDED_ADAPTATION_RECIPE_AND_INDEPENDENT_PREPARATION_REVIEW",
+    "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+    "completed_by": null
   },
   "scope": {
     "summary": "Execute fallible path operation preserving fill/style semantics; reject degenerate/nonfinite input without loss.",
@@ -2147,5 +2217,53 @@
       "semantic_acceptance_map": [],
       "all_original_acceptance_refs": []
     }
+  },
+  "implementation_state": {
+    "scope": "standalone_source",
+    "selected_mt": "MT-35535",
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "batch_owner": "MT-35535",
+    "covered_mts": [
+      "MT-35535"
+    ],
+    "session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "preparation_status": "CANONICAL_FIELDS_RESOLVED_PENDING_ADAPTATION_RECIPE_REVIEW",
+    "predecessor_verdicts": [
+      "MT-35528-SOURCE-PIGMENT-REGISTRY-EXTENSION-V6",
+      "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
+      "MT-35530-SOURCE-OBSERVE-RESOURCE-EXTENSION-V3"
+    ],
+    "independent_field_review": {
+      "executor": "foundation_validator",
+      "result": "FIELDS_READY_NO_REMAINING_CANONICAL_CONTRADICTION",
+      "basis": "ActualpublishedCON032-036 + retainedtwo30sselectors; provideradmission/cancel and runtime stillimplementationobligations"
+    },
+    "source_owner_search": {
+      "result": "EXISTING_NIB_CATALOG_OWNER_SCOPED_SOURCE_ABSENCE",
+      "assets_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "host_readonly_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+      "evidence": "Actualassets6crates and scopedhostsource have no vectorBoolean owner; AccordSVPT/SSTY/pt/actor/cancel consumed; Observeextended, Controls/Manual/Argus/hostdiagnostics laterexistingowners; no newowner"
+    },
+    "research_basis": {
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35535\\studio-assets-kernel-builder\\research\\research-evidence.json",
+      "sha256": "4711e10e70c0f5c67b545f949bfe8bd76c08c3166e5aa63e06cdf6bfd55fcf01",
+      "provider_status": "LOCK_LICENSE_SOURCE_RESOLVED_UNMODIFIED_BOUNDS_UNPROVEN",
+      "related_primary_sources_checked": [
+        "https://github.com/jneem/linesweeper",
+        "https://github.com/linebender/kurbo/issues/277",
+        "https://api.skia.org/SkPathOps_8h.html"
+      ],
+      "selected_approach": "PinnedVectorcraft winding semantics + smallest provenance-bound line-only linesweeper/kurbo specialization; no cubic/refit cleanup accepted without proof",
+      "rejected_options": [
+        "WholeVectorcraft/Skia app or native graph",
+        "Unmodified infallible provider behind input cap/postflight or guessed multiplier",
+        "Silentcurve/sliver/refit loss",
+        "New geometry/style/catalog owner"
+      ],
+      "validation_plan": "Existingtwoexact30sowning filters + realexternalconsumer/directedNetwork analyticshoelace/winding + actualrequestedallocator/lifetime/cancel/delivery tests; implementercheck/clippy only"
+    },
+    "next_actor": "Parent binds concrete bounded line-only adaptation recipe and obtains independent preparation review before coding"
   }
 }
