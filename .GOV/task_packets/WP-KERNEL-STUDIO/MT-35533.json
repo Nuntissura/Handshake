@@ -1913,7 +1913,86 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-35533-SOURCE-FOUNDATION-V1",
+      "mt_id": "MT-35533",
+      "verdict": "PASS_V1",
+      "scope": "standalone_source_foundation_only",
+      "candidate_commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+      "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35533-INDEPENDENT-PRISM-SOURCE-PROOF-V1"
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Profile/hash/ID/class/tag/parametriccurve/matrix admission before upstream transform",
+        "Immutable f32 input/revision/context and bounded actor-local cache",
+        "Observe actual delivery/error/cancel and private-text exclusion",
+        "Numeric receipts/options/descriptor versus wider color/materialization obligations"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "13actual checked-in bounded cases green and actual external consumer12observations",
+        "Independent Python ICC8pixel oracle perchannel±0.0001 maxerror0.00000862034 and explicit nonidentity",
+        "Independent API rawtelemetry comparison private/plain and actualcache/delivery/immutability outputs",
+        "Inspected actual wrapper and pinned upstream profile default/colorant matrix boundary, no substitute identity success path",
+        "18nativeSHA/Gitfiltered exact pushedidentity pre/post equal; actual sourceonly Accord/Observe plus purelibrary boundary inspected"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing input SHA check would admit actual wronghash rejection fixture",
+        "Removing explicit tag/TRC/matrix preconditions permits unsupportedCICP/mismatchedcurve/singular fixture covered by actual owning tests",
+        "Identity passthrough fails independent nonidentity assertion and direct ICC oracle",
+        "Returning compute pixels after sink rejection violates actual no-pixels CLI output and4API deliverynegative observations",
+        "Including private text in telemetry breaks independently compared rawframes",
+        "Removing actor comparison/capacity prevents observed context_mismatch/cache_full and clear recovery"
+      ],
+      "BOUNDARY_PROBES": [
+        "Actual external files/pixeltext -> owning Prism CLI -> actual transformed JSON independently checked against ICC equations and profilehash/version/options/revision receipt",
+        "Actual borrowed request -> compiled independentAPI collector -> rawObserveframe attribution/privacy plus cache/error/cancel behavior"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "hash-reject",
+        "depth-reject",
+        "intent-reject",
+        "stale-reject",
+        "cancel-reject",
+        "delivery-reject",
+        "malformed-reject",
+        "unsupported-reject",
+        "nonfinite-reject",
+        "range-reject",
+        "checked-in CICP/matrix/curve/BPC/profileidentity/resources",
+        "independent cachefull/context mismatch/Rejected/Saturated/Unavailable/Indeterminate"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Local RGBdisplay ICCv4 matrix/equal-parametric-TRC relative-colorimetric32f32 slice; full StudioColorProfile decoding/LUT/OCIO/BPC/softproof/gamut and otherdepths notcertified",
+        "Finite unclamped numerical output is tolerance-based source proof, not cross-host bit-identical promotion/render materialization",
+        "Caller actor/profile/resource values and sink do not prove real CKC/ArtifactService bytes/grants/hostEventLedger/CRDT",
+        "Rendered Argus, canonical host UserManual and three existing host diagnostic services remain later adoption PENDING"
+      ],
+      "diagnostic_tiers": [
+        {
+          "tier": "flight_recorder",
+          "status": "DEFERRED",
+          "reason": "Actual Prism->Observe source terminal delivery proven; concrete existing host service adapter/grants/durable delivery not selected"
+        },
+        {
+          "tier": "internal_diagnostics",
+          "status": "DEFERRED",
+          "reason": "Actual Prism->Observe source terminal delivery proven; concrete existing host service adapter/grants/durable delivery not selected"
+        },
+        {
+          "tier": "palmistry",
+          "status": "DEFERRED",
+          "reason": "Actual Prism->Observe source terminal delivery proven; concrete existing host service adapter/grants/durable delivery not selected"
+        }
+      ],
+      "full_acceptance": "PENDING_LATER_FOUNDATION_BARRIER_AND_HOST_ADOPTION",
+      "observed_at": "2026-10-10T09:40:23.325528+00:00"
+    }
+  ],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-35533",
@@ -1977,9 +2056,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "READY_FOR_INDEPENDENT_VALIDATION",
+    "status": "PASS_V1",
     "active": true,
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS_V1",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
@@ -2405,7 +2484,198 @@
         },
         "runtime": "NOT_RUN",
         "candidate_binding": "Native hashes unchanged; Git clean-filter blobs reconcile exact pushed candidate"
+      },
+      {
+        "proof_id": "MT-35533-INDEPENDENT-PRISM-SOURCE-PROOF-V1",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35533"
+        ],
+        "candidate_commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+        "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+        "result": "PASS",
+        "proof_kind": "independent_actual_source_runtime",
+        "scope": "documented caller-owned RGB ICCv4 matrix/equal-parametric-TRC relative-colorimetric32f32 slice only",
+        "artifact_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-validator\\logs\\foundation-tests.result.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-validator\\logs\\numeric-oracle-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-validator\\logs\\api-evidence.json",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-validator\\logs\\descriptor.stdout"
+        ],
+        "identity_before": {
+          "commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+          "tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+          "remote": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+          "status": "",
+          "inputs": {
+            "handshake-studio-assets/Cargo.toml": {
+              "sha256": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+              "blob": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6"
+            },
+            "handshake-studio-assets/Cargo.lock": {
+              "sha256": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+              "blob": "6a77ace6f8e27ed295c496e4babda2f159174ec9"
+            },
+            "handshake-studio-assets/rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/Cargo.toml": {
+              "sha256": "a870a1d32872aa0a46c35b3a9d7a4c4f97d1ff3b24a92a976951a3ff3d2a2c25",
+              "blob": "fb1cb7eb9514b792e79be9ca994f19c1eec4b187"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/examples/prism-consumer.rs": {
+              "sha256": "a4c1474b2de776f1cda91051755d0f2cbaaa09d6f9c0bfda006194720187da06",
+              "blob": "95434771a663bf1301fe2e1bf0664a3601bcb187"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/src/lib.rs": {
+              "sha256": "1d00e47803822076f8bde2789353c0245321fc1ca6c4ef85ca1843e1a93aa325",
+              "blob": "34b2dbd30952e2355df75423f3670a443d7da036"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/foundation_contract.rs": {
+              "sha256": "8fed1f72ff62d730bfd217491cb7c2715b1dd46362dd67bffdd715147235d218",
+              "blob": "18fb65f50d707ca556d7490a35ec2f26e40b2233"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/CC0-LICENSE": {
+              "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+              "blob": "550e190e5c9ddeff82695fd411ca16edc5e4980e"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-v4.icc": {
+              "sha256": "cb51de38e482ee974c0c76b9689e16aad04bad16e226fed2f30c842d15ff3a3d",
+              "blob": "4ee40fb5eeb6dfde851c989ecc7c3ebd496ba9fc"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/README.md": {
+              "sha256": "d4683b3de8870beb0bfee06afe213ec0becee7962f94a91e62597626976531cf",
+              "blob": "b208a39125d5836b304b235249334ba463a7ce1a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-v4.icc": {
+              "sha256": "c56e1685d888f5edb92fe07f2750f387f8fe8e91b32ff8fb0b56bfbbb9458353",
+              "blob": "d9f3c055bd4d7573124090569e1b9533932214eb"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": {
+              "sha256": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+              "blob": "6ac479ca23509bf97df71f1e7c5969285dcf7e61"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": {
+              "sha256": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+              "blob": "067b65b90922c41a8b4a48d8519ab4bcd5da6571"
+            },
+            "handshake-studio-assets/tools/workspace-probe.rs": {
+              "sha256": "390199e5bcb1892de65da7870e79b26ed8ca0673b9a558f0bdb68fb9841e82fd",
+              "blob": "adc09dc1285e71fb3f8e454d031ebefcb55f12b9"
+            },
+            "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": {
+              "sha256": "d1e4cd15bc3af138c854a1e453935e4c10625d6dc32a299d1e83a49342425379",
+              "blob": "36bfc1ef759161194e49b9e629f86d63ceec8460"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            }
+          }
+        },
+        "identity_after": {
+          "commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+          "tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+          "remote": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+          "status": "",
+          "inputs": {
+            "handshake-studio-assets/Cargo.toml": {
+              "sha256": "8c31107a13f48e548e5419b734712bd6924499fe965a18142bf9a60f4972501e",
+              "blob": "b86594639cac5b2ad7f925ad2b924aaf54ba48c6"
+            },
+            "handshake-studio-assets/Cargo.lock": {
+              "sha256": "446d50d0ffa6d72228adfebeaba391ba56d0f12d27dd1da73f9b967d9b3780b1",
+              "blob": "6a77ace6f8e27ed295c496e4babda2f159174ec9"
+            },
+            "handshake-studio-assets/rust-toolchain.toml": {
+              "sha256": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+              "blob": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/Cargo.toml": {
+              "sha256": "a870a1d32872aa0a46c35b3a9d7a4c4f97d1ff3b24a92a976951a3ff3d2a2c25",
+              "blob": "fb1cb7eb9514b792e79be9ca994f19c1eec4b187"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/examples/prism-consumer.rs": {
+              "sha256": "a4c1474b2de776f1cda91051755d0f2cbaaa09d6f9c0bfda006194720187da06",
+              "blob": "95434771a663bf1301fe2e1bf0664a3601bcb187"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/src/lib.rs": {
+              "sha256": "1d00e47803822076f8bde2789353c0245321fc1ca6c4ef85ca1843e1a93aa325",
+              "blob": "34b2dbd30952e2355df75423f3670a443d7da036"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/foundation_contract.rs": {
+              "sha256": "8fed1f72ff62d730bfd217491cb7c2715b1dd46362dd67bffdd715147235d218",
+              "blob": "18fb65f50d707ca556d7490a35ec2f26e40b2233"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/CC0-LICENSE": {
+              "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+              "blob": "550e190e5c9ddeff82695fd411ca16edc5e4980e"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/DisplayP3-v4.icc": {
+              "sha256": "cb51de38e482ee974c0c76b9689e16aad04bad16e226fed2f30c842d15ff3a3d",
+              "blob": "4ee40fb5eeb6dfde851c989ecc7c3ebd496ba9fc"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/README.md": {
+              "sha256": "d4683b3de8870beb0bfee06afe213ec0becee7962f94a91e62597626976531cf",
+              "blob": "b208a39125d5836b304b235249334ba463a7ce1a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-prism/tests/profiles/sRGB-v4.icc": {
+              "sha256": "c56e1685d888f5edb92fe07f2750f387f8fe8e91b32ff8fb0b56bfbbb9458353",
+              "blob": "d9f3c055bd4d7573124090569e1b9533932214eb"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": {
+              "sha256": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+              "blob": "450c83eb64bf73c73cf02743c3d1237e21e25d8a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": {
+              "sha256": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+              "blob": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/Cargo.toml": {
+              "sha256": "c2c2b0d8afeee5e2d223ca0dfd6b7d2282e24c24929ef790edfa709c8ba73a8b",
+              "blob": "6ac479ca23509bf97df71f1e7c5969285dcf7e61"
+            },
+            "handshake-studio-assets/crates/hsk-studio-observe/src/lib.rs": {
+              "sha256": "5cc510352a27d0a6d0f629a6e47be6ad04c4c8dec661c434e4dc2f710e4c67a6",
+              "blob": "067b65b90922c41a8b4a48d8519ab4bcd5da6571"
+            },
+            "handshake-studio-assets/tools/workspace-probe.rs": {
+              "sha256": "390199e5bcb1892de65da7870e79b26ed8ca0673b9a558f0bdb68fb9841e82fd",
+              "blob": "adc09dc1285e71fb3f8e454d031ebefcb55f12b9"
+            },
+            "handshake-studio-assets/crates/hsk-studio-chronicle/Cargo.toml": {
+              "sha256": "d1e4cd15bc3af138c854a1e453935e4c10625d6dc32a299d1e83a49342425379",
+              "blob": "36bfc1ef759161194e49b9e629f86d63ceec8460"
+            },
+            "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": {
+              "sha256": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+              "blob": "4a2c63933777fc707a3deeb8ce2f116cfdded72a"
+            }
+          }
+        },
+        "actual_test_count": 13,
+        "external_consumer_observations": 12,
+        "independent_oracle": "Python direct signedfixed16.16 XYZ/type3TRC equations with cofactor inverse, no moxcms or checked-in test-oracle calls",
+        "channel_tolerance": 0.0001,
+        "maximum_absolute_channel_error": 8.620339646880915e-06,
+        "input_pixels": 8,
+        "explicit_nonidentity": true,
+        "independent_api_evidence": "Actual private/plain Observe frames byte-equal; hit/capacity/clear/recovery/caller mismatch;4deliveryrejects with no output and indeterminate reconciliation; source/profile/pixel immutability",
+        "source_freeze_released": true,
+        "timeout_policy": "Each checked-in test30s bounded; external numeric/API30s cases; no outer compiler/build/test timeout",
+        "observed_at": "2026-10-10T09:40:23.325528+00:00"
       }
-    ]
+    ],
+    "source_runtime_result": "INDEPENDENT_SOURCE_FOUNDATION_PASS"
   }
 }
