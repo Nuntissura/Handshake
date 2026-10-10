@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 19
+generation: 24
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -41,3 +41,8 @@ steps:
 - {id: GP-023, role: builder, at: before_dispatch, do: require selected Observe MT35530 contract and predecessor binding, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json, contains: MT-35529-SOURCE-FOUNDATION-V1}, source: KB-IMPL-001; independently passed workspace and Accord, state: active}
 - {id: GP-024, role: builder, at: before_dispatch, do: require selected owner jobs flags materialized before expensive source check, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json, contains: '"jobs": 4'}, source: 'prep: nullable flags left transient Observe claim incomplete', state: active}
 - {id: GP-025, role: builder, at: before_dispatch, do: require singleline registry inline pin maps for bounded TOML parser, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/Cargo.toml, contains: 'locked = { "dyn-clone@1.0.20"'}, source: 'prep: multiline inline map rejected by Python TOML1.0 parser', state: active}
+- {id: GP-026, role: builder, at: before_dispatch, do: resolve absolute cwd before sibling artifact evidence reads, check: {type: file, path: .GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json, contains: resolved_absolute_owner_root}, source: 'prep: relative Path-dot parent did not resolve the sibling artifact root', state: active}
+- {id: GP-027, role: builder, at: before_dispatch, do: require inline Python JSON write without escaped newline, check: {type: confirm}, source: 'infra: inline Python escaped newline split string before compiler launch', state: active}
+- {id: GP-028, role: builder, at: before_dispatch, do: require serde decoder explicit standard Result error type, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs, contains: 'std::result::Result<T, D::Error>'}, source: 'compile: local one-argument Diagnostic Result alias shadowed serde decoder return', state: active}
+- {id: GP-029, role: builder, at: before_dispatch, do: require Folio unknown-field condition collapsed before lint retry, check: {type: confirm}, source: 'lint: extension nested conditional triggers collapsible_if', state: active}
+- {id: GP-030, role: builder, at: before_submit, do: require Git tree path separators forward-slash, check: {type: confirm}, source: 'proof: native Path string backslash invalid in Git revision path', state: active}

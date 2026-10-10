@@ -1171,7 +1171,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-FOLIO scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-FOLIO scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1792,11 +1792,11 @@
           "negative_path": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
           "oracle": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_READY_RUNTIME_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
+          "existing_target_claimed": true
         }
       },
       {
@@ -1823,11 +1823,11 @@
           "negative_path": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
           "oracle": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_READY_RUNTIME_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
+          "existing_target_claimed": true
         }
       },
       {
@@ -1854,11 +1854,11 @@
           "negative_path": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
           "oracle": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_READY_RUNTIME_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
+          "existing_target_claimed": true
         }
       },
       {
@@ -1885,11 +1885,11 @@
           "negative_path": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
           "oracle": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_READY_RUNTIME_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
+          "existing_target_claimed": true
         }
       },
       {
@@ -1916,11 +1916,11 @@
           "negative_path": "Cycle, dangling link, duplicate ID or invalid unit rejects graph; canceled consumer retains original snapshot",
           "oracle": "Mixed graph known-field roundtrip and old/new snapshot isolation; independent reference/cycle checks"
         },
-        "materialization_status": "PLANNED_TARGET_CREATED_DURING_CODING_NO_EXECUTION_EVIDENCE",
+        "materialization_status": "REAL_TARGET_READY_RUNTIME_NOT_RUN",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
-          "existing_target_claimed": false
+          "existing_target_claimed": true
         }
       }
     ],
@@ -1979,7 +1979,20 @@
     },
     "current_dispatch_authorized": false
   },
-  "submissions": [],
+  "submissions": [
+    {
+      "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+      "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+      "status": "READY_FOR_VALIDATION",
+      "source_published": true,
+      "proof_refs": [
+        "validation.proof_records/0",
+        "validation.proof_records/1"
+      ],
+      "runtime": "NOT_RUN",
+      "host": "PENDING_NOT_AUTHORIZED"
+    }
+  ],
   "verdicts": [],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
@@ -2036,7 +2049,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-10T08:26:31.521240+00:00",
+  "updated_at_utc": "2026-10-10T09:02:58.972894+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2044,7 +2057,7 @@
   },
   "lifecycle": {
     "phase": "implementation",
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2281,14 +2294,156 @@
     "source_feature_policy": "hsk-studio-folio no-default-features; Accord onlymodule; schemars/std+derive,serde/std+derive,serde_json/std exactregistrypins; no native/provider",
     "per_test_timeout": "Checked-in foundation_contract bounded_case30s nooutertimeout",
     "runtime": "NOT_RUN",
-    "compile": "DEPENDENCY_TARGET_ONLY_NOT_FOUNDATION",
-    "next_actor": "folio scoped typed document implementation",
+    "compile": "PASS_STATIC",
+    "next_actor": "Independent foundation_validator actual Folio runtime and adversarial review",
     "field_authority_commit": "cfcb4b9a5781db9d4762bf7f0a16cc8bc8dd6ec2",
     "prerequisite_candidate": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
     "prerequisite_proof_refs": [
       "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-evidence.json",
       "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-validator\\logs\\v210-membership.json"
     ],
-    "prerequisite_runtime": "Independent affected workspace14negatives+actualselectedclosure17pins; exact37schema membership+focusedtest PASS"
+    "prerequisite_runtime": "Independent affected workspace14negatives+actualselectedclosure17pins; exact37schema membership+focusedtest PASS",
+    "lint": "PASS_STATIC",
+    "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+    "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6"
+  },
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "MT-35531-BUILDER-COMPILER-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35531"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+        "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "check",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-folio",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "-j",
+          "4"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder\\logs\\foundation-check-v3-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+          "handshake-studio-assets/Cargo.lock": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/Cargo.toml": "1242ce0c32377cc78f01d5ca2830cf3782eaf8c8",
+          "handshake-studio-assets/Cargo.lock": "7975dfd69f73d40f485c374b9038f6a773ff8de3",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "fc440187c553869565f79629bb024f06ca4c2387",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+        },
+        "runtime": "NOT_RUN",
+        "candidate_binding": "Post-check native hashes unchanged and Git clean-filter blobs reconcile exact pushed candidate"
+      },
+      {
+        "proof_id": "MT-35531-BUILDER-CLIPPY-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "covers": [
+          "MT-35531"
+        ],
+        "scope": "compiler_static_only",
+        "candidate_commit": "34f5f818a807ba1b9231b1d941947a7adc351898",
+        "candidate_tree": "7f9815c86c6de4385eab3896bf72ba64c4a20dd6",
+        "command": [
+          "cargo",
+          "+1.97.1",
+          "clippy",
+          "--manifest-path",
+          "handshake-studio-assets/Cargo.toml",
+          "--locked",
+          "-p",
+          "hsk-studio-folio",
+          "--no-default-features",
+          "--tests",
+          "--examples",
+          "-j",
+          "4",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-kernel-builder\\logs\\foundation-clippy-v2-evidence.json",
+        "input_hashes": {
+          "handshake-studio-assets/Cargo.toml": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+          "handshake-studio-assets/Cargo.lock": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "3f3c9200c20ce9081a213f980952bd5fcd6861fc3088a4d962d2cf16a40643c1",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "6c37f2f2ec7718efc9510b9d5a91e152bdce080e6777de9d6dba514362a14dd4",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "2a3f9e8c2c2790d8764a309948589c55c69c8a7392be0af9a52677f68a7397dd",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "501d264784ebd882e3320b19195f5a2c2053f49628cd92fb1f6f6d28c244ed56"
+        },
+        "git_input_blobs": {
+          "handshake-studio-assets/Cargo.toml": "1242ce0c32377cc78f01d5ca2830cf3782eaf8c8",
+          "handshake-studio-assets/Cargo.lock": "7975dfd69f73d40f485c374b9038f6a773ff8de3",
+          "handshake-studio-assets/rust-toolchain.toml": "010f002cf56497ce0a1b4ac124a2e2d86a97bc3d",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "450c83eb64bf73c73cf02743c3d1237e21e25d8a",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "88a966b7c80fbb7cce6dc2b482795c96fc84f22a",
+          "handshake-studio-assets/crates/hsk-studio-folio/Cargo.toml": "4a2c63933777fc707a3deeb8ce2f116cfdded72a",
+          "handshake-studio-assets/crates/hsk-studio-folio/src/lib.rs": "c5450a6e7a3babbf47c7ce5525bdb0ea6212c5c4",
+          "handshake-studio-assets/crates/hsk-studio-folio/examples/folio-consumer.rs": "fc440187c553869565f79629bb024f06ca4c2387",
+          "handshake-studio-assets/crates/hsk-studio-folio/tests/foundation_contract.rs": "bb2408d52d7f1642ca2fa1e00aafb81d45c5fa29"
+        },
+        "runtime": "NOT_RUN",
+        "candidate_binding": "Post-check native hashes unchanged and Git clean-filter blobs reconcile exact pushed candidate"
+      }
+    ],
+    "source_runtime_result": "NOT_RUN",
+    "source_only_diagnostic_tiers": [
+      {
+        "tier": "flight_recorder",
+        "status": "DEFERRED",
+        "reason": "Pure typed diagnostics; actual existing host adapter, grants and durability remain later adoption."
+      },
+      {
+        "tier": "internal_diagnostics",
+        "status": "DEFERRED",
+        "reason": "Pure typed diagnostics; actual existing host adapter, grants and durability remain later adoption."
+      },
+      {
+        "tier": "palmistry",
+        "status": "DEFERRED",
+        "reason": "Pure typed diagnostics; actual existing host adapter, grants and durability remain later adoption."
+      }
+    ],
+    "independent_environment": {
+      "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+      "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+      "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\cargo-target",
+      "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\tmp",
+      "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\tmp",
+      "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator\\cache\\cargo-home",
+      "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+      "CARGO_PROFILE_TEST_DEBUG": "line-tables-only",
+      "CARGO_INCREMENTAL": "0"
+    },
+    "independent_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35531\\studio-assets-validator"
   }
 }
