@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 49
+generation: 53
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -71,3 +71,7 @@ steps:
 - {id: GP-053, role: integration_validator, at: before_round, do: verify overlapping meter fixtures fit scoped aggregate limit including prior retained reservations, check: {type: confirm}, source: 'oracle: second limit256 could not admit128 while prior generation retained1024; aggregate denial correct', state: active}
 - {id: GP-054, role: builder, at: before_dispatch, do: verify Cargo-generated Nib lock preserves selected exact pins before locked compile retry, check: {type: confirm}, source: 'compile: manual seed omitted Cargo canonical resolution; locked check refused update', state: active}
 - {id: GP-055, role: builder, at: before_dispatch, do: verify Nib rejection stores one typed error in inspection without duplicate or heap wrapper, check: {type: confirm}, source: 'lint: Rejected duplicated Error inflated Result Err128bytes; retain inline bounded diagnostic', state: active}
+- {id: GP-056, role: integration_validator, at: before_round, do: require artifact writer with embedded proof argv uses literal Studio prefix and scoped workdir, check: {type: confirm}, source: 'hook: artifact-writing embedded Cargo argv lacked Studio prefix and workdir selected WP012', state: active}
+- {id: GP-057, role: integration_validator, at: before_round, do: verify encoded fixture keys match actual CLI typed operand_a operand_b, check: {type: confirm}, source: 'oracle: external fixture used operand-0 keys while actual typed CLI uses operand_a', state: active}
+- {id: GP-058, role: integration_validator, at: before_round, do: verify external context harness imports explicit Observe types not ambiguous Error glob, check: {type: confirm}, source: 'compiler: external context fixture imported Nib and Observe Error with two glob imports', state: active}
+- {id: GP-059, role: integration_validator, at: before_round, do: verify selected-package rejection expected code follows first actual validation branch, check: {type: confirm}, source: 'oracle: undeclared selected package rejects unknown_package before dependency graph undeclared_dependency', state: active}
