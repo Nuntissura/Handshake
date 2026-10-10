@@ -161,7 +161,7 @@
     "title": "Flame",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
-    "contract_revision": 2
+    "contract_revision": 3
   },
   "parent": {
     "wp_contract_revision": null,
@@ -202,7 +202,7 @@
       {
         "rule_id": "HBR-PRIV-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
@@ -228,7 +228,7 @@
       {
         "rule_id": "HBR-PRIV-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any resource authorization or discovery boundary",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
@@ -254,7 +254,7 @@
       {
         "rule_id": "HBR-PRIV-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
@@ -280,7 +280,7 @@
       {
         "rule_id": "HBR-PRIV-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
@@ -306,7 +306,7 @@
       {
         "rule_id": "HBR-PRIV-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
@@ -332,7 +332,7 @@
       {
         "rule_id": "HBR-PRIV-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
@@ -358,7 +358,7 @@
       {
         "rule_id": "HBR-PRIV-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
@@ -384,7 +384,7 @@
       {
         "rule_id": "HBR-PRIV-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
@@ -410,7 +410,7 @@
       {
         "rule_id": "HBR-INT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any product behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
@@ -436,7 +436,7 @@
       {
         "rule_id": "HBR-INT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model invocation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
@@ -462,7 +462,7 @@
       {
         "rule_id": "HBR-INT-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP produces any artifact intended for authority state",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
@@ -488,7 +488,7 @@
       {
         "rule_id": "HBR-INT-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any collaborative state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
@@ -514,7 +514,7 @@
       {
         "rule_id": "HBR-INT-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
@@ -540,7 +540,7 @@
       {
         "rule_id": "HBR-INT-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
@@ -566,7 +566,7 @@
       {
         "rule_id": "HBR-INT-007",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
@@ -592,7 +592,7 @@
       {
         "rule_id": "HBR-INT-008",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP creates or modifies any UUID generation site in product code",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
@@ -618,7 +618,7 @@
       {
         "rule_id": "HBR-INT-009",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
@@ -644,7 +644,7 @@
       {
         "rule_id": "HBR-SWARM-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any shared state surface",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
@@ -670,7 +670,7 @@
       {
         "rule_id": "HBR-SWARM-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
@@ -696,7 +696,7 @@
       {
         "rule_id": "HBR-SWARM-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any operator-facing surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
@@ -722,7 +722,7 @@
       {
         "rule_id": "HBR-SWARM-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
@@ -748,7 +748,7 @@
       {
         "rule_id": "HBR-SWARM-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
@@ -774,7 +774,7 @@
       {
         "rule_id": "HBR-SWARM-006",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
@@ -800,7 +800,7 @@
       {
         "rule_id": "HBR-VIS-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
@@ -826,7 +826,7 @@
       {
         "rule_id": "HBR-VIS-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any captured frame produced for HBR-VIS-001",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
@@ -852,7 +852,7 @@
       {
         "rule_id": "HBR-VIS-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches any feature visible at multiple viewports or states",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
@@ -878,7 +878,7 @@
       {
         "rule_id": "HBR-VIS-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches a non-UI behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
@@ -904,7 +904,7 @@
       {
         "rule_id": "HBR-VIS-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
@@ -930,7 +930,7 @@
       {
         "rule_id": "HBR-QUIET-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automated test or agent run",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
@@ -956,7 +956,7 @@
       {
         "rule_id": "HBR-QUIET-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every automation surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
@@ -982,7 +982,7 @@
       {
         "rule_id": "HBR-QUIET-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
@@ -1008,7 +1008,7 @@
       {
         "rule_id": "HBR-QUIET-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP requires foreground interaction that cannot be eliminated",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
@@ -1034,7 +1034,7 @@
       {
         "rule_id": "HBR-MAN-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
@@ -1060,7 +1060,7 @@
       {
         "rule_id": "HBR-MAN-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any change to UserManual content",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
@@ -1086,7 +1086,7 @@
       {
         "rule_id": "HBR-MAN-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any UserManual entry that describes a wired code surface",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
@@ -1112,7 +1112,7 @@
       {
         "rule_id": "HBR-MAN-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
@@ -1138,7 +1138,7 @@
       {
         "rule_id": "HBR-STOP-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
@@ -1164,7 +1164,7 @@
       {
         "rule_id": "HBR-STOP-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
@@ -1190,7 +1190,7 @@
       {
         "rule_id": "HBR-STOP-003",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer considers stopping work on an MT, WP, or session",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
@@ -1216,7 +1216,7 @@
       {
         "rule_id": "HBR-STOP-004",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters a dependency that blocks completion of the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
@@ -1242,7 +1242,7 @@
       {
         "rule_id": "HBR-STOP-005",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
@@ -1268,7 +1268,7 @@
       {
         "rule_id": "HBR-COMPART-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
@@ -1294,7 +1294,7 @@
       {
         "rule_id": "HBR-COMPART-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Any validation round of a product WP once build units exist",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
@@ -1320,7 +1320,7 @@
       {
         "rule_id": "HBR-COMPONENT-001",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
         "assessment": "APPLIES",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
@@ -1346,7 +1346,7 @@
       {
         "rule_id": "HBR-COMPONENT-002",
         "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
-        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "WP declares a new canonical mechanic or capability owner",
         "assessment": "CONDITIONAL",
         "reason": "STUDIO-MODULE-COMPOSITE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
@@ -1368,6 +1368,132 @@
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
         "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Select declared owner package/source/dependency/public consumer closure for handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs: Own STU-FX-018 lines 19305–19320: Render parameterized realistic flames along the selected active work path onto a pixel layer. Independently require GPU and active work path; no-supported-backend returns EFFECT_GPU_UNAVAILABLE. Preserve R/Req. Path interpolation, flame kernel, seed and typed controls remain BLOCKED; no implicit path or CPU fallback.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Exercise domain error/budget/revision/cancel and drain/recovery through public ports; Controls owns reusable GUI contracts.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Pin exact source/toolchain/lock/artifact/API versions and domain prior/new compatibility before release; pins are currently unbound.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "APPLIES",
+        "reason": "Actual versioned native adapter/services/auth/data ownership and host conformance are separate host_adoption proof, still pending.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "HOST_ADOPTION_PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Publish only owned source root, exclude private imports/state/credentials/proof; settle in-flight generation before upgrade and restore last-good pins on rollback.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Independently census canonical assets base/source/target digests; preserve handpick/customized destination and reject concurrent drift.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Land owned capability in assets GitHub first, independent fresh canonical remote/source proof, then distinct pinned host_adoption; local receipts insufficient.",
+        "scope_evidence_refs": [
+          "MT-32873#/execution",
+          "MT-32873#/context_capsule/module_maintenance_refs"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-32873/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Verified configured external CX-984 root before execution",
+        "phase_disposition": "STANDALONE_SOURCE_AND_SEPARATE_HOST_ADOPTION"
       }
     ],
     "runtime_lane_refs": [
@@ -1398,10 +1524,85 @@
         "runtime_acceptance": "PENDING_NOT_RUN"
       }
     ],
-    "context_digest": "2241196113d49c4d8afd633e4f6ba745af6db70eeca072ae7c5845d7a8ffc91e"
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"
+    ],
+    "prior_pillar_assessment_refs": [
+      {
+        "contract_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-32873.json",
+        "registry_version": "1.15.0",
+        "registry_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+        "retained_rules": [
+          "HBR-PRIV-001",
+          "HBR-PRIV-002",
+          "HBR-PRIV-003",
+          "HBR-PRIV-004",
+          "HBR-PRIV-005",
+          "HBR-PRIV-006",
+          "HBR-PRIV-007",
+          "HBR-PRIV-008",
+          "HBR-INT-001",
+          "HBR-INT-002",
+          "HBR-INT-003",
+          "HBR-INT-004",
+          "HBR-INT-005",
+          "HBR-INT-006",
+          "HBR-INT-007",
+          "HBR-INT-008",
+          "HBR-INT-009",
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-SWARM-004",
+          "HBR-SWARM-005",
+          "HBR-SWARM-006",
+          "HBR-VIS-001",
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-VIS-004",
+          "HBR-VIS-005",
+          "HBR-QUIET-001",
+          "HBR-QUIET-002",
+          "HBR-QUIET-003",
+          "HBR-QUIET-004",
+          "HBR-MAN-001",
+          "HBR-MAN-002",
+          "HBR-MAN-003",
+          "HBR-MAN-004",
+          "HBR-STOP-001",
+          "HBR-STOP-002",
+          "HBR-STOP-003",
+          "HBR-STOP-004",
+          "HBR-STOP-005",
+          "HBR-COMPART-001",
+          "HBR-COMPART-002",
+          "HBR-COMPONENT-001",
+          "HBR-COMPONENT-002"
+        ],
+        "registry_hash_basis": "LEGACY_WORKING_COPY_CRLF_BYTES; native_git_registry bound separately",
+        "registry_git_baseline": {
+          "commit": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+          "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+          "sha256": "c0032831ca0d67bc1edccff6c81244041fd5a3d9ed58e5ad0abca2b4b6798b19",
+          "version": "1.15.0",
+          "rule_count": 45,
+          "working_copy_crlf_sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+          "newline_transform": "Canonical LF -> CRLF only; exact digest verified independently"
+        }
+      }
+    ],
+    "current_hbr_assessment": {
+      "version": "1.16.0",
+      "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+      "assessed_rule_count": 52,
+      "prior_acceptance_wording_retained": true,
+      "source_capability_ref": "MT-32873#/execution",
+      "host_proof_pending": true
+    }
   },
   "closure_unit": {
-    "outcome": "Deliver STUDIO-MODULE-COMPOSITE asset contribution to the exact preserved functional scope through current typed ports; complete full later embedding separately.",
+    "outcome": "STUDIO-MODULE-COMPOSITE standalone contribution: Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics",
     "requirement_refs": [
       "STU-FX-018"
     ],
@@ -1556,7 +1757,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "scope": "Current STUDIO-MODULE-COMPOSITE asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
+        "scope": "Raster pixel layer, active selected work path, flame parameters and supported GPU capability",
         "fulfillment_ref": "MT-32873#/fulfillment",
         "module_catalog_ref": "STUDIO-MODULE-COMPOSITE",
         "immutable_input_and_revision_required": true
@@ -1565,25 +1766,25 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Resolve owning typed capability, loss/cancel/revision contract and existing reusable owners from cited source."
+        "step": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs: Own STU-FX-018 lines 19305–19320: Render parameterized realistic flames along the selected active work path onto a pixel layer. Independently require GPU and active work path; no-supported-backend returns EFFECT_GPU_UNAVAILABLE. Preserve R/Req. Path interpolation, flame kernel, seed and typed controls remain BLOCKED; no implicit path or CPU fallback."
       },
       {
         "n": 2,
-        "step": "Implement only this owner slice; consume published dependency contracts and satisfy bounded negative path."
+        "step": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs: Consume Raster pixel layer, active selected work path, flame parameters and supported GPU capability; emit Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics through the published STUDIO-MODULE-COMPOSITE port. Consume genuine companion MT outputs; only this owner writes."
       },
       {
         "n": 3,
-        "step": "Materialize focused production-boundary proof and same-change canonical manual/inspection descriptors."
+        "step": "handshake-studio-assets/crates/hsk-studio-composite/tests/flame_gpu_active_path.rs: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Independent observation: Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
       },
       {
         "n": 4,
-        "step": "Submit exact candidate, independent evidence and loss/gap receipts; embedding remains separately pending."
+        "step": "handshake-studio-assets/crates/hsk-studio-composite/tests/flame_gpu_active_path.rs: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack."
       }
     ],
     "expected_outputs": [
-      "Owned real capability and failure path",
-      "Canonical inspection/manual descriptors",
-      "Candidate-bound loss/cancel/revision and closure evidence"
+      "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics",
+      "Planned source handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs and natural proof handshake-studio-assets/crates/hsk-studio-composite/tests/flame_gpu_active_path.rs; Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+      "Failure/recovery: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack."
     ],
     "stop_conditions": [
       "Exact recorded blocker with required dependency",
@@ -1626,7 +1827,8 @@
       "inventory_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/spec_registered_primitive_inventory",
       "scope_owner_search_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/reuse/unresolved_search_prerequisites/15",
       "status": "PENDING_SCOPED_OWNER_SEARCH_AND_EXACT_BINDING"
-    }
+    },
+    "module_change_stage": "standalone_source"
   },
   "proof": {
     "parent_proof_refs": [],
@@ -1637,9 +1839,9 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": null,
-        "expected": "`Flame` satisfies the spec's stated studio effect: Flame",
-        "timeout_seconds": null,
+        "command_or_method": "cargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_source_semantics -- --exact\ncargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_reject_loss -- --exact",
+        "expected": "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics Successful case: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Failed/recovered case: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1647,15 +1849,21 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
+          "selected_package": "hsk-studio-composite",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+          "scenario": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "independent_oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity.",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation",
+          "exact_case_filters": [
+            "flame_gpu_active_path_source_semantics",
+            "flame_gpu_active_path_reject_loss"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated studio effect: Flame",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "terminal_test_target": "flame_gpu_active_path",
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/flame_gpu_active_path.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1668,9 +1876,9 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": null,
-        "expected": "`Flame` satisfies the spec's stated targets: R",
-        "timeout_seconds": null,
+        "command_or_method": "cargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_source_semantics -- --exact\ncargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_reject_loss -- --exact",
+        "expected": "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics Successful case: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Failed/recovered case: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1678,15 +1886,21 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
+          "selected_package": "hsk-studio-composite",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+          "scenario": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "independent_oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity.",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation",
+          "exact_case_filters": [
+            "flame_gpu_active_path_source_semantics",
+            "flame_gpu_active_path_reject_loss"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated targets: R",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "terminal_test_target": "flame_gpu_active_path",
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/flame_gpu_active_path.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1699,9 +1913,9 @@
         "claim_refs": [
           "AC-003"
         ],
-        "command_or_method": null,
-        "expected": "`Flame` satisfies the spec's stated gpu: Req",
-        "timeout_seconds": null,
+        "command_or_method": "cargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_source_semantics -- --exact\ncargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_reject_loss -- --exact",
+        "expected": "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics Successful case: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Failed/recovered case: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1709,15 +1923,21 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
+          "selected_package": "hsk-studio-composite",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+          "scenario": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "independent_oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity.",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation",
+          "exact_case_filters": [
+            "flame_gpu_active_path_source_semantics",
+            "flame_gpu_active_path_reject_loss"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated gpu: Req",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "terminal_test_target": "flame_gpu_active_path",
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/flame_gpu_active_path.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1730,9 +1950,9 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": null,
-        "expected": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
-        "timeout_seconds": null,
+        "command_or_method": "cargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_source_semantics -- --exact\ncargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_reject_loss -- --exact",
+        "expected": "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics Successful case: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Failed/recovered case: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1740,15 +1960,21 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
+          "selected_package": "hsk-studio-composite",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+          "scenario": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "independent_oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity.",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation",
+          "exact_case_filters": [
+            "flame_gpu_active_path_source_semantics",
+            "flame_gpu_active_path_reject_loss"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "terminal_test_target": "flame_gpu_active_path",
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/flame_gpu_active_path.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
@@ -1761,9 +1987,9 @@
         "claim_refs": [
           "AC-005"
         ],
-        "command_or_method": null,
-        "expected": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-        "timeout_seconds": null,
+        "command_or_method": "cargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_source_semantics -- --exact\ncargo test --locked -p hsk-studio-composite --no-default-features --test flame_gpu_active_path flame_gpu_active_path_reject_loss -- --exact",
+        "expected": "Typed flame_gpu_active_path render plan, source-revision lineage and explicit capability/binding diagnostics Successful case: Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims. Failed/recovered case: Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+        "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -1771,28 +1997,58 @@
           "Independent assessment of actual output"
         ],
         "method_recipe": {
-          "selected_packages": [
-            "hsk-studio-composite"
+          "selected_package": "hsk-studio-composite",
+          "feature_selection": "--no-default-features; exact provider capability/pin binds in module maintenance before dispatch",
+          "consumer": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+          "scenario": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "independent_oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity.",
+          "production_embedding": "Original payload retained; distinct embedding-owned host_adoption coverage resolves before activation",
+          "exact_case_filters": [
+            "flame_gpu_active_path_source_semantics",
+            "flame_gpu_active_path_reject_loss"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "terminal_test_target": "flame_gpu_active_path",
+          "runner_configuration_prerequisite": "Source implementation creates natural tests/flame_gpu_active_path.rs, exact lock/provider/features/toolchain and bounded runner config before dispatch; independent validator invokes this terminal argv under canonical source checkout and CX-984 owner isolation. PLANNED_NOT_RUN."
         },
-        "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
+        "materialization_status": "PLANNED_NOT_EXECUTED_TARGET_CREATED_DURING_CODING",
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-32873-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003",
+          "AC-004",
+          "AC-005"
+        ],
+        "command_or_method": "cargo check --locked --tests -p hsk-studio-composite --no-default-features; inspect manifest/lock/API closure for declared accord, folio, prism, pigment, nib, type, observe dependencies; exclude kernel/native/database and unrelated providers",
+        "expected": "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs and handshake-studio-assets/crates/hsk-studio-composite/tests/flame_gpu_active_path.rs compile through selected owner closure; no copied cross-owner capability",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/lock/toolchain digest",
+          "Unchanged input digest across implementer check"
+        ],
+        "materialization_status": "PLANNED_NOT_EXECUTED"
       }
     ],
     "independent_review_required": true,
     "relevant_input_paths": [
-      "handshake-studio-assets/crates/hsk-studio-composite/**"
+      "handshake-studio-assets/crates/hsk-studio-composite/src/flame_gpu_active_path.rs",
+      "handshake-studio-assets/crates/hsk-studio-composite/tests/flame_gpu_active_path.rs",
+      "handshake-studio-assets/crates/hsk-studio-composite/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
     ],
     "extra_build_proofs": [],
-    "proof_materialization_status": "PENDING_NOT_RUN_NO_COMMANDS_AUTHORIZED"
+    "proof_materialization_status": "PLANNED_NOT_RUN_NON_EXECUTION"
   },
   "red_team": {
     "required": true,
@@ -2135,7 +2391,7 @@
         "semantic_fulfillment": "`Flame` satisfies the spec's stated studio effect: Flame",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-32873-ASSET-COMPOSITE"
+          "MT-32873"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2150,15 +2406,18 @@
           "selected_packages": [
             "hsk-studio-composite"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated studio effect: Flame",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
         },
-        "later_embedding_ref": "MT-32873-KERNEL-AC-001",
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "`Flame` satisfies the spec's stated studio effect: Flame Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-002",
@@ -2169,7 +2428,7 @@
         "semantic_fulfillment": "`Flame` satisfies the spec's stated targets: R",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-32873-ASSET-COMPOSITE"
+          "MT-32873"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2184,15 +2443,18 @@
           "selected_packages": [
             "hsk-studio-composite"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated targets: R",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
         },
-        "later_embedding_ref": "MT-32873-KERNEL-AC-002",
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "`Flame` satisfies the spec's stated targets: R Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-003",
@@ -2203,7 +2465,7 @@
         "semantic_fulfillment": "`Flame` satisfies the spec's stated gpu: Req",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-32873-ASSET-COMPOSITE"
+          "MT-32873"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2218,15 +2480,18 @@
           "selected_packages": [
             "hsk-studio-composite"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated gpu: Req",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
         },
-        "later_embedding_ref": "MT-32873-KERNEL-AC-003",
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "`Flame` satisfies the spec's stated gpu: Req Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-004",
@@ -2237,7 +2502,7 @@
         "semantic_fulfillment": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-32873-ASSET-COMPOSITE"
+          "MT-32873"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2252,15 +2517,18 @@
           "selected_packages": [
             "hsk-studio-composite"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
         },
-        "later_embedding_ref": "MT-32873-KERNEL-AC-004",
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ]
       },
       {
         "acceptance_id": "AC-005",
@@ -2271,7 +2539,7 @@
         "semantic_fulfillment": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
-          "MT-32873-ASSET-COMPOSITE"
+          "MT-32873"
         ],
         "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
         "owner_contributions": [
@@ -2286,26 +2554,25 @@
           "selected_packages": [
             "hsk-studio-composite"
           ],
-          "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-          "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-          "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+          "feature_policy": "--no-default-features; provider binding prerequisite",
+          "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+          "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+          "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
         },
-        "later_embedding_ref": "MT-32873-KERNEL-AC-005",
+        "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
         "later_embedding_assertion": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-        "status": "PENDING"
+        "status": "PENDING",
+        "later_embedding_refs": [
+          "MT-36204#/source_acceptance_coverage"
+        ]
       }
     ],
     "later_kernel": {
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
       "all_original_acceptance_refs": [
-        "MT-32873-KERNEL-AC-001",
-        "MT-32873-KERNEL-AC-002",
-        "MT-32873-KERNEL-AC-003",
-        "MT-32873-KERNEL-AC-004",
-        "MT-32873-KERNEL-AC-005"
+        "MT-36204#/source_acceptance_coverage"
       ],
       "original_acceptance": [
         {
@@ -2358,7 +2625,7 @@
           "semantic_fulfillment": "`Flame` satisfies the spec's stated studio effect: Flame",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-32873-ASSET-COMPOSITE"
+            "MT-32873"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2373,15 +2640,18 @@
             "selected_packages": [
               "hsk-studio-composite"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`Flame` satisfies the spec's stated studio effect: Flame",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+            "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+            "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
           },
-          "later_embedding_ref": "MT-32873-KERNEL-AC-001",
+          "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "`Flame` satisfies the spec's stated studio effect: Flame Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36204#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-002",
@@ -2392,7 +2662,7 @@
           "semantic_fulfillment": "`Flame` satisfies the spec's stated targets: R",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-32873-ASSET-COMPOSITE"
+            "MT-32873"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2407,15 +2677,18 @@
             "selected_packages": [
               "hsk-studio-composite"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`Flame` satisfies the spec's stated targets: R",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+            "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+            "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
           },
-          "later_embedding_ref": "MT-32873-KERNEL-AC-002",
+          "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "`Flame` satisfies the spec's stated targets: R Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36204#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-003",
@@ -2426,7 +2699,7 @@
           "semantic_fulfillment": "`Flame` satisfies the spec's stated gpu: Req",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-32873-ASSET-COMPOSITE"
+            "MT-32873"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2441,15 +2714,18 @@
             "selected_packages": [
               "hsk-studio-composite"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`Flame` satisfies the spec's stated gpu: Req",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+            "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+            "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
           },
-          "later_embedding_ref": "MT-32873-KERNEL-AC-003",
+          "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "`Flame` satisfies the spec's stated gpu: Req Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36204#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-004",
@@ -2460,7 +2736,7 @@
           "semantic_fulfillment": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-32873-ASSET-COMPOSITE"
+            "MT-32873"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2475,15 +2751,18 @@
             "selected_packages": [
               "hsk-studio-composite"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+            "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+            "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
           },
-          "later_embedding_ref": "MT-32873-KERNEL-AC-004",
+          "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "`Flame` satisfies the spec's stated behavior (normative): Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36204#/source_acceptance_coverage"
+          ]
         },
         {
           "acceptance_id": "AC-005",
@@ -2494,7 +2773,7 @@
           "semantic_fulfillment": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
-            "MT-32873-ASSET-COMPOSITE"
+            "MT-32873"
           ],
           "asset_phase": "OWNED_ASSET_BEHAVIOR_AND_PORT_PROOF",
           "owner_contributions": [
@@ -2509,15 +2788,18 @@
             "selected_packages": [
               "hsk-studio-composite"
             ],
-            "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
-            "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
-            "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
+            "feature_policy": "--no-default-features; provider binding prerequisite",
+            "consumer_assertion": "Independent canonical metadata/render corpus proves the exact named source behaviour and native operator/tooltip/headless reachability. Required GPU rows declare their real dependency and preserve genuine results on a supported backend; optional rows retain their source capability classification. Bind numerical laws before render parity claims.",
+            "negative_path": "Absent required GPU reports EFFECT_GPU_UNAVAILABLE without empty success. Other missing genuine codecs/prerequisites/oracles report explicit NOT_PROVEN and block activation; unsupported target, stale revision or cancellation preserves source and accepted stack.",
+            "oracle": "Independent actual supported/no-GPU observations and canonical source/profile render goldens through genuine module ports; prepared contracts, mocks and author-entered status cannot prove acquisition or render parity."
           },
-          "later_embedding_ref": "MT-32873-KERNEL-AC-005",
+          "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
           "later_embedding_assertion": "`Flame` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
-          "status": "PENDING"
+          "status": "PENDING",
+          "later_embedding_refs": [
+            "MT-36204#/source_acceptance_coverage"
+          ]
         }
       ]
     },
@@ -2530,5 +2812,44 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-10T03:30:41.209Z",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ]
 }
