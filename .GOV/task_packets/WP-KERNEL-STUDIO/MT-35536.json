@@ -1958,7 +1958,7 @@
     "active": false,
     "validator_verdict": "PENDING",
     "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "blocked_on": "TYPE_REACHABLE_PROVIDER_ADMISSION_CANCEL_RECIPE_PENDING"
   },
   "scope": {
     "summary": "Shape actual mixed-script/bidi text with explicit font resolver and stable glyph-run receipt; CJK/RTL scope retained.",
@@ -2117,12 +2117,12 @@
     ],
     "runtime": "NOT_RUN",
     "compile": "NOT_RUN",
-    "preparation_status": "CURRENT_PROVIDER_FONT_BOUND_ORACLE_RESEARCH_PENDING",
-    "next_actor": "Coordinator publishes corrected canonical Type transport; read-only provider and exact oracle research resolves bounded recipe before implementation dispatch; Nib source remains independently frozen",
+    "preparation_status": "CANONICAL_FIELDS_AND_ORACLE_RECIPE_BOUND_PROVIDER_CLOSURE_PENDING",
+    "next_actor": "Close source-backed private provider admission/cancel/error recipe and independently review it before Type/Observe/workspace implementation dispatch",
     "authorized_scope": "Existing live coordinator all36 continuation; c66eddd4 research lineage retained, not execution lease producer",
-    "source_base": "8a3eebfd207fdcd4718b78cb441de202fec0b60b",
+    "source_base": "a7bf90060577b98c912f8813ecef1c2339cc6cbf",
     "source_change_allowed_now": false,
-    "source_frozen_for_other_owner": "Nib validator owns immutable8a3eebf and physicaldisk Cargo proof; Type research changes no product input",
+    "source_frozen_for_other_owner": "HELP repaired source runtime capture completed; Type coding remains undispatched for provider preparation blocker",
     "artifact_owner_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder",
     "preserved_acceptance": "Original Latin/Arabic/CJK/mixedbidi, ligaturetoggle/variableaxes/tworundet, source/full laterHBR and vendor/native scopes unchanged",
     "research_basis": {
@@ -2138,22 +2138,37 @@
         {
           "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\type-variable-fixture-and-oracle.json",
           "sha256": "34f5c533029c6541f405c3d77a53b5002930768ef653c0a9ec928d8f8facab8b"
+        },
+        {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\type-bounded-route-comparison.json",
+          "sha256": "304164ef7d66a3c129728eb896df428c5b2c3d59f8129df676b1f25f4e173a3f"
+        },
+        {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35536\\studio-assets-kernel-builder\\research\\type-exact-oracle-recipe.json",
+          "sha256": "4b5e892e1618ac4395e78060b4529629399cd1b797a7e9edd99019c36292503c"
         }
       ],
       "disposition": "SOURCE_RESEARCH_ONLY_NO_PROVIDER_BOUND_OR_RUNTIME_VERDICT",
       "reuse": "Existing STXT/story/style authority, Accord/Observe owners and explicit caller-granted hashed font resources; no font primitive/schema",
-      "candidate": "Harfrust0.14 current candidate; archived Rustybuzz0.20.1 reference-only candidate; production selection unresolved",
-      "fixture": "Pinned OFL Inter variable bytes verified against release archive; exact selected-font oracle still unexecuted"
+      "candidate": "Private Rustybuzz0.20.1/ttf-parser0.25.1/unicode-bidi0.3.18 is smallest inspected ownership candidate; complete admission/cancel/error closure and final selection unresolved; upstream archived maintenance risk retained",
+      "fixture": "Pinned OFL Inter variable bytes verified against release archive; exact selected-font oracle still unexecuted",
+      "oracle_preparation": "Seven explicit four-font tuples plus pinned officialUnicode16 expected bidi levels/order; originalUTF8bytecluster publicAPI verified; independent shaping outputs deliberately unset until runtime execution",
+      "changed_candidate_reason": {
+        "prior_report_preserved": "type-provider-source-evidence.json hash5cda83bde5d6af4c2e57153ee21aed5bccf4d3a8ed5e72838314a233853d838d retains initial current-Harfrust preference and archivedRustybuzz rejection",
+        "new_source_comparison": "type-bounded-route-comparison.json hash304164ef7d66a3c129728eb896df428c5b2c3d59f8129df676b1f25f4e173a3f inspects actualrequiredHarfrustmodelFont/Arc/Once/layout/glyphmetrics graph evencustomFontFuncs; borrowedRustybuzzttf-parser removes thatownership butlookup/map/plan/Arabic/bidi allocations/sorts/work remain",
+        "decision": "CANDIDATE_ONLY_NOT_SELECTED; complete reachable recipe and independentpreparation finding stillrequired",
+        "maintenance": "If selected, Type-owned pinned privatefork owns source fixes/admission/cancel and provider regression maintenance; no assumption of future archived upstream fixes",
+        "scope_preservation": "No table stripping or positive LatinArabicCJK/feature/variableaxis reduction; unsupportednonfoundationformat/feature explicit typedrefusal and broaderoriginaldomain pending"
+      }
     },
     "preparation_blockers": [
-      "Canonical Type transport draft CON037-041 awaiting coordinator publication; TYP113 distinct story/paragraph/character directions flagged for repair",
-      "Reachable provider/font/cache/plan/bidi allocation and work/cancel recipe unresolved; buffer-only patch insufficient; no guessed bounds",
-      "Exact four-font shaping oracle plus scalar-to-original-UTF8 cluster mapping and independent bidi visual-run oracle pending"
+      "Complete reachable parser/lookup/map/normalize/Arabic/bidi allocation/growth/clone/sort-scratch/failure-propagation and metered work/cancel recipe pending",
+      "Nondefault Inter variation parser-limit route requires exact source closure and independent positive runtime proof after implementation"
     ],
     "independent_field_review": {
       "executor": "workspace",
-      "result": "DRAFT_BLOCKING_DIRECTION_AND_ORACLE_BINDINGS",
-      "basis": "Actual v213 TYP113/172/176/179 and external v214 draft; no new font UUID/schema found",
+      "result": "CORRECTED_CANONICAL_FIELDS_BOUND_ORACLE_RECIPE_NOT_EXECUTED",
+      "basis": "Published214 inspected; TYP113 directions and originalUTF8mapping corrected, independent Unicode16 oracle recipe bound",
       "proof_filters_proposed": [
         {
           "target": "foundation_contract",
@@ -2166,7 +2181,21 @@
           "timeout_seconds": 60
         }
       ],
-      "original_acceptance": "All five original ACs and full later-feature scope retained; filters not published authority yet"
+      "original_acceptance": "All five original ACs and full later-feature scope retained; exact filters now canonical CON041"
+    },
+    "canonical_type_transport": {
+      "spec_version": "v02.214",
+      "publication_commit": "dae25b69c5dbb6d0c0732cbab2b6deeefae9e73c",
+      "path": ".GOV\\spec\\master-spec-v02.214\\spec-modules\\14-studio-creative-suite.md",
+      "sha256": "60a7711189419cd9f5a72cb8e7358bc88c393eba2b161f3fcaa6e492f49dfb14",
+      "anchors": [
+        "STU-CON-037",
+        "STU-CON-038",
+        "STU-CON-039",
+        "STU-CON-040",
+        "STU-CON-041"
+      ],
+      "status": "PUBLISHED_INSPECTED_FIELDS_BOUND_NOT_IMPLEMENTATION_READY"
     }
   }
 }
