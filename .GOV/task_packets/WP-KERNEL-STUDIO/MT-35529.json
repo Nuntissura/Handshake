@@ -1896,7 +1896,19 @@
     },
     "current_dispatch_authorized": false
   },
-  "submissions": [],
+  "submissions": [
+    {
+      "candidate_commit": "b57b655961f6757a3ead13edf0bcdbc34674be0a",
+      "candidate_tree": "b9ab894fe8876dcf63e0f97b2a45ad5a53ac96dc",
+      "status": "READY_FOR_VALIDATION",
+      "source_published": true,
+      "proof_refs": [
+        "validation.proof_records/0"
+      ],
+      "runtime": "NOT_RUN",
+      "host": "PENDING_NOT_AUTHORIZED"
+    }
+  ],
   "verdicts": [],
   "blockers": [],
   "wp_id": "WP-KERNEL-STUDIO",
@@ -1953,7 +1965,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "updated_at_utc": "2026-10-10T07:40:24.004662+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -1961,7 +1973,7 @@
   },
   "lifecycle": {
     "phase": "implementation",
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "validator_verdict": "PENDING",
     "contract_preparation_only": false,
@@ -2123,8 +2135,152 @@
     "scope": "standalone_source",
     "predecessor_verdict": "MT-35528-SOURCE-FOUNDATION-V1",
     "runtime": "NOT_RUN",
-    "compile": "PENDING_SOURCE_MATERIALIZATION",
-    "next_actor": "workspace coding lane; parent compiler; independent validator",
-    "transport_boundary": "Caller-owned bounded capability envelope validates canonical schema/id/unit/tick values and an explicit u64 revision precondition; no new canonical schema identity or persisted DB/document field definition; full document decode remains with its owner"
+    "compile": "COMPILER_AND_LINT_PASS_INPUTS_UNCHANGED",
+    "next_actor": "foundation_validator independent source-only runtime/review",
+    "transport_boundary": "Caller-owned bounded capability envelope validates canonical schema/id/unit/tick values and an explicit u64 revision precondition; no new canonical schema identity or persisted DB/document field definition; full document decode remains with its owner",
+    "materialized_commands": {
+      "canonical_lock": [
+        "cargo",
+        "+1.97.1",
+        "generate-lockfile",
+        "--offline",
+        "--manifest-path",
+        "handshake-studio-assets/Cargo.toml"
+      ],
+      "compiler_static": [
+        "cargo",
+        "+1.97.1",
+        "check",
+        "--manifest-path",
+        "handshake-studio-assets/Cargo.toml",
+        "--locked",
+        "-p",
+        "hsk-studio-accord",
+        "--no-default-features",
+        "--tests",
+        "--examples",
+        "-j",
+        "4"
+      ],
+      "lint_static": [
+        "cargo",
+        "+1.97.1",
+        "clippy",
+        "--manifest-path",
+        "handshake-studio-assets/Cargo.toml",
+        "--locked",
+        "-p",
+        "hsk-studio-accord",
+        "--no-default-features",
+        "--tests",
+        "--examples",
+        "-j",
+        "4",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "independent_runtime": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-accord --no-default-features --test foundation_contract -- --nocapture",
+      "timeout_policy": "Each foundation_contract test uses checked-in 30s bounded_case; no outer timeout"
+    },
+    "candidate_commit": "b57b655961f6757a3ead13edf0bcdbc34674be0a",
+    "candidate_tree": "b9ab894fe8876dcf63e0f97b2a45ad5a53ac96dc",
+    "source_published": true,
+    "validator_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-validator",
+    "validator_session": "foundation_validator"
+  },
+  "remediation": [
+    {
+      "failure_class": "clippy_manual_is_multiple_of",
+      "failed_check": "lint_static",
+      "affected_code": "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs:732",
+      "repair": "self.at.is_multiple_of(256)",
+      "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-kernel-builder\\logs\\lint_static-final.log",
+      "attempt": 1,
+      "status": "STATIC_REPAIR_PASS",
+      "batch_owner": "MT-35529",
+      "covered_mts": [
+        "MT-35529"
+      ],
+      "candidate_commit": "b57b655961f6757a3ead13edf0bcdbc34674be0a"
+    }
+  ],
+  "validation": {
+    "proof_records": [
+      {
+        "proof_id": "MT-35529-BUILDER-STATIC-V1",
+        "executor_role": "kernel_builder",
+        "executor_session": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
+        "covers": [
+          "MT-35529"
+        ],
+        "candidate_commit": "b57b655961f6757a3ead13edf0bcdbc34674be0a",
+        "candidate_tree": "b9ab894fe8876dcf63e0f97b2a45ad5a53ac96dc",
+        "commands": {
+          "compiler_static": [
+            "cargo",
+            "+1.97.1",
+            "check",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--tests",
+            "--examples",
+            "-j",
+            "4"
+          ],
+          "lint_static": [
+            "cargo",
+            "+1.97.1",
+            "clippy",
+            "--manifest-path",
+            "handshake-studio-assets/Cargo.toml",
+            "--locked",
+            "-p",
+            "hsk-studio-accord",
+            "--no-default-features",
+            "--tests",
+            "--examples",
+            "-j",
+            "4",
+            "--",
+            "-D",
+            "warnings"
+          ]
+        },
+        "exit_codes": {
+          "compiler_static": 0,
+          "lint_static": 0
+        },
+        "input_hashes_before": {
+          "handshake-studio-assets/Cargo.toml": "6322629cc54415ad403e8a3155a7f7a4381b54ad28d23fdd7df98685b92a8544",
+          "handshake-studio-assets/Cargo.lock": "6c492536fd3c6c7574754495aa6cae5a74de8129436ff597f7fd20a5cc525e86",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286"
+        },
+        "input_hashes_after": {
+          "handshake-studio-assets/Cargo.toml": "6322629cc54415ad403e8a3155a7f7a4381b54ad28d23fdd7df98685b92a8544",
+          "handshake-studio-assets/Cargo.lock": "6c492536fd3c6c7574754495aa6cae5a74de8129436ff597f7fd20a5cc525e86",
+          "handshake-studio-assets/rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "handshake-studio-assets/crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "handshake-studio-assets/crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "handshake-studio-assets/crates/hsk-studio-accord/src/lib.rs": "7a4f5d58995f56fd74383b0113cdae7f3e3354e7a9f6f760c9d76febd920c116",
+          "handshake-studio-assets/crates/hsk-studio-accord/tests/foundation_contract.rs": "06c4801f0ae68fea01454d1654cbb48362f52983cf1564fe76c67f6f525c5286"
+        },
+        "artifact_refs": [
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-kernel-builder\\logs\\compiler_static-final.log",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-kernel-builder\\logs\\lint_static-final.log",
+          "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35529\\studio-assets-kernel-builder\\logs\\static-inputs.json"
+        ],
+        "proof_kind": "compile_static_only",
+        "observed_at": "2026-10-10T07:40:24.004662+00:00"
+      }
+    ]
   }
 }

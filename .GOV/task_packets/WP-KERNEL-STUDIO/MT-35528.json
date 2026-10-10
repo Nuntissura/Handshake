@@ -1811,7 +1811,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-WORKSPACE scope flags {'resource': True, 'owned_gui': False, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": false,
@@ -2894,7 +2894,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "updated_at_utc": "2026-10-10T07:40:24.004662+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -3136,7 +3136,18 @@
     "candidate_tree": "e5248262181415040f54883c64ff906b6656376e",
     "source_published": true,
     "validator_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator",
-    "validator_session": "foundation_validator"
+    "validator_session": "foundation_validator",
+    "input_refresh": {
+      "candidate_commit": "b57b655961f6757a3ead13edf0bcdbc34674be0a",
+      "candidate_tree": "b9ab894fe8876dcf63e0f97b2a45ad5a53ac96dc",
+      "changed_inputs": [
+        "handshake-studio-assets/Cargo.toml",
+        "handshake-studio-assets/Cargo.lock"
+      ],
+      "required_recheck": "Actual candidate workspace provenance and selected Accord dependency closure; retained unchanged probe binary/compiler proof",
+      "status": "PENDING_INDEPENDENT_REFRESH",
+      "preserved_prior_verdict": "MT-35528-SOURCE-FOUNDATION-V1"
+    }
   },
   "validation": {
     "proof_records": [
