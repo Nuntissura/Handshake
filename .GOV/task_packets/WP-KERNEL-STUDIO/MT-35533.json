@@ -1171,7 +1171,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-PRISM scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-PRISM scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1642,17 +1642,26 @@
     "contract_dependency_kind": "depends_on_completion",
     "artifact_isolation": {
       "artifact_root": "../Handshake_Artifacts",
-      "owner_dir": null,
-      "env": {},
-      "flags": null,
+      "owner_dir": "WP-KERNEL-STUDIO/MT-35533/studio-assets-kernel-builder",
+      "env": {
+        "HANDSHAKE_GOV_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel",
+        "HANDSHAKE_ARTIFACTS_ROOT": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts",
+        "CARGO_TARGET_DIR": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\cargo-target",
+        "CARGO_HOME": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\cache\\cargo-home",
+        "TMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\tmp",
+        "TEMP": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder\\tmp"
+      },
+      "flags": {
+        "jobs": 4
+      },
       "reference_runner": null,
       "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
       "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
       "resolved_absolute_root_proof_required_before_run": true,
-      "proof_status": "PENDING",
+      "proof_status": "ROOT_VERIFIED_OWNER_BOUND_NOT_RUN",
       "owner_dir_template": "WP-KERNEL-STUDIO/MT-35533/{VERIFIED_OWNER_SLUG}/",
-      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
-      "resolved_absolute_owner_root": null,
+      "owner_slug_binding": "studio-assets-kernel-builder; session01a1245a-34fc-78a3-b960-44b5f0e1754e",
+      "resolved_absolute_owner_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35533\\studio-assets-kernel-builder",
       "runtime_binding_required_before_run": true,
       "mutable_suffixes": {
         "cargo": "cargo-target/",
@@ -1946,19 +1955,20 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "updated_at_utc": "2026-10-10T09:06:17.127243+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json"
   },
   "lifecycle": {
-    "phase": "blocked",
+    "phase": "implementation",
     "status": "PENDING",
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "contract_preparation_only": false,
+    "blocked_on": null,
+    "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e"
   },
   "scope": {
     "summary": "Execute one documented color transform with profile/version receipt and reject unsupported profile; retain non-identity oracle obligation.",
@@ -2089,7 +2099,110 @@
       }
     ],
     "proof_target_materialization_required": true,
-    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff."
+    "proof_target_materialization_timing": "Recipe/selected owner/feature policy approved before coding; targets created during coding and must execute before handoff.",
+    "selected_source_recipe": {
+      "authority_refs": [
+        "STU-COL-006",
+        "STU-COL-125",
+        "STU-COL-140",
+        "STU-COL-141",
+        "STU-COL-142",
+        "STU-COL-143",
+        "STU-ARC-018"
+      ],
+      "source_foundation_only": true,
+      "native_host_materialization_acceptance": "PENDING",
+      "profile_input": "Borrowed Accord SCPF identity, actual profilebytes and expected SHA256; local command metadata; no invented persisted StudioColorProfile wire decoder",
+      "direct_registry_pins": {
+        "moxcms": {
+          "version": "0.9.1",
+          "default-features": false,
+          "features": [
+            "extended_range"
+          ],
+          "checksum": "396077b717181ce3f9a6b66739b269b82d756be5ec0f76be0bc40a7c51775830"
+        },
+        "sha2": {
+          "version": "0.11.0",
+          "default-features": false,
+          "features": [],
+          "checksum": "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+        }
+      },
+      "fixture_pins": [
+        {
+          "name": "sRGB-v4.icc",
+          "commit": "bdd84663061bc4ae95ca70decff54f581e27f702",
+          "bytes": 480,
+          "sha256": "c56e1685d888f5edb92fe07f2750f387f8fe8e91b32ff8fb0b56bfbbb9458353"
+        },
+        {
+          "name": "DisplayP3-v4.icc",
+          "commit": "bdd84663061bc4ae95ca70decff54f581e27f702",
+          "bytes": 480,
+          "sha256": "cb51de38e482ee974c0c76b9689e16aad04bad16e226fed2f30c842d15ff3a3d"
+        }
+      ],
+      "selected_api": "ColorProfile::new_from_slice_with_options, create_transform_f32 Layout::Rgb; options RelativeColorimetric/allow_use_cicp_transferfalse/prefer_fixed_pointfalse/allow_extended_range_rgb_xyztrue",
+      "research_basis": {
+        "sources_checked": [
+          "https://github.com/awxkee/moxcms/blob/0.9.1/Cargo.toml",
+          "https://github.com/awxkee/moxcms/blob/0.9.1/src/profile.rs",
+          "https://github.com/awxkee/moxcms/blob/0.9.1/src/transform.rs",
+          "https://github.com/awxkee/moxcms/blob/0.9.1/src/trc.rs",
+          "https://docs.rs/sha2/0.11.0/sha2/",
+          "https://github.com/FirefoxGraphics/qcms/blob/master/src/transform.rs",
+          "https://docs.rs/lcms2/latest/lcms2/",
+          "https://github.com/saucecontrol/Compact-ICC-Profiles/tree/bdd84663061bc4ae95ca70decff54f581e27f702",
+          "https://www.color.org/specification/ICC.1-2022-05.pdf"
+        ],
+        "patterns_found": [
+          "Pure Rust bounded ICC parser plus analytical float matrix/TRC transform",
+          "Explicit content SHA256 and version/intents receipt; caller-owned cache and typed diagnostic ports",
+          "Independent ICC fixed16.16 matrix/parametric TRC oracle rather than identity-only assertion"
+        ],
+        "reuse": [
+          "Canonical ColorEngine:Send+Sync owner Prism",
+          "Accord SCPF identities/cancellation/revisions",
+          "Observe explicit caller-owned diagnostic sink",
+          "Existing CKC/ArtifactService retain profiles/catalog authority"
+        ],
+        "rejected_options": [
+          {
+            "option": "qcms",
+            "reason": "Inspected transform API 8-bit layouts do not meet selected32f32 slice"
+          },
+          {
+            "option": "lcms2",
+            "reason": "Native LittleCMS dependency violates selected pure Rust runtime boundary"
+          },
+          {
+            "option": "Handwritten full ICC engine",
+            "reason": "Existing maintained pure Rust engine provides real source evidence; unnecessary reinvention"
+          }
+        ],
+        "selected_approach": "moxcms0.9.1 scalar extended_range plus sha2 0.11.0; actual RGB XYZ ICCv4 equal analytical parametric TRCs under relative-colorimetric intent, BPCfalse,depth32 only; canonicalColorEngine trait; reject unsupported domains rather than identity success",
+        "risks_mitigations": [
+          {
+            "risk": "moxcms pairwise-OR TRC equality and quantized/identity fallback",
+            "mitigation": "Wrapper requires all3 TRCs equal, supported finite parameters, successful parametric inverse, finite nonsingular matrix before engine call"
+          },
+          {
+            "risk": "CICP transfer path bypasses options flag",
+            "mitigation": "Reject profile.cicp presence as unsupported"
+          },
+          {
+            "risk": "Unbounded or malformed caller ICC bytes",
+            "mitigation": "Authenticate actual bytes SHA256; explicit parser max_profile_size/max_clut/max_trc and caller channel/profile caps; typed rejects retain input"
+          },
+          {
+            "risk": "Cross-host float operation changes",
+            "mitigation": "Independent f64 numerical application oracle tolerance; no bit-identical materialization/promotion claim; those feature obligations remain PENDING"
+          }
+        ],
+        "validation_plan": "Focused selected dependency static compile/Clippy; independent checked-in30s cases and actual external-input consumer converting sRGB-v4 toDisplayP3-v4; f64 ICC oracle eachchannel\u00b10.0001 with explicitnonidentity and pinned realprofile hashes; malformed/unsupported/CICP/singular/wronghash/nonfinite/depth/cancel/stale/sinkreject preserveoriginalinput"
+      }
+    }
   },
   "fulfillment": {
     "schema_id": "hsk.studio_mt_fulfillment@1",
@@ -2106,5 +2219,25 @@
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
     }
+  },
+  "implementation_state": {
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "selected_mt": "MT-35533",
+    "batch_owner": "MT-35533",
+    "covered_mts": [
+      "MT-35533"
+    ],
+    "scope": "standalone_source",
+    "predecessor_verdicts": [
+      "MT-35528-SOURCE-FOLIO-REGISTRY-EXTENSION-V3",
+      "MT-35529-SOURCE-V210-SCHEMA-EXTENSION-V2",
+      "MT-35530-SOURCE-FOUNDATION-V1"
+    ],
+    "source_owner_search": "Catalog registers STUDIO-MODULE-PRISM; actualassetsworkspace has3members, Prism directory absent; canonical specColorEngine owner reused, no newcatalog orprofile primitive",
+    "source_feature_policy": "Exact moxcms0.9.1 extended_range defaultsfalse; sha2 0.11.0 defaultsfalse; Accord+Observe module deps; no platform CMM/native/provider",
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "next_actor": "Parent workspace approved Prism owner policy/pin materialization after Folio proof freeze release",
+    "per_test_timeout": "Checked-in foundation_contract bounded_case30s before handoff; no outer timeout"
   }
 }

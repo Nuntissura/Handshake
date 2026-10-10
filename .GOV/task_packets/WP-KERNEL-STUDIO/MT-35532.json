@@ -1171,7 +1171,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CHRONICLE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CHRONICLE scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': True, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': True, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1948,7 +1948,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T19:14:47.141070+00:00",
-  "updated_at_utc": "2026-10-09T19:43:36.132296+00:00",
+  "updated_at_utc": "2026-10-10T09:07:05.776642+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -1960,7 +1960,7 @@
     "active": false,
     "validator_verdict": "PENDING",
     "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "blocked_on": "MT-35532-CANONICAL-PATCH-FIELDS"
   },
   "scope": {
     "summary": "Validate/apply real typed patch to immutable base; generate inverse/conflict and retain original on failure.",
@@ -2108,6 +2108,31 @@
     "later_kernel": {
       "status": "PENDING",
       "production_requirement": "Actual kernel consumer, current grants, authority/EventLedger/CRDT/recovery, Argus and three diagnostic tiers where applicable; separate later acceptance"
+    }
+  },
+  "implementation_state": {
+    "scope": "standalone_source",
+    "selected_mt": "MT-35532",
+    "lease_commit": "c66eddd44fe222509063df1ee4f0eee4e57ece8a",
+    "runtime": "NOT_RUN",
+    "compile": "NOT_RUN",
+    "next_actor": "Root spec owner field enrichment or explicit owning-authority ephemeral transport binding",
+    "authority_blocker": {
+      "id": "MT-35532-CANONICAL-PATCH-FIELDS",
+      "status": "OPEN",
+      "observed_source": ".GOV/spec/master-spec-v02.210/spec-modules/14-studio-creative-suite.md",
+      "anchors": [
+        "STU-DOC-002",
+        "STU-CON-001",
+        "STU-CON-009",
+        "STU-CON-010",
+        "STU-PW-001",
+        "STU-HIS-001"
+      ],
+      "observed": "Named edit_proposal/history_entry schemas and property-footprint/inverse laws exist; no14.23 typed patch/precondition-vector/inverse fields authored",
+      "blocked_step": "Implement typed patch/proposal/inverse consumer without inventing persisted canonicalwire records",
+      "needed_dependency": "Narrow canonical field publication or explicit source-only ephemeral transport authority binding from root spec owner",
+      "request_target": "01a12168-a212-7991-8b69-454deae05b60"
     }
   }
 }
