@@ -2108,7 +2108,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-10T10:46:35.656268+00:00",
+  "updated_at_utc": "2026-10-10T11:06:22.422998+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2420,6 +2420,40 @@
         "four exact owning20sselectors"
       ],
       "original_ac_hbr_preserved": true
+    },
+    "requested_allocation_unit_binding": {
+      "binding_id": "STUDIO-PIGMENT-PRISM-REQUESTED-ALLOCATION-UNIT-20261010",
+      "authority": "Coordinator explicit CON030 existing-owner allocation-unit decisions",
+      "unit": "requested_owned_allocation_bytes",
+      "included": [
+        "Every admitted allocation requested layout/capacity",
+        "Owned strings and containers, control blocks, alignment padding and ownership wrappers",
+        "Simultaneous peak including old/new storage overlap during reallocation",
+        "Parser, executor/cache, transient scratch, retained/result lifetimes",
+        "Already-reserved shared allocations counted once with verified retained lifetime"
+      ],
+      "excluded_claims": [
+        "Allocator bookkeeping",
+        "Process RSS or physical heap cap",
+        "Broader host/process-memory ARC008/012 acceptance"
+      ],
+      "required_proof": [
+        "Allocation-free source-proven checked conservative peak preflight before allocating parse/executor/output calls",
+        "Costs pinned to actual moxcms version, Rust toolchain, target and admitted input subset",
+        "Target-specific size/alignment/padding evidence; Arc payload plus two AtomicUsize alone is insufficient",
+        "Unsupported cost/overflow/denial prevents allocating provider call",
+        "Independent source bound plus scoped actual requested-allocation observation",
+        "Admission rollback, cache clear/drop/failed retained cache, result/plane retained lifetime and explicit transfer/release",
+        "Actual supported linear cross-profile conversion"
+      ],
+      "allowed_subset": "Metadata-free or independently bounded empty-only linear para0 matrix budget route; unsupported metadata rejects before allocating provider calls; prior legacy API and broader color obligations preserved",
+      "status": "AUTHORIZED_BOUND_AND_RUNTIME_PROOF_PENDING",
+      "fixture_boundary": {
+        "originals": "Unchanged",
+        "derivatives": "Separately identified deterministic metadata-stripped linear fixtures with source/derivative hashes and consistent header/tag offsets/lengths",
+        "runtime": "No silent caller profile stripping and no fallback to unbudgeted legacy conversion",
+        "proof": "Actual SCPF/SHA descriptors and receipts; independent retained matrix/TRC and nonidentity numeric comparison; selected-route proof only, not original/vendor-file fidelity"
+      }
     }
   }
 }
