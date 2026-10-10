@@ -2734,6 +2734,15 @@
       ],
       "runtime": "NOT_RUN",
       "host": "PENDING_NOT_AUTHORIZED"
+    },
+    {
+      "candidate_commit": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+      "candidate_tree": "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+      "status": "READY_FOR_VALIDATION",
+      "source_published": true,
+      "scope": "folio_registry_pin_policy_extension",
+      "runtime": "NOT_RUN",
+      "host": "PENDING_NOT_AUTHORIZED"
     }
   ],
   "verdicts": [
@@ -2852,6 +2861,57 @@
       "repaired_finding": "Actual Accord [[example]] accepts; unapproved [[bench]] still rejects unsupported_array_table",
       "full_acceptance": "PENDING_FINAL36_FOUNDATION_BARRIER_AND_LATER_HOST",
       "observed_at": "2026-10-10T07:56:59.825702+00:00"
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-FOLIO-REGISTRY-EXTENSION-V3",
+      "mt_id": "MT-35528",
+      "verdict": "PASS_V3",
+      "scope": "standalone_source_prerequisite_extension_only",
+      "candidate_commit": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+      "candidate_tree": "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-FOLIO-REGISTRY-EXTENSION-V3"
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Owner-scoped exact direct version/features/default policy, bounded transitive source/checksum graph"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Pinned independent compiler; actual selected closure and descriptor; emitted identities independently compared with actual lock/metadata; pre/post native hashes and Git filtered blobs reconciled"
+      ],
+      "BOUNDARY_PROBES": [
+        "Actual immutable canonical files -> standalone executable -> independently parsed JSON; Accord+Folio closure,17registry identities"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "registry-extension-exact-version",
+        "registry-extension-defaults",
+        "registry-extension-features",
+        "registry-extension-git",
+        "registry-extension-alternate-registry",
+        "registry-extension-missing-transitive-pin",
+        "registry-extension-checksum-drift",
+        "registry-extension-missing-checksum",
+        "registry-extension-source-drift",
+        "registry-extension-missing-source",
+        "registry-extension-ambiguous-lock",
+        "registry-extension-cycle",
+        "registry-extension-host-closure",
+        "registry-extension-native-closure"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing exact version/default/features checks would admit corresponding rejected direct fixture",
+        "Removing transitive source/checksum/pin checks would admit corresponding rejected fixture",
+        "Removing registry acyclic/ambiguity/native guards would admit corresponding rejected graph fixture"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Folio is only a dependency target; no document implementation, JsonSchema record fulfillment or Folio foundation parity certified",
+        "Registry pure classification is owner-approved metadata; runtime probe does not compile registry features or independently certify registry implementation purity",
+        "Original full foundation barrier, later kernel adoption and host diagnostics remain PENDING"
+      ],
+      "full_acceptance": "PENDING; source prerequisite extension only",
+      "observed_at": "2026-10-10T08:41:39.280372+00:00"
     }
   ],
   "blockers": [],
@@ -3177,7 +3237,16 @@
       "policy": "Exact owner-scoped direct versions/features/defaultfalse; canonical crates.io source and real lock checksums; bounded explicit transitive pins; git/alternate registry/ambiguous/unapproved dependency rejection",
       "scope": "existing workspace-probe +workspace metadata/lock only; no public sibling command",
       "proof": "real selected Folio+Accord closure accepted, pin/feature/source/checksum drift rejected; no compiler/host inference from inspectresult",
-      "state": "PLANNED_NOT_IMPLEMENTED"
+      "state": "PASS_V3",
+      "candidate_commit": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+      "candidate_tree": "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+      "compiler_static_evidence": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-kernel-builder\\logs\\registry-policy-compile.json",
+      "runtime": "INDEPENDENT_SOURCE_PREREQUISITE_EXTENSION_PASS",
+      "proof_ref": "MT-35528-INDEPENDENT-FOLIO-REGISTRY-EXTENSION-V3",
+      "verdict_ref": "MT-35528-SOURCE-FOLIO-REGISTRY-EXTENSION-V3",
+      "evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-evidence.json",
+      "observed_at": "2026-10-10T08:41:39.280372+00:00",
+      "full_acceptance": "PENDING; original contract unchanged"
     }
   },
   "validation": {
@@ -3540,6 +3609,753 @@
         "binary_sha256": "b43121088dbbbd8825eb1a7c26319af64bea65a4d033d9a86c66866f03a4ffa5",
         "observed_at": "2026-10-10T07:56:59.825702+00:00",
         "unchanged_case_mapping": "Original unknown-package/provider/toolchain/duplicate/host path/GPU guards unchanged; existing proofs retained without repeating full campaign."
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-FOLIO-REGISTRY-EXTENSION-V3",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35528"
+        ],
+        "candidate_commit": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+        "candidate_tree": "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+        "result": "PASS",
+        "scope": "source prerequisite extension only",
+        "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-evidence.json",
+        "commands": [
+          [
+            "rustc",
+            "+1.97.1",
+            "--edition=2024",
+            "-D",
+            "warnings",
+            "-C",
+            "debuginfo=line-tables-only",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+            "-o",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-positive-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--descriptor"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-exact-version",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-exact-version-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-defaults",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-defaults-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-features",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-features-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-git",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-git-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-alternate-registry",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-alternate-registry-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-transitive-pin",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-transitive-pin-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-checksum-drift",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-checksum-drift-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-checksum",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-checksum-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-source-drift",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-source-drift-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-source",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-source-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-ambiguous-lock",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-ambiguous-lock-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-cycle",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-cycle-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-host-closure",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-host-closure-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ],
+          [
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+            "--root",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-native-closure",
+            "--provenance",
+            "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-native-closure-provenance.toml",
+            "--revision",
+            "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+            "--tree",
+            "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+            "--package",
+            "hsk-studio-folio"
+          ]
+        ],
+        "actual_results": [
+          {
+            "name": "registry-extension-compile",
+            "argv": [
+              "rustc",
+              "+1.97.1",
+              "--edition=2024",
+              "-D",
+              "warnings",
+              "-C",
+              "debuginfo=line-tables-only",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets\\tools\\workspace-probe.rs",
+              "-o",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe"
+            ],
+            "exit": 0,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-compile.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-compile.stderr"
+          },
+          {
+            "name": "registry-extension-positive",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-assets\\handshake-studio-assets",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-positive-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 0,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-positive.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-positive.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "accepted",
+              "proof_kind": "input_selection_only",
+              "compiled_packages": false,
+              "revision": "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "tree": "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "toolchain": "1.97.1",
+              "selected": [
+                "hsk-studio-folio"
+              ],
+              "closure": [
+                "hsk-studio-accord",
+                "hsk-studio-folio"
+              ],
+              "registry_closure": [
+                "hsk-studio-folio:dyn-clone@1.0.20:d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555",
+                "hsk-studio-folio:itoa@1.0.18:8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+                "hsk-studio-folio:memchr@2.8.3:cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+                "hsk-studio-folio:proc-macro2@1.0.107:985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+                "hsk-studio-folio:quote@1.0.47:1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+                "hsk-studio-folio:ref-cast-impl@1.0.27:92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a",
+                "hsk-studio-folio:ref-cast@1.0.27:7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3",
+                "hsk-studio-folio:schemars@1.2.2:687274d293b6cdc6e73e0fee520bf2049650090d7164f87672d212a3c530cf4a",
+                "hsk-studio-folio:schemars_derive@1.2.2:d98c67716b46af2f0b8cf752abc930f6f9aecfbf671ecfb531db8a31dbe4e2ba",
+                "hsk-studio-folio:serde@1.0.229:4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+                "hsk-studio-folio:serde_core@1.0.229:67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+                "hsk-studio-folio:serde_derive@1.0.229:e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+                "hsk-studio-folio:serde_derive_internals@0.30.0:f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd",
+                "hsk-studio-folio:serde_json@1.0.151:c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+                "hsk-studio-folio:syn@3.0.7:d62a2e0561533f2ca2561d0cf27fd9fedb640a1bf2616ff5d5c80d99017faadc",
+                "hsk-studio-folio:unicode-ident@1.0.26:d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+                "hsk-studio-folio:zmij@1.0.23:29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+              ],
+              "declared_count": 35,
+              "materialized_member_count": 3,
+              "provenance_sha256": "891b542873ca58ce7c6775636dd147c971a7e0384b0588f854d0b86986926945",
+              "inputs_sha256": {
+                "Cargo.lock": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+                "Cargo.toml": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+                "crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+                "crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+                "crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+                "crates/hsk-studio-accord/tests/foundation_contract.rs": "d135f207c0bb30997872893b9ac35b3ce1f94cc83ef858c0adaa106388da2f02",
+                "crates/hsk-studio-folio/Cargo.toml": "ccdd2bf467b23adb56e0fe4af1efa7c5a0acf377ee8d9006e8000d93ecbd7c56",
+                "crates/hsk-studio-folio/src/lib.rs": "9d25a60978f2a921393fd5aee0891adcd200f296d78ff40a42d055adfe34b0f2",
+                "rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+                "tools/workspace-probe.rs": "48a78374d66b24e49c0c213dffa7439920b82748f83d7b656fa9fc61d0dc3b40"
+              }
+            },
+            "expected": "accepted"
+          },
+          {
+            "name": "registry-extension-descriptor",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--descriptor"
+            ],
+            "exit": 0,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-descriptor.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-descriptor.stderr"
+          },
+          {
+            "name": "registry-extension-exact-version",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-exact-version",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-exact-version-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-exact-version.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-exact-version.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_exact_version_pin_required",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_exact_version_pin_required"
+            ]
+          },
+          {
+            "name": "registry-extension-defaults",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-defaults",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-defaults-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-defaults.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-defaults.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_implicit_default_features_forbidden",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_implicit_default_features_forbidden"
+            ]
+          },
+          {
+            "name": "registry-extension-features",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-features",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-features-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-features.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-features.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_feature_policy_mismatch",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_feature_policy_mismatch"
+            ]
+          },
+          {
+            "name": "registry-extension-git",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-git",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-git-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-git.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-git.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "dependency_source_override_forbidden",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "dependency_source_override_forbidden"
+            ]
+          },
+          {
+            "name": "registry-extension-alternate-registry",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-alternate-registry",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-alternate-registry-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-alternate-registry.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-alternate-registry.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "dependency_source_override_forbidden",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "dependency_source_override_forbidden"
+            ]
+          },
+          {
+            "name": "registry-extension-missing-transitive-pin",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-transitive-pin",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-transitive-pin-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-transitive-pin.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-transitive-pin.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_transitive_pin_missing",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_transitive_pin_missing"
+            ]
+          },
+          {
+            "name": "registry-extension-checksum-drift",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-checksum-drift",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-checksum-drift-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-checksum-drift.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-checksum-drift.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_checksum_pin_mismatch",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_checksum_pin_mismatch"
+            ]
+          },
+          {
+            "name": "registry-extension-missing-checksum",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-checksum",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-checksum-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-checksum.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-checksum.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_policy_missing_key",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_policy_missing_key"
+            ]
+          },
+          {
+            "name": "registry-extension-source-drift",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-source-drift",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-source-drift-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-source-drift.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-source-drift.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_source_not_crates_io",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_source_not_crates_io"
+            ]
+          },
+          {
+            "name": "registry-extension-missing-source",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-source",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-missing-source-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-source.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-missing-source.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_policy_missing_key",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_policy_missing_key"
+            ]
+          },
+          {
+            "name": "registry-extension-ambiguous-lock",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-ambiguous-lock",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-ambiguous-lock-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-ambiguous-lock.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-ambiguous-lock.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_lock_dependency_ambiguous",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_lock_dependency_ambiguous"
+            ]
+          },
+          {
+            "name": "registry-extension-cycle",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-cycle",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-cycle-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-cycle.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-cycle.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_dependency_cycle",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_dependency_cycle"
+            ]
+          },
+          {
+            "name": "registry-extension-host-closure",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-host-closure",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-host-closure-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-host-closure.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-host-closure.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_unapproved_native_or_identity",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_unapproved_native_or_identity"
+            ]
+          },
+          {
+            "name": "registry-extension-native-closure",
+            "argv": [
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\cargo-target\\workspace-probe.exe",
+              "--root",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-native-closure",
+              "--provenance",
+              "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\tmp\\registry-extension-native-closure-provenance.toml",
+              "--revision",
+              "8934b4de6a761a92d3f47a6b57bf69ca1cb72ef2",
+              "--tree",
+              "a2dd8231af44323eb76bb9411f77840d17ac6cdd",
+              "--package",
+              "hsk-studio-folio"
+            ],
+            "exit": 2,
+            "stdout": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-native-closure.stdout",
+            "stderr": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-native-closure.stderr",
+            "observed": {
+              "schema": "hsk.studio.workspace-inspection@1",
+              "status": "rejected",
+              "code": "registry_unapproved_native_or_identity",
+              "recovery": "Consult --descriptor; repair only the rejected input and independently reconcile candidate identity."
+            },
+            "expected": [
+              "registry_unapproved_native_or_identity"
+            ]
+          }
+        ],
+        "identity_evidence_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\registry-extension-evidence.json",
+        "input_hashes_before": {
+          "Cargo.toml": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+          "Cargo.lock": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+          "rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "tools/workspace-probe.rs": "48a78374d66b24e49c0c213dffa7439920b82748f83d7b656fa9fc61d0dc3b40",
+          "crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "crates/hsk-studio-accord/tests/foundation_contract.rs": "d135f207c0bb30997872893b9ac35b3ce1f94cc83ef858c0adaa106388da2f02",
+          "crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "crates/hsk-studio-folio/Cargo.toml": "ccdd2bf467b23adb56e0fe4af1efa7c5a0acf377ee8d9006e8000d93ecbd7c56",
+          "crates/hsk-studio-folio/src/lib.rs": "9d25a60978f2a921393fd5aee0891adcd200f296d78ff40a42d055adfe34b0f2"
+        },
+        "input_hashes_after": {
+          "Cargo.toml": "abf7937eb1013173a67420e4c8a084853a2decdfd6f94ffd1f004730d0637450",
+          "Cargo.lock": "f2fdbd749c8ae48658be066851c776de5bd18acc5450e9e8b1e6a139dcfe6b00",
+          "rust-toolchain.toml": "559f488c181e0e9e77cf17c29de663977f036ec7ff2e2060585714bf53c52d62",
+          "tools/workspace-probe.rs": "48a78374d66b24e49c0c213dffa7439920b82748f83d7b656fa9fc61d0dc3b40",
+          "crates/hsk-studio-accord/Cargo.toml": "890e5dcb4d2de0989790713a85aeafe78441e7f2bbe875cf5e370d5d814618ec",
+          "crates/hsk-studio-accord/src/lib.rs": "09cfed2a49a5be0062e8a6241c73cf58158d50ba26cc7dde1d62004a7d53ab7f",
+          "crates/hsk-studio-accord/tests/foundation_contract.rs": "d135f207c0bb30997872893b9ac35b3ce1f94cc83ef858c0adaa106388da2f02",
+          "crates/hsk-studio-accord/examples/accord-consumer.rs": "3c26058bd2388d8f5fefc67199e20b9c74f44d130448e2d7a373a4b9ca9567a2",
+          "crates/hsk-studio-folio/Cargo.toml": "ccdd2bf467b23adb56e0fe4af1efa7c5a0acf377ee8d9006e8000d93ecbd7c56",
+          "crates/hsk-studio-folio/src/lib.rs": "9d25a60978f2a921393fd5aee0891adcd200f296d78ff40a42d055adfe34b0f2"
+        },
+        "observed_at": "2026-10-10T08:41:39.280372+00:00",
+        "full_acceptance": "PENDING; original contracts and later kernel unchanged",
+        "binary_sha256": "45fe43fadb43fca5e94288fbeeea11fcd706a8f719372128f279cd554543eeb5",
+        "registry_identity_reconciliation": "Actual emitted17 entries equal canonical Cargo.lock and owner metadata source/checksum/name/version; pure-rust is approved metadata classification, not independent source purity or selected feature compiler proof."
       }
     ],
     "source_only_diagnostic_tiers": [
