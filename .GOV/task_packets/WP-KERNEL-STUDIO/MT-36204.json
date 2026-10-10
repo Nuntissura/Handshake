@@ -50,7 +50,7 @@
     "title": "Adopt pinned hsk-studio-composite through native Handshake services",
     "group": "HOST_ADOPTION",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "parent": {
     "wp_contract_revision": 2,
@@ -5403,11 +5403,6 @@
       "MT-32946/AC-003",
       "MT-32946/AC-004",
       "MT-32946/AC-005",
-      "MT-32947/AC-001",
-      "MT-32947/AC-002",
-      "MT-32947/AC-003",
-      "MT-32947/AC-004",
-      "MT-32947/AC-005",
       "MT-32950/AC-001",
       "MT-32950/AC-002",
       "MT-32950/AC-003",
@@ -6593,7 +6588,7 @@
       },
       {
         "id": "MT-36204/AC-HOST-002",
-        "text": "Every qualified source criterion and preserved scope in .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/15 is independently read, executed through its mapped actual host consumer, and bound to an individual result; aggregate adapter success cannot discharge feature results."
+        "text": "Every executable qualified source criterion and preserved executable scope in .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/15 is independently read, executed through its mapped actual host consumer, and bound to an individual result; aggregate adapter success cannot discharge feature results. Retained authority-reference context, including MT-32947 retired watermark provenance, is excluded from executable source/host gates and does not authorize native effect invocation."
       },
       {
         "id": "MT-36204/AC-HOST-003",
@@ -7637,7 +7632,6 @@
       "MT-32944",
       "MT-32945",
       "MT-32946",
-      "MT-32947",
       "MT-32948",
       "MT-32949",
       "MT-32950",
@@ -8924,7 +8918,6 @@
         "MT-32944",
         "MT-32945",
         "MT-32946",
-        "MT-32947",
         "MT-32948",
         "MT-32949",
         "MT-32950",
@@ -10143,7 +10136,6 @@
         "./MT-32944.json#/submissions",
         "./MT-32945.json#/submissions",
         "./MT-32946.json#/submissions",
-        "./MT-32947.json#/submissions",
         "./MT-32948.json#/submissions",
         "./MT-32949.json#/submissions",
         "./MT-32950.json#/submissions",
@@ -15669,11 +15661,6 @@
           "MT-32946/AC-003",
           "MT-32946/AC-004",
           "MT-32946/AC-005",
-          "MT-32947/AC-001",
-          "MT-32947/AC-002",
-          "MT-32947/AC-003",
-          "MT-32947/AC-004",
-          "MT-32947/AC-005",
           "MT-32950/AC-001",
           "MT-32950/AC-002",
           "MT-32950/AC-003",
@@ -16852,7 +16839,7 @@
           "MT-35323/ASSET-AC-001",
           "MT-35394/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Immutable mixed-domain render plan and selected typed providers. Method: Bind Composite plan evaluation to current Folio snapshot and same provider selection used for preview and export; no all-engine import Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: mixed render-plan dependencies, accepted revision and preview/export frame. Negative assertions: Dependency missing returns typed failure; exported and inspected current frame use the same accepted revision and plan. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Immutable mixed-domain render plan and selected typed providers. Method: Bind Composite plan evaluation to current Folio snapshot and same provider selection used for preview and export; no all-engine import Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: mixed render-plan dependencies, accepted revision and preview/export frame. Negative assertions: Dependency missing returns typed failure; exported and inspected current frame use the same accepted revision and plan. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
         "expected": "Dependency missing returns typed failure; exported and inspected current frame use the same accepted revision and plan",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -16868,8 +16855,8 @@
         "claim_refs": [
           "MT-36204/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare mixed render-plan dependencies, accepted revision and preview/export frame and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight mixed render-plan dependencies, accepted revision and preview/export frame, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare mixed render-plan dependencies, accepted revision and preview/export frame plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
-      "expected": "Prior/candidate compatible release preserves mixed render-plan dependencies, accepted revision and preview/export frame; incompatible candidate is denied before authority mutation; rollback reopens/replays prior mixed render-plan dependencies, accepted revision and preview/export frame with accepted authority and provenance intact.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare mixed render-plan dependencies, accepted revision and preview/export frame and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight mixed render-plan dependencies, accepted revision and preview/export frame, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare mixed render-plan dependencies, accepted revision and preview/export frame plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
+        "expected": "Prior/candidate compatible release preserves mixed render-plan dependencies, accepted revision and preview/export frame; incompatible candidate is denied before authority mutation; rollback reopens/replays prior mixed render-plan dependencies, accepted revision and preview/export frame with accepted authority and provenance intact.",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -22175,11 +22162,6 @@
           "MT-32946/AC-003",
           "MT-32946/AC-004",
           "MT-32946/AC-005",
-          "MT-32947/AC-001",
-          "MT-32947/AC-002",
-          "MT-32947/AC-003",
-          "MT-32947/AC-004",
-          "MT-32947/AC-005",
           "MT-32950/AC-001",
           "MT-32950/AC-002",
           "MT-32950/AC-003",
@@ -23358,7 +23340,7 @@
           "MT-35323/ASSET-AC-001",
           "MT-35394/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and mixed render-plan dependencies, accepted revision and preview/export frame for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-composite through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_composite_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and mixed render-plan dependencies, accepted revision and preview/export frame for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-composite through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
         "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -24382,7 +24364,6 @@
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32944.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32945.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32946.json",
-      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32947.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32948.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32949.json",
       ".GOV/task_packets/WP-KERNEL-STUDIO/MT-32950.json",

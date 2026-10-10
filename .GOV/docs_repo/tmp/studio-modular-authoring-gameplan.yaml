@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 58
+generation: 63
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -76,3 +76,8 @@ steps:
 - {id: GP-060, role: any, at: before_submit, do: verify language-boundary delimiters and literal source boundaries before transient extraction, check: {type: confirm}, source: 'infra: Web regex backticks broke JS parse; root overescaped frontmatter regex matched no boundary', state: active}
 - {id: GP-061, role: builder, at: before_submit, do: compare immutable payload text with canonical native Unicode before accepting owner preservation, check: {type: confirm}, source: 'infra: Visual23 preserved payloads differed; MT129 native emdash became mojibake in scope summary', state: retired}
 - {id: GP-062, role: builder, at: before_submit, do: compare copied spec whitespace with native preserved bytes before changed-file whitespace checks, check: {type: confirm}, source: 'infra: broad diff-check flagged inherited spec archive whitespace; immutable native copies must stay byte exact', state: active}
+- {id: GP-063, role: builder, at: before_submit, do: verify actual captured versus materialized membership before cardinality-sensitive host-list removal, check: {type: confirm}, source: 'coordinator:36195 host has9 materialized claims; allocation has4 captured refs; assertion stopped before writes', state: active}
+- {id: GP-064, role: builder, at: before_submit, do: require STUDIO-REFERENCE-HOST001 authoritative host_adoption_mt_refs before optional alias verdicts, check: {type: confirm}, source: 'coordinator:34211 false mismatch ignored correct host_adoption_mt_refs;4 optional aliases restored', state: active}
+- {id: GP-065, role: builder, at: before_submit, do: verify source clause and contract container types before typed HBR repair, check: {type: confirm}, source: 'Web80: clause string and absent semantic_acceptance_map assumptions failed before writes', state: active}
+- {id: GP-066, role: builder, at: before_submit, do: verify historical snapshot container type before publication metadata update, check: {type: confirm}, source: 'coordinator: historical_count_snapshots is list; dict assignment failed before metadata writes', state: active}
+- {id: GP-067, role: builder, at: before_submit, do: verify current registry rule identity keys before consumer projection, check: {type: confirm}, source: 'coordinator: registry rule uses id not projected rule_id; assertion failed before writes', state: active}
