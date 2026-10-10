@@ -2974,6 +2974,48 @@
       ],
       "full_acceptance": "PENDING; source prerequisite extension only",
       "observed_at": "2026-10-10T09:14:58.661261+00:00"
+    },
+    {
+      "verdict_id": "MT-35528-SOURCE-CHRONICLE-REGISTRY-EXTENSION-V5",
+      "mt_id": "MT-35528",
+      "verdict": "PASS_V5",
+      "scope": "standalone_source_prerequisite_extension_only",
+      "candidate_commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+      "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+      "validator_role": "integration_validator",
+      "validator_session": "foundation_validator",
+      "proof_refs": [
+        "MT-35528-INDEPENDENT-CHRONICLE-REGISTRY-EXTENSION-V5"
+      ],
+      "DIFF_ATTACK_SURFACES": [
+        "Existing registry helper explicit Chronicle owner with owner-local pin policy"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Independent pinned -Dwarnings changedprobe executable; real Chronicle/Folio/Prism selection;18native+Gitfilter identities pre/post equal"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "Removing owner match admits Chronicle moxcms rejected fixture",
+        "Removing owner directtable approval admits cross-owner policy fixture",
+        "Removing direct version/default/features guard admits corresponding Chronicle fixture"
+      ],
+      "BOUNDARY_PROBES": [
+        "Actual selected Chronicle closure Accord/Observe/Folio/Chronicle with17 unique lockpins (34ownerqualified rows), Folio17/Prism13 regressions and descriptor"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "chronicle-policy-version",
+        "chronicle-policy-defaults",
+        "chronicle-policy-features",
+        "chronicle-policy-cross-owner-direct",
+        "chronicle-policy-cross-owner-policy"
+      ],
+      "INDEPENDENT_FINDINGS": [],
+      "RESIDUAL_UNCERTAINTY": [
+        "Chronicle dependency-only source target; no Chronicle patch/history feature proof",
+        "Unchanged18 prior rejection cases retained on exact historical candidate with actual helperdiff mapping; no broad runtime repetition",
+        "Host/fullfoundation acceptance remainsPENDING"
+      ],
+      "full_acceptance": "PENDING; source prerequisite only",
+      "observed_at": "2026-10-10T09:36:05.968252+00:00"
     }
   ],
   "blockers": [],
@@ -3039,9 +3081,9 @@
   },
   "lifecycle": {
     "phase": "validation",
-    "status": "PASS_V4",
+    "status": "PASS_V5",
     "active": true,
-    "validator_verdict": "PASS_V4",
+    "validator_verdict": "PASS_V5",
     "contract_preparation_only": false,
     "blocked_on": null,
     "claimed_by": "01a1245a-34fc-78a3-b960-44b5f0e1754e",
@@ -4858,6 +4900,20 @@
           "current_affected_selection": "Folio accepted Accord+Folio with same17registry identities; source field behavior unchanged; no duplicate runtime"
         },
         "observed_at": "2026-10-10T09:14:58.661261+00:00"
+      },
+      {
+        "proof_id": "MT-35528-INDEPENDENT-CHRONICLE-REGISTRY-EXTENSION-V5",
+        "executor_role": "integration_validator",
+        "executor_session": "foundation_validator",
+        "covers": [
+          "MT-35528"
+        ],
+        "candidate_commit": "3536975fed684e7bf81fb84aeee6f808554bb04a",
+        "candidate_tree": "f049e8066b36b9f3cefb247ddf7b92fa36df771a",
+        "result": "PASS",
+        "scope": "Chronicle owner allowlist/workspace selection only",
+        "artifact_ref": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35528\\studio-assets-validator\\logs\\chronicle-policy-evidence.json",
+        "observed_at": "2026-10-10T09:36:05.968252+00:00"
       }
     ],
     "source_only_diagnostic_tiers": [
