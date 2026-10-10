@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-STUDIO
 parent: null
-generation: 44
+generation: 45
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -66,3 +66,4 @@ steps:
 - {id: GP-048, role: builder, at: before_dispatch, do: verify Pigment retained wrappers deallocate before charge retirement and transferred lease cannot reduce, check: {type: confirm}, source: 'independent API: live cloned planes and Lease Box Arc wrappers reached reserved0; transferred reduce succeeded', state: active}
 - {id: GP-049, role: builder, at: before_dispatch, do: verify returned pending token owns retained reservation independently of pending resolution, check: {type: confirm}, source: 'independent API: pending rejection reserved0 while returned token String17 bytes remained live', state: active}
 - {id: GP-050, role: builder, at: before_dispatch, do: verify reused Pigment caller charges current operation provider peak only, check: {type: confirm}, source: 'source review: ledger lifetime provider_peak polluted later operation byte limit', state: active}
+- {id: GP-051, role: builder, at: before_dispatch, do: verify metered zero-byte reservations cannot outlive a freed generation slot, check: {type: confirm}, source: 'source review: metered zero-byte token leaves live0; operation closes slot; later token drops against reused generation', state: active}

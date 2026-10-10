@@ -2252,7 +2252,7 @@
   ],
   "acceptance_criteria_count": 5,
   "created_at_utc": "2026-10-09T21:14:47.14107+02:00",
-  "updated_at_utc": "2026-10-10T11:49:24.423245+00:00",
+  "updated_at_utc": "2026-10-10T11:59:36.307516+00:00",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
@@ -2550,7 +2550,7 @@
       "MT-35531-SOURCE-FOUNDATION-V1",
       "MT-35533-SOURCE-PRISM-TRANSFER-EXTENSION-V2"
     ],
-    "next_actor": "foundation_validator independent affected source/runtime acceptance; builder source frozen",
+    "next_actor": "foundation_validator independent exact repaired Pigment allocation/lifetime/current-operation proof",
     "source_feature_policy": "CPU no-default-features; Accord/Folio/Prism/Observe; exact serde1.0.229 std+derive and serde_json1.0.151 std defaultfalse supporting consumer, sameexistingregistrylibraries/no new pins/GPU/codec/host",
     "per_test_timeout": "Four existing masked_patch exact filters; checked-in20s percase before handoff; no outer timeout",
     "batch_owner": "MT-35534",
@@ -2626,7 +2626,30 @@
         "status": "COMPILED_LINT_REPAIRED_INDEPENDENT_ACCOUNTING_PENDING",
         "gameplan": "GP-047"
       }
-    ]
+    ],
+    "allocation_repair": {
+      "status": "COMPILED_LINT_PASS_PENDING_INDEPENDENT_RUNTIME",
+      "candidate_commit": "7532834ede6b382117428911100d333b2cfe513f",
+      "candidate_tree": "0d97b664555c24fb832afa8c9309f97edba7ea31",
+      "proof_id": "MT-35534-BUILDER-ALLOCATION-REPAIR-STATIC-V2",
+      "evidence_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\MT-35534\\studio-assets-kernel-builder\\logs\\allocation-repair-v2-builder-static-evidence.json",
+      "evidence_sha256": "cdd07a779c94cad3e38085373263ddc4ddc2604c6b90e8d83a51c2dc4018fcd5",
+      "finding_refs": [
+        "MT-35534-ALLOCATION-A-BOX-PATCH",
+        "MT-35534-ALLOCATION-B-PENDING-TOKEN",
+        "MT-35534-ALLOCATION-C-TRANSFERRED-REDUCE",
+        "MT-35534-ALLOCATION-D-LEASE-WRAPPERS",
+        "MT-35534-ALLOCATION-E-OWNER-PEAK"
+      ],
+      "gameplan_refs": [
+        "GP-048",
+        "GP-049",
+        "GP-050",
+        "GP-051"
+      ],
+      "independent_verdict": "PENDING",
+      "changes": "Opaque AcceptedPatch outer guard; inline pending token; private transferred lease mutations; Arc and boxed port deallocate before inline retirement; per-operation generation meter with zero reservation refusal"
+    }
   },
   "validation": {
     "proof_records": [
