@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:29:27Z",
+ "updated_at": "2026-10-11T13:44:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2106,8 +2106,8 @@
    "crate": "hsk-studio-web",
    "origin": "rem-web-r6 suggestion; root class = parser/browser disagreement",
    "scope": "test-only differential check: html5ever (dev-dependency, MIT/Apache) parses generated/adversarial inputs; compare element namespaces, raw-text/RCDATA boundaries and decoded attribute values with hsk-studio-web's model; disagreements fail; needs steward lock sync",
-   "phase": "built; waiting on SMB-WEB-PARITY",
-   "status": null,
+   "phase": "validation (difftest green at 4d80e50 with SMB-WEB-PARITY)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-web-difftest",
    "commits": [
     "eefe44d",
@@ -2118,14 +2118,19 @@
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-web-difftest.json",
-   "blockers": [
-    {
-     "kind": "product disagreements D1-D9 (5 red tests)",
-     "routed_to": "SMB-WEB-PARITY",
-     "recorded_at": "2026-10-11T12:47:22Z"
-    }
-   ],
-   "note": "html5ever 0.40.1 dev-dep (own TreeSink), 20 tests, ~13,100 generated + 5350 char-ref comparisons, soaks 220k clean except known classes; 0 char-ref disagreements; no asset-URL hiding found; dep request appended 12:10:21Z (steward pin pending, --locked exit 75 until then); steward pin sync 528d01c (html5ever 0.40.1 + 12 packages locked; --locked exit 75 gone)"
+   "note": "html5ever 0.40.1 dev-dep (own TreeSink), 20 tests, ~13,100 generated + 5350 char-ref comparisons, soaks 220k clean except known classes; 0 char-ref disagreements; no asset-URL hiding found; dep request appended 12:10:21Z (steward pin pending, --locked exit 75 until then); steward pin sync 528d01c (html5ever 0.40.1 + 12 packages locked; --locked exit 75 gone)",
+   "candidate": "f4b47cd",
+   "claim_includes_later": {
+    "recorded_at": "2026-10-11T13:44:24Z",
+    "commits": [
+     "1c67557",
+     "6d1c591",
+     "e849d4c",
+     "4d80e50"
+    ],
+    "owning_lane": "SMB-WEB-PARITY",
+    "note": "comparator normalisations N1/N2 and generator guards changed in the parity lane; difftest judged together with SMB-WEB-PARITY"
+   }
   },
   {
    "lane_id": "SMB-RENDER-CPU-FX2",
@@ -2530,12 +2535,19 @@
    "crate": "hsk-studio-web",
    "origin": "SMB-WEB-DIFFTEST disagreements D1-D9 (lead decision 2026-10-11T12:47:22Z)",
    "scope": "fix D1-D8 per WHATWG; D9 implied-element normalisation documented, re-parenting/reordering inputs refused with typed errors; make SMB-WEB-DIFFTEST's 5 red tests green; crate rustfmt-clean",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-web-parity",
    "lane_file": "builders/lanes/hsk-studio-web-parity.json",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "1c67557",
+    "6d1c591",
+    "e849d4c",
+    "4d80e50"
+   ],
+   "verdicts": [],
+   "candidate": "4d80e50",
+   "note": "D1-D8 fixed per WHATWG (image->void img; NUL->U+FFFD in names/values/RCDATA/foreign text, dropped from HTML text; CR/CRLF->LF before references; first LF after pre/listing/textarea dropped incl. CR/CRLF/reference); local_name()/attr_local_name() decoded, spans keep source bytes (pinned); D9 rule table in src/dom/construction.rs with spec steps, typed refusals (implied_end_tag, adoption_agency, table_content, ignored_token, document_structure); N1 implied elements + N2 boundary whitespace normalised in comparator only; 35 disagreeing inputs -> 5 normalised, 30 refused; 32 accepted inputs match html5ever; 56/56 web tests; 9 parity tests red on scratch 471b679; corpora 0 disagreements (127,550 + 100,000 fuzz + 25,000 noise); V4-06 97 (56 fixed, 41 n/a); commits 1c67557 (rustfmt only), 6d1c591, e849d4c, 4d80e50"
   },
   {
    "lane_id": "SMB-FMT-SWEEP",
@@ -2647,7 +2659,8 @@
   "SMB-INTEROP-PSD-BUDGET",
   "SMB-REEL-ENG-1",
   "SMB-PARITY-FOLLOWUP",
-  "SMB-REEL-NATIVE-FAULTS"
+  "SMB-REEL-NATIVE-FAULTS",
+  "SMB-WEB-PARITY"
  ],
  "round_R6": {
   "candidate": "bd8533f",

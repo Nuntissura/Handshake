@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:29:55Z",
+ "updated_at": "2026-10-11T13:44:52Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1707,7 +1707,7 @@
     "builders/lanes/hsk-studio-web-parity.json"
    ],
    "launched": "2026-10-11T12:47:57Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:44:24Z (SMB-WEB-PARITY READY at 4d80e50)"
   },
   {
    "name": "prereview-r9-press",
@@ -1741,6 +1741,17 @@
     "validation/R9-prereview-reel.json"
    ],
    "launched": "2026-10-11T13:29:55Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r9-web",
+   "agent_id": "af4459a9236a7f1c3",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB (reopened by DIFFTEST + PARITY)",
+   "owns": [
+    "validation/R9-prereview-web.json"
+   ],
+   "launched": "2026-10-11T13:44:52Z",
    "status": "running"
   }
  ]
