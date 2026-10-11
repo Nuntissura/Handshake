@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:04:43Z",
+ "updated_at": "2026-10-11T22:15:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3322,5 +3322,21 @@
   "snapshot": "snapshots/SNAPSHOT-20261011T214451Z.json",
   "push_helper": "tools/lead-kernel-push.sh",
   "updated_at": "2026-10-11T21:45:45Z"
+ },
+ "round_R13": {
+  "candidate": "4b76604",
+  "candidate_full": "4b766047fb5c195f60df6f3fa57869042bf91536",
+  "opened_at": "2026-10-11T22:15:22Z",
+  "sync": "steward-5: already in sync since 9ffe946 (probe 46/46, licence OK)",
+  "canary": "C19 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "ready": [
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (claim through 7410f29; R14 pre-review SAFE)"
+  ],
+  "not_judged_in_flight": "reel and reel-native lanes: WIP commits of SMB-REEL-RECEIPTS / SMB-REEL-NATIVE-FAULTS-2 (not READY) are in the candidate -> those crates' lanes are not judged this round (V4-14; 2-FAIL AV1 lanes deferred, no charge)",
+  "excluded": [
+   "SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "team": "1 validator (opus); review input = validation/R14-prereview-press.json"
  }
 }
