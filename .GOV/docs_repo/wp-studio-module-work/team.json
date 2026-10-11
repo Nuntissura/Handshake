@@ -493,7 +493,7 @@
    "model": "sonnet",
    "role": "interop-layout slice 1",
    "launched": "2026-10-11T02:46:55Z",
-   "status": "running"
+   "status": "done (slices 1-2; 5e058ae)"
   },
   {
    "name": "builder-reel-av1",
@@ -589,6 +589,14 @@
    "model": "sonnet",
    "role": "interop-vector -> folio paint",
    "launched": "2026-10-11T03:24:59Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-native-av1",
+   "agent_id": "ac954267fe8867d4d",
+   "model": "sonnet",
+   "role": "reel-native AV1 worker isolation",
+   "launched": "2026-10-11T03:30:47Z",
    "status": "running"
   }
  ]
