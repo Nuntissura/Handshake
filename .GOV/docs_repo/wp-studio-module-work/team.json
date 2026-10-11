@@ -2194,7 +2194,7 @@
     "verdict fields"
    ],
    "launched": "2026-10-11T22:15:41Z",
-   "status": "running"
+   "status": "done 2026-10-11T22:29:14Z (R13 COMPLETE: press PASS_V3, differences PASS_V1)"
   },
   {
    "name": "prereview-r15-reel-narrow",

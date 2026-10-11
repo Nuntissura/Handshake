@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:19:49Z",
+ "updated_at": "2026-10-11T22:29:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -708,7 +708,7 @@
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
    "phase": "validation (pre-review SAFE; round R13 next)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V3",
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -753,7 +753,8 @@
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
-    "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)"
+    "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)",
+    "STUDIO-R13 PASS_V3 @4b76604"
    ],
    "candidate": "7410f29",
    "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
@@ -2556,7 +2557,7 @@
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
    "phase": "validation (pre-review SAFE; round R13 next)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V1",
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2586,7 +2587,9 @@
     "1dd49ca",
     "7410f29"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R13 PASS_V1 @4b76604"
+   ],
    "candidate": "7410f29",
    "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
    "r11_prereview": {
@@ -3347,6 +3350,23 @@
    "SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20)",
    "SMB-INTEROP-MEDIA (D9)"
   ],
-  "team": "1 validator (opus); review input = validation/R14-prereview-press.json"
+  "team": "1 validator (opus); review input = validation/R14-prereview-press.json",
+  "completed_at": "2026-10-11T22:29:14Z",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R13.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R13",
+  "union_exit": 0,
+  "not_proven": [],
+  "verdicts": {
+   "PASS": 2,
+   "FAIL": 0
+  },
+  "fails": [],
+  "milestones": [
+   "SMB-PRESS PASS_V3 (2-FAIL lane closed under Operator D27 flatten + narrow)",
+   "SMB-PRESS-DIFFERENCES PASS_V1"
+  ],
+  "not_judged": "reel/reel-native lanes (in-flight WIP at candidate; AV1 two-FAIL lanes deferred, no charge); SMB-REEL-RECEIPTS and SMB-REEL-NATIVE-FAULTS-2 became READY after the round opened",
+  "notes": "PLR-076 DESCRIPTOR line 'dropped from the file unless a kept page draws them' needs the exception documented or fixed"
  }
 }

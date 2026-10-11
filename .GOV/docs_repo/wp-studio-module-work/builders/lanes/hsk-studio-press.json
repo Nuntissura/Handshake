@@ -450,6 +450,40 @@
     "idempotency_key": "STUDIO-R6:SMB-PRESS:bd8533f9b29c:FAIL_V2",
     "recorded_at": "2026-10-11T06:47:09Z",
     "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R13",
+    "lane": "SMB-PRESS",
+    "candidate": "4b766047fb5c195f60df6f3fa57869042bf91536",
+    "tree": "30e64213ec8e91327473dce3565d575fa194e803",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R14-prereview-press.json (7410f29, SAFE_TO_JUDGE; R14-P1 PLAUSIBLE -> PLR-076)",
+    "round_ref": "validation/round-R13.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R13",
+    "idempotency_key": "STUDIO-R13:SMB-PRESS:4b766047fb5c:PASS_V3",
+    "recorded_at": "2026-10-11T22:28:14Z",
+    "by": "wp_validator STUDIO-R13"
+   },
+   {
+    "round": "STUDIO-R13",
+    "lane": "SMB-PRESS-DIFFERENCES",
+    "candidate": "4b766047fb5c195f60df6f3fa57869042bf91536",
+    "tree": "30e64213ec8e91327473dce3565d575fa194e803",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R14-prereview-press.json (7410f29, SAFE_TO_JUDGE; R14-D1 = R14-P1 PLAUSIBLE)",
+    "round_ref": "validation/round-R13.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R13",
+    "idempotency_key": "STUDIO-R13:SMB-PRESS-DIFFERENCES:4b766047fb5c:PASS_V1",
+    "recorded_at": "2026-10-11T22:28:14Z",
+    "by": "wp_validator STUDIO-R13"
    }
   ],
   "unit_test_names": [

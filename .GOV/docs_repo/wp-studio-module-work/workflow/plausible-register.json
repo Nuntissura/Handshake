@@ -1321,7 +1321,7 @@
    "status": "OPEN",
    "verified_at": "7410f29",
    "disposition": "FIX_LANE",
-   "disposition_note": "next press lane: scope 'certain' to draw-reachability or report NotProven::PaintedSourceKept; document meanwhile"
+   "disposition_note": "next press lane: scope 'certain' to draw-reachability or report NotProven::PaintedSourceKept; document meanwhile | R13 validator: DESCRIPTOR line 'dropped from the file unless a kept page draws them' must name this exception"
   },
   {
    "id": "PLR-077",
