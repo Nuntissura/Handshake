@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "SMB-INTEROP-PSD-WIDE complete (CMYK/Lab/gray display conversion via Prism wide path) + R3 CONFIRMED fixes (malformed export tiles, stale merged composite)",
+  "phase": "R5 remediation complete (gray BPC reaches Prism, RGB on the wide path, carried PLAUSIBLE items, V4 rules on touched modules); next: SMB-INTEROP-PSD-ADJ-1 (adjustment/blend-range/lfx2 records)",
   "commits": [
     {
       "sha": "ee30d62",
@@ -35,6 +35,18 @@
     {
       "sha": "213b30a",
       "subject": "CMYK/Lab/gray display conversion via Prism wide path (projection, clamp counts, intent/BPC assumptions recorded); R3 fixes: typed error for malformed export tiles, stale merged composite cleared and reported; convert_rgb length check (pushed with d575678 by another lane's push)"
+    },
+    {
+      "sha": "0b9aeeb",
+      "subject": "R5 remediation: gray black point compensation reaches Prism (SMB-INTEROP-PSD-WIDE CONFIRMED); RGB with an embedded profile moves to the wide path so intent and BPC apply; apply_edits all-or-nothing, untiled export cells keep original samples, non-finite/alpha-range losses, luni/rename name losses, literal 28-row blend table test"
+    },
+    {
+      "sha": "0d6d76e",
+      "subject": "V4 rules on the touched modules: deny(arithmetic_side_effects) with checked helpers, doc claims cite tests, dims_u32_max/aggregate_over_budget test"
+    },
+    {
+      "sha": "6e7198a",
+      "subject": "luni regression test prints the loss report on failure"
     }
   ],
   "capabilities_done": [
@@ -70,13 +82,13 @@
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
     "exit": 0,
-    "sha": "213b30a",
-    "passed": 18,
+    "sha": "6e7198a",
+    "passed": 25,
     "failed": 0,
     "files": [
       "tests/foundation_contract.rs (5)",
-      "tests/review_r2_regressions.rs (4; descriptor assertion updated: ENG-3 dependency no longer pending)",
-      "tests/precision_color_export.rs (9: 3 existing, 4 new display-conversion tests, 2 new R3 regressions)"
+      "tests/review_r2_regressions.rs (6: +unreadable_unicode_layer_name_is_a_typed_loss, +psd_blend_key_rows_match_the_specification_literally)",
+      "tests/precision_color_export.rs (14: +gray_black_point_compensation_is_applied_when_the_profile_black_is_not_zero, +rgb_intent_and_black_point_compensation_reach_prism_or_are_recorded, +apply_edits_is_all_or_nothing_and_export_keeps_untiled_cells, +non_finite_and_out_of_range_samples_are_typed_losses_on_import, +dims_u32_max_and_aggregate_over_budget_are_typed_errors; embedded_profiles_go_through_prism_and_refusals_are_typed_losses updated for the wide path refusal code)"
     ],
     "clippy": "cargo clippy -p hsk-studio-interop-psd --tests --examples: no warnings in this crate (two too_many_arguments warnings are in hsk-studio-observe)",
     "synthetic_fixtures": "tests/common/icc.rs: closed-form CMYK mft2 printer (linear in inks), gray kTRC (gamma 2), CIELAB D50 -> linear sRGB reference; no C: or installed-profile dependency"
@@ -85,10 +97,47 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "Photoshop-authored fixtures to settle UNVERIFIED items (CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32); remaining R3 PLAUSIBLE: non-finite 32-bit samples and alpha clamp loss, zeroed colour under alpha 0 in untouched cells on pixel export, AdmittedPrism routing decision; RGB v2/LUT profiles via the wide path (legacy refuses them today); mask pixel edit export; clamp off-canvas tile iteration; merged CMYK/Lab oracle (merged_oracle_rgba8 is RGB/gray only)",
-  "updated_at": "2026-10-11T03:10:02Z",
+  "updated_at": "2026-10-11T05:57:07Z",
   "notes": {
     "mt": "MT-35548",
-    "prism_defect_for_prism_lane": "WideEngine Gray kTRC source with black_point_compensation=true: BpcReport.source_black_lstar is garbage (gamma 2.0 profile: -3613.19, scale 0.2; gamma 1.8: -1.5e11), output for gray 0.25 is 0.85 instead of 0.25; with BPC off results are correct. Cause: companion PCS value for gray input exactly 0.0 is not 0 (clip report on the same call shows overshoot 4.0 for 1 pixel, channels [1,1,1]). Repro: v2.1 mntr GRAY/XYZ profile, wtpt D50, kTRC curv count=1 gamma u8Fixed8 0x0200 (tests/common/icc.rs gray_profile(2.0)), destination sRGB-linear-v4, Relative colorimetric, BPC on, pixels [0,0.5,1]. Importer works around it by not sending BPC for gray (gray black is Y=0 so BPC is the identity against a matrix destination).",
+    "remediation_R5": {
+      "finding": "SMB-INTEROP-PSD-WIDE CONFIRMED (validation/R5-review-a.json, 1d404f8/213b30a): proposal.rs gray route dropped black point compensation for every gray profile on the false premise TRC(0)=0",
+      "root_fix": "BPC goes to Prism unchanged for every source kind (WideRoute.bpc = bpc); the black_point_compensation_skipped_gray loss code and Routing.bpc_requested are removed. Prism's ISO 18619 gray black detection is fixed upstream (PRISM-GRAY-BPC-001 closed by SMB-PRISM-ENG-6, fdd57ee/3926709, in HEAD and origin) and is the exact identity when the source black is 0, so no TRC(0)=0 shortcut and no bpc_unavailable workaround are used",
+      "counterfactual": "old code (bpc && kind != Gray) outputs v0+(1-v0)g for the TRC(0)>0 profile and records black_point_compensation_skipped_gray; the new test asserts output g (3e-3) and the absence of that code. The same test checks BPC off = v0+(1-v0)g, so the compensation is measurable (v0=6554/65535). TRC(0)=0 (gamma 2) profile: BPC on == BPC off byte for byte",
+      "v4_06_class": "colour-management step silently skipped (a configured or assumed intent / black point compensation / embedded profile is dropped, hard-coded or bypassed without a typed loss entry)",
+      "v4_06_regex": "black_point_compensation: (false|true)|intent: Intent::|&& kind !=|icc_profile_not_applied|_skipped|!wide_attempted (over crates/hsk-studio-interop-psd/src/**/*.rs)",
+      "v4_06_sites_found_9_listed_9": [
+        {"site": "convert.rs:315 intent: Intent::RelativeColorimetric", "disposition": "fixed", "how": "legacy convert_rgb path; RGB and gray now use the wide path whenever the converter has one (PrismConverter does); a legacy-only converter records rendering_intent_not_applied_legacy_rgb"},
+        {"site": "convert.rs:317 black_point_compensation: false", "disposition": "fixed", "how": "same; records black_point_compensation_not_applied_legacy_rgb"},
+        {"site": "proposal.rs:1068 icc_profile_not_applied_for_mode (Lab)", "disposition": "not-applicable", "why": "Lab is PCS-native; the unused profile is a typed PreservedOpaque entry"},
+        {"site": "proposal.rs:1108 if !wide_attempted legacy inspect", "disposition": "not-applicable", "why": "bypass only when the wide path took or typed-refused the profile; no step skipped"},
+        {"site": "proposal.rs:1135 icc_profile_not_applied_for_mode (non RGB/8-16 bit)", "disposition": "not-applicable", "why": "typed PreservedOpaque entry"},
+        {"site": "proposal.rs:1209 retain(code != icc_profile_not_applied)", "disposition": "not-applicable", "why": "removes the base report's stale 'not applied' claim after the converter applied the profile (asserted in the CMYK/gray/RGB tests)"},
+        {"site": "proposal.rs:1224 retain(code != icc_profile_not_applied)", "disposition": "not-applicable", "why": "same, wide path"},
+        {"site": "proposal.rs:1287 icc_profile_not_applied note", "disposition": "not-applicable", "why": "typed entry when no converter exists"},
+        {"site": "loss.rs:192 icc_profile_not_applied", "disposition": "not-applicable", "why": "base report entry, typed"}
+      ],
+      "plausible_items_fixed": [
+        "export.rs apply_edits partial mutation on Err: now all-or-nothing (works on a clone, swaps on success)",
+        "export.rs tile-less cells zeroed colour under alpha 0: cells that never had a tile keep the original samples; only a cell the caller removed is erased",
+        "export.rs non-finite tile value: PsdError::Encode(non_finite_sample); alpha outside 0..=1: loss alpha_range_clamped",
+        "proposal.rs import: non-finite float samples zeroed with loss non_finite_samples_zeroed; alpha clamp reported (alpha_range_clamped)",
+        "loss.rs luni over max_name_units: layer_name_unicode_unreadable; export rename past max_name_units: layer_name_truncated",
+        "R3 literal 28-row blend key table test (psd_blend_key_rows_match_the_specification_literally)"
+      ],
+      "plausible_items_not_fixed": [
+        "16-bit Lab test echoes the implementation: needs a Photoshop-authored fixture (D5), assumption stays disclosed (lab_channels_assumed_icc_encoding)",
+        "PrismConverter on legacy Prism/WideEngine instead of AdmittedPrism/AdmittedWideEngine: lead decision pending (prism e7cf81f now offers AdmittedWideEngine)",
+        "ClipReport::merge duplicate with develop: owned by prism (read-only for this lane)",
+        "tiles_for iterating off-canvas cells: bounded by the layer rect area (max_pixels) and cancellation, not an amplification; left as is"
+      ],
+      "v4_rules": "V4-01 deny(arithmetic_side_effects) on proposal, export, convert, loss, samples (60 sites converted to checked/saturating helpers, typed Overflow/ChannelSize); V4-02 dims_u32_max_and_aggregate_over_budget_are_typed_errors; V4-03 tests read no machine-local path; V4-07 absolute doc claims in the touched modules cite tests or are weakened (claims in untouched modules compression/document/error/layers/blend left as they were, to avoid widening the V4-01 surface to modules this remediation does not change); V4-09 commits via -F",
+      "untouched_modules_still_without_deny": "compression 35, pixels 12, layers 14, reader 3, writer 2, header 1, document 1 arithmetic_side_effects sites measured with -W (not a failure of this remediation; candidates for the next hardening pass)",
+      "retry_guard": "test run 1 failed only because a stale/mixed artifact in the shared target dir (five tests that passed at 0b9aeeb failed at 0d6d76e with unchanged logic); `touch src/lib.rs` forced a rebuild and the same suite passed 25/25. The hook did not block the rerun, so no gameplan step was added. Cause UNVERIFIED (suspected concurrent build in the shared target); route (b)-like, recorded here.",
+      "adjacent_observation_resolved": "RGB legacy path hard-coded relative colorimetric / no BPC (same class); fixed above",
+      "process": "shared worktree: no --amend/rebase; pathspec commits with -F; HEAD == origin before every commit"
+    },
+    "prism_defect_for_prism_lane": "FIXED upstream (PRISM-GRAY-BPC-001, SMB-PRISM-ENG-6) and the importer workaround is removed (remediation_R5). Original report: WideEngine Gray kTRC source with black_point_compensation=true: BpcReport.source_black_lstar is garbage (gamma 2.0 profile: -3613.19, scale 0.2; gamma 1.8: -1.5e11), output for gray 0.25 is 0.85 instead of 0.25; with BPC off results are correct. Cause: companion PCS value for gray input exactly 0.0 is not 0 (clip report on the same call shows overshoot 4.0 for 1 pixel, channels [1,1,1]). Repro: v2.1 mntr GRAY/XYZ profile, wtpt D50, kTRC curv count=1 gamma u8Fixed8 0x0200 (tests/common/icc.rs gray_profile(2.0)), destination sRGB-linear-v4, Relative colorimetric, BPC on, pixels [0,0.5,1]. Importer works around it by not sending BPC for gray (gray black is Y=0 so BPC is the identity against a matrix destination).",
     "intent_source": "No PSD image resource carries a display rendering intent (Adobe file-format resource table: 0x043A Print Information is 'the color management options', a print descriptor, not parsed here). Intent therefore comes from ProposalConfig, default perceptual with a recorded assumption.",
     "gray_without_profile": "Unchanged: sRGB assumed and recorded (profile_assumed_srgb), not a typed unmapped loss, to keep existing behaviour; only CMYK is refused without a profile.",
     "existing_tests_changed": "precision_color_export::embedded_profiles_go_through_prism_and_refusals_are_typed_losses CMYK/Lab sections (they asserted that Prism had no n-channel path; now typed reasons cmyk_profile_refused / cmyk_profile_missing / Lab maps; no-converter variants keep the old unavailable codes); sixteen_and_thirty_two_bit... and export_of_an_edited_folio_document... now expect merged_composite_stale (R3); review_r2_regressions descriptor test updated.",

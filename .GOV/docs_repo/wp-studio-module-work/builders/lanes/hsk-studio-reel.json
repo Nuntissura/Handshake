@@ -63,6 +63,26 @@
     {
       "sha": "bfef27f",
       "subject": "reel: compressed-video decode routing (SourceTrust default untrusted -> registered ExternalVideoDecoder else CodecUnavailable; in-process rav1d only for trusted sources), ReelError::DecoderFault (crashed/deadline/protocol), pure av1_config always compiled, one packet pump for both hosts, tests/video_route.rs (3)"
+    },
+    {
+      "sha": "233f406",
+      "subject": "R5 remediation: checked plane-size arithmetic (lying decoder -> DecoderFault::Protocol), Matroska PixelWidth/PixelHeight bounded at the source, AV1 pixel limit from av1C layout and bit depth; one regression per finding"
+    },
+    {
+      "sha": "569023e",
+      "subject": "V4-01: deny arithmetic_side_effects on the remediated modules (video, av1_config, av1 incl. ffi)"
+    },
+    {
+      "sha": "b105e4c",
+      "subject": "Matroska ContentEncodings (zlib, header stripping, stacked, private scope; encryption refused) + A_PCM/INT/LIT|BIG + A_PCM/FLOAT/IEEE through the shared PCM path; deny(arithmetic_side_effects) on matroska/pcm/model/video and the new mkv_content/mkv_pcm modules"
+    },
+    {
+      "sha": "c952022",
+      "subject": "tests: ffprobe pos is the Block data start; decode_segment bytes_read includes the index read"
+    },
+    {
+      "sha": "0993b25",
+      "subject": "tests: Matroska PCM / ContentEncodings proof as 3 focused tests; rustfmt"
     }
   ],
   "capabilities_done": [
@@ -75,20 +95,23 @@
     "SMB-REEL-ENG-3 av1 (feature av1, default OFF): ISOBMFF av01 + av1C and Matroska V_AV1 + CodecPrivate -> OutputMode::Decoded -> ChunkKind::VideoFrame chunks (planar Y,U,V tight, LE u16 above 8 bit), SegmentReceipt.video (VideoFormat: dims, bit depth, chroma, ColorInfo with origin SequenceHeader|Container|Untagged) and decoder_id rav1d + decoder_version from the linked crate; av1::Av1Decoder/DecodedFrame/parse_av1c/descriptor; bit-exact vs libdav1d oracle on both containers; random access via sync-sample pre-roll; typed refusals (av1C version/profile Unsupported, bitstream Corrupt, frame limit LimitExceeded)",
     "R2 fixes: wav truncation underflow, y4m non-ASCII token, moov largesize overflow, unaligned edit start (trim_start), PCM chunk runs charge the budget, sound version typed, index bound to source_len, original grant verified before proxy probe",
     "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed",
-    "SMB-REEL-AV1-ROUTE: (1) routing port in every build, no cargo feature: SourceTrust (default Untrusted), VideoRoute, ExternalVideoDecoder/VideoDecodeSession/PictureSink/VideoStreamSpec/DecodedPicture/DecoderIdentity; Registry::with_video_decoder/set_video_decoder + Registry::decode_segment_routed(trust) (decode_segment = untrusted), MediaProvider::decode_segment_routed (defaulted method, existing implementers compile unchanged); policy: untrusted -> external decoder if it supports the codec else CodecUnavailable{codec}; trusted -> in-process rav1d when feature av1 is compiled in, else external, else CodecUnavailable; (2) ReelError::DecoderFault{fault: DecoderFault::{Crashed,Deadline,Protocol}} code MEDIA_DECODER_FAULT, distinct from Corrupt/Unsupported, outcome_for -> Unavailable; the route maps VideoDecodeError::Fault -> DecoderFault and passes Media errors through, and refuses a picture whose planes disagree with its declared format as DecoderFault::Protocol; (3) feature split: AV1 record parser/descriptor (Av1Config, parse_av1c, av1_descriptor) moved to the always-compiled av1_config module and re-exported at the crate root (av1:: paths unchanged); the in-process decoder (Av1Decoder, DecodedFrame, DECODER_ID, decoder_version) stays behind av1 and is now one routed session behind the same packet pump as external decoders (src/video.rs, replacing av1::Pump); default build unchanged otherwise, forbid(unsafe_code) intact"
+    "SMB-REEL-AV1-ROUTE: (1) routing port in every build, no cargo feature: SourceTrust (default Untrusted), VideoRoute, ExternalVideoDecoder/VideoDecodeSession/PictureSink/VideoStreamSpec/DecodedPicture/DecoderIdentity; Registry::with_video_decoder/set_video_decoder + Registry::decode_segment_routed(trust) (decode_segment = untrusted), MediaProvider::decode_segment_routed (defaulted method, existing implementers compile unchanged); policy: untrusted -> external decoder if it supports the codec else CodecUnavailable{codec}; trusted -> in-process rav1d when feature av1 is compiled in, else external, else CodecUnavailable; (2) ReelError::DecoderFault{fault: DecoderFault::{Crashed,Deadline,Protocol}} code MEDIA_DECODER_FAULT, distinct from Corrupt/Unsupported, outcome_for -> Unavailable; the route maps VideoDecodeError::Fault -> DecoderFault and passes Media errors through, and refuses a picture whose planes disagree with its declared format as DecoderFault::Protocol; (3) feature split: AV1 record parser/descriptor (Av1Config, parse_av1c, av1_descriptor) moved to the always-compiled av1_config module and re-exported at the crate root (av1:: paths unchanged); the in-process decoder (Av1Decoder, DecodedFrame, DECODER_ID, decoder_version) stays behind av1 and is now one routed session behind the same packet pump as external decoders (src/video.rs, replacing av1::Pump); default build unchanged otherwise, forbid(unsafe_code) intact",
+    "R5 remediation (SMB-REEL-AV1-ROUTE, SMB-REEL-ENG-3, cross-lane matroska dims): see notes.remediation_R5",
+    "slice4 Matroska ContentEncodings (RFC 9559 5.1.4.1.31): header stripping (algo 3) and zlib (algo 0) undone per frame (lacing split first), stacked encodings in ContentEncodingOrder descending order, private scope decodes CodecPrivate, AV1-in-Matroska gets decoded packets; encryption (type 1), bzlib/lzo1x, scope 0x4 and malformed/unknown encodings are a typed per-track refusal (Unsupported content-encryption | content-compression-algo | content-encoding-scope-next | content-encoding, Corrupt content-encoding-scope | content-encoding-order); output capped by max_chunk_bytes (LimitExceeded content-decoded-bytes), damaged zlib or adler is Corrupt content-zlib",
+    "slice4 Matroska A_PCM/INT/LIT, A_PCM/INT/BIG (8-bit unsigned, others signed), A_PCM/FLOAT/IEEE (little endian): compact PcmStream per track through the shared deliver_pcm_stream (bounded slices, exact requested/actual ticks, big-endian swapped to little endian); positions by running frame count, block timestamps only as a 1-unit consistency check (Unsupported pcm-timestamp-discontinuity); probe reports the PCM window"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --tests (default: 25 = 22 + 3 new) / --features av1 (28 = 25 + 3 new); also cargo check --all-targets and clippy --tests in both feature sets, clean",
+    "argv": "cargo test -p hsk-studio-reel --tests (default: 31) / --features av1 (35); clippy --tests clean in both",
     "exit": 0,
-    "sha": "bfef27f",
-    "passed": 28,
+    "sha": "0993b25",
+    "passed": 35,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "validator round on bfef27f (default and --features av1; tests/video_route.rs runs in both). REEL-NATIVE FOLLOW-UP REQUIRED (reel-native is frozen, owner must be re-opened): its tests/av1_worker.rs worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle now fails at the in_process helper (CodecUnavailable av01, verified by run at bfef27f) because decode_segment is untrusted by default; fix = registry.decode_segment_routed(..., SourceTrust::Trusted) there; usage notes in notes.lanes.SMB-REEL-AV1-ROUTE.reel_native_usage. Earlier items unchanged: steward probe approved list + registry pins for rav1d/libc; LEAD: to_method 1.1.0 CC0-1.0; Matroska ContentEncodings and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
-  "updated_at": "2026-10-11T04:03:48Z",
+  "next": "MXF OP1a index reader, then IndexCache over MkvIndex (capability 3). Validator: re-run reel on the pushed head; steward: add miniz_oxide =0.9.1 (with-alloc) to hsk-studio-reel in the registry pins and probe approved list (dep request recorded in notes.dep_requests; dep-requests.jsonl not edited by the builder).",
+  "updated_at": "2026-10-11T06:00:25Z",
   "notes": {
     "decisions": [
       {
@@ -302,6 +325,88 @@
           "behaviour for Matroska V_AV1 tracks with ContentEncodings under the new decoder-first ordering (no fixture)"
         ]
       }
+    },
+    "dep_requests": [
+      {
+        "crate": "hsk-studio-reel",
+        "dep": "miniz_oxide",
+        "version": "0.9.1",
+        "features": [
+          "with-alloc"
+        ],
+        "default_features": false,
+        "kind": "normal",
+        "reason": "zlib (RFC 1950) inflate with an output cap (decompress_to_vec_zlib_with_limit) for Matroska ContentEncodings; same pin and features as interop-fig, interop-layout, interop-psd, interop-vector and press (already in Cargo.lock; forbid(unsafe_code) without the simd feature)",
+        "pure_rust": true,
+        "dep_requests_jsonl_edited": false
+      }
+    ],
+    "remediation_R5": {
+      "source": "validation/R5-review-b.json (reviewed commit 1d404f8) + coordinator message; commits 233f406 (fixes + regressions), 569023e (V4-01 deny)",
+      "findings": {
+        "SMB-REEL-AV1-ROUTE CONFIRMED video.rs:269": {
+          "class": "unchecked arithmetic on decoder-reported picture size",
+          "fix": "planes_match_format uses checked_mul chain; overflow is a mismatch -> DecoderFault::Protocol",
+          "regression": "tests/review_r5_regressions.rs r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check (u32::MAX x u32::MAX at 10 and 8 bit, u32::MAX x 3 at 12 bit, 65536^2)",
+          "red_on_1d404f8_code": "RED verified: panicked at src/video.rs:269:35 attempt to multiply with overflow"
+        },
+        "cross-lane matroska.rs:391-392 (reel-native declared_frame_cap consumer)": {
+          "class": "container-declared dimension accepted up to u32::MAX (a value above u32::MAX silently became 0)",
+          "fix": "video_dimension(): PixelWidth/PixelHeight above 1<<20 are LimitExceeded video-dimensions at the source, never truncated",
+          "regression": "r5_matroska_declared_video_dimensions_are_bounded_at_the_source (0xFFFFFFFF^2, 2^32, u64::MAX, bound+1; real sizes up to 1<<20 per side accepted)",
+          "red_on_1d404f8_code": "RED verified: unwrap_err on Ok(MkvIndex{ width: 4294967295, height: 4294967295 })",
+          "note_for_reel_native": "reel now guarantees declared sides <= 1<<20, but reel-native declared_frame_cap/decoder_budget must still use checked arithmetic (its own finding, reel-native lane owns it)"
+        },
+        "SMB-REEL-ENG-3 CONFIRMED av1/mod.rs:148-151": {
+          "class": "worst-case (4:4:4 16 bit) pixel limit used for every stream",
+          "fix": "Av1Config::pixel_limit(max_chunk_bytes) from av1C chroma layout and bit depth (4:2:0 8-bit default chunk = 5,592,405 px); worst case only when the stream has no av1C",
+          "regression": "tests/av1_decode.rs av1_1080p_decodes_at_default_limits_and_a_smaller_limit_still_refuses_it (new fixture av1-1920x1080-2f.mp4, libdav1d frame hashes) + review_r5_regressions r5_av1_pixel_limit_follows_the_record_layout_and_bit_depth",
+          "red_on_1d404f8_code": "RED verified (feature av1): Err LimitExceeded av1-frame-resources at default limits"
+        }
+      },
+      "v4_06_class": "size/dimension arithmetic on numbers derived from a decoder or a container header, done with unchecked operators",
+      "v4_06_regex": "(width|height|\\bw\\b|\\bh\\b|\\bcw\\b|\\bch\\b|\\bpw\\b|\\bph\\b|stride|row_bytes|bytes_per_sample|pixel_limit)[^\\n;]*[*]|[*][^\\n;]*(width|height|\\bw\\b|\\bh\\b|\\bcw\\b|\\bch\\b|\\bpw\\b|\\bph\\b|stride|row_bytes|bytes_per_sample)",
+      "v4_06_sites": [
+        {
+          "site": "src/video.rs planes_match_format (was :269)",
+          "status": "fixed 233f406"
+        },
+        {
+          "site": "src/matroska.rs PixelWidth/PixelHeight (was :391-392)",
+          "status": "fixed 233f406 (bounded at the source)"
+        },
+        {
+          "site": "src/av1/mod.rs pixel_limit (was :148-151) / src/av1/ffi.rs frame_size_limit",
+          "status": "fixed 233f406 (derived from av1C); ffi receives the number only"
+        },
+        {
+          "site": "src/av1/ffi.rs row_bytes = pw * bytes_per_sample; Vec::with_capacity(row_bytes * ph)",
+          "status": "fixed 569023e (checked_mul; after the checked frame total, so unreachable overflow made explicit)"
+        },
+        {
+          "site": "src/av1/ffi.rs total = pw.checked_mul(ph)..checked_mul(bytes_per_sample)",
+          "status": "not applicable (already checked before R5)"
+        },
+        {
+          "site": "src/model.rs VideoFormat::frame_bytes u64::from(w) * u64::from(h)",
+          "status": "fixed (checked_mul; cannot overflow u64 for u32 inputs but the lint class is closed)"
+        },
+        {
+          "site": "src/av1/ffi.rs width as usize / height as usize casts",
+          "status": "not applicable (casts, no arithmetic)"
+        },
+        {
+          "site": "src/isobmff.rs visual sample entry width/height (u16 from the file)",
+          "status": "not applicable (no arithmetic on them anywhere; stored as u32)"
+        },
+        {
+          "site": "reel-native host.rs declared_frame_cap / decoder_budget",
+          "status": "outside this crate (reel-native lane)"
+        }
+      ],
+      "v4_06_count": "regex hits in crates/hsk-studio-reel/src (non-fixture) at 569023e: 5 lines (ffi.rs doc comment, ffi.rs:229 checked, ffi.rs:258 checked, ffi.rs:261 loop bound, model.rs:361); all listed above or fixed",
+      "v4_01_status": "deny(clippy::arithmetic_side_effects) is now module-wide on video.rs, av1_config.rs, av1/ (incl. ffi.rs), model.rs, matroska.rs, isobmff/pcm.rs and the new mkv_content.rs/mkv_pcm.rs. NOT yet clean (open debt, listed by clippy -W arithmetic_side_effects): isobmff.rs ~49, wav.rs ~30, y4m.rs ~14, identity.rs ~9, isobmff/fragments.rs 8, cache.rs 5, registry.rs 1; isobmff.rs got a one-line pub(crate) re-export only",
+      "gameplan_route": "RED runs failed on the unfixed code; fixes and tests were committed (HEAD changed) before each rerun (route a, product failure -> commit); no gameplan step added; one rerun was hook-blocked because the same command had failed on the same HEAD (the commit and the rerun must be separate shell calls)"
     }
   }
 }

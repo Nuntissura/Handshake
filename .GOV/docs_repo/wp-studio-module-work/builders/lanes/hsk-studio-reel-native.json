@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel-native",
   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
   "status": "READY_FOR_VALIDATION",
-  "phase": "AV1 decode in an isolated worker process (feature av1), now integrated with reel's decode route: WorkerAv1Provider is reel's ExternalVideoDecoder (Registry::with_video_decoder routes untrusted AV1 to the worker), crash/deadline/protocol faults are ReelError::DecoderFault; decode_av1 and provider id av1 kept as the typed-error path. Default build unchanged and trivial.",
+  "phase": "R5 remediation (SMB-REEL-NATIVE-AV1-WORKER: 2 overflows, test hooks, worker feature split) on f080dd6; supervision duplicate (D18) untouched",
   "commits": [
     {
       "sha": "e95163a",
@@ -11,6 +11,10 @@
     {
       "sha": "c7be531",
       "subject": "reel-native: WorkerAv1Provider is reel's ExternalVideoDecoder (Registry::with_video_decoder routes untrusted AV1 to the worker; crash/deadline/protocol -> ReelError::DecoderFault), container demux and pump now reel's route, test helper uses SourceTrust::Trusted, +1 routing test"
+    },
+    {
+      "sha": "f080dd6",
+      "subject": "reel-native: R5 remediation - checked declared-size and wire plane arithmetic, host feature without rav1d, test faults behind test-faults"
     }
   ],
   "capabilities_done": [
@@ -22,20 +26,21 @@
     "Test fault injection in the worker (WorkerTestFault via env HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT, set only by Av1WorkerOptions): hang_on_packet, exit_on_packet, exit_on_open, oversize_frame, garbage_reply",
     "Deterministic output: for mp4 and mkv, whole clip, random access with pre-roll and a two-frame span, the worker's chunk stream (pts, duration, index, flags, bytes) AND the whole SegmentReceipt (including bytes_read, decoder id/version, video format) are equal to reel's in-process decode; frame digests equal the libdav1d oracle SHA-256 in reel provenance.json",
     "Hostile replay: 6 single-byte replacements of the mp4 mdat payload that the in-process decoder aborts on (offset=value 826=0, 949=128, 966=255, 994=0, 1004=128, 1009=255) plus one port-level call each end as decoder_crashed (exit code 70) with the test process alive; a typed MEDIA_CORRUPT mutation (817=0) and a changed-but-decodable mutation (824=0) are answered by the SAME worker (no respawn); after 7 crashes a fresh worker decodes the clean clip bit-exactly; every crashed process reaped (alive == 1 idle)",
-    "Reel route integration (follow-up of SMB-REEL-AV1-ROUTE bfef27f): impl ExternalVideoDecoder for WorkerAv1Provider (identity = rav1d + linked version, supports AV1, open() checks a worker out and sends OPEN with the container-declared size/config/colour/limits, WorkerSession implements VideoDecodeSession: PACKET per unit, FINISH, pictures pushed to reel's PictureSink one at a time); registering it with Registry::with_video_decoder makes every untrusted isobmff/matroska decode of AV1 run in the worker; the host-side Plan/Demux/Pump/Forward duplicate of reel's pump was deleted (decode_av1 now demuxes through reel on an untrusted route whose only decoder is this provider, with a fault slot so the typed Av1Error keeps exit codes); fault mapping: decoder_crashed -> ReelError::DecoderFault{Crashed}, decoder_deadline -> {Deadline}, worker_protocol -> {Protocol}; output too large / respawn limited / pool busy stay LimitExceeded, version mismatch Unsupported, spawn failure CodecUnavailable"
+    "Reel route integration (follow-up of SMB-REEL-AV1-ROUTE bfef27f): impl ExternalVideoDecoder for WorkerAv1Provider (identity = rav1d + linked version, supports AV1, open() checks a worker out and sends OPEN with the container-declared size/config/colour/limits, WorkerSession implements VideoDecodeSession: PACKET per unit, FINISH, pictures pushed to reel's PictureSink one at a time); registering it with Registry::with_video_decoder makes every untrusted isobmff/matroska decode of AV1 run in the worker; the host-side Plan/Demux/Pump/Forward duplicate of reel's pump was deleted (decode_av1 now demuxes through reel on an untrusted route whose only decoder is this provider, with a fault slot so the typed Av1Error keeps exit codes); fault mapping: decoder_crashed -> ReelError::DecoderFault{Crashed}, decoder_deadline -> {Deadline}, worker_protocol -> {Protocol}; output too large / respawn limited / pool busy stay LimitExceeded, version mismatch Unsupported, spawn failure CodecUnavailable",
+    "R5: av1 = host only (hsk-studio-reel without its av1 feature, no rav1d; decoder id checked and version learned from HELLO, pinned per pool, interned bounded); av1-worker = av1 + hsk-studio-reel/av1 for the worker bin; test-faults = fault injection only; checked declared-size and wire plane arithmetic; deny(clippy::arithmetic_side_effects) on host/wire/worker"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel-native --features av1 --tests -- --nocapture (studio-env.sh cargo form; shared edit tree, not an export)",
+    "argv": "cargo test -p hsk-studio-reel-native --no-fail-fast with --features av1-worker,test-faults | av1-worker | av1 | default (studio-env.sh cargo form, shared edit tree)",
     "exit": 0,
-    "sha": "c7be531",
-    "passed": 5,
+    "sha": "f080dd6",
+    "passed": 12,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on c7be531 (feature av1; steward-owned .config/round-features.toml still needs hsk-studio-reel-native = [[\"av1\"]], request via the lead; reel av1 and reel-native av1 share the worker binary built by cargo). Then lead/steward: D14 packaging of reel-native-av1-worker; optional package split (worker bin in its own package) if a host image must not link rav1d.",
-  "updated_at": "2026-10-11T04:09:53Z",
+  "next": "Validator round on f080dd6 with round-features sets [av1-worker] and [av1-worker,test-faults] (steward request in dep-requests.jsonl; current [[av1]] runs only the wire unit tests). Open: D18 shared supervisor, D14 worker packaging, PLAUSIBLE parent-dir discovery and uncancellable HELLO wait (not in this pass).",
+  "updated_at": "2026-10-11T06:04:35Z",
   "notes": {
     "lanes": {
       "SMB-REEL-NATIVE-AV1-WORKER": {
@@ -178,6 +183,75 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       }
-    ]
+    ],
+    "remediation_R5": {
+      "at": "2026-10-11T06:04:35Z",
+      "commit": "f080dd6",
+      "review_ref": "validation/R5-review-b.json SMB-REEL-NATIVE-AV1-WORKER",
+      "method": "Regression tests written first and run RED against the e95163a/c7be531 product code (--features av1): frame_dims_u32_max_is_malformed panicked at wire.rs:514 (overflow), hostile_declared_dims_u32_max_are_refused_before_any_spawn panicked at host.rs:1060 (overflow), worker_ignores_fault_env_without_test_faults failed (worker exited on exit_on_open). First RED attempt was blocked by reel's in-progress working tree (unresolved mkv_content/mkv_pcm imports, another builder's uncommitted edits); reran after reel committed b105e4c.",
+      "tests_breakdown": {
+        "av1-worker,test-faults": "lib wire 2/2 (wire_roundtrip_and_bounds, frame_dims_u32_max_is_malformed), av1_worker 5/5 (incl. new hostile_declared_dims_u32_max_are_refused_before_any_spawn), worker_fault_env compiled empty",
+        "av1-worker": "lib wire 2/2, worker_fault_env 1/1 (av1_worker skipped: required-features)",
+        "av1": "lib wire 2/2 (host build without rav1d)",
+        "default": "0 tests (empty crate)",
+        "clippy": "--all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (observe: 2 pre-existing warnings)"
+      },
+      "findings": [
+        {
+          "finding": "overflow host.rs:1056-1070 declared_frame_cap, :1080 decoder_budget",
+          "fix": "checked_mul/checked_add; overflow -> ReelError::LimitExceeded{av1-declared-dimensions} before checkout (no spawn); reply_cap saturating_add",
+          "regression_test": "tests/av1_worker.rs hostile_declared_dims_u32_max_are_refused_before_any_spawn (u32::MAX x u32::MAX with av1C 4:2:0 8-bit, 4:4:4 10-bit, no record) -> MEDIA_LIMIT_EXCEEDED, spawned 0"
+        },
+        {
+          "finding": "overflow wire.rs:514 decode_frame",
+          "fix": "checked_mul chain -> WireError::Malformed",
+          "regression_test": "src/wire.rs frame_dims_u32_max_is_malformed (u32::MAX dims at 10/12 bit 4:2:0/4:4:4/mono and 8-bit 4:4:4 -> Malformed; aggregate-over-cap framing -> TooLarge)"
+        },
+        {
+          "finding": "test_hook_in_product host.rs:87-88,500-502; worker.rs:34-78,143-166; lib.rs:40",
+          "fix": "feature test-faults; WorkerTestFault moved to src/test_fault.rs (mod cfg(all(av1, test-faults))); Av1WorkerOptions::test_fault, Pool.fault_env, env set on spawn, worker Faults (env read), encode_oversize_frame/encode_garbage all cfg test-faults; tests/av1_worker.rs required-features av1-worker,test-faults",
+          "regression_test": "tests/worker_fault_env.rs worker_ignores_fault_env_without_test_faults (worker binary spawned hidden with HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT=exit_on_open; hand-encoded OPEN must be answered, exit 0 on stdin close)"
+        },
+        {
+          "finding": "scope_gap Cargo.toml:9,13 / lib.rs:21-24 (worker feature links in-process rav1d into the host)",
+          "fix": "split inside the package (no new crate): av1 = [dep:hsk-studio-accord, dep:hsk-studio-reel] with reel default-features=false and no features; av1-worker = [av1, hsk-studio-reel/av1]; bin required-features av1-worker; worker module cfg(av1-worker); host uses always-compiled reel av1_descriptor/parse_av1c/Av1Config and learns the decoder version from HELLO (DESCRIPTOR: version 'unknown' until the first HELLO).",
+          "proof": "cargo tree -p hsk-studio-reel-native -e features --features av1: 36 lines, 0 rav1d; --features av1-worker: 166 lines, rav1d v1.1.0 (bitdepth_8, bitdepth_16). Not blocked by feature unification; D18 not needed for this item.",
+          "probe_note": "tools/workspace-probe.rs rejects dep/feature selectors (unsupported_dependency_feature_selector) only when the probe is run with --feature hsk-studio-reel-native/av1-worker; steward-sync probes without features. Recorded in the steward request."
+        },
+        {
+          "finding": "cap_duplicate host.rs:300-414,466-481 vs motion-js (D18)",
+          "fix": "not in this pass (Operator decision D18); no third copy; DESCRIPTOR not_proven lists it"
+        }
+      ],
+      "v4_06_sites": {
+        "class_unchecked_hostile_size_arithmetic": {
+          "regex": "u64::from\\([^)]*\\) \\*|\\* u64::from| \\* (w|h|cw|ch|bytes_per_sample)\\b|\\+= |Instant::now\\(\\) \\+|\\+ wire::|\\+ (filler|payload|planes_len)|[0-9] \\+ |\\- 64\\)",
+          "sites_at_1d404f8": [
+            "host.rs:338 Instant::now()+patience: fixed (deadline_after)",
+            "host.rs:626 Instant::now()+batch_deadline: fixed (deadline_after)",
+            "host.rs:649 frames += 1: fixed (saturating_add)",
+            "host.rs:958 Instant::now()+segment_deadline: fixed (deadline_after)",
+            "host.rs:959 frame_cap + REPLY_SLACK: fixed (saturating_add)",
+            "host.rs:963 MAX_REQUEST_FRAME - 64: fixed (const MAX_PACKET_BYTES)",
+            "host.rs:1039 filled += n: fixed (saturating_add)",
+            "host.rs:1059-1062,1068 declared_frame_cap: fixed (checked, LimitExceeded)",
+            "host.rs:1080 decoder_budget: fixed (checked, LimitExceeded)",
+            "wire.rs:91 4 + payload.len(): fixed (saturating_add)",
+            "wire.rs:367 96 + planes_len (+ sum): fixed (saturating fold/add)",
+            "wire.rs:414 len + filler: fixed (saturating_add; test-faults only)",
+            "wire.rs:514 w*h*bytes_per_sample: fixed (checked, Malformed)",
+            "worker.rs:106 count += 1: fixed (saturating_add)",
+            "wire.rs:4 doc text: not-applicable"
+          ],
+          "sites_at_f080dd6": "1 match (wire.rs:4 doc comment); clippy::arithmetic_side_effects denied on host.rs, wire.rs, worker.rs with 0 findings in every feature set"
+        },
+        "class_test_hook_in_product": {
+          "regex": "test_fault|TEST_FAULT|WorkerTestFault|env::var|fault_env",
+          "sites_at_f080dd6": "host.rs 43,111,125,509,581-582,926 (each cfg(feature = \"test-faults\")); lib.rs 29,41 (cfg(all(av1, test-faults))); test_fault.rs (module gated); worker.rs 23,44,52,58,66-80 (Faults, cfg test-faults); lib.rs 45 DESCRIPTOR text only"
+        }
+      },
+      "governance": "steward request appended to builders/dep-requests.jsonl: round-features hsk-studio-reel-native = [[av1-worker],[av1-worker,test-faults]] (replaces [[av1]])",
+      "retry_guard": "No gameplan block. The first RED attempt failed to compile (reel working tree, infrastructure) and was not a rerun of a recorded failure; GREEN runs after commit f080dd6 (new HEAD). No gameplan step added."
+    }
   }
 }

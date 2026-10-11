@@ -1,0 +1,18 @@
+{
+ "crate": "hsk-studio-prism",
+ "lane": "SMB-PRISM-ENG-7",
+ "status": null,
+ "phase": "implementing thread-shared admitted wide jobs (prepare once, disjoint bands from any thread, finish merges in band order)",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": null, "exit": null, "sha": null, "passed": null, "failed": null},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "implement src/wide_job.rs, check, clippy, focused tests, release bench at 1/2/8/16 threads",
+ "updated_at": "2026-10-11T06:03:12Z",
+ "notes": {
+  "base": "origin/codex/handshake-studio-assets 272909b (prism last touched at 987af00)",
+  "target_dir": "STUDIO_OWNER=prism-eng6 (warm prism debug+release artifacts from ENG-6)"
+ }
+}

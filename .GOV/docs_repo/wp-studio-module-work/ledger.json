@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:05:04Z",
+ "updated_at": "2026-10-11T06:07:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -700,23 +700,24 @@
    "lane_id": "SMB-MOTION-JS",
    "crate": "hsk-studio-motion-js",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-motion-js",
-   "phase": "build",
-   "status": "NEEDS_NEW_APPROACH",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion (reused)",
    "brief": "builders/briefs/hsk-studio-motion-js.md",
    "commits": [
     "1f87cd2",
     "5882f3c",
     "cd2ff81",
-    "a53c52d"
+    "a53c52d",
+    "ffe5592"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8 (counter NEEDS_NEW_APPROACH)"
    ],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
-   "candidate": "a53c52d",
-   "note": "slice2 quickjs feature (off by default) per prep controls; finding: hostile async syntax can abort host -> worker-process lane mandatory",
+   "candidate": "ffe5592",
+   "note": "R5 NEEDS_NEW_APPROACH resolved by diagnosis (diagnostics/motion-js-classify.md): budget class only from host interrupt handler (fuel/cancel/deadline) + rquickjs Error::Allocation; messages never select a class; real stack/OOM now Unsupported (rquickjs 0.14.0 exposes no unforgeable signal) and typed Budget(Stack/Memory) listed NOT_PROVEN; forged-message tests red-first; 32 green across feature sets",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round",
    "review_findings_r3": "R3 FAIL_V1 remediated a53c52d (getter loop, InternalError classification)",
    "r5_review_routed": {
@@ -1202,17 +1203,18 @@
    "crate": "hsk-studio-motion-js",
    "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
    "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion-js-worker",
    "commits": [
-    "a53c52d"
+    "a53c52d",
+    "ffe5592"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "a53c52d",
-   "note": "worker process isolation (CREATE_NO_WINDOW, deadline/cancel kill, crash -> engine_crashed, bounded respawn); in-process only via unsafe_in_process; Job Object/WerFault suppression NOT_PROVEN (needs unsafe)",
+   "candidate": "ffe5592",
+   "note": "R5: fault injection, worker fault env read and unsafe_in_process only under non-default test-faults; worker_fault_env test proves default worker ignores fault env; AST validator + OS caps split to SMB-MOTION-JS-SANDBOX-2 (NOT_PROVEN in DESCRIPTOR)",
    "r5_review_routed": {
     "to": "rem-motionjs-reelnative",
     "at": "2026-10-11T05:31:12Z",
@@ -1402,17 +1404,18 @@
    "crate": "hsk-studio-reel-native",
    "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
    "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-native-av1",
    "commits": [
-    "e95163a"
+    "e95163a",
+    "f080dd6"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "e95163a",
-   "note": "AV1 worker: equivalence with in-process decode, 6 aborting mutations contained (typed decoder_crashed), bounded respawn, quiet spawn; Job Object NOT_PROVEN; feature matrix entry needed",
+   "candidate": "f080dd6",
+   "note": "R5: checked dims math (LimitExceeded before spawn), wire plane-size checked (Malformed), fault hooks under test-faults, host feature av1 no longer links rav1d (av1-worker feature builds worker bin; cargo tree evidence), decoder version via HELLO; supervisor duplicate left (D18); 12 green across feature sets",
    "r5_review_routed": {
     "to": "rem-motionjs-reelnative",
     "at": "2026-10-11T05:31:12Z",
@@ -1465,7 +1468,7 @@
    "lane_id": "SMB-MOTION-JS-SANDBOX-2",
    "crate": "hsk-studio-motion-js",
    "origin": "R5 review group B CONFIRMED: SMB-MOTION-JS-WORKER undelivered scope split (lead decision)",
-   "scope": "AST validator for admitted expression syntax + OS-level RSS/CPU cap for the worker process (Windows Job Objects; Linux rlimit/cgroup later)",
+   "scope": "AST validator for admitted expression syntax + OS-level RSS/CPU cap for the worker process (Windows Job Objects; Linux rlimit/cgroup later); plus typed Budget(Stack/Memory) classification from an unforgeable host-side signal (worker-level watchdog/OS limit), currently NOT_PROVEN (rquickjs 0.14.0 gives no such signal)",
    "phase": "stub",
    "status": null,
    "owner": null,
@@ -1548,7 +1551,10 @@
  "steward_next_sync": [
   "fc7822b motion-js quickjs+test-faults matrix (already pushed)",
   "reel miniz_oxide dep-request (requested from reel builder)",
-  "prism corpus key if requested"
+  "prism corpus key if requested",
+  "round-features: hsk-studio-motion-js = [[\"quickjs\"],[\"quickjs\",\"test-faults\"]] (fc7822b may already cover quickjs+test-faults)",
+  "round-features: hsk-studio-reel-native = [[\"av1-worker\"],[\"av1-worker\",\"test-faults\"]] (replaces [[\"av1\"]]; av1 is now host-only)",
+  "workspace-probe: accept feature selector hsk-studio-reel/av1 inside reel-native feature av1-worker (edge reel-native->reel exists, rav1d approved for reel) and probe each matrix feature set during steward-sync"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1604,7 +1610,10 @@
   "SMB-INTEROP-LRCAT",
   "SMB-WEB",
   "SMB-DEVELOP",
-  "SMB-DEVELOP-WIDE"
+  "SMB-DEVELOP-WIDE",
+  "SMB-MOTION-JS",
+  "SMB-MOTION-JS-WORKER",
+  "SMB-REEL-NATIVE-AV1-WORKER"
  ],
  "round_R6": {
   "candidate": "bd8533f",
