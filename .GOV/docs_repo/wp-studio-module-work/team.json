@@ -2020,6 +2020,18 @@
    ],
    "launched": "2026-10-11T17:07:30Z",
    "status": "done 2026-10-11T17:59:47Z (COMPLETE; notes REEL-R11-1..4)"
+  },
+  {
+   "name": "rem-press-flatten",
+   "agent_id": "ad69e034b4bc5c016",
+   "model": "opus",
+   "role": "Operator D27 flatten + narrow (renderer research first: hayro)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T18:00:23Z",
+   "status": "running"
   }
  ]
 }
