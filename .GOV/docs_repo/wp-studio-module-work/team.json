@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:47:57Z",
+ "updated_at": "2026-10-11T12:48:10Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1644,7 +1644,7 @@
     "builders/lanes/hsk-studio-score-plugin-rate.json"
    ],
    "launched": "2026-10-11T12:34:11Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:48:10Z (SMB-SCORE-PLUGIN-RATE READY at e9fb519)"
   },
   {
    "name": "rem-composite-adj",

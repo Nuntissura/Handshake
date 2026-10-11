@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T12:47:22Z",
+ "updated_at": "2026-10-11T12:48:10Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2443,12 +2443,16 @@
    "crate": "hsk-studio-score-plugin",
    "origin": "PLR-054 (R8-review-b)",
    "scope": "one sample-rate validation (score's rule) at config time for the three plugin entry points; no first-block failure",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-plugin-rate",
    "lane_file": "builders/lanes/hsk-studio-score-plugin-rate.json",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "e9fb519"
+   ],
+   "verdicts": [],
+   "candidate": "e9fb519",
+   "note": "PLR-054 fixed: one validate_sample_rate (score's public ticks_per_sample) used by ProcessConfig::validate, Reference::configure and ClapBackend::configure; 44101/0/u32::MAX refused at activation before any worker spawn; V4-06 11 hits (3 FIXED, 3 imports removed, 2 NOT_APPLICABLE); 4 new tests (28-rate table per entry point + activation refusal incl. isolated, spawned == 0); red 3/3 default, 4/4 clap+test-faults on scratch eefe44d; green 25 default / 28 test-faults / 32 clap+test-faults, clippy + fmt clean"
   },
   {
    "lane_id": "SMB-PARITY-FOLLOWUP",
@@ -2589,7 +2593,8 @@
   "SMB-BLENDIF-CLIP-ADOPT",
   "SMB-SCORE-GUARDS",
   "SMB-REFUSAL-KEYS",
-  "SMB-FX-OPS-ADOPT"
+  "SMB-FX-OPS-ADOPT",
+  "SMB-SCORE-PLUGIN-RATE"
  ],
  "round_R6": {
   "candidate": "bd8533f",

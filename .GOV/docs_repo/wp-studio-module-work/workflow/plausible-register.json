@@ -984,7 +984,7 @@
    "status": "OPEN",
    "verified_at": "f6e5a49",
    "disposition": "FIX_LANE",
-   "disposition_note": "new lane id SMB-SCORE-PLUGIN-RATE: one rate validator (score-owned rule), three call sites"
+   "disposition_note": "fix claimed e9fb519 (SMB-SCORE-PLUGIN-RATE READY); reviewer confirms in R9"
   },
   {
    "id": "PLR-055",
