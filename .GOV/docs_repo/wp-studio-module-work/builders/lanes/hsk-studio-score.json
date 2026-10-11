@@ -2,7 +2,7 @@
   "crate": "hsk-studio-score",
   "lane": "hsk-studio-score",
   "status": "READY_FOR_VALIDATION",
-  "phase": "streaming SRC slice pushed at 70ce263 (streaming ClipResampler + block-streaming bounce_resampled, whole-clip oracle kept); 29 tests green + 1 ignored real-rate 5 min; ready for independent validator round",
+  "phase": "SMB-SCORE-GUARDS (PLR-015) pushed at 9546819 on top of the streaming SRC slice 70ce263: one rate gate for the tick divisors + no NaN/inf output published; 33 tests green (29 + 4 new in tests/guards.rs) + 1 ignored real-rate 5 min; clippy clean; consumers compile; ready for independent validator round (limiter/EQ reset-on-discard deferred)",
   "commits": [
     {
       "sha": "6e17a6a72883cd88a6282c60d8df4562c1458141",
@@ -51,6 +51,10 @@
     {
       "sha": "70ce26392ec14056018645ea6072f3bbe225a961",
       "subject": "Score: streaming sample-rate conversion (ClipResampler begin/push/finish_stream, bit-identical to the whole-clip path) and block-streaming bounce_resampled with no MAX_BLOCK_FRAMES clip cap; whole-clip path kept as bounce_resampled_whole_clip oracle; working_set_bytes in the receipt"
+    },
+    {
+      "sha": "9546819c458142a352cf22bbd648a3b8f7b658db",
+      "subject": "Score (SMB-SCORE-GUARDS, PLR-015): one rate gate for the tick divisors and no non-finite output is ever published"
     }
   ],
   "capabilities_done": [
@@ -66,20 +70,21 @@
     "Engine::bounce_resampled (STU-ARC-021 over a sample-rate converter): graph pre(Processor, input rate) -> ClipResampler -> post(Processor, output rate), whole clip (input and converted clip <= MAX_BLOCK_FRAMES). ResampledBounceReceipt: requested_input_frames, requested_output_frames = ceil(in*out_rate/in_rate) in u128, actual_output_frames (sink total); the three must agree or the bounce is refused (LengthMismatch), nothing clamped/truncated/zero-padded; exact input AND output start/end samples and ticks (output start = input start*out/in must be a whole sample, else OutOfRange), ceil_excess_ticks (< 1 output sample), StageFacts [pre, resampler, post] (kind, in/out rate, in/out frames, compensated latency_samples, identity), embedded pre/post BounceReceipt + ResampleReceipt (pad/drop/trimmed_tail), graph_identity (SHA-256, scheme in docs), digest of the delivered stream. All statically decidable refusals (counts, rates, layouts, capacities, positions, finite input) happen before the first block; the sink is called only by the final stage; slot held throughout; processors reset on any failure. Hand-computed counts: 44.1k->48k 1000->1089, 44100->48000, 441->480, 1->2; 48k->44.1k 1000->919, 48000->44100, 480->441, 1->1; latency 240 @48k and round(220.5)=221 @44.1k compensated without changing counts",
     "CX-CAP-001: layout.rs ticks_per_sample/sample_to_ticks use accord Timescale::exact_ticks_per_unit / ticks_from_units (local divisor copy removed); behaviour and the foundation_contract tick tests unchanged (MAX_SAMPLE_RATE_HZ stays a score-authored bound). ClipResampler gained channels()/chunk_frames()/identity() (additive); Engine::bounce/resample split into admit + bounce_held/resample_held (pub(crate), behaviour unchanged)",
     "Streaming SRC (stream_resample.rs): ClipResampler::begin_stream(input_frames) / push_stream(planar pieces, emit) / finish_stream(emit) -> StreamReceipt / abort_stream / stream_buffer_bytes. Same rubato call sequence as Engine::resample (pad zeros first, a chunk is processed as soon as it is full, last partial chunk with partial_len, silence pumped with partial_len=Some(0); startup delay + alignment drop skipped; delivery stops at the exact integer count), so the delivered samples are BIT-IDENTICAL to the whole-clip path: proven by to_bits equality on 5 rate pairs x 53 lengths (1..40, 63..65, 1005, chunk boundaries 1023..1025, 2047..2049, 4799..4801) with pushes of 1/7/255/1000 frames and on a 4 s 44.1k->48k clip with 4096/333 pushes, plus equal counts, pad/drop/trimmed_tail/delay and peak/rms. Static refusals in begin_stream (0 frames, count overflow, converter that cannot produce the exact count); push refuses non-finite/channel/length mismatch/frames beyond the declared count; any error ends the stream and resets the converter",
-    "Block-streaming Engine::bounce_resampled: processor stages are push-style StageRunners (stage.rs: same block boundaries, latency compensation, settle gate per block and meters as Engine::bounce, BounceRun shared with bounce.rs), the converter streams between them, the sink receives output-timeline chunks as they appear; no MAX_BLOCK_FRAMES cap on clip length; ResampledBounceReceipt EQUALS the whole-clip oracle's receipt field for field except working_set_bytes (6 s 48k->44.1k, limiter latency 341 -> converter -> EQ, blocks 256 and 77, all samples to_bits equal). Engine::bounce_resampled_whole_clip keeps the previous implementation (MAX_BLOCK_FRAMES bound) as the oracle. ResampledBounceReceipt.working_set_bytes reports the bounce's own buffers: streaming 10_640 B for a mono 256-frame-block graph (staging 2 x 1024 B + converter 4096 B in + 4496 B out) independent of clip length, versus the clip buffers of the whole-clip path"
+    "Block-streaming Engine::bounce_resampled: processor stages are push-style StageRunners (stage.rs: same block boundaries, latency compensation, settle gate per block and meters as Engine::bounce, BounceRun shared with bounce.rs), the converter streams between them, the sink receives output-timeline chunks as they appear; no MAX_BLOCK_FRAMES cap on clip length; ResampledBounceReceipt EQUALS the whole-clip oracle's receipt field for field except working_set_bytes (6 s 48k->44.1k, limiter latency 341 -> converter -> EQ, blocks 256 and 77, all samples to_bits equal). Engine::bounce_resampled_whole_clip keeps the previous implementation (MAX_BLOCK_FRAMES bound) as the oracle. ResampledBounceReceipt.working_set_bytes reports the bounce's own buffers: streaming 10_640 B for a mono 256-frame-block graph (staging 2 x 1024 B + converter 4096 B in + 4496 B out) independent of clip length, versus the clip buffers of the whole-clip path",
+    "SMB-SCORE-GUARDS (PLR-015): (1) rate gate = ticks_per_sample (accord Timescale divisor rule, 1..=768000 Hz) in InputBlock::validate, HardLimiter::new, Equalizer::new (and, already, ClipResampler::new/bounce); admitted set = divisors of 254_016_000_000 = 2^12*3^4*5^6*7^2 up to 768000, everything else (44101, 47999, 22051, 96001, 11000, 768001, 1_000_000, 0) is ScoreError::InvalidRate; (2) output guard: Engine::run_block scans the processed block after settle (cancel/revision first) and discards it unpublished with NotFinite + processor reset (covers process, bounce, both bounce_resampled processor stages); Chain checks every intermediate stage output; Engine::mix, Engine::resample (published region), the streaming converter chunk (before receiver and meters) and SpectrumAnalyzer bins likewise; no new error variant"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-score --tests --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-score --no-fail-fast",
     "exit": 0,
-    "sha": "70ce263",
-    "passed": 29,
+    "sha": "9546819",
+    "passed": 33,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round on 70ce263; then: loudness (spec gap STU-FX-147) once the Operator selects a standard, mix/send graph across rates, streaming Engine::resample (publish converted clip into a caller block without the whole-clip bound), score-device/score-plugin consume Processor + Engine::process",
-  "updated_at": "2026-10-11T05:35:41Z",
+  "next": "independent validator round on 9546819 (SMB-SCORE-GUARDS rides on the 70ce263 claim, see notes.guards.claim); then: loudness (spec gap STU-FX-147) once the Operator selects a standard, mix/send graph across rates, streaming Engine::resample (publish converted clip into a caller block without the whole-clip bound), score-device/score-plugin consume Processor + Engine::process",
+  "updated_at": "2026-10-11T11:02:49Z",
   "notes": {
     "mt": "MT-35541",
     "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
@@ -129,9 +134,39 @@
         "passed": 4,
         "failed": 0,
         "ignored": 1
+      },
+      "guards": {
+        "passed": 4,
+        "failed": 0
       }
     },
-    "check_clippy": "check and clippy -p hsk-studio-score --tests --examples: PASS, no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe); cargo check -p hsk-studio-score-device -p hsk-studio-score-plugin --tests: PASS at 2fe5f36",
+    "check_clippy": "check and clippy -p hsk-studio-score --tests --examples: PASS, no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe); cargo check -p hsk-studio-score-device -p hsk-studio-score-plugin --tests: PASS at 9546819 (clippy and consumer check run with the sources of 9546819 under one disk lock; exit 0 both)",
+    "guards": {
+      "lane_id": "SMB-SCORE-GUARDS",
+      "register": "workflow/plausible-register.json PLR-015 (lead decision FIX_LANE, 2026-10-11T10:18:58Z)",
+      "commit": "9546819c458142a352cf22bbd648a3b8f7b658db",
+      "claim": "READY_FOR_VALIDATION for the rate gate and the non-finite output guard only; the commit touches only crates/hsk-studio-score (src: block, bounce, chain, dsp, engine, eq, error, layout, lib, mix, resample, spectrum, src_bounce, stream_resample; tests/guards.rs new) and nothing else was pushed to the crate after it. The streaming SRC slice 70ce263 and its earlier READY claim are unchanged by the guards except for the two new refusals.",
+      "rate_gate": {
+        "finding": "InputBlock::validate checked only 0 < rate <= 768000 (block.rs:49), so a 44_101 Hz block was admitted and failed later at BlockReceipt::start_ticks; HardLimiter::new and Equalizer::new had the same gap; bounce, bounce_resampled and ClipResampler::new already called ticks_per_sample",
+        "fix": "ticks_per_sample is the single rate gate (accord Timescale::exact_ticks_per_unit, bound 768000): InputBlock::validate, HardLimiter::new and Equalizer::new call it; the redundant 0/MAX checks in bounce.rs and src_bounce.rs were dropped (same InvalidRate)",
+        "admitted_set": "rates r with 1 <= r <= 768000 and 254_016_000_000 % r == 0; hand-checked ticks per sample in tests/guards.rs: 8000 -> 31_752_000, 11025 -> 23_040_000, 44100 -> 5_760_000, 48000 -> 5_292_000, 192000 -> 1_323_000, 705600 -> 360_000, 768000 -> 330_750",
+        "typed_error": "ScoreError::InvalidRate (doc already said 'not an exact tick divisor'); no new variant, so score-device/score-plugin matches are unaffected",
+        "not_in_this_crate": "score-plugin types.rs:117, backend.rs:209, clap_backend.rs:184 keep their own 0/MAX config checks; a non-divisor plugin config now fails at the first block through InputBlock::validate (InvalidBlock(InvalidRate)); not edited (other lane's crate)"
+      },
+      "output_guard": {
+        "finding": "Gain::new(f32::MAX) is a finite parameter and Gain(MAX) on 2.0 publishes inf (dsp.rs:82/113); ChannelMix, Equalizer (f64 filter cast to f32), RampedGain, Engine::mix, the sinc converter and the spectrum bins can overflow the same way from finite input",
+        "decision_with_evidence": "output check, not admission validation: a finite coefficient cannot bound its product with an unbounded finite sample (Gain MAX on 2.0, ChannelMix [MAX, MAX] on (1,1) and on (2,-2) = NaN, EQ +48 dB on 1e37, ramp to MAX on 4.0, mix of two MAX sends, a +/-MAX alternating clip through the 2x sinc, square-wave spectrum bin 1.2071068*A), so only a scan of the produced samples is sound. Cost: one branch-free pass (64-sample folded finite test, early exit per group) per processed block, comparable to the peak/rms pass BlockReceipt::measure already makes; no allocation",
+        "placement": "Engine::run_block after process and settle (a canceled or stale block is not scanned), error path = discard unpublished + proc.reset() (RampedGain restores its pre-block gain, tested); Chain scans each intermediate stage so a later limiter cannot clamp an infinity into plausible full-scale output and a short block is not hidden by the limiter's 341-sample delay; Engine::mix, Engine::resample (published region after the alignment shift), StreamState chunk (before emit and meters) and SpectrumAnalyzer::analyze (bins)",
+        "typed_error": "ScoreError::NotFinite (doc extended; score-plugin already maps PluginError::NonFiniteOutput to it)",
+        "sink_contract": "Engine::bounce delivers blocks 0 and 1 of a 3 block clip and never the overflowing block 2 (tests/guards.rs: 512 frames, all f32::MAX); earlier chunks stay provisional as documented"
+      },
+      "tests": "tests/guards.rs, 4 tests, hand values in comments: rate_gate_admits_exactly_the_tick_divisors, overflowing_stages_are_discarded_not_published, overflow_never_reaches_a_sink_or_a_later_stage, mix_converter_and_spectrum_refuse_overflow",
+      "red_proof": "sources of 1c3fd8c (parent of 9546819) written over crates/hsk-studio-score/src, then restored from 9546819: all 4 guards tests FAIL on the parent (rate 11000 admitted at guards.rs:100, Gain MAX publishes peak inf at :119, chain publishes at :176, mix publishes inf at :271) and PASS on 9546819 (4/4); restoration verified with git diff against 9546819 (empty). The tree was restored with fresh mtimes before the green rerun (V4-11).",
+      "mistakes_recorded": "first two red-proof attempts did not revert anything: (1) HEAD~1 had moved to another lane's commit while the proof ran, so it reverted to a tree that already contained the guards (tests passed, nothing rebuilt); (2) git restore could not take the shared index.lock (another agent was committing). Third attempt names commit ids explicitly and writes files with git show (no index lock). No product file ended up changed; the crate tree equals 9546819.",
+      "deferred": "limiter/EQ/ramp 'reset-on-discard restores a commit snapshot' (PLR-015 third part, lead decision: deferred): HardLimiter::reset and Equalizer::reset still clear history to the initial state on a discarded block, RampedGain already restores its pre-block gain",
+      "v4_06_sites": "non-finite output class, sites found by reading every producer of caller-visible samples in src (not a regex count): Processor impls (Unity, Gain, RampedGain, Pan, ChannelMix, HardLimiter, Equalizer, Chain) -> Engine::run_block (guarded); Engine::mix (guarded); resample_held and so the whole-clip bounce_resampled tail (guarded); StreamState::chunk and so the streaming bounce_resampled (guarded); SpectrumAnalyzer::analyze (guarded); Chain intermediates (guarded); BounceRun/BlockReceipt/StreamState meters read only guarded samples. Custom Processor impls are covered by run_block because they publish through the engine",
+      "v4_07": "doc claims added (error.rs NotFinite, Chain, Engine::process, mix, layout ticks_per_sample, DESCRIPTOR output_guard/rate_rule) are each exercised by tests/guards.rs"
+    },
     "streaming_slice": {
       "commit": "70ce26392ec14056018645ea6072f3bbe225a961",
       "files": "src/stream_resample.rs (new), src/stage.rs (new), src/src_bounce.rs (streaming bounce_resampled, whole-clip oracle kept as bounce_resampled_whole_clip), src/bounce.rs (BounceRun/ReceiptHeader shared, batched digest updates), src/resample.rs and src/engine.rs (crate-internal field visibility), src/lib.rs (exports + DESCRIPTOR), tests/streaming_src.rs (new), tests/src_bounce.rs (the two clip-length refusals now target the whole-clip oracle)",
@@ -181,7 +216,7 @@
       "finding_1_ramp_cancel_step": "FIXED: RampedGain snapshots before=current before the cancel poll; new uncommitted flag + Processor::commit (default no-op; Engine::run_block calls it after publication; Chain forwards it and commits at block start) so reset reverts only an unpublished block and is a no-op for chain stages that never ran. Regression test ramp_spectrum::canceled_ramp_block_never_steps_alone_or_in_a_chain (RED on previous ramp.rs: current reverted 1.0 -> 0.0; GREEN now). Covers cancel at the ramp poll, cancel in a middle chain stage with a later ramp stage never run, and reset with nothing in flight.",
       "finding_2_resample_48001": "ALREADY FIXED by d339544 (not in judged 87c1cd9): Engine::resample publishes exactly requested=ceil(n*out/in) from u128 math; verified 44100@44.1k->48k = 48000. Added: ResampleReceipt.trimmed_tail_frames (frames rubato produced past drop+requested, 1 for 44100@44.1k->48k), zeroing of everything past the published count, shortfall still refused (ResampleFailed, never zero-padded), regression test alignment_bounce::resampler_publishes_the_exact_integer_frame_count (five 1-second pairs, adjacent-clip tiling 160000..208000, length sweep 1..80 + neighbours on four pairs)."
     },
-    "unaddressed_review_findings": "block.rs:49 (non-divisor rate admission), dsp.rs:514/eq.rs:229 (limiter/EQ state snapshot on discard), dsp.rs:113 (non-finite output) were PLAUSIBLE findings outside this remediation assignment; not changed.",
+    "unaddressed_review_findings": "block.rs:49 (non-divisor rate admission), dsp.rs:514/eq.rs:229 (limiter/EQ state snapshot on discard), dsp.rs:113 (non-finite output) were PLAUSIBLE findings outside this remediation assignment; not changed. UPDATE 9546819 (SMB-SCORE-GUARDS): block.rs:49 and dsp.rs:113 are fixed; dsp.rs:514/eq.rs:229 remain deferred (see notes.guards.deferred).",
     "verdicts": [
       {
         "round": "STUDIO-R3",

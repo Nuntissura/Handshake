@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:56:49Z",
+ "updated_at": "2026-10-11T11:03:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -674,14 +674,17 @@
     "e75bd5a",
     "272909b",
     "dd1df63",
-    "a1c9747"
+    "a1c9747",
+    "187e6cf",
+    "a4d2234",
+    "1c3fd8c"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
     "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)"
    ],
-   "candidate": "a1c9747",
-   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green",
+   "candidate": "1c3fd8c",
+   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
@@ -691,12 +694,6 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
-   },
-   "r7_prereview": {
-    "result": "FIX_FIRST (7 CONFIRMED proof-soundness gaps N1-N7)",
-    "at": "2026-10-11T08:04:23Z",
-    "ref": "validation/R7-prereview-b.json",
-    "head": "0e48167"
    }
   },
   {
@@ -2045,11 +2042,15 @@
    "crate": "hsk-studio-score",
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "non-divisor sample-rate refusal + non-finite output refusal (PLR-015)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-guards",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "9546819"
+   ],
+   "verdicts": [],
+   "candidate": "9546819",
+   "note": "PLR-015: ticks_per_sample is the single rate gate (only rates dividing 254016000000, up to 768 kHz; InvalidRate elsewhere, incl. limiter/EQ constructors); non-finite output scanned per processed block -> NotFinite + processor reset (run_block, chain, mix, resample, streaming chunk, analyzer); 33 green (4 new red on parent 1c3fd8c); reset-on-discard deferred; note: red-proof attempts reverted files in the SHARED tree (V4-11 breach, hit index.lock) before a correct third attempt"
   },
   {
    "lane_id": "SMB-COMPONENTS-FOOTPRINT",
@@ -2081,6 +2082,17 @@
    "phase": "build",
    "status": null,
    "owner": "builder-pigment-fx-ops",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "origin": "press 1c3fd8c residual",
+   "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-press-differences",
    "commits": [],
    "verdicts": []
   }
@@ -2174,7 +2186,8 @@
   "SMB-RENDER-CPU-WINDOW",
   "SMB-RENDER-CPU-FX2",
   "SMB-INTEROP-VECTOR-RECORDS",
-  "SMB-BLENDIF-CLIP-ADOPT"
+  "SMB-BLENDIF-CLIP-ADOPT",
+  "SMB-SCORE-GUARDS"
  ],
  "round_R6": {
   "candidate": "bd8533f",

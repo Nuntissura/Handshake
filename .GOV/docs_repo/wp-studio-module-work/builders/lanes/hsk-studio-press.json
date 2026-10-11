@@ -1,439 +1,576 @@
 {
-  "crate": "hsk-studio-press",
-  "lane": "MT-35557 press: V4 hardening slice (arithmetic deny, bounded decode, hostile-size tests) + remediation R6 + redaction gaps (slice 6)",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "hardening slice, R6 review-B remediation and slice 6 (other name trees, SubmitForm/ResetForm /Fields, embedded-file content) landed; clippy clean, tests green on a1c9747",
-  "commits": [
-    {
-      "sha": "70b4c74",
-      "subject": "Press slice 1a: bounded PDF reader (xref table/stream/hybrid, Prev chain, object streams, Flate+predictors/ASCIIHex/ASCII85/RunLength), object-model proposal, allowlisted entry edit, reachable-only full-save writer"
-    },
-    {
-      "sha": "df8842b",
-      "subject": "Press slice 1b: irreversible region redaction, sanitized full rewrite, independent full reachable payload proof, 5 focused tests"
-    },
-    {
-      "sha": "08080cb",
-      "subject": "Press: harden parser (hash-indexed large dicts, checked xref numbers, null objects, exact object spans), descriptor refresh"
-    },
-    {
-      "sha": "8b24131",
-      "subject": "Press: press-consumer example, residual re-pass over saved bytes, distinctive-needle byte-scan proof"
-    },
-    {
-      "sha": "d1bb2ff",
-      "subject": "Press slice 2 (wip): form XObject copy-on-write redaction, LZW filter, context-aware payload proof, thumb/PieceInfo sanitize, slice-2 tests"
-    },
-    {
-      "sha": "1df11b2",
-      "subject": "Press slice 2: whole-token proof rule, region_cleared vs is_proven, leak summary in press-consumer, descriptor rules"
-    },
-    {
-      "sha": "cb38b86",
-      "subject": "Press slice 3: outline-title and annotation-text redaction (Contents/T/Subj/RC, widget V/DV option, appearance drop) with per-object outcomes, redact_and_save_with, PDFDocEncoding/UTF-16 codec, annotation appearance text counts as a proof hit, +5 tests"
-    },
-    {
-      "sha": "03fb753",
-      "subject": "Press remediation R5: is_clean, region_cleared and is_proven require every stream decoded (a removed string stored in an undecodable stream no longer reads as proven); undecodable_stream_never_reads_as_proven (fails on the old verifier)"
-    },
-    {
-      "sha": "e75bd5a",
-      "subject": "Press slice 4: named destinations (tree rebuilt as one sorted leaf, opaque HskRdN names, every reference), URI actions, form /TU /Opt, structure /Alt /ActualText /E /T, /Info + XMP, popup/IRT annotations, ToUnicode-read appearances with Unverifiable/Dropped outcomes, per-object outcomes, +3 tests"
-    },
-    {
-      "sha": "6e95976",
-      "subject": "Press slice 5 (wip): raster_unsearchable class, RemoveImages policy, file targets, embedded-file names, XMP on pages and images, ToUnicode-aware payload proof"
-    },
-    {
-      "sha": "5a91fd7",
-      "subject": "Press slice 5 tests: raster class and image removal, file targets and embedded names, ToUnicode proof, hostile bounds, string tokenization"
-    },
-    {
-      "sha": "70c2ace",
-      "subject": "Press slice 5: descriptor and docs (V4-07 claims cite tests), raster class, file targets, RemoveImages, ToUnicode proof"
-    },
-    {
-      "sha": "272909b",
-      "subject": "Press V4-01: deny clippy::arithmetic_side_effects on the touched pdf_edit and error modules"
-    },
-    {
-      "sha": "dd1df63",
-      "subject": "Press: unreadable composite text blocks the proof (NotProven::OpaqueText), typed not_proven_reasons"
-    },
-    {
-      "sha": "023c817",
-      "subject": "Press V4-01: arithmetic deny on filters, reader, syntax, writer; bounded decode, xref/object-stream, depth and overlap limits"
-    },
-    {
-      "sha": "c520095",
-      "subject": "Press remediation R6 (review B): kept-text exemption only for page content and reachable forms; hidden zlib behind raster filters; NaN glyph boxes; cancellable scans"
-    },
-    {
-      "sha": "007f8bc",
-      "subject": "Press V4-02 tests for the hostile-input hardening (023c817): dims_u32_max, aggregate_over_budget, nesting/cycles/overlap; descriptor"
-    },
-    {
-      "sha": "a1c9747",
-      "subject": "Press slice 6: other name trees, SubmitForm/ResetForm /Fields and embedded-file content in the text-field redaction"
-    }
-  ],
-  "capabilities_done": [
-    "reader: header, startxref, classic xref table, xref stream (W/Index, PNG/TIFF predictors), hybrid XRefStm, /Prev chain (newest wins; loop and section-count refused), object streams, indirect /Length with bounded endstream recovery scan; NO repair heuristics (damaged xref = typed refusal)",
-    "filters: FlateDecode via miniz_oxide with output limit (decompression-bomb cap), ASCIIHex, ASCII85, RunLength; everything else (LZW, DCT, JPX, CCITT, JBIG2, Crypt) = UnsupportedFilter",
-    "limits: max_bytes, max_objects, max_depth, max_decoded_bytes, max_decoded_total, max_xref_sections, max_pages, max_content_ops; hash-indexed large dictionaries; checked arithmetic on xref numbers",
-    "PdfDoc::open/inspect/proposal: typed object-model projection (pages, media box, rotate, annotations, AcroForm field tree, signature states); encrypted input opens structure-only (permission bit read), every mutation refused (Encrypted / PermissionDenied)",
-    "PdfDoc::edit_entry: allowlisted scalar edit (Info Title/Author/Subject, page Rotate, annotation Contents) with SHA-256 stale check; refusals SignedDocument, Encrypted, PermissionDenied, NoSuchObject, UnsupportedObject, StaleSource, KeyNotAllowed, Canceled",
-    "PdfDoc::save_full/save_to: fresh full rewrite of objects reachable from /Root and /Info only (no incremental tail, no orphans, prior revisions gone); unmodified objects copied byte-verbatim; ArtifactSink begin/write/commit/abort with last-good retained on any fault or cancel",
-    "PdfDoc::redact_region: removes text-showing operators (Tj TJ ' \") whose glyph-run box may touch the region (exact advance from /Widths else 1000/1000 em upper bound; kerning spacer keeps following text in place when widths are exact), annotations touching the region (plus popups/children) and all AcroForm references; page /Contents repointed to a NEW stream; staged commit after a reachability proof; images/vectors/form XObjects/shadings/inline images in the region refuse with UnsupportedRedactionClass (policy ReportAndContinue lists them)",
-    "verify_payload_absent: re-opens the OUTPUT and scans raw bytes, every decoded stream (object streams included), string/name objects, content-stream string operands, UTF-16BE spelling; reports xref sections, unreachable objects, unlisted endobj markers, undecodable streams",
-    "redact_and_save: redact + full save + payload proof + residual re-pass over the saved bytes (fresh open, region test must select nothing); restores the document on error",
-    "sanitize_full_rewrite: drop Info / XMP / embedded files / JavaScript / Thumb / PieceInfo then full rewrite (dedicated test in slice 2)",
-    "Observe mapping (outcome_for, report), DESCRIPTOR, example press-consumer (--descriptor, --inspect, --set-title, --redact)",
-    "slice 2 (1): redaction recurses into form XObjects (depth 8, Matrix x CTM, own or inherited /Resources); a form with removed text is copied to a NEW object under a fresh /HskRdN name used only by the rewritten Do (original untouched, other uses and other pages keep it; its resource entry is dropped when no other Do at that level uses it); nested forms rewritten bottom-up; images/vectors/shadings/inline images still fail closed",
-    "slice 2 (2): sanitize_full_rewrite also drops /Thumb (drop_thumbnails) and /PieceInfo (drop_private_data); dedicated test proves Info, XMP, PieceInfo (catalog, page, deflated), thumbnail, embedded file (deflated) and JavaScript payloads absent from raw bytes, independently inflated streams and verify_payload_absent",
-    "slice 2 (3): LZWDecode (+predictor, EarlyChange 0|1), constant-memory dictionary, output capped by max_decoded_bytes; tested with an in-test encoder across 9..11 bit code-width changes and a 4 MiB-of-zeros bomb refused at a 64 KiB cap",
-    "slice 2 (4): payload proof context rule: a needle in a TEXT-SHOWING operand (Tj TJ ' \") of a decoded content stream is a kept_text_collision (reported, not a leak); anywhere else is a leak hit; whole-token matching for alphanumeric edges; RedactedOutput::region_cleared (structural) vs is_proven (region_cleared and no leak hit); rule documented in DESCRIPTOR",
-    "slice 3 (1): PdfDoc::redact_text_fields(needles, TextFieldPolicy) redacts outline item /Title (every node linked via /First /Last /Next /Prev, cycles tolerated) and annotation /Contents /T /Subj /RC (page /Annots incl. direct dictionaries); replacement is always a DIRECT value (shared string objects never edited in place); atomic staged commit; signed, encrypted and cancelled inputs refuse",
-    "slice 3 (2): matching on decoded text: PDFDocEncoding (ISO 32000 Annex D.2 table), UTF-16BE/LE and UTF-8 with mark; UTF-16BE stays UTF-16BE on rewrite; modes Replace(marker)|Remove; case-insensitive substring by default, whole_token / case_insensitive=false align with the proof; marker must not match a needle; fixpoint passes",
-    "slice 3 (3): /RC (string or XHTML stream) judged raw, tag-stripped and tag-gapped with entities decoded; any match drops the key; unreadable text streams are dropped fail-closed and reported unreadable",
-    "slice 3 (4): widget /V and /DV (string, text stream, array of strings) only with the explicit widget_values option; field/widget /T names never rewritten; every match the policy keeps is reported KeptByPolicy (TextFieldReport.complete == nothing kept)",
-    "slice 3 (5): annotation /AP appearance streams (N/R/D, state dictionaries, nested forms) whose show operands match are dropped; per-object outcomes (object, direct, role, kind Replaced|Removed|Dropped|KeptByPolicy, matches, unreadable) carry no document text",
-    "slice 3 (6): payload proof treats annotation appearance streams as annotation text (show-operand match = hit, not kept_text_collision); UTF-16BE spellings for any PDFDocEncoding-readable needle and Unicode needles by PDFDoc/UTF-8/UTF-16BE; redact_and_save_with(regions, policy, Some(&TextFieldPolicy)) redacts the distinctive removed strings from outlines/annotations before the full save (RedactedOutput.text_fields); redact_text_fields_and_save(needles) = redact + full save + independent proof (TextRedactedOutput::is_proven)",
-    "remediation R5 (review R5 group B, CONFIRMED on 1d404f8/1df11b2): PayloadProof::is_clean, RedactedOutput::region_cleared and (through them) is_proven and TextRedactedOutput::is_proven now require proof.fully_decoded(); a stream with an unimplemented filter is scanned raw only, so a needle stored in its encoded form no longer reads as proven absent; streams_not_decodable names the blockers; test undecodable_stream_never_reads_as_proven fails on the old verifier (RED run observed: assertion !fully_decoded && !is_clean) and passes now",
-    "slice 4 (1): named destinations: name-tree keys of /Names /Dests (any depth) and legacy /Dests keys that match are renamed to unique opaque HskRdN (never colliding with existing keys); the same rename is applied to every /Dest, /OpenAction and GoTo /D reference (name or string, dangling references included); the tree is rebuilt as one sorted leaf (no /Limits, kids dropped) with the original values; DestName outcomes for the tree/dictionary holder and for every reference holder",
-    "slice 4 (2): URI actions: /S /URI actions anywhere reachable (/A, /AA, /OpenAction, /Next chains, nested) and the catalog /URI /Base are rewritten by the text mode (ActionUri outcomes)",
-    "slice 4 (3): form /TU and /Opt (option strings and [export display] pairs, nested arrays) via form_labels; structure elements (dictionaries with /S and /P or /Type /StructElem) /Alt /ActualText /E /T via structure_text; trailer /Info string entries and the catalog /Metadata XMP stream (match drops the key) via info_fields",
-    "slice 4 (4): annotations reached only through /Popup, /IRT or a popup's /Parent are judged like page annotations; every class has a policy flag (destinations, action_uris, form_labels, structure_text, info_fields) and a disabled class reports KeptByPolicy",
-    "slice 4 (5): appearance text is read through each font's /ToUnicode CMap (new cmap.rs: codespacerange, bfchar, bfrange incl. array form, bounded to 262144 entries / 65536-code ranges, stray delimiters terminate); a match drops the appearance; composite-font text without a usable /ToUnicode (or an undecodable appearance) on an edited annotation drops the appearance (Dropped, unreadable) and on an unedited annotation is reported Unverifiable (kept; report.complete == false; TextFieldReport.unverifiable)",
-    "slice 5 (1) raster class (lead decision, narrow): raster.rs; a stream is raster_unsearchable ONLY when it is an image XObject (/Subtype /Image) or an inline image whose filter chain ENDS in DCTDecode, JPXDecode, CCITTFaxDecode or JBIG2Decode after implemented filters; PayloadProof.raster_streams lists it (RasterStream {object, class RASTER_CLASS, filter, inline}), the decodable prefix is still decoded and scanned (a needle in a JPEG comment segment behind ASCIIHex is a hit), it does not block is_clean/is_proven; Crypt, unknown filters, a raster filter in any other position and every non-image stream with an unimplemented filter block exactly as before (an inline image with such a filter blocks as 'inline:<name>')",
-    "slice 5 (2) region over a raster: UnsupportedPolicy::RemoveImages removes an image XObject or inline image whose placement touches a region whole (Do / BI..EI leaves the content; resource entry dropped when no other Do at that level uses it; image object leaves the file when unused); RedactionReport.images_removed / inline_images_removed; with Refuse the region fails closed, with ReportAndContinue it stays incomplete (not proven); no pixel codec",
-    "slice 5 (3) file targets: GoToR/GoToE/Launch/ImportData/SubmitForm /F (string, typed or untyped file specification), GoToR/GoToE /D, Launch /Win /F /D /P, file specification /F /UF /DOS /Mac /Unix /Desc (typed, via /AF, /FS or an action), and the /Names /EmbeddedFiles tree keys (renamed to opaque HskRdN, tree rebuilt as one sorted leaf) via TextFieldPolicy.file_targets; roles FileSpecName, FileSpecDesc, RemoteDest, LaunchWin, EmbeddedFileName; disabled class = KeptByPolicy",
-    "slice 5 (4) /Metadata XMP of pages, images, forms (and the catalog) is judged: a match drops the key (role Xmp, kind Dropped), info_fields flag",
-    "slice 5 (5) payload proof reads /ToUnicode: show_text.rs reads page content, forms and appearances through each font's CMap (cached per font object, decoded under the shared budget); needle text comes from RedactionReport.removed_unicode (new) or the needle bytes; kept page text = collision, appearance text = hit (PayloadLocation::DecodedText); verify_payload_absent_unicode; composite-font text without a map is listed in PayloadProof.opaque_text_streams (not blocking)",
-    "slice 5 (6) matching ignores case, runs of white space (incl. no-break space) and zero-width characters (Matcher normalizes both needle and text and maps spans back to the original); PDF string tokenization tests cover escapes (octal, hex, name #xx), nested parentheses, comment decoys, wrongly cased names",
-    "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F",
-    "lead correction (class 'proven while some text was never checked'): PayloadProof.needles_searched counts the distinct needles searched; when it is > 0 and opaque_text_streams is not empty (composite-font text without a usable /ToUnicode), PayloadProof::is_clean, RedactedOutput::region_cleared / is_proven and TextRedactedOutput::is_proven are false with the typed reason NotProven::OpaqueText; PayloadProof::not_proven_reasons / RedactedOutput::not_proven_reasons / TextRedactedOutput::not_proven_reasons return every reason (codes leak, structure, undecodable_stream, opaque_text, region_incomplete, residual_in_region, text_fields_kept); press-consumer prints not_proven; test opaque_composite_text_blocks_the_proof fails on 272909b (RED run observed: reasons [] = proven)",
-    "hardening 1 (V4-01): #![deny(clippy::arithmetic_side_effects)] now on filters, reader, syntax, writer (107 flagged sites fixed with checked/saturating arithmetic, get()-based indexing and typed errors: filters 43, syntax 40, reader 23, writer 1); every module of the crate except lib.rs (no arithmetic) carries the deny; clippy clean",
-    "hardening 2 (bounded decoding, workflow v4): every filter stage output is charged to the operation budget (a chain pays for its intermediates), a failed stage is charged (cap overrun = the cap, other failure = the input examined), unfiltered streams obey the per-stream cap, decoded_total vs decoded_bytes names what bound the stage, Limits::max_filters (8) bounds the chain, predictor output is never longer than its input (no 64 MiB row from a few bytes; partial last PNG row stays partial), LZW/ASCIIHex/ASCII85/RunLength use checked arithmetic and cap checks incl. the final partial group",
-    "hardening 3 (xref / object streams / depth / cycles): Limits::max_object_number (8,388,607, ISO 32000 Annex C Table C.1 via a secondary source) on xref table, xref stream and object headers and on the number that sizes a save table (table size checked against max_bytes before writing; free list computed without materializing it); /W exactly 3 fields of <= 8 bytes; /Size and /Index counts checked against the stream data; indirect /Length reads a number only; bytes parsed over all indirect objects <= 2 x input (overlapping /Length streams); bytes parsed from one object stream <= its decoded size (members at one offset); Limits::max_nodes (16 Mi) on parsed objects; numeric tokens <= 64 chars; nesting depth clamped to HARD_MAX_DEPTH 256 whatever max_depth says (tokenizer, purge_list, page and field walks); reference chains end as null after MAX_REF_HOPS 16 (cycles too); AcroForm names shared via Rc and charged to max_bytes (huge /T x many kids, one /T shared by many fields)",
-    "hardening 4 (V4-02 tests): hostile_parser_dims_u32_max, aggregate_over_budget_many_streams, hostile_nesting_cycles_and_overlap (integration) + filters unit tests budget_is_charged_by_every_stage_and_by_failures, predictor_rows_are_not_padded_and_chains_are_bounded; each red-proved on a scratch copy at 555ea97 sources",
-    "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text",
-    "slice 6 (a1c9747): (1) keys of every /Names tree except /Dests and /EmbeddedFiles (JavaScript, AP, Pages, Templates, IDS, URLS, ...) renamed to opaque HskRdN and the tree rebuilt as one sorted leaf (TextRole::NameTreeKey, policy name_trees); (2) strings of /Fields of SubmitForm and ResetForm actions through the text mode (TextRole::ActionFields, policy form_labels; refs inside /Fields untouched); (3) embedded file content: a file specification whose /EF stream decodes to bytes holding a match loses /EF and /RF, the stream leaves the file (TextRole::EmbeddedFileContent Dropped; undecodable = Unverifiable; policy embedded_content off = KeptByPolicy); test name_trees_submit_fields_and_embedded_content_redacted"
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-press --no-fail-fast",
-    "exit": 0,
-    "sha": "a1c9747",
-    "passed": 31,
-    "failed": 0
+ "crate": "hsk-studio-press",
+ "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R7 pre-review B remediation landed: proof sound by construction (raw backstop, consumed-input decoders, inline images, content walk with graphics state, Do-drawn kept text, typed TrailingData/UnreadableContent) + PLR-040 codec-structure raster class; clippy clean, 38/38 tests green on 1c3fd8c",
+ "commits": [
+  {
+   "sha": "70b4c74",
+   "subject": "Press slice 1a: bounded PDF reader (xref table/stream/hybrid, Prev chain, object streams, Flate+predictors/ASCIIHex/ASCII85/RunLength), object-model proposal, allowlisted entry edit, reachable-only full-save writer"
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Validator round on a1c9747 (31 tests: 29 in pdf_delivery = 24 earlier + 3 hostile + 1 R6 + 1 slice 6, plus 2 filters unit tests). Then: independent per-region text extraction for the residual pass (R6 PLAUSIBLE, open); Acrobat-saved fixture oracle (needs Operator D5); script code in name-tree values, field /TM /MK captions, direct structure elements without /P; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T06:54:44Z",
-  "notes": {
-    "test_names": [
-      "pdf_object_edit_save_independent_reopen",
-      "redacted_text_absent_all_reachable_streams",
-      "signed_readonly_cancel_stale_save_fault",
-      "hostile_pdf_bounds",
-      "xref_stream_object_stream_predictor_and_object_model",
-      "form_xobject_text_redaction_copy_on_write",
-      "sanitize_removes_thumb_pieceinfo_metadata_from_all_bytes",
-      "lzw_filter_decodes_and_is_bomb_bounded",
-      "proof_context_rule_kept_text_collision_is_not_a_leak",
-      "outline_titles_redacted_in_every_encoding",
-      "annotation_text_slots_and_appearance_redacted",
-      "widget_values_are_an_explicit_option_and_kept_text_is_reported",
-      "region_redaction_with_text_fields_closes_outline_and_annotation_leaks",
-      "text_fields_refusals_bounds_and_atomicity",
-      "undecodable_stream_never_reads_as_proven",
-      "destinations_and_action_uris_redacted_with_consistent_references",
-      "form_labels_structure_text_info_and_xmp_redacted",
-      "popup_irt_annotations_and_composite_font_appearances",
-      "raster_class_is_listed_and_region_images_are_removed",
-      "file_targets_embedded_names_and_xmp_redacted",
-      "proof_reads_tounicode_text_and_region_needles",
-      "hostile_decoder_bounds_dims_and_aggregate",
-      "pdf_string_tokenization_adversarial",
-      "opaque_composite_text_blocks_the_proof",
-      "hostile_parser_dims_u32_max",
-      "aggregate_over_budget_many_streams",
-      "hostile_nesting_cycles_and_overlap",
-      "stray_streams_and_hidden_payloads_are_not_kept_text",
-      "name_trees_submit_fields_and_embedded_content_redacted"
-    ],
-    "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
-    "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
-    "real_pdf_probe": "press-consumer on two local research PDFs (23 pages 1.3 MB, 20 pages 16.5 MB; xref streams + object streams): inspect OK; region redaction on a text-only region removed 12 strings, residual_in_region 0, layout_shift false (embedded fonts with /Widths); regions touching vector/image content refuse fail-closed (UnsupportedRedactionClass vector / image). Output files under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-probe (no document text printed).",
-    "known_gaps": [
-      "Byte-scan proof is strict: short removed strings (< 6 bytes, e.g. kerned word pieces, subset glyph codes) are excluded from the scan (RedactedOutput.short_needles) because they legitimately occur elsewhere; for natural-language documents a distinctive removed word that also appears elsewhere (kept text) yields hits and is_proven() == false. The structural proof is residual_in_region == 0 on a fresh pass over the saved bytes (same region test, so not independent of the interpreter).",
-      "Whole strings are removed (a string straddling the region edge is removed entirely); standard fonts without /Widths use an upper-bound advance, and layout_shift_possible is reported when following text on the line may move.",
-      "Rotated pages: region is in default user space (no /Rotate or /CropBox mapping). Encrypted PDFs are structure-only (no decryption).",
-      "Same-parser reopen is not independent evidence; the tests use raw byte comparison, an independent miniz_oxide inflate scan of every stream body, and (slice 3) a test-side PDF string extractor as the oracle. Acrobat-saved fixture oracle still pending (Acrobat DC installed, foreground session needs Operator approval per START_LOG D5).",
-      "Text inside Type3 glyph procs and tiling patterns and structure ActualText is not edited by redaction; the payload proof flags the removed strings if they survive there (sanitize drops Thumb/PieceInfo/XMP on request). Outline titles and annotation text are covered since slice 3.",
-      "is_proven is strict by design: a distinctive removed word that also lives in metadata (Info/XMP) is a hit; with a text policy the same word in outline titles and annotation text is redacted (slice 3). region_cleared gives the per-instance answer."
-    ],
-    "decisions": [
-      "Object numbers are preserved on full save (no renumbering) so unmodified objects can be copied byte-verbatim; free numbers get a linked free list.",
-      "Redaction rewrites the page content into a NEW object and repoints /Contents instead of editing shared streams in place.",
-      "Fail closed on unsupported painted content by default; ReportAndContinue is an explicit caller choice.",
-      "Signed documents are refused for every mutation including full save (a full rewrite invalidates byte-range signatures); incremental policy is later scope."
-    ],
-    "real_pdf_probe_slice2": "press-consumer on the 23-page research PDF: text-only regions redact with complete=true, residual_in_region=0 (region_cleared); is_proven stays false when removed whole words also appear in outline titles (UTF-16 bookmarks such as 'Online Retrieval'), reported as string-object hits and never hidden; regions touching vector content refuse fail-closed. Slice 3 closes exactly this case when redact_and_save_with gets a TextFieldPolicy (not re-run on the real PDF in slice 3).",
-    "slice3_spec_basis": "ISO 32000 outline item dictionary (12.3.3), annotation dictionary Contents/T/Subj/RC (12.5.2, 12.5.6.2), appearance dictionary N/R/D (12.5.5), field dictionary V/DV (12.7.4.1), text strings (7.9.2.2: PDFDocEncoding, UTF-16BE FE FF, UTF-8 EF BB BF). PDFDocEncoding 0x18-0x1F/0x80-0x9E/0xA0 table checked against mozilla/pdf.js src/core/string_utils.js. Table numbers differ between ISO 32000-1 (Table 153 outline item, 164/170 annotation, 168 appearance, 220 field) and -2 (151, 168/170, 226); the ISO text itself could not be fetched (10 MB limit), secondary sources agree.",
-    "slice3_decisions": [
-      "Replacement is always a DIRECT value in the holder dictionary (copy-on-write): a shared string object is never edited; it drops out of the save when no other reference remains, else the proof reports it as a hit.",
-      "Defaults fail closed: case-insensitive substring; whole_token (the proof's token rule) and case_insensitive=false are options. The proof stays case-sensitive exact-spelling, so it is never stricter than the redaction.",
-      "Field/widget /T is a NAME (12.7.4.1): never rewritten (would break uniqueness), reported KeptByPolicy and remains a proof hit; widget_values is the explicit option for /V /DV and the widget appearance.",
-      "Annotation appearance streams hold the rendered text: dropped when their show operands match (viewers regenerate); the proof counts a show-operand match in an /AP stream as a hit instead of a kept-text collision (behaviour change vs slice 2 only for annotations whose appearance repeats a removed word).",
-      "An annotation's /AP is also dropped when the annotation was edited and an appearance stream cannot be decoded (cannot show it is free of the text).",
-      "Direct annotation dictionaries inside /Annots are edited in place in their holder (page or array object); outcome has direct=true and the holder as object.",
-      "AcroForm /NeedAppearances is not set after a widget appearance is dropped (catalog untouched); a viewer that does not regenerate shows an empty widget."
-    ],
-    "slice3_known_gaps": [
-      "CLOSED by slice 4 (kept for history): named-destination names, action /URI, field /Opt and /TU, structure-tree /ActualText, popup/IRT annotations outside /Annots, composite-font codes in appearance streams (read through /ToUnicode).",
-      "Rich text is judged by three spellings (raw, tags removed, tags as gaps) with the common entities decoded; XHTML in a non-UTF-8 stream without a byte-order mark is read as UTF-8.",
-      "The needle is a Unicode string; redact_and_save_with bridges from content-stream bytes by PDFDocEncoding decoding of the distinctive (>= 6 byte) removed strings.",
-      "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
-    ],
-    "slice3_gameplan_route": "No retry-guard block occurred: both cargo test runs passed (the second after a descriptor/oracle edit, before the commit). No gameplan step added.",
-    "remediation_R5": {
-      "finding": "adversarial review R5 group B (CONFIRMED, candidate 1d404f8, commit 1df11b2): sanitized_save.rs is_proven/region_cleared ignored streams that could not be decoded, so a removed string left in an undecodable stream still reported proven",
-      "fix": "PayloadProof::is_clean, RedactedOutput::region_cleared (hence is_proven) and TextRedactedOutput::is_proven now require proof.fully_decoded() (streams_not_decodable empty); DESCRIPTOR proof.fully_decoded documents the rule",
-      "test": "undecodable_stream_never_reads_as_proven: catalog /Hidden stream with /Filter /JBIG2Decode holding zlib bytes of the removed string; control document without it is proven; the independent inflate shows the needle survives; fails on the old verifier (RED run: assertion on !fully_decoded && !is_clean), passes on 03fb753",
-      "commit": "03fb753 (separate commit, pathspec crates/hsk-studio-press; reached origin through another lane's push because the shared branch carries all lanes)",
-      "consequence": "any document that holds a stream with an unimplemented filter (DCT, JPX, CCITT, JBIG2, Crypt, unknown) is now NOT proven; press-consumer prints undecoded_streams=N; JPEG-heavy real documents will not read as proven until those filters get a decoder or a typed 'raster stream, no text carrier' class is approved by the lead",
-      "gameplan_route": "RED run used a single-test filter command, the GREEN run the full target command (different normalized commands, no retry-guard bypass); the RED failure was a product failure fixed by the commit"
-    },
-    "slice4_decisions": [
-      "Destination names are identifiers: a matching name is renamed to a unique opaque HskRdN (not Replace/Remove text) so links keep working and keys never collide; the tree is rebuilt flat and sorted (valid, unbalanced) instead of patching /Limits.",
-      "Reference rewrite covers direct /Dest, /OpenAction and GoTo /D values (name or string); an indirect string reference stays a proof hit. GoToR/Launch targets are not touched.",
-      "Info + XMP: every string entry of the trailer /Info (custom keys too) and the catalog /Metadata stream (any match drops the key, like /RC) are one policy class, info_fields, default on.",
-      "Structure elements are recognised by /S plus /P (or /Type /StructElem); direct dictionaries without /P are not.",
-      "Unverifiable is a new outcome kind: an appearance the redaction cannot read on an UNEDITED annotation is kept and flips report.complete to false; on an EDITED annotation it is dropped.",
-      "The payload proof stays a byte scan: text visible only through a /ToUnicode CMap is judged by the redaction scan (appearance_scan), not by verify_payload_absent."
-    ],
-    "slice4_known_gaps": [
-      "GoToR/Launch /D and /F targets, other name trees (embedded file names, JavaScript names), page/image /Metadata, field /TM and /MK captions, structure elements that are direct dictionaries without /P: not covered, still proof hits.",
-      "ToUnicode: bounded parser (codespacerange, bfchar, bfrange); cidchar/cidrange and usecmap are not interpreted; mixed-length codespaces decode greedily by ascending length.",
-      "Per-object outcomes for the name tree report the holder of the tree root, not each leaf (leaves are rebuilt away).",
-      "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
-    ],
-    "slice5_decisions": [
-      "Raster class per the lead decision: image XObject or inline image, chain ends in DCT/JPX/CCITT/JBIG2 after implemented filters. Everything else with an unimplemented filter keeps blocking the proof.",
-      "Limit (a) is enforced by the redaction side, not by a proof flag: any image under a region makes the region incomplete (Refuse = typed error, ReportAndContinue = unredacted lists Image/InlineImage, not proven) unless UnsupportedPolicy::RemoveImages removed it whole. RemoveImages still refuses every other unsupported class (vector, shading, deep forms).",
-      "Raster streams are still scanned: their decodable prefix is decoded and a plain needle in it (JPEG comment segment) is a hit. Only a needle drawn as pixels is out of reach, and that is what region removal of the image answers.",
-      "File targets: /F of remote and launch actions is judged as text or as a file specification; typed file specifications are found anywhere, untyped ones through the action, /FS, /AF and the embedded-file tree (SweepState.fs). /Desc is judged with the names. SubmitForm /Fields and the embedded file CONTENT stay proof hits.",
-      "The embedded-file name tree is renamed like /Dests: keys are identifiers nothing refers to, so a matching key becomes an opaque HskRdN and the tree is rebuilt as one sorted leaf.",
-      "ToUnicode in the proof: kept page text decoded through a map is a collision, appearance text a hit; the needle text comes from RedactionReport.removed_unicode (font map at removal time) or the PDFDocEncoding reading of the needle bytes. Composite text without a map is listed (opaque_text_streams), not blocking.",
-      "Matching normalizes white space and zero-width characters; the byte proof stays an exact-spelling scan, so it is never stricter than the redaction."
-    ],
-    "slice5_known_gaps": [
-      "V4-01 is applied to the modules touched in this slice; filters.rs, reader.rs, syntax.rs and writer.rs (the decoders of slices 1-2) do not carry the arithmetic deny yet: suggested next slice (a crate-wide deny was tried and lists many sites; filters.rs alone shows at least 14).",
-      "Other name trees (AP, JavaScript, Pages, Templates, IDS, URLS), SubmitForm /Fields, embedded file content, Type3/pattern text, GoToE /T target dictionaries are not covered (proof hits).",
-      "The inline-image classification reads the BI dictionary operands; a malformed filter entry blocks as 'inline:filter_entry'.",
-      "Proof text matching is case-sensitive exact spelling over the ToUnicode text, like the byte scan."
-    ],
-    "opaque_text_decision": "The lead's exception clause (stream removed by policy, or wholly outside every region AND no text-needle search requested) is implemented as: a stream removed by policy is not in the saved file, so it is not listed; otherwise opaque text blocks exactly when a needle search ran (needles_searched > 0), wherever on the page it is, because the proof has no per-stream geometry. Two earlier tests that drew unreadable composite text next to is_proven (proof_reads_tounicode_text_and_region_needles, popup_irt_annotations_and_composite_font_appearances) now state NotProven::OpaqueText; the first also checks that the same page without the F3 text is proven. Route for the one failing full run after the rule: product expectation changed -> fix committed (dd1df63) -> rerun (route a). V4-11 acknowledged: the backup/restore of sanitized_save.rs for the RED run was followed by touch.",
-    "slice5_infra_note": "One cargo test run failed to compile with errors saying the library lacked items that exist in the source (stale rlib after concurrent builds in the shared target dir); touching the sources fixed it and the identical command then ran. Cause: stale artifact in the shared warm target, not a product failure. No gameplan step added (no machine check can see it; the lead may want a mtime-based preparation check). Retry-guard: the later identical failure of pdf_string_tokenization_adversarial was a test-data bug (hex URI spelled only the needle) fixed by commit 5a91fd7 (route a: product failure -> commit -> rerun).",
-    "verdicts": [
-      {
-        "round": "STUDIO-R5",
-        "lane": "SMB-PRESS",
-        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-        "decision": "failed",
-        "verdict": "FAIL_V1",
-        "failures": [
-          {
-            "failure_kind": "product",
-            "failure_class": "is-proven-ignores-undecodable-streams",
-            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:314-316 (vs :11, :226-237, :276)"
-          }
-        ],
-        "remediation": "Require proof.fully_decoded() in is_proven (or typed NotProven); add undecodable-stream leak test",
-        "status_after": "READY_FOR_VALIDATION (newer submission e75bd5a)",
-        "review": "validation/R5-review-b.json",
-        "round_ref": "validation/round-R5.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-        "idempotency_key": "STUDIO-R5:SMB-PRESS:1d404f8c4b72:FAIL_V1",
-        "recorded_at": "2026-10-11T05:38:23Z",
-        "by": "wp_validator STUDIO-R5"
-      },
-      {
-        "round": "STUDIO-R6",
-        "lane": "SMB-PRESS",
-        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
-        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
-        "decision": "failed",
-        "verdict": "FAIL_V2",
-        "failures": [
-          {
-            "failure_kind": "product",
-            "failure_class": "collision-exemption-on-non-content-streams",
-            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:247-254,371-421 (doc :259-262)"
-          },
-          {
-            "failure_kind": "product",
-            "failure_class": "is-proven-ignores-opaque-text-streams",
-            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:82-84,104-110,385-387,488-495"
-          },
-          {
-            "failure_kind": "product",
-            "failure_class": "wip-engine-untested-doc-cites-absent-test",
-            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:13-16; tests/pdf_delivery.rs"
-          }
-        ],
-        "remediation": "Collision rule only for content_resources streams; opaque text blocks the proof; land slice-5 tests with the engine",
-        "status_after": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission dd1df63 (not in bd8533f) queued for next round",
-        "review": "validation/R6-review-b.json",
-        "round_ref": "validation/round-R6.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
-        "idempotency_key": "STUDIO-R6:SMB-PRESS:bd8533f9b29c:FAIL_V2",
-        "recorded_at": "2026-10-11T06:47:09Z",
-        "by": "wp_validator STUDIO-R6"
-      }
-    ],
-    "unit_test_names": [
-      "filters::tests::budget_is_charged_by_every_stage_and_by_failures",
-      "filters::tests::predictor_rows_are_not_padded_and_chains_are_bounded"
-    ],
-    "hardening_v4": {
-      "commits": [
-        "023c817 (engine)",
-        "007f8bc (tests, descriptor)"
-      ],
-      "v4_01_sites_fixed": {
-        "filters.rs": 43,
-        "syntax.rs": 40,
-        "reader.rs": 23,
-        "writer.rs": 1,
-        "total": 107,
-        "clippy_after": "clean (0 arithmetic_side_effects)"
-      },
-      "limits_added": {
-        "max_object_number": "8388607; xref table, xref stream, object header, save table",
-        "max_filters": "8; filter chain length",
-        "max_nodes": "16777216; parsed objects over one document parse (lexer metering)",
-        "HARD_MAX_DEPTH": "256 constant clamp of max_depth (stack safety), not a Limits field",
-        "MAX_REF_HOPS": "16 constant shared by PdfDoc::resolve and redaction::res, not a Limits field"
-      },
-      "budgets": "per-stage charge, failure charge, unfiltered cap, overlap budget (2 x input bytes parsed over indirect objects), per-object-stream parsed bytes <= decoded size, field-name bytes <= max_bytes",
-      "spec_basis": "ISO 32000-2: 7.3 objects, 7.4.4.4 predictors, 7.5.4 xref table, 7.5.7 object streams (members never overlap; /Extends is a DAG), 7.5.8 xref streams (/W field widths, 0 omits a field; /Size = highest number + 1; /Index default [0 Size]); Annex C Table C.1 maximum indirect objects 8,388,607 (read through a secondary source: LuaTeX list quoting the table, and qpdf manual for 7.5.7/7.5.8; the ISO text itself was not fetched)",
-      "behaviour_changes": [
-        "Unfiltered streams larger than max_decoded_bytes are now refused (before: only the total budget applied)",
-        "A final PNG-predictor row shorter than Columns is no longer zero-padded",
-        "Numeric tokens above 64 characters are Malformed (before: degraded to a real)",
-        "Objects with numbers above max_object_number are refused (before: accepted; a save then built a table with one line per number)",
-        "Stream-bytes of overlapping objects beyond 2 x input are refused"
-      ],
-      "red_proofs": {
-        "method": "scratch workspace outside the shared tree (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-red-scratch, own target dir) with the src modules of 555ea97 and the new tests; V4-11: every copied file gets a current mtime",
-        "hostile_parser_dims_u32_max": "RED: /Index [4294967295 1] gave Malformed(no_root), want InputLimit(object_number)",
-        "aggregate_over_budget_many_streams": "RED: Flate+ASCIIHex chain verified Ok (65 streams decoded, no budget error) on the old code; the plain case differed only by the error name",
-        "hostile_nesting_cycles_and_overlap": "RED: stack overflow of the test thread (max_depth usize::MAX over 100000 nested arrays)"
-      },
-      "gameplan_route": "No retry-guard block. One shared-tree test run failed on a test-data bug in my new test (zero bytes instead of spaces made a 512 KiB numeric token); fixed in the test before any commit and rerun (route a). One command was blocked by the hook because it did not start with the cd to the product workspace (hook then resolved the WP-KERNEL-012 gameplan); rerun with the leading cd.",
-      "v4_12": "helper scripts and outputs of this session live in <scratchpad>/hsk-studio-press/ with press-hard-* names; an earlier clippy output file press-clippy1.txt was written to the shared studio-team-dev/tmp before the rule arrived (mine, harmless)."
-    },
-    "remediation_R6": {
-      "review": "validation/R6-review-b.json, SMB-PRESS (3 CONFIRMED, 4 PLAUSIBLE); candidate bd8533f",
-      "class": "proof reads proven while a removed string survives in a place the rule did not look: an exemption or skip keyed on the SHAPE of a stream (or on a computed value that can be non-finite) instead of its role",
-      "class_regex": "looks_like_content|kept_text|collisions.entry|show_spans|f64::min|f64::max|fn touches",
-      "class_sites": [
-        {
-          "site": "sanitized_save.rs ops = parse_content(..) (gates every collision/show_spans exemption)",
-          "status": "fixed c520095: parsed only for kept_text_streams or annotation appearance streams"
-        },
-        {
-          "site": "sanitized_save.rs collisions.entry (mapped ToUnicode text)",
-          "status": "fixed c520095: reachable only through ops, which is None for non-kept streams; appearance streams stay hits"
-        },
-        {
-          "site": "sanitized_save.rs collisions.entry (show operand strings)",
-          "status": "fixed c520095: same gate, plus !is_ap"
-        },
-        {
-          "site": "sanitized_save.rs show_spans (byte ranges exempt from the decoded scan)",
-          "status": "fixed c520095: empty when ops is None"
-        },
-        {
-          "site": "show_text.rs content_resources",
-          "status": "not applicable: only supplies fonts/resources to stream text reading, grants no exemption"
-        },
-        {
-          "site": "text_fields.rs appearance_stream_nums",
-          "status": "not applicable: marks MORE streams strict (any dict with /AP), never exempts"
-        },
-        {
-          "site": "redaction.rs bbox f64::min/max (NaN dropped)",
-          "status": "fixed c520095: non-finite point = unbounded box; touches() true on NaN"
-        },
-        {
-          "site": "redaction.rs touches() callers (glyph box, annotation rect, image placement, form box)",
-          "status": "fixed c520095: all four go through the fail-closed touches/bbox"
-        }
-      ],
-      "findings": [
-        {
-          "id": "CONFIRMED proof_gap looks_like_content (sanitized_save.rs:247-254,402-421)",
-          "status": "FIXED c520095",
-          "evidence": "kept_text_streams in show_text.rs; test stray_streams_and_hidden_payloads_are_not_kept_text (three stray shapes: no Subtype, Subtype Form not drawn, Pattern) RED on the 023c817 modules in the scratch copy ('/Filter /FlateDecode: []' = no hit); the drawn form keeps its collision"
-        },
-        {
-          "id": "CONFIRMED opaque_text_streams listed, not blocking",
-          "status": "ALREADY FIXED by dd1df63 (after candidate bd8533f)",
-          "evidence": "NotProven::OpaqueText; test opaque_composite_text_blocks_the_proof (RED on 272909b, recorded earlier); passes at 007f8bc"
-        },
-        {
-          "id": "CONFIRMED candidate_wip_untested (6e95976 engine without tests, doc cites absent test)",
-          "status": "ALREADY FIXED by 5a91fd7 (tests) and 70c2ace (docs)",
-          "evidence": "tests/pdf_delivery.rs raster_class_is_listed_and_region_images_are_removed exists and passes; process rule accepted: no engine-only WIP pushes (023c817 -> 007f8bc gap was bridged by committing engine and tests within minutes, both pushed after green runs)"
-        },
-        {
-          "id": "PLAUSIBLE r5_class_reopened (image XObject + raster filter + zlib bytes)",
-          "status": "FIXED c520095",
-          "evidence": "raster::hidden_zlib; test class 2 loops JBIG2/CCITT/DCT/JPX, RED on the old modules (hits [] for JBIG2Decode); a zlib bomb behind a raster name is InputLimit. Codec-magic check REJECTED: raster_class_is_listed... feeds codec data without magic and real files vary"
-        },
-        {
-          "id": "PLAUSIBLE proof_independence (NaN glyph box dropped by min/max; same-selector residual)",
-          "status": "NaN part FIXED c520095; same-selector part OPEN",
-          "evidence": "test class 3 (nine 1e38 cm operators): RED 'the unlocatable string was kept' on the old modules. The residual pass still re-runs the same selector (needs an independent per-region text extraction; not done)"
-        },
-        {
-          "id": "PLAUSIBLE cancellation (scan/endobj count without cancel)",
-          "status": "FIXED c520095",
-          "evidence": "scan() and count_marker() poll the token per 1 MiB window with needle-length overlap; test class 4 puts a needle across the 2 MiB edge and finds it once; the in-window poll itself is not testable deterministically"
-        },
-        {
-          "id": "PLAUSIBLE doc_drift filters.rs header / ASCII85 truncation",
-          "status": "FIXED (header in 023c817, ASCII85 in c520095)",
-          "evidence": "filters.rs header lists LZW; ascii85 refuses a final group above 2^32 (unit test predictor_rows_are_not_padded_and_chains_are_bounded); valid encoders never exceed it (n digits padded with 'u' stay below 2^32)"
-        }
-      ],
-      "count_check": "3 CONFIRMED + 4 PLAUSIBLE = 7 findings listed above: 5 fixed in c520095 (one of them, proof_independence, only its NaN half), 2 already fixed by earlier commits (dd1df63; 5a91fd7 + 70c2ace); open: the same-selector residual pass"
-    },
-    "slice6": {
-      "commit": "a1c9747",
-      "closed_gaps": [
-        "other name trees (keys)",
-        "SubmitForm /Fields (and ResetForm)",
-        "embedded-file content"
-      ],
-      "decisions": [
-        "Name-tree keys are identifiers nothing in the file refers to: renamed like the embedded-file names (no reference rewrite needed). The values (script code) are not text slots and stay not covered; sanitize_full_rewrite drops JavaScript on request.",
-        "SubmitForm/ResetForm /Fields strings are field names: replacing them changes which fields the action targets (the redaction intent wins); they share the form_labels flag. Indirect references inside /Fields are untouched.",
-        "An attachment is not text we can edit: a match in its decoded bytes drops the whole /EF (and /RF) of the file specification; an attachment that cannot be decoded is Unverifiable (kept, report incomplete), never silently dropped or assumed clean.",
-        "Embedded content is matched as UTF-8 (BOM-aware) and Latin-1 in 1 MiB windows with 4 KiB overlap; UTF-16 without a byte-order mark and attachments inside compressed containers (zip, docx) are not read, by the redaction or by the byte-level payload proof (a needle compressed inside an attachment's own container is out of reach of both)."
-      ],
-      "red": "compile-red by construction: TextFieldPolicy.name_trees / embedded_content and the three TextRole variants do not exist at 007f8bc; the test asserts per-role outcome rows, a proven output, an independent inflate of every stream, the policy-off run (6 kept) and the undecodable attachment",
-      "known_gaps": [
-        "Script code (name-tree values, JS actions) is not redacted; field /TM and /MK captions; structure elements that are direct dictionaries without /P",
-        "The residual pass of redact_and_save re-runs the same selector (R6 PLAUSIBLE, open)",
-        "Acrobat-saved fixture oracle still pending (Operator D5)"
-      ]
-    }
+  {
+   "sha": "df8842b",
+   "subject": "Press slice 1b: irreversible region redaction, sanitized full rewrite, independent full reachable payload proof, 5 focused tests"
+  },
+  {
+   "sha": "08080cb",
+   "subject": "Press: harden parser (hash-indexed large dicts, checked xref numbers, null objects, exact object spans), descriptor refresh"
+  },
+  {
+   "sha": "8b24131",
+   "subject": "Press: press-consumer example, residual re-pass over saved bytes, distinctive-needle byte-scan proof"
+  },
+  {
+   "sha": "d1bb2ff",
+   "subject": "Press slice 2 (wip): form XObject copy-on-write redaction, LZW filter, context-aware payload proof, thumb/PieceInfo sanitize, slice-2 tests"
+  },
+  {
+   "sha": "1df11b2",
+   "subject": "Press slice 2: whole-token proof rule, region_cleared vs is_proven, leak summary in press-consumer, descriptor rules"
+  },
+  {
+   "sha": "cb38b86",
+   "subject": "Press slice 3: outline-title and annotation-text redaction (Contents/T/Subj/RC, widget V/DV option, appearance drop) with per-object outcomes, redact_and_save_with, PDFDocEncoding/UTF-16 codec, annotation appearance text counts as a proof hit, +5 tests"
+  },
+  {
+   "sha": "03fb753",
+   "subject": "Press remediation R5: is_clean, region_cleared and is_proven require every stream decoded (a removed string stored in an undecodable stream no longer reads as proven); undecodable_stream_never_reads_as_proven (fails on the old verifier)"
+  },
+  {
+   "sha": "e75bd5a",
+   "subject": "Press slice 4: named destinations (tree rebuilt as one sorted leaf, opaque HskRdN names, every reference), URI actions, form /TU /Opt, structure /Alt /ActualText /E /T, /Info + XMP, popup/IRT annotations, ToUnicode-read appearances with Unverifiable/Dropped outcomes, per-object outcomes, +3 tests"
+  },
+  {
+   "sha": "6e95976",
+   "subject": "Press slice 5 (wip): raster_unsearchable class, RemoveImages policy, file targets, embedded-file names, XMP on pages and images, ToUnicode-aware payload proof"
+  },
+  {
+   "sha": "5a91fd7",
+   "subject": "Press slice 5 tests: raster class and image removal, file targets and embedded names, ToUnicode proof, hostile bounds, string tokenization"
+  },
+  {
+   "sha": "70c2ace",
+   "subject": "Press slice 5: descriptor and docs (V4-07 claims cite tests), raster class, file targets, RemoveImages, ToUnicode proof"
+  },
+  {
+   "sha": "272909b",
+   "subject": "Press V4-01: deny clippy::arithmetic_side_effects on the touched pdf_edit and error modules"
+  },
+  {
+   "sha": "dd1df63",
+   "subject": "Press: unreadable composite text blocks the proof (NotProven::OpaqueText), typed not_proven_reasons"
+  },
+  {
+   "sha": "023c817",
+   "subject": "Press V4-01: arithmetic deny on filters, reader, syntax, writer; bounded decode, xref/object-stream, depth and overlap limits"
+  },
+  {
+   "sha": "c520095",
+   "subject": "Press remediation R6 (review B): kept-text exemption only for page content and reachable forms; hidden zlib behind raster filters; NaN glyph boxes; cancellable scans"
+  },
+  {
+   "sha": "007f8bc",
+   "subject": "Press V4-02 tests for the hostile-input hardening (023c817): dims_u32_max, aggregate_over_budget, nesting/cycles/overlap; descriptor"
+  },
+  {
+   "sha": "a1c9747",
+   "subject": "Press slice 6: other name trees, SubmitForm/ResetForm /Fields and embedded-file content in the text-field redaction"
+  },
+  {
+   "sha": "187e6cf",
+   "subject": "Press R7 pre-review B remediation: payload proof sound by construction (N1-N7)"
+  },
+  {
+   "sha": "a4d2234",
+   "subject": "Press R7: N1 test asserts the raw hit only where the token boundary is clean (TrailingData blocks the glued case)"
+  },
+  {
+   "sha": "1c3fd8c",
+   "subject": "Press PLR-040: raster class needs codec structure (fail closed); DESCRIPTOR proof scope"
   }
+ ],
+ "capabilities_done": [
+  "reader: header, startxref, classic xref table, xref stream (W/Index, PNG/TIFF predictors), hybrid XRefStm, /Prev chain (newest wins; loop and section-count refused), object streams, indirect /Length with bounded endstream recovery scan; NO repair heuristics (damaged xref = typed refusal)",
+  "filters: FlateDecode via miniz_oxide with output limit (decompression-bomb cap), ASCIIHex, ASCII85, RunLength; everything else (LZW, DCT, JPX, CCITT, JBIG2, Crypt) = UnsupportedFilter",
+  "limits: max_bytes, max_objects, max_depth, max_decoded_bytes, max_decoded_total, max_xref_sections, max_pages, max_content_ops; hash-indexed large dictionaries; checked arithmetic on xref numbers",
+  "PdfDoc::open/inspect/proposal: typed object-model projection (pages, media box, rotate, annotations, AcroForm field tree, signature states); encrypted input opens structure-only (permission bit read), every mutation refused (Encrypted / PermissionDenied)",
+  "PdfDoc::edit_entry: allowlisted scalar edit (Info Title/Author/Subject, page Rotate, annotation Contents) with SHA-256 stale check; refusals SignedDocument, Encrypted, PermissionDenied, NoSuchObject, UnsupportedObject, StaleSource, KeyNotAllowed, Canceled",
+  "PdfDoc::save_full/save_to: fresh full rewrite of objects reachable from /Root and /Info only (no incremental tail, no orphans, prior revisions gone); unmodified objects copied byte-verbatim; ArtifactSink begin/write/commit/abort with last-good retained on any fault or cancel",
+  "PdfDoc::redact_region: removes text-showing operators (Tj TJ ' \") whose glyph-run box may touch the region (exact advance from /Widths else 1000/1000 em upper bound; kerning spacer keeps following text in place when widths are exact), annotations touching the region (plus popups/children) and all AcroForm references; page /Contents repointed to a NEW stream; staged commit after a reachability proof; images/vectors/form XObjects/shadings/inline images in the region refuse with UnsupportedRedactionClass (policy ReportAndContinue lists them)",
+  "verify_payload_absent: re-opens the OUTPUT and scans raw bytes, every decoded stream (object streams included), string/name objects, content-stream string operands, UTF-16BE spelling; reports xref sections, unreachable objects, unlisted endobj markers, undecodable streams",
+  "redact_and_save: redact + full save + payload proof + residual re-pass over the saved bytes (fresh open, region test must select nothing); restores the document on error",
+  "sanitize_full_rewrite: drop Info / XMP / embedded files / JavaScript / Thumb / PieceInfo then full rewrite (dedicated test in slice 2)",
+  "Observe mapping (outcome_for, report), DESCRIPTOR, example press-consumer (--descriptor, --inspect, --set-title, --redact)",
+  "slice 2 (1): redaction recurses into form XObjects (depth 8, Matrix x CTM, own or inherited /Resources); a form with removed text is copied to a NEW object under a fresh /HskRdN name used only by the rewritten Do (original untouched, other uses and other pages keep it; its resource entry is dropped when no other Do at that level uses it); nested forms rewritten bottom-up; images/vectors/shadings/inline images still fail closed",
+  "slice 2 (2): sanitize_full_rewrite also drops /Thumb (drop_thumbnails) and /PieceInfo (drop_private_data); dedicated test proves Info, XMP, PieceInfo (catalog, page, deflated), thumbnail, embedded file (deflated) and JavaScript payloads absent from raw bytes, independently inflated streams and verify_payload_absent",
+  "slice 2 (3): LZWDecode (+predictor, EarlyChange 0|1), constant-memory dictionary, output capped by max_decoded_bytes; tested with an in-test encoder across 9..11 bit code-width changes and a 4 MiB-of-zeros bomb refused at a 64 KiB cap",
+  "slice 2 (4): payload proof context rule: a needle in a TEXT-SHOWING operand (Tj TJ ' \") of a decoded content stream is a kept_text_collision (reported, not a leak); anywhere else is a leak hit; whole-token matching for alphanumeric edges; RedactedOutput::region_cleared (structural) vs is_proven (region_cleared and no leak hit); rule documented in DESCRIPTOR",
+  "slice 3 (1): PdfDoc::redact_text_fields(needles, TextFieldPolicy) redacts outline item /Title (every node linked via /First /Last /Next /Prev, cycles tolerated) and annotation /Contents /T /Subj /RC (page /Annots incl. direct dictionaries); replacement is always a DIRECT value (shared string objects never edited in place); atomic staged commit; signed, encrypted and cancelled inputs refuse",
+  "slice 3 (2): matching on decoded text: PDFDocEncoding (ISO 32000 Annex D.2 table), UTF-16BE/LE and UTF-8 with mark; UTF-16BE stays UTF-16BE on rewrite; modes Replace(marker)|Remove; case-insensitive substring by default, whole_token / case_insensitive=false align with the proof; marker must not match a needle; fixpoint passes",
+  "slice 3 (3): /RC (string or XHTML stream) judged raw, tag-stripped and tag-gapped with entities decoded; any match drops the key; unreadable text streams are dropped fail-closed and reported unreadable",
+  "slice 3 (4): widget /V and /DV (string, text stream, array of strings) only with the explicit widget_values option; field/widget /T names never rewritten; every match the policy keeps is reported KeptByPolicy (TextFieldReport.complete == nothing kept)",
+  "slice 3 (5): annotation /AP appearance streams (N/R/D, state dictionaries, nested forms) whose show operands match are dropped; per-object outcomes (object, direct, role, kind Replaced|Removed|Dropped|KeptByPolicy, matches, unreadable) carry no document text",
+  "slice 3 (6): payload proof treats annotation appearance streams as annotation text (show-operand match = hit, not kept_text_collision); UTF-16BE spellings for any PDFDocEncoding-readable needle and Unicode needles by PDFDoc/UTF-8/UTF-16BE; redact_and_save_with(regions, policy, Some(&TextFieldPolicy)) redacts the distinctive removed strings from outlines/annotations before the full save (RedactedOutput.text_fields); redact_text_fields_and_save(needles) = redact + full save + independent proof (TextRedactedOutput::is_proven)",
+  "remediation R5 (review R5 group B, CONFIRMED on 1d404f8/1df11b2): PayloadProof::is_clean, RedactedOutput::region_cleared and (through them) is_proven and TextRedactedOutput::is_proven now require proof.fully_decoded(); a stream with an unimplemented filter is scanned raw only, so a needle stored in its encoded form no longer reads as proven absent; streams_not_decodable names the blockers; test undecodable_stream_never_reads_as_proven fails on the old verifier (RED run observed: assertion !fully_decoded && !is_clean) and passes now",
+  "slice 4 (1): named destinations: name-tree keys of /Names /Dests (any depth) and legacy /Dests keys that match are renamed to unique opaque HskRdN (never colliding with existing keys); the same rename is applied to every /Dest, /OpenAction and GoTo /D reference (name or string, dangling references included); the tree is rebuilt as one sorted leaf (no /Limits, kids dropped) with the original values; DestName outcomes for the tree/dictionary holder and for every reference holder",
+  "slice 4 (2): URI actions: /S /URI actions anywhere reachable (/A, /AA, /OpenAction, /Next chains, nested) and the catalog /URI /Base are rewritten by the text mode (ActionUri outcomes)",
+  "slice 4 (3): form /TU and /Opt (option strings and [export display] pairs, nested arrays) via form_labels; structure elements (dictionaries with /S and /P or /Type /StructElem) /Alt /ActualText /E /T via structure_text; trailer /Info string entries and the catalog /Metadata XMP stream (match drops the key) via info_fields",
+  "slice 4 (4): annotations reached only through /Popup, /IRT or a popup's /Parent are judged like page annotations; every class has a policy flag (destinations, action_uris, form_labels, structure_text, info_fields) and a disabled class reports KeptByPolicy",
+  "slice 4 (5): appearance text is read through each font's /ToUnicode CMap (new cmap.rs: codespacerange, bfchar, bfrange incl. array form, bounded to 262144 entries / 65536-code ranges, stray delimiters terminate); a match drops the appearance; composite-font text without a usable /ToUnicode (or an undecodable appearance) on an edited annotation drops the appearance (Dropped, unreadable) and on an unedited annotation is reported Unverifiable (kept; report.complete == false; TextFieldReport.unverifiable)",
+  "slice 5 (1) raster class (lead decision, narrow): raster.rs; a stream is raster_unsearchable ONLY when it is an image XObject (/Subtype /Image) or an inline image whose filter chain ENDS in DCTDecode, JPXDecode, CCITTFaxDecode or JBIG2Decode after implemented filters; PayloadProof.raster_streams lists it (RasterStream {object, class RASTER_CLASS, filter, inline}), the decodable prefix is still decoded and scanned (a needle in a JPEG comment segment behind ASCIIHex is a hit), it does not block is_clean/is_proven; Crypt, unknown filters, a raster filter in any other position and every non-image stream with an unimplemented filter block exactly as before (an inline image with such a filter blocks as 'inline:<name>')",
+  "slice 5 (2) region over a raster: UnsupportedPolicy::RemoveImages removes an image XObject or inline image whose placement touches a region whole (Do / BI..EI leaves the content; resource entry dropped when no other Do at that level uses it; image object leaves the file when unused); RedactionReport.images_removed / inline_images_removed; with Refuse the region fails closed, with ReportAndContinue it stays incomplete (not proven); no pixel codec",
+  "slice 5 (3) file targets: GoToR/GoToE/Launch/ImportData/SubmitForm /F (string, typed or untyped file specification), GoToR/GoToE /D, Launch /Win /F /D /P, file specification /F /UF /DOS /Mac /Unix /Desc (typed, via /AF, /FS or an action), and the /Names /EmbeddedFiles tree keys (renamed to opaque HskRdN, tree rebuilt as one sorted leaf) via TextFieldPolicy.file_targets; roles FileSpecName, FileSpecDesc, RemoteDest, LaunchWin, EmbeddedFileName; disabled class = KeptByPolicy",
+  "slice 5 (4) /Metadata XMP of pages, images, forms (and the catalog) is judged: a match drops the key (role Xmp, kind Dropped), info_fields flag",
+  "slice 5 (5) payload proof reads /ToUnicode: show_text.rs reads page content, forms and appearances through each font's CMap (cached per font object, decoded under the shared budget); needle text comes from RedactionReport.removed_unicode (new) or the needle bytes; kept page text = collision, appearance text = hit (PayloadLocation::DecodedText); verify_payload_absent_unicode; composite-font text without a map is listed in PayloadProof.opaque_text_streams (not blocking)",
+  "slice 5 (6) matching ignores case, runs of white space (incl. no-break space) and zero-width characters (Matcher normalizes both needle and text and maps spans back to the original); PDF string tokenization tests cover escapes (octal, hex, name #xx), nested parentheses, comment decoys, wrongly cased names",
+  "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F",
+  "lead correction (class 'proven while some text was never checked'): PayloadProof.needles_searched counts the distinct needles searched; when it is > 0 and opaque_text_streams is not empty (composite-font text without a usable /ToUnicode), PayloadProof::is_clean, RedactedOutput::region_cleared / is_proven and TextRedactedOutput::is_proven are false with the typed reason NotProven::OpaqueText; PayloadProof::not_proven_reasons / RedactedOutput::not_proven_reasons / TextRedactedOutput::not_proven_reasons return every reason (codes leak, structure, undecodable_stream, opaque_text, region_incomplete, residual_in_region, text_fields_kept); press-consumer prints not_proven; test opaque_composite_text_blocks_the_proof fails on 272909b (RED run observed: reasons [] = proven)",
+  "hardening 1 (V4-01): #![deny(clippy::arithmetic_side_effects)] now on filters, reader, syntax, writer (107 flagged sites fixed with checked/saturating arithmetic, get()-based indexing and typed errors: filters 43, syntax 40, reader 23, writer 1); every module of the crate except lib.rs (no arithmetic) carries the deny; clippy clean",
+  "hardening 2 (bounded decoding, workflow v4): every filter stage output is charged to the operation budget (a chain pays for its intermediates), a failed stage is charged (cap overrun = the cap, other failure = the input examined), unfiltered streams obey the per-stream cap, decoded_total vs decoded_bytes names what bound the stage, Limits::max_filters (8) bounds the chain, predictor output is never longer than its input (no 64 MiB row from a few bytes; partial last PNG row stays partial), LZW/ASCIIHex/ASCII85/RunLength use checked arithmetic and cap checks incl. the final partial group",
+  "hardening 3 (xref / object streams / depth / cycles): Limits::max_object_number (8,388,607, ISO 32000 Annex C Table C.1 via a secondary source) on xref table, xref stream and object headers and on the number that sizes a save table (table size checked against max_bytes before writing; free list computed without materializing it); /W exactly 3 fields of <= 8 bytes; /Size and /Index counts checked against the stream data; indirect /Length reads a number only; bytes parsed over all indirect objects <= 2 x input (overlapping /Length streams); bytes parsed from one object stream <= its decoded size (members at one offset); Limits::max_nodes (16 Mi) on parsed objects; numeric tokens <= 64 chars; nesting depth clamped to HARD_MAX_DEPTH 256 whatever max_depth says (tokenizer, purge_list, page and field walks); reference chains end as null after MAX_REF_HOPS 16 (cycles too); AcroForm names shared via Rc and charged to max_bytes (huge /T x many kids, one /T shared by many fields)",
+  "hardening 4 (V4-02 tests): hostile_parser_dims_u32_max, aggregate_over_budget_many_streams, hostile_nesting_cycles_and_overlap (integration) + filters unit tests budget_is_charged_by_every_stage_and_by_failures, predictor_rows_are_not_padded_and_chains_are_bounded; each red-proved on a scratch copy at 555ea97 sources",
+  "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text",
+  "slice 6 (a1c9747): (1) keys of every /Names tree except /Dests and /EmbeddedFiles (JavaScript, AP, Pages, Templates, IDS, URLS, ...) renamed to opaque HskRdN and the tree rebuilt as one sorted leaf (TextRole::NameTreeKey, policy name_trees); (2) strings of /Fields of SubmitForm and ResetForm actions through the text mode (TextRole::ActionFields, policy form_labels; refs inside /Fields untouched); (3) embedded file content: a file specification whose /EF stream decodes to bytes holding a match loses /EF and /RF, the stream leaves the file (TextRole::EmbeddedFileContent Dropped; undecodable = Unverifiable; policy embedded_content off = KeptByPolicy); test name_trees_submit_fields_and_embedded_content_redacted",
+  "R7 pre-review B: payload proof sound by construction: raw backstop over every output byte (no span subtraction), decoders report consumed input (NotProven::TrailingData), inline-image data decoded and scanned (PayloadLocation::InlineImage), dictionary keys scanned, spellings bytes/PDFDoc/UTF-8/UTF-16BE/LE/hex + ToUnicode codes, one content walker (q/Q, gs /Font, Tf across page streams and into Do forms, inherited resources, /DR for appearances), kept text = drawn by Do from a page, stray content-role streams read, NotProven::UnreadableContent; PLR-040 raster class requires JPEG/JPX/JBIG2 structure or CCITT rows that decode to the image size"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
+  "exit": 0,
+  "sha": "1c3fd8c",
+  "passed": 38,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on 1c3fd8c (38 tests: 6 new R7 tests + filters unit consumed_and_trailing_input_are_reported). Lead items: residuals_for_lead in notes.remediation_R7pre (simple-font /Differences reading, whole-token rule on glued raw needles, CCITT K>0 not raster). Then: Acrobat fixture oracle (D5), Type3/pattern text redaction, rotated pages.",
+ "updated_at": "2026-10-11T11:01:30Z",
+ "notes": {
+  "test_names": [
+   "pdf_object_edit_save_independent_reopen",
+   "redacted_text_absent_all_reachable_streams",
+   "signed_readonly_cancel_stale_save_fault",
+   "hostile_pdf_bounds",
+   "xref_stream_object_stream_predictor_and_object_model",
+   "form_xobject_text_redaction_copy_on_write",
+   "sanitize_removes_thumb_pieceinfo_metadata_from_all_bytes",
+   "lzw_filter_decodes_and_is_bomb_bounded",
+   "proof_context_rule_kept_text_collision_is_not_a_leak",
+   "outline_titles_redacted_in_every_encoding",
+   "annotation_text_slots_and_appearance_redacted",
+   "widget_values_are_an_explicit_option_and_kept_text_is_reported",
+   "region_redaction_with_text_fields_closes_outline_and_annotation_leaks",
+   "text_fields_refusals_bounds_and_atomicity",
+   "undecodable_stream_never_reads_as_proven",
+   "destinations_and_action_uris_redacted_with_consistent_references",
+   "form_labels_structure_text_info_and_xmp_redacted",
+   "popup_irt_annotations_and_composite_font_appearances",
+   "raster_class_is_listed_and_region_images_are_removed",
+   "file_targets_embedded_names_and_xmp_redacted",
+   "proof_reads_tounicode_text_and_region_needles",
+   "hostile_decoder_bounds_dims_and_aggregate",
+   "pdf_string_tokenization_adversarial",
+   "opaque_composite_text_blocks_the_proof",
+   "hostile_parser_dims_u32_max",
+   "aggregate_over_budget_many_streams",
+   "hostile_nesting_cycles_and_overlap",
+   "stray_streams_and_hidden_payloads_are_not_kept_text",
+   "name_trees_submit_fields_and_embedded_content_redacted"
+  ],
+  "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
+  "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
+  "real_pdf_probe": "press-consumer on two local research PDFs (23 pages 1.3 MB, 20 pages 16.5 MB; xref streams + object streams): inspect OK; region redaction on a text-only region removed 12 strings, residual_in_region 0, layout_shift false (embedded fonts with /Widths); regions touching vector/image content refuse fail-closed (UnsupportedRedactionClass vector / image). Output files under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-probe (no document text printed).",
+  "known_gaps": [
+   "Byte-scan proof is strict: short removed strings (< 6 bytes, e.g. kerned word pieces, subset glyph codes) are excluded from the scan (RedactedOutput.short_needles) because they legitimately occur elsewhere; for natural-language documents a distinctive removed word that also appears elsewhere (kept text) yields hits and is_proven() == false. The structural proof is residual_in_region == 0 on a fresh pass over the saved bytes (same region test, so not independent of the interpreter).",
+   "Whole strings are removed (a string straddling the region edge is removed entirely); standard fonts without /Widths use an upper-bound advance, and layout_shift_possible is reported when following text on the line may move.",
+   "Rotated pages: region is in default user space (no /Rotate or /CropBox mapping). Encrypted PDFs are structure-only (no decryption).",
+   "Same-parser reopen is not independent evidence; the tests use raw byte comparison, an independent miniz_oxide inflate scan of every stream body, and (slice 3) a test-side PDF string extractor as the oracle. Acrobat-saved fixture oracle still pending (Acrobat DC installed, foreground session needs Operator approval per START_LOG D5).",
+   "Text inside Type3 glyph procs and tiling patterns and structure ActualText is not edited by redaction; the payload proof flags the removed strings if they survive there (sanitize drops Thumb/PieceInfo/XMP on request). Outline titles and annotation text are covered since slice 3.",
+   "is_proven is strict by design: a distinctive removed word that also lives in metadata (Info/XMP) is a hit; with a text policy the same word in outline titles and annotation text is redacted (slice 3). region_cleared gives the per-instance answer."
+  ],
+  "decisions": [
+   "Object numbers are preserved on full save (no renumbering) so unmodified objects can be copied byte-verbatim; free numbers get a linked free list.",
+   "Redaction rewrites the page content into a NEW object and repoints /Contents instead of editing shared streams in place.",
+   "Fail closed on unsupported painted content by default; ReportAndContinue is an explicit caller choice.",
+   "Signed documents are refused for every mutation including full save (a full rewrite invalidates byte-range signatures); incremental policy is later scope."
+  ],
+  "real_pdf_probe_slice2": "press-consumer on the 23-page research PDF: text-only regions redact with complete=true, residual_in_region=0 (region_cleared); is_proven stays false when removed whole words also appear in outline titles (UTF-16 bookmarks such as 'Online Retrieval'), reported as string-object hits and never hidden; regions touching vector content refuse fail-closed. Slice 3 closes exactly this case when redact_and_save_with gets a TextFieldPolicy (not re-run on the real PDF in slice 3).",
+  "slice3_spec_basis": "ISO 32000 outline item dictionary (12.3.3), annotation dictionary Contents/T/Subj/RC (12.5.2, 12.5.6.2), appearance dictionary N/R/D (12.5.5), field dictionary V/DV (12.7.4.1), text strings (7.9.2.2: PDFDocEncoding, UTF-16BE FE FF, UTF-8 EF BB BF). PDFDocEncoding 0x18-0x1F/0x80-0x9E/0xA0 table checked against mozilla/pdf.js src/core/string_utils.js. Table numbers differ between ISO 32000-1 (Table 153 outline item, 164/170 annotation, 168 appearance, 220 field) and -2 (151, 168/170, 226); the ISO text itself could not be fetched (10 MB limit), secondary sources agree.",
+  "slice3_decisions": [
+   "Replacement is always a DIRECT value in the holder dictionary (copy-on-write): a shared string object is never edited; it drops out of the save when no other reference remains, else the proof reports it as a hit.",
+   "Defaults fail closed: case-insensitive substring; whole_token (the proof's token rule) and case_insensitive=false are options. The proof stays case-sensitive exact-spelling, so it is never stricter than the redaction.",
+   "Field/widget /T is a NAME (12.7.4.1): never rewritten (would break uniqueness), reported KeptByPolicy and remains a proof hit; widget_values is the explicit option for /V /DV and the widget appearance.",
+   "Annotation appearance streams hold the rendered text: dropped when their show operands match (viewers regenerate); the proof counts a show-operand match in an /AP stream as a hit instead of a kept-text collision (behaviour change vs slice 2 only for annotations whose appearance repeats a removed word).",
+   "An annotation's /AP is also dropped when the annotation was edited and an appearance stream cannot be decoded (cannot show it is free of the text).",
+   "Direct annotation dictionaries inside /Annots are edited in place in their holder (page or array object); outcome has direct=true and the holder as object.",
+   "AcroForm /NeedAppearances is not set after a widget appearance is dropped (catalog untouched); a viewer that does not regenerate shows an empty widget."
+  ],
+  "slice3_known_gaps": [
+   "CLOSED by slice 4 (kept for history): named-destination names, action /URI, field /Opt and /TU, structure-tree /ActualText, popup/IRT annotations outside /Annots, composite-font codes in appearance streams (read through /ToUnicode).",
+   "Rich text is judged by three spellings (raw, tags removed, tags as gaps) with the common entities decoded; XHTML in a non-UTF-8 stream without a byte-order mark is read as UTF-8.",
+   "The needle is a Unicode string; redact_and_save_with bridges from content-stream bytes by PDFDocEncoding decoding of the distinctive (>= 6 byte) removed strings.",
+   "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
+  ],
+  "slice3_gameplan_route": "No retry-guard block occurred: both cargo test runs passed (the second after a descriptor/oracle edit, before the commit). No gameplan step added.",
+  "remediation_R5": {
+   "finding": "adversarial review R5 group B (CONFIRMED, candidate 1d404f8, commit 1df11b2): sanitized_save.rs is_proven/region_cleared ignored streams that could not be decoded, so a removed string left in an undecodable stream still reported proven",
+   "fix": "PayloadProof::is_clean, RedactedOutput::region_cleared (hence is_proven) and TextRedactedOutput::is_proven now require proof.fully_decoded() (streams_not_decodable empty); DESCRIPTOR proof.fully_decoded documents the rule",
+   "test": "undecodable_stream_never_reads_as_proven: catalog /Hidden stream with /Filter /JBIG2Decode holding zlib bytes of the removed string; control document without it is proven; the independent inflate shows the needle survives; fails on the old verifier (RED run: assertion on !fully_decoded && !is_clean), passes on 03fb753",
+   "commit": "03fb753 (separate commit, pathspec crates/hsk-studio-press; reached origin through another lane's push because the shared branch carries all lanes)",
+   "consequence": "any document that holds a stream with an unimplemented filter (DCT, JPX, CCITT, JBIG2, Crypt, unknown) is now NOT proven; press-consumer prints undecoded_streams=N; JPEG-heavy real documents will not read as proven until those filters get a decoder or a typed 'raster stream, no text carrier' class is approved by the lead",
+   "gameplan_route": "RED run used a single-test filter command, the GREEN run the full target command (different normalized commands, no retry-guard bypass); the RED failure was a product failure fixed by the commit"
+  },
+  "slice4_decisions": [
+   "Destination names are identifiers: a matching name is renamed to a unique opaque HskRdN (not Replace/Remove text) so links keep working and keys never collide; the tree is rebuilt flat and sorted (valid, unbalanced) instead of patching /Limits.",
+   "Reference rewrite covers direct /Dest, /OpenAction and GoTo /D values (name or string); an indirect string reference stays a proof hit. GoToR/Launch targets are not touched.",
+   "Info + XMP: every string entry of the trailer /Info (custom keys too) and the catalog /Metadata stream (any match drops the key, like /RC) are one policy class, info_fields, default on.",
+   "Structure elements are recognised by /S plus /P (or /Type /StructElem); direct dictionaries without /P are not.",
+   "Unverifiable is a new outcome kind: an appearance the redaction cannot read on an UNEDITED annotation is kept and flips report.complete to false; on an EDITED annotation it is dropped.",
+   "The payload proof stays a byte scan: text visible only through a /ToUnicode CMap is judged by the redaction scan (appearance_scan), not by verify_payload_absent."
+  ],
+  "slice4_known_gaps": [
+   "GoToR/Launch /D and /F targets, other name trees (embedded file names, JavaScript names), page/image /Metadata, field /TM and /MK captions, structure elements that are direct dictionaries without /P: not covered, still proof hits.",
+   "ToUnicode: bounded parser (codespacerange, bfchar, bfrange); cidchar/cidrange and usecmap are not interpreted; mixed-length codespaces decode greedily by ascending length.",
+   "Per-object outcomes for the name tree report the holder of the tree root, not each leaf (leaves are rebuilt away).",
+   "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
+  ],
+  "slice5_decisions": [
+   "Raster class per the lead decision: image XObject or inline image, chain ends in DCT/JPX/CCITT/JBIG2 after implemented filters. Everything else with an unimplemented filter keeps blocking the proof.",
+   "Limit (a) is enforced by the redaction side, not by a proof flag: any image under a region makes the region incomplete (Refuse = typed error, ReportAndContinue = unredacted lists Image/InlineImage, not proven) unless UnsupportedPolicy::RemoveImages removed it whole. RemoveImages still refuses every other unsupported class (vector, shading, deep forms).",
+   "Raster streams are still scanned: their decodable prefix is decoded and a plain needle in it (JPEG comment segment) is a hit. Only a needle drawn as pixels is out of reach, and that is what region removal of the image answers.",
+   "File targets: /F of remote and launch actions is judged as text or as a file specification; typed file specifications are found anywhere, untyped ones through the action, /FS, /AF and the embedded-file tree (SweepState.fs). /Desc is judged with the names. SubmitForm /Fields and the embedded file CONTENT stay proof hits.",
+   "The embedded-file name tree is renamed like /Dests: keys are identifiers nothing refers to, so a matching key becomes an opaque HskRdN and the tree is rebuilt as one sorted leaf.",
+   "ToUnicode in the proof: kept page text decoded through a map is a collision, appearance text a hit; the needle text comes from RedactionReport.removed_unicode (font map at removal time) or the PDFDocEncoding reading of the needle bytes. Composite text without a map is listed (opaque_text_streams), not blocking.",
+   "Matching normalizes white space and zero-width characters; the byte proof stays an exact-spelling scan, so it is never stricter than the redaction."
+  ],
+  "slice5_known_gaps": [
+   "V4-01 is applied to the modules touched in this slice; filters.rs, reader.rs, syntax.rs and writer.rs (the decoders of slices 1-2) do not carry the arithmetic deny yet: suggested next slice (a crate-wide deny was tried and lists many sites; filters.rs alone shows at least 14).",
+   "Other name trees (AP, JavaScript, Pages, Templates, IDS, URLS), SubmitForm /Fields, embedded file content, Type3/pattern text, GoToE /T target dictionaries are not covered (proof hits).",
+   "The inline-image classification reads the BI dictionary operands; a malformed filter entry blocks as 'inline:filter_entry'.",
+   "Proof text matching is case-sensitive exact spelling over the ToUnicode text, like the byte scan."
+  ],
+  "opaque_text_decision": "The lead's exception clause (stream removed by policy, or wholly outside every region AND no text-needle search requested) is implemented as: a stream removed by policy is not in the saved file, so it is not listed; otherwise opaque text blocks exactly when a needle search ran (needles_searched > 0), wherever on the page it is, because the proof has no per-stream geometry. Two earlier tests that drew unreadable composite text next to is_proven (proof_reads_tounicode_text_and_region_needles, popup_irt_annotations_and_composite_font_appearances) now state NotProven::OpaqueText; the first also checks that the same page without the F3 text is proven. Route for the one failing full run after the rule: product expectation changed -> fix committed (dd1df63) -> rerun (route a). V4-11 acknowledged: the backup/restore of sanitized_save.rs for the RED run was followed by touch.",
+  "slice5_infra_note": "One cargo test run failed to compile with errors saying the library lacked items that exist in the source (stale rlib after concurrent builds in the shared target dir); touching the sources fixed it and the identical command then ran. Cause: stale artifact in the shared warm target, not a product failure. No gameplan step added (no machine check can see it; the lead may want a mtime-based preparation check). Retry-guard: the later identical failure of pdf_string_tokenization_adversarial was a test-data bug (hex URI spelled only the needle) fixed by commit 5a91fd7 (route a: product failure -> commit -> rerun).",
+  "verdicts": [
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-PRESS",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "is-proven-ignores-undecodable-streams",
+      "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:314-316 (vs :11, :226-237, :276)"
+     }
+    ],
+    "remediation": "Require proof.fully_decoded() in is_proven (or typed NotProven); add undecodable-stream leak test",
+    "status_after": "READY_FOR_VALIDATION (newer submission e75bd5a)",
+    "review": "validation/R5-review-b.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-PRESS:1d404f8c4b72:FAIL_V1",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-PRESS",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "collision-exemption-on-non-content-streams",
+      "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:247-254,371-421 (doc :259-262)"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "is-proven-ignores-opaque-text-streams",
+      "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:82-84,104-110,385-387,488-495"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "wip-engine-untested-doc-cites-absent-test",
+      "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:13-16; tests/pdf_delivery.rs"
+     }
+    ],
+    "remediation": "Collision rule only for content_resources streams; opaque text blocks the proof; land slice-5 tests with the engine",
+    "status_after": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission dd1df63 (not in bd8533f) queued for next round",
+    "review": "validation/R6-review-b.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-PRESS:bd8533f9b29c:FAIL_V2",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   }
+  ],
+  "unit_test_names": [
+   "filters::tests::budget_is_charged_by_every_stage_and_by_failures",
+   "filters::tests::predictor_rows_are_not_padded_and_chains_are_bounded"
+  ],
+  "hardening_v4": {
+   "commits": [
+    "023c817 (engine)",
+    "007f8bc (tests, descriptor)"
+   ],
+   "v4_01_sites_fixed": {
+    "filters.rs": 43,
+    "syntax.rs": 40,
+    "reader.rs": 23,
+    "writer.rs": 1,
+    "total": 107,
+    "clippy_after": "clean (0 arithmetic_side_effects)"
+   },
+   "limits_added": {
+    "max_object_number": "8388607; xref table, xref stream, object header, save table",
+    "max_filters": "8; filter chain length",
+    "max_nodes": "16777216; parsed objects over one document parse (lexer metering)",
+    "HARD_MAX_DEPTH": "256 constant clamp of max_depth (stack safety), not a Limits field",
+    "MAX_REF_HOPS": "16 constant shared by PdfDoc::resolve and redaction::res, not a Limits field"
+   },
+   "budgets": "per-stage charge, failure charge, unfiltered cap, overlap budget (2 x input bytes parsed over indirect objects), per-object-stream parsed bytes <= decoded size, field-name bytes <= max_bytes",
+   "spec_basis": "ISO 32000-2: 7.3 objects, 7.4.4.4 predictors, 7.5.4 xref table, 7.5.7 object streams (members never overlap; /Extends is a DAG), 7.5.8 xref streams (/W field widths, 0 omits a field; /Size = highest number + 1; /Index default [0 Size]); Annex C Table C.1 maximum indirect objects 8,388,607 (read through a secondary source: LuaTeX list quoting the table, and qpdf manual for 7.5.7/7.5.8; the ISO text itself was not fetched)",
+   "behaviour_changes": [
+    "Unfiltered streams larger than max_decoded_bytes are now refused (before: only the total budget applied)",
+    "A final PNG-predictor row shorter than Columns is no longer zero-padded",
+    "Numeric tokens above 64 characters are Malformed (before: degraded to a real)",
+    "Objects with numbers above max_object_number are refused (before: accepted; a save then built a table with one line per number)",
+    "Stream-bytes of overlapping objects beyond 2 x input are refused"
+   ],
+   "red_proofs": {
+    "method": "scratch workspace outside the shared tree (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-red-scratch, own target dir) with the src modules of 555ea97 and the new tests; V4-11: every copied file gets a current mtime",
+    "hostile_parser_dims_u32_max": "RED: /Index [4294967295 1] gave Malformed(no_root), want InputLimit(object_number)",
+    "aggregate_over_budget_many_streams": "RED: Flate+ASCIIHex chain verified Ok (65 streams decoded, no budget error) on the old code; the plain case differed only by the error name",
+    "hostile_nesting_cycles_and_overlap": "RED: stack overflow of the test thread (max_depth usize::MAX over 100000 nested arrays)"
+   },
+   "gameplan_route": "No retry-guard block. One shared-tree test run failed on a test-data bug in my new test (zero bytes instead of spaces made a 512 KiB numeric token); fixed in the test before any commit and rerun (route a). One command was blocked by the hook because it did not start with the cd to the product workspace (hook then resolved the WP-KERNEL-012 gameplan); rerun with the leading cd.",
+   "v4_12": "helper scripts and outputs of this session live in <scratchpad>/hsk-studio-press/ with press-hard-* names; an earlier clippy output file press-clippy1.txt was written to the shared studio-team-dev/tmp before the rule arrived (mine, harmless)."
+  },
+  "remediation_R6": {
+   "review": "validation/R6-review-b.json, SMB-PRESS (3 CONFIRMED, 4 PLAUSIBLE); candidate bd8533f",
+   "class": "proof reads proven while a removed string survives in a place the rule did not look: an exemption or skip keyed on the SHAPE of a stream (or on a computed value that can be non-finite) instead of its role",
+   "class_regex": "looks_like_content|kept_text|collisions.entry|show_spans|f64::min|f64::max|fn touches",
+   "class_sites": [
+    {
+     "site": "sanitized_save.rs ops = parse_content(..) (gates every collision/show_spans exemption)",
+     "status": "fixed c520095: parsed only for kept_text_streams or annotation appearance streams"
+    },
+    {
+     "site": "sanitized_save.rs collisions.entry (mapped ToUnicode text)",
+     "status": "fixed c520095: reachable only through ops, which is None for non-kept streams; appearance streams stay hits"
+    },
+    {
+     "site": "sanitized_save.rs collisions.entry (show operand strings)",
+     "status": "fixed c520095: same gate, plus !is_ap"
+    },
+    {
+     "site": "sanitized_save.rs show_spans (byte ranges exempt from the decoded scan)",
+     "status": "fixed c520095: empty when ops is None"
+    },
+    {
+     "site": "show_text.rs content_resources",
+     "status": "not applicable: only supplies fonts/resources to stream text reading, grants no exemption"
+    },
+    {
+     "site": "text_fields.rs appearance_stream_nums",
+     "status": "not applicable: marks MORE streams strict (any dict with /AP), never exempts"
+    },
+    {
+     "site": "redaction.rs bbox f64::min/max (NaN dropped)",
+     "status": "fixed c520095: non-finite point = unbounded box; touches() true on NaN"
+    },
+    {
+     "site": "redaction.rs touches() callers (glyph box, annotation rect, image placement, form box)",
+     "status": "fixed c520095: all four go through the fail-closed touches/bbox"
+    }
+   ],
+   "findings": [
+    {
+     "id": "CONFIRMED proof_gap looks_like_content (sanitized_save.rs:247-254,402-421)",
+     "status": "FIXED c520095",
+     "evidence": "kept_text_streams in show_text.rs; test stray_streams_and_hidden_payloads_are_not_kept_text (three stray shapes: no Subtype, Subtype Form not drawn, Pattern) RED on the 023c817 modules in the scratch copy ('/Filter /FlateDecode: []' = no hit); the drawn form keeps its collision"
+    },
+    {
+     "id": "CONFIRMED opaque_text_streams listed, not blocking",
+     "status": "ALREADY FIXED by dd1df63 (after candidate bd8533f)",
+     "evidence": "NotProven::OpaqueText; test opaque_composite_text_blocks_the_proof (RED on 272909b, recorded earlier); passes at 007f8bc"
+    },
+    {
+     "id": "CONFIRMED candidate_wip_untested (6e95976 engine without tests, doc cites absent test)",
+     "status": "ALREADY FIXED by 5a91fd7 (tests) and 70c2ace (docs)",
+     "evidence": "tests/pdf_delivery.rs raster_class_is_listed_and_region_images_are_removed exists and passes; process rule accepted: no engine-only WIP pushes (023c817 -> 007f8bc gap was bridged by committing engine and tests within minutes, both pushed after green runs)"
+    },
+    {
+     "id": "PLAUSIBLE r5_class_reopened (image XObject + raster filter + zlib bytes)",
+     "status": "FIXED c520095",
+     "evidence": "raster::hidden_zlib; test class 2 loops JBIG2/CCITT/DCT/JPX, RED on the old modules (hits [] for JBIG2Decode); a zlib bomb behind a raster name is InputLimit. Codec-magic check REJECTED: raster_class_is_listed... feeds codec data without magic and real files vary"
+    },
+    {
+     "id": "PLAUSIBLE proof_independence (NaN glyph box dropped by min/max; same-selector residual)",
+     "status": "NaN part FIXED c520095; same-selector part OPEN",
+     "evidence": "test class 3 (nine 1e38 cm operators): RED 'the unlocatable string was kept' on the old modules. The residual pass still re-runs the same selector (needs an independent per-region text extraction; not done)"
+    },
+    {
+     "id": "PLAUSIBLE cancellation (scan/endobj count without cancel)",
+     "status": "FIXED c520095",
+     "evidence": "scan() and count_marker() poll the token per 1 MiB window with needle-length overlap; test class 4 puts a needle across the 2 MiB edge and finds it once; the in-window poll itself is not testable deterministically"
+    },
+    {
+     "id": "PLAUSIBLE doc_drift filters.rs header / ASCII85 truncation",
+     "status": "FIXED (header in 023c817, ASCII85 in c520095)",
+     "evidence": "filters.rs header lists LZW; ascii85 refuses a final group above 2^32 (unit test predictor_rows_are_not_padded_and_chains_are_bounded); valid encoders never exceed it (n digits padded with 'u' stay below 2^32)"
+    }
+   ],
+   "count_check": "3 CONFIRMED + 4 PLAUSIBLE = 7 findings listed above: 5 fixed in c520095 (one of them, proof_independence, only its NaN half), 2 already fixed by earlier commits (dd1df63; 5a91fd7 + 70c2ace); open: the same-selector residual pass"
+  },
+  "slice6": {
+   "commit": "a1c9747",
+   "closed_gaps": [
+    "other name trees (keys)",
+    "SubmitForm /Fields (and ResetForm)",
+    "embedded-file content"
+   ],
+   "decisions": [
+    "Name-tree keys are identifiers nothing in the file refers to: renamed like the embedded-file names (no reference rewrite needed). The values (script code) are not text slots and stay not covered; sanitize_full_rewrite drops JavaScript on request.",
+    "SubmitForm/ResetForm /Fields strings are field names: replacing them changes which fields the action targets (the redaction intent wins); they share the form_labels flag. Indirect references inside /Fields are untouched.",
+    "An attachment is not text we can edit: a match in its decoded bytes drops the whole /EF (and /RF) of the file specification; an attachment that cannot be decoded is Unverifiable (kept, report incomplete), never silently dropped or assumed clean.",
+    "Embedded content is matched as UTF-8 (BOM-aware) and Latin-1 in 1 MiB windows with 4 KiB overlap; UTF-16 without a byte-order mark and attachments inside compressed containers (zip, docx) are not read, by the redaction or by the byte-level payload proof (a needle compressed inside an attachment's own container is out of reach of both)."
+   ],
+   "red": "compile-red by construction: TextFieldPolicy.name_trees / embedded_content and the three TextRole variants do not exist at 007f8bc; the test asserts per-role outcome rows, a proven output, an independent inflate of every stream, the policy-off run (6 kept) and the undecodable attachment",
+   "known_gaps": [
+    "Script code (name-tree values, JS actions) is not redacted; field /TM and /MK captions; structure elements that are direct dictionaries without /P",
+    "The residual pass of redact_and_save re-runs the same selector (R6 PLAUSIBLE, open)",
+    "Acrobat-saved fixture oracle still pending (Operator D5)"
+   ]
+  },
+  "remediation_R7pre": {
+   "review": "validation/R7-prereview-b.json (head 0e48167; N1-N7 CONFIRMED, P1-P4 PLAUSIBLE) + lead decisions PLR-039, PLR-040",
+   "diagnosis": "diagnostics/press-proof-soundness.md",
+   "status": "complete",
+   "class": "proof reads proven while the removed string survives: the proof subtracted or skipped bytes its own model did not decode or read (object-span coverage, end-of-data, inline data, unparsed streams, font state, undrawn forms, raster codec names)",
+   "backstop": "raw scan of every output byte never subtracted by span; a raw match is dropped only inside the bytes a stream's first filter consumed when that stream's decoded scan found the same needle; decoders report consumed input (TrailingData); every decoded payload incl. inline images; dictionary keys; spellings bytes/PDFDoc/UTF-8/UTF-16BE/LE/hex + ToUnicode codes; content walk with gstate; UnreadableContent; independent of the redaction selector (PLR-039)",
+   "findings": [
+    {
+     "id": "N1",
+     "status": "FIXED 187e6cf",
+     "test": "bytes_after_end_of_data_and_dictionary_comments_are_hits (+ filters unit consumed_and_trailing_input_are_reported)"
+    },
+    {
+     "id": "N2",
+     "status": "FIXED 187e6cf",
+     "test": "inline_image_data_is_decoded_and_scanned"
+    },
+    {
+     "id": "N3",
+     "status": "FIXED 187e6cf",
+     "test": "unreadable_or_stray_content_never_reads_clean (stray form opaque, stray ToUnicode leak, inline Crypt in a stray stream)"
+    },
+    {
+     "id": "N4",
+     "status": "FIXED 187e6cf",
+     "test": "font_state_follows_q_q_gs_and_do (q/Q, gs /Font, opaque after Q)"
+    },
+    {
+     "id": "N5",
+     "status": "FIXED 187e6cf",
+     "test": "unreadable_or_stray_content_never_reads_clean (unparseable appearance, operands across page streams)"
+    },
+    {
+     "id": "N6",
+     "status": "FIXED 187e6cf",
+     "test": "font_state_follows_q_q_gs_and_do (legacy form inherits page resources; form inherits caller font; font across page streams; unresolved page font = opaque)"
+    },
+    {
+     "id": "N7",
+     "status": "FIXED 187e6cf",
+     "test": "listed_but_undrawn_forms_are_not_kept_text"
+    },
+    {
+     "id": "PLR-039",
+     "status": "SUPERSEDED by the backstop (proof shares no code with the redaction selector); residual_in_region stays the same-selector re-pass, reported separately"
+    },
+    {
+     "id": "PLR-040",
+     "status": "FIXED 1c3fd8c",
+     "test": "raster_names_need_codec_structure (raw deflate, junk+zlib, LZW, ASCII85 behind DCT/JPX/CCITT/JBIG2; JPEG data after EOI, JBIG2 file header, JPX without EOC, CCITT wrong columns, K>0, bytes after rows; controls)"
+    },
+    {
+     "id": "P1",
+     "status": "CLOSED by PLR-040: non-codec data behind a raster name is undecodable; residual: compressed data inside valid codec metadata segments is scanned, not decompressed (DESCRIPTOR proof.not_covered)"
+    },
+    {
+     "id": "P2",
+     "status": "PLR-039: superseded by the independent backstop"
+    },
+    {
+     "id": "P3",
+     "status": "this list (class_sites) with file:line"
+    },
+    {
+     "id": "P4",
+     "status": "process note, no action (V4-15)"
+    }
+   ],
+   "red_proof": {
+    "method": "scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/press-soundness-redproof (git archive 0e48167, own STUDIO_OWNER press-soundness-redproof and target; V4-11), current tests/pdf_delivery.rs copied with only the 8 lines marked R7-new-api removed (API added by this remediation)",
+    "result_tests": "6 run, 0 passed, 6 failed on 0e48167: bytes_after_end_of_data_and_dictionary_comments_are_hits (ASCIIHex trailing needle reads proven), inline_image_data_is_decoded_and_scanned (/Fl inline reads proven), unreadable_or_stray_content_never_reads_clean (stray opaque form reads proven), font_state_follows_q_q_gs_and_do (q/Q appearance reads clean), listed_but_undrawn_forms_are_not_kept_text (undrawn form reads proven), raster_names_need_codec_structure (raw deflate behind DCTDecode listed raster, clean)",
+    "result_probe": "red-only probe r7_red_probe_every_subcase (scratch only, not committed): 40 of 40 sub-cases read proven/clean on 0e48167 (N1 x7, N2 x3, N3 x3, N4 x3, N5 x2, N6 x4, N7 x2, PLR-040 x16); all are not proven at 1c3fd8c (green suite)",
+    "green": "38/38 at 1c3fd8c (cargo nextest run -p hsk-studio-press --no-fail-fast)"
+   },
+   "class_regex": "\\.ok\\(\\)|Err\\(_\\) =>|return Ok\\(\\(out|return Ok\\(\\(ops|Ok\\(\\(ops, false\\)\\)|=> break|b'~' =>|b == b'>'|InlineClass::Searchable",
+   "class_sites_count": 49,
+   "class_sites_note": "49 regex matches at 1c3fd8c, every one listed by file:line below (identical statuses grouped on one line); the Flate end-of-data site (filters.rs inflate_zlib) is listed in addition",
+   "class_sites": [
+    "content.rs:46 dangling operands: FIXED (reported; run_page -> unreadable operands_across_streams)",
+    "content.rs:61 break on operator keyword: n/a (tokenizer)",
+    "content.rs:111 end of tokenization: n/a (everything consumed)",
+    "filters.rs:90 is_decodable Err: n/a (not decodable -> streams_not_decodable blocks)",
+    "filters.rs:213 LZW EarlyChange .ok(): n/a (malformed -> decode_error blocks)",
+    "filters.rs:235 predictor Colors .ok(): n/a (malformed -> decode_error blocks)",
+    "filters.rs:236 predictor BitsPerComponent .ok(): n/a (same)",
+    "filters.rs:237 predictor Columns .ok(): n/a (same)",
+    "filters.rs:346 LZW missing EOD: n/a (all input consumed)",
+    "filters.rs:357 LZW EOD 257: FIXED (consumed reported, trailing -> TrailingData)",
+    "filters.rs:434 ASCIIHex '>': FIXED (same)",
+    "filters.rs:473 ASCII85 '~': FIXED (same, '~>')",
+    "filters.rs:522 RunLength 128: FIXED (same)",
+    "filters.rs inflate_zlib (Flate EOD + Adler-32): FIXED (same; not a regex match, listed for completeness)",
+    "lib.rs:55 outcome mapping: n/a",
+    "raster.rs:98 InlineClass::Searchable: FIXED (sanitized_save inline_images decodes and scans)",
+    "raster.rs:138 hidden_zlib Err -> None: n/a (codec_signature decides raster; non-codec data blocks, PLR-040)",
+    "raster.rs:149/154/159 be16/be32/be64 .ok(): n/a (bounds -> Err -> not raster -> blocks)",
+    "raster.rs:306 JBIG2 length .ok(): n/a (fail closed)",
+    "raster.rs:387 CCITT lut index .ok(): n/a (table build)",
+    "raster.rs:419 CCITT code lookup .ok(): n/a (invalid code -> Err -> not raster)",
+    "raster.rs:558/559 CCITT dims .ok(): n/a (fail closed)",
+    "sanitized_save.rs:497 InlineClass::Searchable: FIXED (decoded and scanned; unfiltered = content bytes)",
+    "sanitized_save.rs:509 inline decode Err: n/a (streams_not_decodable inline:decode_error blocks)",
+    "sanitized_save.rs:532 inline raster prefix Err: n/a (same)",
+    "sanitized_save.rs:729 stream decode Err: n/a (decode_error blocks)",
+    "sanitized_save.rs:799 best-effort tokenization of streams nothing draws: n/a with scope note (no page/appearance/role draws it and it has no resources: its bytes are scanned in every spelling; an inline image inside such a stream that does not tokenize is out of scope like any compressed data inside a non-content payload, DESCRIPTOR proof.not_covered)",
+    "reader.rs:89/103/104/113/134/288/298/305/455 parse validation .ok(): n/a (refusal or Length recovery scan; whole parse fails closed)",
+    "pdf_edit.rs:303/481 catalog .ok(): n/a (object-model projection, not the proof)",
+    "redaction.rs:273 ToUnicode decode .ok(): n/a (redaction selector; the proof reads fonts itself)",
+    "syntax.rs:381 octal escape break: n/a (string syntax)",
+    "syntax.rs:410 hex string '>': n/a (string syntax)",
+    "syntax.rs:442 number .ok(): n/a (Malformed)",
+    "show_text.rs:93 ToUnicode decode Err: n/a for composite (reads Opaque -> OpaqueText blocks); simple fonts read as single-byte (byte scan); see residual simple-font /Differences",
+    "show_text.rs:257/260/262 content parse/decode failure -> None: FIXED (Walker unread -> UnreadableContent)",
+    "text_fields.rs:469/470 char references .ok(): n/a (rich text)",
+    "text_fields.rs:716 appearance decode Err -> None: n/a (undecodable appearance -> Unverifiable/Dropped)",
+    "text_fields.rs:1266 key utf8 .ok(): n/a"
+   ],
+   "residuals_for_lead": [
+    "Simple fonts with /Encoding /Differences can draw letters with arbitrary codes; the proof (and the redaction selector) read simple-font codes as single bytes or through /ToUnicode only (pre-existing, outside N1-N7; needs a glyph-name -> Unicode reading).",
+    "Whole-token rule (lane design) still lets a needle glued to letters or digits on both sides pass the raw scan (e.g. after an Adler-32 byte); TrailingData blocks that specific route.",
+    "CCITT mixed 2D (K > 0) is not raster (fail closed): such images block until a K > 0 row decoder exists."
+   ],
+   "gameplan_route": "two retry-guard blocks after product test failures; route (a): fixes committed (187e6cf, a4d2234), HEAD changed, rerun green"
+  }
+ }
 }
