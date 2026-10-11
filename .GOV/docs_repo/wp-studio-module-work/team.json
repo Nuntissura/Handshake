@@ -2031,7 +2031,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T18:00:23Z",
-   "status": "done 2026-10-11T19:08:49Z (d079292; awaiting steward pin)"
+   "status": "done 2026-10-11T19:08:49Z (retired)"
   },
   {
    "name": "prereview-r12-web",
@@ -2055,7 +2055,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T18:32:51Z",
-   "status": "done 2026-10-11T19:16:40Z (e409030)"
+   "status": "done 2026-10-11T19:16:40Z (retired)"
   },
   {
    "name": "builder-pigment-planlimits",
@@ -2090,6 +2090,30 @@
    ],
    "launched": "2026-10-11T19:18:55Z",
    "status": "done 2026-10-11T20:26:55Z (FIX_FIRST: flatten F1-F7)"
+  },
+  {
+   "name": "rem-web-r13",
+   "agent_id": "ac42bf35ce9ed45c2",
+   "model": "sonnet",
+   "role": "web R13 small fix (slow path, FF piece, port load context + self-reference, meta refresh, docs)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json"
+   ],
+   "launched": "2026-10-11T20:27:46Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-press-r13",
+   "agent_id": "a1fcb26810b2f8e37",
+   "model": "opus",
+   "role": "press R13 flatten gaps F1-F7, V1",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T20:27:46Z",
+   "status": "running"
   }
  ]
 }
