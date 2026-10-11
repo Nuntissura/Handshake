@@ -4,8 +4,18 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "additive per-layer appearance in Folio + importer switched to it",
   "commits": [
-    {"sha": "a51f7fa", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio: additive per-layer appearance (opacity, fill_opacity, StudioBlendMode discriminant, clipped, group isolation, StudioMask coverage reference) with typed validation"},
-    {"sha": "d07ffb4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "interop-psd: writes the Folio appearance fields; sidecar reduced to PSD-only extras"}
+    {
+      "sha": "a51f7fa",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Folio: additive per-layer appearance (opacity, fill_opacity, StudioBlendMode discriminant, clipped, group isolation, StudioMask coverage reference) with typed validation"
+    },
+    {
+      "sha": "d07ffb4",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "interop-psd: writes the Folio appearance fields; sidecar reduced to PSD-only extras"
+    }
   ],
   "capabilities_done": [
     "StudioLayer.appearance: Option<LayerAppearance>, serde default + skip_serializing_if, so absent == kind identity default and old documents re-serialize unchanged; StudioLayer::effective_appearance() resolves the default (group = pass_through/blend 1, others = normal/blend 2, 100 percent, not clipped, no mask)",
@@ -15,7 +25,15 @@
     "extension(): appearance and mask objects are closed (unknown field => read-only inspection with original bytes preserved, like every other Folio object); DESCRIPTOR and generated schema describe the fields",
     "Folio depends on accord only; no change to existing API behaviour"
   ],
-  "tests": {"new": 4, "new_file": "crates/hsk-studio-folio/tests/appearance_contract.rs", "existing_still_passing": "foundation_contract 15/15, timeline_contract 4/4", "passed": 23, "failed": 0, "clippy": "clean (--tests --examples)", "dependents_checked": "cargo check chronicle, package, pigment --tests: PASS"},
+  "tests": {
+    "new": 4,
+    "new_file": "crates/hsk-studio-folio/tests/appearance_contract.rs",
+    "existing_still_passing": "foundation_contract 15/15, timeline_contract 4/4",
+    "passed": 23,
+    "failed": 0,
+    "clippy": "clean (--tests --examples)",
+    "dependents_checked": "cargo check chronicle, package, pigment --tests: PASS"
+  },
   "spec_notes": [
     "Spec STU-RAS-006 parameter table defines StudioLayer.opacity/fill_opacity in PERCENT 0..100, default 100, precision 1; the lane brief said 0..=1. Stored as spec percent; fraction helpers provided. Lead/composite lanes: consume opacity_fraction().",
     "Blend members 31..=35 (STU-RAS-039) are in the known set (applicability 'unknown' in spec) and accepted at storage; whether a compositor can run them is Pigment's Exactness facts. Pigment already has TryFrom<u16> for StudioBlendMode and StudioBlendMode::discriminant(); no change to pigment was needed.",
@@ -24,8 +42,15 @@
   ],
   "importer_local_labels": {
     "note": "lead decision: keep, namespaced importer-local until the spec defines canonical kinds",
-    "layer_kinds": ["psd_adjustment", "psd_fill", "psd_raster_unmapped"],
-    "unsupported_payload_schema_ids": ["psd.tagged.<key>", "psd.raster"],
+    "layer_kinds": [
+      "psd_adjustment",
+      "psd_fill",
+      "psd_raster_unmapped"
+    ],
+    "unsupported_payload_schema_ids": [
+      "psd.tagged.<key>",
+      "psd.raster"
+    ],
     "artboard_name": "canvas"
   },
   "unverified": [
@@ -34,5 +59,24 @@
   ],
   "blockers": [],
   "next": "validator round on the pushed SHA; composite lane can read effective_appearance(); optional follow-up: StudioMask density/feather, blend-if ranges, knockout fields",
-  "updated_at": "2026-10-11T01:59:00Z"
+  "updated_at": "2026-10-11T01:59:00Z",
+  "notes": {
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-FOLIO-ENG-2",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-2:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
 }

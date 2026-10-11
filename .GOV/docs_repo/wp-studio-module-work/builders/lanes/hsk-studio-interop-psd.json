@@ -1,50 +1,40 @@
 {
   "crate": "hsk-studio-interop-psd",
-  "mt": "MT-35548",
+  "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 + R2 review fixes complete",
+  "phase": "SMB-INTEROP-PSD-WIDE complete (CMYK/Lab/gray display conversion via Prism wide path) + R3 CONFIRMED fixes (malformed export tiles, stale merged composite)",
   "commits": [
     {
       "sha": "ee30d62",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"
+      "subject": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"
     },
     {
       "sha": "710ab18",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Folio import proposal (hierarchy, linear-light Pigment tiles, appearance sidecar, loss, provenance), edit-loop apply, Observe report (pushed by another lane's push)"
+      "subject": "Folio import proposal (hierarchy, linear-light Pigment tiles, appearance sidecar, loss, provenance), edit-loop apply, Observe report (pushed by another lane's push)"
     },
     {
       "sha": "4cc3742",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "PSD blend keys to Pigment StudioBlendMode, merged-image oracle helper (placeholder never an oracle)"
+      "subject": "PSD blend keys to Pigment StudioBlendMode, merged-image oracle helper (placeholder never an oracle)"
     },
     {
       "sha": "fe3c193",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "pass is a group pass-through flag (LayerAppearance.pass_through), leaf pass is a typed loss (pass_through_on_leaf_layer), raw key preserved; all 28 PSD keys map to Pigment StudioBlendMode, unknown keys are typed loss never Normal"
+      "subject": "pass is a group pass-through flag (LayerAppearance.pass_through), leaf pass is a typed loss (pass_through_on_leaf_layer), raw key preserved; all 28 PSD keys map to Pigment StudioBlendMode, unknown keys are typed loss never Normal"
     },
     {
       "sha": "d07ffb4",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "writes Folio appearance fields (opacity/fill percent, StudioBlendMode discriminant, clipped, isolation, mask coverage tiles); sidecar renamed LayerExtras (raw blend key, clbl/infx/knko, group key, mask default colour); unknown or leaf-pass blend => psd_raster_unmapped unsupported layer"
+      "subject": "writes Folio appearance fields (opacity/fill percent, StudioBlendMode discriminant, clipped, isolation, mask coverage tiles); sidecar renamed LayerExtras; unknown or leaf-pass blend => psd_raster_unmapped unsupported layer"
     },
     {
       "sha": "1c80aef",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "R2 review fixes: single blend enum (PSD key table onto Pigment StudioBlendMode), preserved file tail byte, real mask rect with parameters, current DESCRIPTOR; 16/32-bit tiles groundwork"
+      "subject": "R2 review fixes: single blend enum (PSD key table onto Pigment StudioBlendMode), preserved file tail byte, real mask rect with parameters, current DESCRIPTOR; 16/32-bit tiles groundwork"
     },
     {
       "sha": "67c1723",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "slice 3: 16/32-bit full-precision tiles with both 16-bit scale interpretations, Prism-routed ICC for RGB with typed refusals (CMYK/Lab/gray), export of edited Folio layer properties preserving original bytes"
+      "subject": "slice 3: 16/32-bit full-precision tiles with both 16-bit scale interpretations, Prism-routed ICC for RGB with typed refusals, export of edited Folio layer properties preserving original bytes"
+    },
+    {
+      "sha": "213b30a",
+      "subject": "CMYK/Lab/gray display conversion via Prism wide path (projection, clamp counts, intent/BPC assumptions recorded); R3 fixes: typed error for malformed export tiles, stale merged composite cleared and reported; convert_rgb length check (pushed with d575678 by another lane's push)"
     }
   ],
   "capabilities_done": [
@@ -57,54 +47,101 @@
     "merged composite decode (all compressions) + MergedImage::to_rgba8 + merged_oracle_rgba8 (None when hasRealMergedData=0) as self-check oracle input",
     "typed loss report (kind + fixed code + index/key path) with hand-written JSON; adjustment/fill/text/smart-object/effects/vector keys labelled from the spec key tables",
     "write_psd: unmodified document re-emits byte-identical (PSD and PSB/Lr16); layer rename regenerates luni + Pascal only",
-    "to_proposal: Folio snapshot via folio::inspect_bytes (hierarchy, group mix ops with bottom-first ordinals, hidden flag -> visible, canvas artboard), 8-bit RGB/gray pixels -> linear-light rgb_f32le + straight f32 alpha Pigment tiles (256 grid, sRGB EOTF, sparse), appearance sidecar (opacity, blend key + Pigment StudioBlendMode, clipping, clbl/infx/knko), layer_map, provenance (sha256, icc hash, assumed profile)",
+    "to_proposal: Folio snapshot via folio::inspect_bytes (hierarchy, group mix ops with bottom-first ordinals, hidden flag -> visible, canvas artboard), 8-bit RGB/gray pixels -> linear-light rgb_f32le + straight f32 alpha Pigment tiles (256 grid, sRGB EOTF, sparse), appearance sidecar, layer_map, provenance (sha256, icc hash, assumed profile)",
     "edit loop: Snapshot::rename -> ImportProposal::apply_to_document -> write_psd -> read_psd, only name/visibility change",
     "Observe: report() emits exactly one terminal frame (Success | Failure(Validation|Unsupported|Loss) | Canceled)",
     "limits: input, layers, pixels, decoded bytes, tagged block size/count, name units, resources, group depth; cancellation checks; truncation sweep + byte-flip sweep never panic",
-    "Folio appearance: to_proposal now writes opacity, fill_opacity (iOpa), blend_mode, clipped, isolation and StudioMask coverage tiles (coverage_u8 over the layer rectangle, default colour outside the mask rectangle; MaskTileBlob bytes in ImportProposal::mask_tiles)",
-    "R2 review fixes (CONFIRMED): no second blend enum (PSD_BLEND_KEYS table + studio_blend_for_key/psd_key_for onto Pigment StudioBlendMode); 0/1 byte file tail preserved (PsdDocument.tail); mask real fields located when mask flags bit 4 is set (spec order and Photoshop-observed order, length-checked); DESCRIPTOR current; root graph outputs bottom-first; RLE capacity bounded by the count table; merged oracle only when hasRealMergedData",
-    "16-bit and 32-bit RGB/gray layers and merged data map to Pigment rgb_f32le tiles at full precision (f64 maths, no 8-bit quantization); 16-bit scale is a config choice (Full65535 | Photoshop32768) recorded in provenance and the loss report; 32-bit floats taken as stored (assumed linear); masks at 16/32-bit use coverage_u16le",
-    "IccConverter trait + PrismConverter (hsk-studio-prism): embedded RGB ICC (res 1039) is converted into the converter's linear working space when Prism accepts it; refusals become typed icc_refused_* losses with sRGB-assumed fallback; CMYK, Lab and unreadable gray profiles => unmapped raster layers with cmyk_/lab_display_conversion_unavailable, cmyk_profile_missing",
-    "export_psd/apply_edits: edited Folio snapshot -> PSD: name, visibility, opacity, fill opacity (iOpa), blend mode (record key and lsct key), clipping, group pass-through, mask enabled/linked; optional layer pixel re-encode from edited tiles (sRGB/linear, 8/16/32-bit); unrepresentable edits are typed losses; everything else (unsupported blocks, resources incl. ICC, unknown bytes, untouched channel compression) stays original bytes; unedited export is byte-identical"
+    "Folio appearance: opacity, fill_opacity (iOpa), blend_mode, clipped, isolation and StudioMask coverage tiles",
+    "R2 review fixes (CONFIRMED): no second blend enum; 0/1 byte file tail preserved; mask real fields; DESCRIPTOR current; root graph outputs bottom-first; RLE capacity bounded; merged oracle only when hasRealMergedData",
+    "16-bit and 32-bit RGB/gray layers and merged data map to Pigment rgb_f32le tiles at full precision; 16-bit scale is a config choice (Full65535 | Photoshop32768) recorded in provenance and the loss report",
+    "IccConverter + PrismConverter: embedded RGB ICC (res 1039) through legacy Prism with typed icc_refused_* losses and recorded sRGB-assumed fallback",
+    "export_psd/apply_edits: edited Folio snapshot -> PSD (name, visibility, opacity, fill opacity, blend mode, clipping, group pass-through, mask enabled/linked, optional layer pixel re-encode); unrepresentable edits are typed losses; unedited export byte-identical",
+    "WIDE display conversion (SMB-INTEROP-PSD-WIDE): IccConverter gained wide_available/inspect_wide/convert_wide (default methods, existing implementors compile); PrismConverter uses WideEngine (plan cache, profile facts cache, 2M-pixel chunking) into the linear working RGB; output UNCLAMPED by Prism is clamped to 0..=1 by the importer with per-pixel/channel counts, max overshoot, converter clip report, loss codes display_out_of_gamut_clamped / display_rounding_noise_clamped (tolerance 1e-3) in Provenance::display (DisplayConversion)",
+    "CMYK 8/16-bit: embedded ICC res 1039 required and checked as a CMYK device with the chosen intent's table; ink = 1 - stored (stored-inverted assumption recorded cmyk_channels_assumed_inverted); no profile -> unmapped reason cmyk_profile_missing (no default profile ever); refused -> cmyk_profile_refused + icc_refused_*; RGB profile -> cmyk_profile_space_mismatch; missing intent table -> cmyk_intent_table_missing (no other intent substituted); converter without wide path -> cmyk_display_conversion_unavailable",
+    "Lab 8/16-bit PCS-native (WideSource::Lab, no profile): L = unit*100, a/b = unit*255-128 (unit*256-128 under the 32768 scale), recorded lab_channels_assumed_icc_encoding; no converter -> lab_display_conversion_unavailable",
+    "Gray 8/16-bit with kTRC profile via the wide path (gray_replicated_to_rgb still recorded); gray without profile keeps the recorded sRGB assumption; RGB profile on gray -> icc_profile_space_mismatch note; BPC not sent for gray (Prism gray black-point defect, black_point_compensation_skipped_gray)",
+    "rendering intent: ProposalConfig::rendering_intent (None => perceptual, recorded rendering_intent_assumed_perceptual); black point compensation: ProposalConfig::black_point_compensation (None => on, recorded black_point_compensation_assumed_on); both stored in Provenance::display",
+    "projection not rewrite: CMYK/Lab/gray layer channels are never rewritten; unedited export byte-identical (tested); edited projection tiles are typed losses pixel_export_after_icc_conversion_unsupported / pixel_export_after_display_conversion_unsupported (Lab)",
+    "stale base report entries color_mode_unmapped / bit_depth_unmapped removed from proposals whose pixels are mapped",
+    "R3 CONFIRMED 1: tile blobs are caller data; export refuses a colour/alpha blob that is not exactly one 256x256 cell with PsdError::Encode(tile_blob_size) instead of indexing out of bounds (regression test, 5 damage shapes)",
+    "R3 CONFIRMED 2: any applied edit other than a name clears resource 1057 hasRealMergedData and reports merged_composite_stale (also when 1057 is absent); composite bytes untouched; merged_oracle_rgba8 then returns None; name-only and no-op exports unchanged (regression test)",
+    "R3 PLAUSIBLE closed: IccConverter::convert_rgb length mismatch is a typed error (icc_conversion_failed)"
   ],
   "tests": {
-    "passed": 12,
+    "argv": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "213b30a",
+    "passed": 18,
     "failed": 0,
     "files": [
       "tests/foundation_contract.rs (5)",
-      "tests/review_r2_regressions.rs (4, one per CONFIRMED finding)",
-      "tests/precision_color_export.rs (3)"
+      "tests/review_r2_regressions.rs (4; descriptor assertion updated: ENG-3 dependency no longer pending)",
+      "tests/precision_color_export.rs (9: 3 existing, 4 new display-conversion tests, 2 new R3 regressions)"
     ],
-    "command": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
-    "clippy": "clean for this crate (--tests --examples)"
+    "clippy": "cargo clippy -p hsk-studio-interop-psd --tests --examples: no warnings in this crate (two too_many_arguments warnings are in hsk-studio-observe)",
+    "synthetic_fixtures": "tests/common/icc.rs: closed-form CMYK mft2 printer (linear in inks), gray kTRC (gamma 2), CIELAB D50 -> linear sRGB reference; no C: or installed-profile dependency"
   },
-  "unverified": [
-    "layer flags bit 1 SET = hidden (spec text says visible; PhotoCraft psd source and ag-psd/psd-tools behaviour agree on hidden) -> needs a Photoshop-authored fixture",
-    "ZIP+prediction for 16-bit (BE word delta) and 32-bit (byte-plane shuffle + byte delta): behaviour-reference only, spec is silent; ZIP being zlib-wrapped likewise",
-    "16-bit sample scale (/65535 assumed) for to_rgba8; 16/32-bit and CMYK/Lab pixels are not mapped into tiles in this slice",
-    "PSB merged-image RLE uses 4-byte row counts (spec only states this for layer channels)",
-    "global tagged-block alignment (pad to 4 outside length) vs layer-level (inside length): parser tries both and stores pad bytes; round trip is exact either way",
-    "ordinal 0 = bottom-most child in Folio ordered_composite edges (assumed from PSD file order; Folio fixture does not state direction)",
-    "Folio v1 StudioLayer has no opacity/blend/clipping/mask fields: they travel only in ImportProposal::appearance; kind strings psd_adjustment, psd_fill, psd_raster_unmapped and schema_id psd.tagged.<key> are importer-local labels (open vocabulary), need lead naming decision",
-    "PSD mask flags bit0 = linked, bit1 = disabled; iOpa = fill opacity (key absent from spec text)",
-    "importer-local labels kept per lead decision: kinds psd_adjustment / psd_fill / psd_raster_unmapped, schema_id psd.tagged.<key> and psd.raster, artboard name 'canvas'",
-    "16-bit PSD sample range: 0..=65535 (default) vs 0..=32768 (Photoshop internal): both implemented and round-trip tested; Photoshop-authored fixture needed to choose",
-    "32-bit PSD samples assumed linear light (not sRGB-encoded); an embedded ICC on a 32-bit document is not applied",
-    "mask parameters/real-mask field order (spec text vs Photoshop-written files): both layouts accepted by length plausibility; needs a Photoshop-authored fixture",
-    "mask flag bit 0 = linked, bit 1 = disabled; iOpa = fill opacity"
-  ],
   "blockers": [],
-  "next": "Photoshop-authored fixtures to settle UNVERIFIED items; CMYK/Lab/gray routing once SMB-PRISM-ENG-3 lands; mask pixel edit export; clamp off-canvas tile iteration",
-  "dep_requests": "miniz_oxide =0.9.1 (with-alloc) and serde_json =1.0.151 (std), both default-features=false, inline in crate manifest, lines appended to dep-requests.jsonl; Cargo.lock not staged",
-  "updated_at": "2026-10-11T02:23:00Z",
-  "dependency_on_other_lanes": {
-    "SMB-PRISM-ENG-3": [
-      "CMYK, Lab and gray display conversion: Prism today admits ICC v4, RGB data space, display class, matrix + identical parametric curves only (parse_profile), at most 64 KiB (MAX_PROFILE_BYTES), 3-channel [f32;3] pixels, <= 4096 pixels per request, relative colorimetric without BPC. Not a size cap alone: CMYK needs a 4-channel input path and A2B LUT tags, gray needs kTRC, Lab needs a Lab source, v2 profiles are refused. The importer records the real refusal code and does not work around it.",
-      "Once a 4-channel/LUT path exists, add CMYK/Lab/gray routing in interop-psd route() and remove the cmyk_/lab_display_conversion_unavailable losses."
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Photoshop-authored fixtures to settle UNVERIFIED items (CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32); remaining R3 PLAUSIBLE: non-finite 32-bit samples and alpha clamp loss, zeroed colour under alpha 0 in untouched cells on pixel export, AdmittedPrism routing decision; RGB v2/LUT profiles via the wide path (legacy refuses them today); mask pixel edit export; clamp off-canvas tile iteration; merged CMYK/Lab oracle (merged_oracle_rgba8 is RGB/gray only)",
+  "updated_at": "2026-10-11T03:10:02Z",
+  "notes": {
+    "mt": "MT-35548",
+    "prism_defect_for_prism_lane": "WideEngine Gray kTRC source with black_point_compensation=true: BpcReport.source_black_lstar is garbage (gamma 2.0 profile: -3613.19, scale 0.2; gamma 1.8: -1.5e11), output for gray 0.25 is 0.85 instead of 0.25; with BPC off results are correct. Cause: companion PCS value for gray input exactly 0.0 is not 0 (clip report on the same call shows overshoot 4.0 for 1 pixel, channels [1,1,1]). Repro: v2.1 mntr GRAY/XYZ profile, wtpt D50, kTRC curv count=1 gamma u8Fixed8 0x0200 (tests/common/icc.rs gray_profile(2.0)), destination sRGB-linear-v4, Relative colorimetric, BPC on, pixels [0,0.5,1]. Importer works around it by not sending BPC for gray (gray black is Y=0 so BPC is the identity against a matrix destination).",
+    "intent_source": "No PSD image resource carries a display rendering intent (Adobe file-format resource table: 0x043A Print Information is 'the color management options', a print descriptor, not parsed here). Intent therefore comes from ProposalConfig, default perceptual with a recorded assumption.",
+    "gray_without_profile": "Unchanged: sRGB assumed and recorded (profile_assumed_srgb), not a typed unmapped loss, to keep existing behaviour; only CMYK is refused without a profile.",
+    "existing_tests_changed": "precision_color_export::embedded_profiles_go_through_prism_and_refusals_are_typed_losses CMYK/Lab sections (they asserted that Prism had no n-channel path; now typed reasons cmyk_profile_refused / cmyk_profile_missing / Lab maps; no-converter variants keep the old unavailable codes); sixteen_and_thirty_two_bit... and export_of_an_edited_folio_document... now expect merged_composite_stale (R3); review_r2_regressions descriptor test updated.",
+    "process_incident": "git commit --amend in the shared worktree amended another lane's newer commit locally (HEAD had moved); restored the local branch ref to the pushed d575678 (content and message intact, nothing force-pushed). Builders must not use --amend here. 213b30a lacks the Co-Authored-By trailer.",
+    "gameplan_steps_added": "GP-022..GP-025 in STUDIO-MODULE-BUILD.yaml (file checks, one per wasted-run cause: non-physical CMYK fixture colour, gray BPC routing, stale descriptor assertion, arbitrary BPC threshold)",
+    "unverified": [
+      "CMYK 8/16-bit stored inverted (255 = no ink): Adobe spec says CMYK values are inverted (0 = 100% ink); channel-data convention for layers still needs a Photoshop-authored fixture",
+      "Lab channel data encoding: 8-bit L=v*100/255, a/b=v-128 (ICC legacy 8-bit) and 16-bit unit*255-128 (full scale) / unit*256-128 (32768 scale) are assumptions; the Adobe spec's 0..10000 / +-12800 Lab values are for the Color structure, not channel data",
+      "layer flags bit 1 SET = hidden (spec text says visible; PhotoCraft psd source and ag-psd/psd-tools behaviour agree on hidden) -> needs a Photoshop-authored fixture",
+      "ZIP+prediction for 16-bit (BE word delta) and 32-bit (byte-plane shuffle + byte delta): behaviour-reference only; ZIP being zlib-wrapped likewise",
+      "16-bit sample scale (/65535 assumed, /32768 selectable); PSB merged-image RLE uses 4-byte row counts",
+      "global tagged-block alignment (pad to 4 outside length) vs layer-level (inside length): parser tries both and stores pad bytes; round trip is exact either way",
+      "ordinal 0 = bottom-most child in Folio ordered_composite edges (assumed from PSD file order)",
+      "Folio v1 StudioLayer has no opacity/blend/clipping/mask fields: they travel only in ImportProposal::appearance; kind strings psd_adjustment, psd_fill, psd_raster_unmapped and schema_id psd.tagged.<key> / psd.raster are importer-local labels",
+      "PSD mask flags bit0 = linked, bit1 = disabled; iOpa = fill opacity (key absent from spec text); mask parameters/real-mask field order accepted by length plausibility",
+      "32-bit PSD samples assumed linear light; an embedded ICC on a 32-bit document is not applied",
+      "default BPC on and perceptual intent are assumptions (Photoshop Color Settings state is not stored in the document)"
+    ],
+    "open_plausible_review_items": [
+      "tiles_for iterates every 256 cell of an off-canvas rect before the sparse check (cancellation-bounded); clamp to canvas or cap cell count",
+      "luni over max_name_units silently falls back to the Pascal name (no loss code yet)",
+      "R3: non-finite 32-bit samples enter tiles unreported; Photoshop32768 alpha > 1 clamped without a loss code; cells without a tile are written as transparent black on pixel export",
+      "R3: PrismConverter uses legacy Prism (RGB) and WideEngine (n-channel), not AdmittedPrism: lead decision pending; add a literal 28-row blend-key table test"
+    ],
+    "dep_requests": "miniz_oxide =0.9.1 (with-alloc) and serde_json =1.0.151 (std), both default-features=false, inline in crate manifest, lines appended to dep-requests.jsonl; no new dependency in this slice (hsk-studio-prism edge already allowed); Cargo.lock not staged",
+    "dependency_on_other_lanes": {
+      "SMB-PRISM-ENG-3": "landed (fb03223, 53f0d4d, 0a057a1, 4f8d14e, 40821f9); consumed through WideEngine; the old unavailable-by-design losses remain only for converters without a wide path"
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-INTEROP-PSD",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "export-tile-length-unchecked-panic",
+            "file_line": "crates/hsk-studio-interop-psd/src/export.rs:244-248 (TileBlob pub fields proposal.rs:91-99)"
+          },
+          {
+            "failure_class": "stale-merged-oracle-after-edit",
+            "file_line": "crates/hsk-studio-interop-psd/src/export.rs:84-214"
+          }
+        ],
+        "remediation": "Check tile byte lengths before encode; on any applied edit clear 1057 hasRealMergedData or recomposite + loss",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-INTEROP-PSD:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
     ]
-  },
-  "open_plausible_review_items": [
-    "tiles_for iterates every 256 cell of an off-canvas rect before the sparse check (cancellation-bounded); clamp to canvas or cap cell count",
-    "luni over max_name_units silently falls back to the Pascal name (no loss code yet)"
-  ]
+  }
 }

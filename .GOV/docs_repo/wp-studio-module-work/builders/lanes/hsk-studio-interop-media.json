@@ -84,6 +84,28 @@
       "tests": "4 passed with unchanged expected values (timecode_rational_and_rates covers rational_to_ticks incl. 1/13 and 1/11 Approximate, overflow, negative, zero; fps_fraction; frame_rate parsing); clippy clean; rustfmt clean",
       "d9_expected_deviation": "after the pulse collapse, a timecode with a minutes/seconds/frames field above 255 AND a ';' separator under non-drop reports invalid_timecode (pulse::parse_timecode u8 range) instead of drop_mismatch; no test covers it"
     },
-    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed"
+    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-INTEROP-MEDIA",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "blocked",
+        "verdict": "BLOCKED",
+        "failures": [
+          {
+            "failure_class": "cap-duplicate-timecode-pending-d9",
+            "file_line": "crates/hsk-studio-interop-media/src/time.rs:7-10,132-146,174-262"
+          }
+        ],
+        "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate time.rs to pulse",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-INTEROP-MEDIA:404ff3ae8cd7:BLOCKED",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

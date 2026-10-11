@@ -119,6 +119,98 @@
       "reference_producer": "upstream rustybuzz 0.20.1 (not HarfRust); earlier strategy claim retracted",
       "default_build": "unchanged: feature off by default; validate() keeps Latn/Arab/Hani/Zyyy for the vendored provider",
       "dep_request": "builders/dep-requests.jsonl line for harfrust =0.14.0 (std, optional, 18-package closure); steward lock/registry sync pending (Cargo.lock not staged)"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-ENG-1",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": "Entrypoint feature matrix (steward): run harfrust_spike under --features harfrust; Operator D7 still pending",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-ENG-1:404ff3ae8cd7:INCONCLUSIVE",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-DOCTEST",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": "Add a doctest step to the entrypoint, or the lead records static acceptance: 0 runnable doc fences in src",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-DOCTEST:404ff3ae8cd7:INCONCLUSIVE",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-ENV",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-ENV:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-FONTS",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-FONTS:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-FIXTURES",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-FIXTURES:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V5",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE:404ff3ae8cd7:PASS_V5",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

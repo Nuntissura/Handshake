@@ -108,6 +108,28 @@
       "finding_1_ramp_cancel_step": "FIXED: RampedGain snapshots before=current before the cancel poll; new uncommitted flag + Processor::commit (default no-op; Engine::run_block calls it after publication; Chain forwards it and commits at block start) so reset reverts only an unpublished block and is a no-op for chain stages that never ran. Regression test ramp_spectrum::canceled_ramp_block_never_steps_alone_or_in_a_chain (RED on previous ramp.rs: current reverted 1.0 -> 0.0; GREEN now). Covers cancel at the ramp poll, cancel in a middle chain stage with a later ramp stage never run, and reset with nothing in flight.",
       "finding_2_resample_48001": "ALREADY FIXED by d339544 (not in judged 87c1cd9): Engine::resample publishes exactly requested=ceil(n*out/in) from u128 math; verified 44100@44.1k->48k = 48000. Added: ResampleReceipt.trimmed_tail_frames (frames rubato produced past drop+requested, 1 for 44100@44.1k->48k), zeroing of everything past the published count, shortfall still refused (ResampleFailed, never zero-padded), regression test alignment_bounce::resampler_publishes_the_exact_integer_frame_count (five 1-second pairs, adjacent-clip tiling 160000..208000, length sweep 1..80 + neighbours on four pairs)."
     },
-    "unaddressed_review_findings": "block.rs:49 (non-divisor rate admission), dsp.rs:514/eq.rs:229 (limiter/EQ state snapshot on discard), dsp.rs:113 (non-finite output) were PLAUSIBLE findings outside this remediation assignment; not changed."
+    "unaddressed_review_findings": "block.rs:49 (non-divisor rate admission), dsp.rs:514/eq.rs:229 (limiter/EQ state snapshot on discard), dsp.rs:113 (non-finite output) were PLAUSIBLE findings outside this remediation assignment; not changed.",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-SCORE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "bounce-uses-input-layout-for-output",
+            "file_line": "crates/hsk-studio-score/src/bounce.rs:114,208,264 (accepts in!=out :135; Pan dsp.rs:173)"
+          }
+        ],
+        "remediation": "Use output layout for kept/sink/digest/receipt labels in bounce, or refuse in!=out layout before the first block",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-SCORE:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

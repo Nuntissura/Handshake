@@ -4,10 +4,22 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 2 pushed (0551b8d): all Exact separable blend modes generated from pigment facts, coverage masks, isolated + pass-through groups, clip-to-base; slice 1 (a813cf3, 989d91d, 7e7579f) contract unchanged",
   "commits": [
-    {"sha": "a813cf3", "subject": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite"},
-    {"sha": "989d91d", "subject": "five focused tests, consumer example, rustfmt"},
-    {"sha": "7e7579f", "subject": "Auto backend = one platform-preferred backend per instance; real device-loss + reacquire proof; test backend selector"},
-    {"sha": "0551b8d", "subject": "slice 2: all Exact separable blend modes (WGSL generated from pigment facts), coverage masks u8/u16, isolated and pass-through groups, clip-to-base runs; parity vs blend_math"}
+    {
+      "sha": "a813cf3",
+      "subject": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite"
+    },
+    {
+      "sha": "989d91d",
+      "subject": "five focused tests, consumer example, rustfmt"
+    },
+    {
+      "sha": "7e7579f",
+      "subject": "Auto backend = one platform-preferred backend per instance; real device-loss + reacquire proof; test backend selector"
+    },
+    {
+      "sha": "0551b8d",
+      "subject": "slice 2: all Exact separable blend modes (WGSL generated from pigment facts), coverage masks u8/u16, isolated and pass-through groups, clip-to-base runs; parity vs blend_math"
+    }
   ],
   "capabilities_done": [
     "slice 1: GpuContext/GpuBackend (Ready|Lost|Unavailable), headless acquire, generation counter, device-loss latch, explicit reacquire, byte-accounted Residency (LRU+pins+budget), chunked read-back to TileSink, admit() first, report(), DESCRIPTOR, render-gpu-consumer",
@@ -49,11 +61,44 @@
     "sizing": "receipt peak_working_bytes exact: groups plan with 3 levels + staging + upload + mask + params on 16x16 chunks = 21568; GpuStats.levels counts destination levels",
     "backend_qualified_proof": {
       "adapter": "NVIDIA GeForce RTX 3090 (discrete)",
-      "backends_proven": ["dx12", "vulkan"],
-      "not_proven": ["metal", "integrated or software adapters", "other vendors"]
+      "backends_proven": [
+        "dx12",
+        "vulkan"
+      ],
+      "not_proven": [
+        "metal",
+        "integrated or software adapters",
+        "other vendors"
+      ]
     },
     "decision_for_lead": "Colour burn/dodge are discontinuous at exact 0/1; a GPU result one ulp off near a white/black partially transparent backdrop can still flip those texels versus the CPU reference. Only the no-backdrop case is made exact. Opaque and full-alpha-backdrop content is unaffected. Recorded so a validator does not use knife-edge inputs as a parity oracle.",
     "decision_for_lead_2": "Slice-2 parity tests live in the same tests/gpu_plan.rs (6 tests, was 5); the second GPU test shares the first one's backend to avoid another multi-second device acquire.",
-    "dep_request": "wgpu =27.0.1 [std,wgsl,vulkan,dx12,metal] appended to builders/dep-requests.jsonl in slice 1 (steward registry_sync pending)"
+    "dep_request": "wgpu =27.0.1 [std,wgsl,vulkan,dx12,metal] appended to builders/dep-requests.jsonl in slice 1 (steward registry_sync pending)",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-RENDER-GPU",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "fake-test-shader-failure-reads-as-no-device",
+            "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:441; src/kernel.rs:213-216; tests/gpu_plan.rs:900-918,1325-1355"
+          },
+          {
+            "failure_class": "fake-test-device-loss-manual-latch",
+            "file_line": "crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:735"
+          }
+        ],
+        "remediation": "Typed shader/pipeline error that fails tests (no NoDevice mapping); drop manual loss latch, wait for real callback",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-RENDER-GPU:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

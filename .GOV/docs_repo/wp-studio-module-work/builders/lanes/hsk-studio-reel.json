@@ -4,17 +4,50 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 3 complete (Matroska/WebM index + cue seek + sampled identity/relink); STUDIO-R2 fixes and accord Timescale migration included; candidate fa365cd",
   "commits": [
-    {"sha": "f09f33b", "subject": "provider port, registry, ISOBMFF index + seek, WAV, Y4M"},
-    {"sha": "c3d013c", "subject": "slice1 contract tests + reel-consumer"},
-    {"sha": "2e9361d", "subject": "slice1 decode_packets over prebuilt index, colr/pasp"},
-    {"sha": "3bfc100", "subject": "slice2 plumbing"},
-    {"sha": "b6ab5e2", "subject": "slice2: PCM-in-MOV, tmcd, fMP4+sidx, IndexCache"},
-    {"sha": "039fbee", "subject": "descriptor lists slice2"},
-    {"sha": "34ec20a", "subject": "slice3: sampled source identity + full digest + relink (sha2 0.10.9 force-soft)"},
-    {"sha": "75a4d89", "subject": "STUDIO-R2 confirmed findings fixed + hostile-input regression per bug"},
-    {"sha": "b96a33e", "subject": "migrate tick/fps conversion to accord Timescale (SMB-ACCORD-ENG-2)"},
-    {"sha": "fa365cd", "subject": "slice3: Matroska/WebM EBML demux index, cue-based seek, matroska provider in the standard registry"},
-    {"sha": "dcc1b37", "subject": "R3 confirmed findings: checked lace-size sum + checked duration fill (Matroska), one hostile-input regression each"}
+    {
+      "sha": "f09f33b",
+      "subject": "provider port, registry, ISOBMFF index + seek, WAV, Y4M"
+    },
+    {
+      "sha": "c3d013c",
+      "subject": "slice1 contract tests + reel-consumer"
+    },
+    {
+      "sha": "2e9361d",
+      "subject": "slice1 decode_packets over prebuilt index, colr/pasp"
+    },
+    {
+      "sha": "3bfc100",
+      "subject": "slice2 plumbing"
+    },
+    {
+      "sha": "b6ab5e2",
+      "subject": "slice2: PCM-in-MOV, tmcd, fMP4+sidx, IndexCache"
+    },
+    {
+      "sha": "039fbee",
+      "subject": "descriptor lists slice2"
+    },
+    {
+      "sha": "34ec20a",
+      "subject": "slice3: sampled source identity + full digest + relink (sha2 0.10.9 force-soft)"
+    },
+    {
+      "sha": "75a4d89",
+      "subject": "STUDIO-R2 confirmed findings fixed + hostile-input regression per bug"
+    },
+    {
+      "sha": "b96a33e",
+      "subject": "migrate tick/fps conversion to accord Timescale (SMB-ACCORD-ENG-2)"
+    },
+    {
+      "sha": "fa365cd",
+      "subject": "slice3: Matroska/WebM EBML demux index, cue-based seek, matroska provider in the standard registry"
+    },
+    {
+      "sha": "dcc1b37",
+      "subject": "R3 confirmed findings: checked lace-size sum + checked duration fill (Matroska), one hostile-input regression each"
+    }
   ],
   "capabilities_done": [
     "slice1: MediaProvider port, Registry, ISOBMFF/MOV index + frame-accurate seek + packets, WAV, Y4M, observe report",
@@ -40,7 +73,11 @@
   "updated_at": "2026-10-11T03:03:43Z",
   "notes": {
     "decisions": [
-      {"id": "reel-no-pulse-edge", "by": "coordinator 2026-10-11", "text": "NO reel->pulse edge; reel exposes raw tmcd fields (TimecodeDescription, TimecodeStart); consumers format labels with pulse."}
+      {
+        "id": "reel-no-pulse-edge",
+        "by": "coordinator 2026-10-11",
+        "text": "NO reel->pulse edge; reel exposes raw tmcd fields (TimecodeDescription, TimecodeStart); consumers format labels with pulse."
+      }
     ],
     "tests_breakdown": "unit 1 + foundation_contract 5 + review_r2_regressions 7 + slice2_contract 4 + slice3_contract 3; clippy --tests --examples clean for hsk-studio-reel",
     "known_gaps": [
@@ -51,6 +88,32 @@
       "Matroska: no DTS (dts == pts), lacing needs a DefaultDuration that is a TimestampScale multiple, ContentEncodings not undone, TrackTimestampScale ignored, SeekHead/Tags/Chapters/Attachments skipped"
     ],
     "deps": "accord + observe (path), sha2 =0.10.9 force-soft (dep-requests.jsonl line added; steward must add hsk-studio-reel to the probe approved list)",
-    "sources_checked": "IANA Matroska + EBML registries (element IDs), RFC 9559 section 10 (block header, flags, lacing), Apple QTFF sound v1/v2 + tmcd pages, FFmpeg mov.c/isom_tags.c, Bento4 trun/tfhd/sidx headers"
+    "sources_checked": "IANA Matroska + EBML registries (element IDs), RFC 9559 section 10 (block header, flags, lacing), Apple QTFF sound v1/v2 + tmcd pages, FFmpeg mov.c/isom_tags.c, Bento4 trun/tfhd/sidx headers",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-REEL",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "ebml-lace-size-sum-overflow",
+            "file_line": "crates/hsk-studio-reel/src/matroska.rs:886"
+          },
+          {
+            "failure_class": "matroska-pts-delta-overflow",
+            "file_line": "crates/hsk-studio-reel/src/matroska.rs:1045,1049"
+          }
+        ],
+        "remediation": "try_fold+checked_add for lace sizes -> Corrupt; checked_sub for pts deltas; add hostile matroska tests",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-REEL:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

@@ -469,7 +469,7 @@
    "model": "sonnet",
    "role": "interop-psd wide color",
    "launched": "2026-10-11T02:39:54Z",
-   "status": "running"
+   "status": "done 213b30a"
   },
   {
    "name": "builder-develop-wide",

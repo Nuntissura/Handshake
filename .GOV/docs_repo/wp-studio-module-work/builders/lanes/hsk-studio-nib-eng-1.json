@@ -5,8 +5,18 @@
   "status": "READY_FOR_VALIDATION",
   "scope": "strictly additive: new module src/owned_path.rs + pub use in lib.rs + tests/owned_path.rs; no existing file body changed",
   "commits": [
-    {"sha": "59ef3b1", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Nib: additive owned serializable path geometry"},
-    {"sha": "df2c896", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "owned path tests; to_kurbo validates first"}
+    {
+      "sha": "59ef3b1",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Nib: additive owned serializable path geometry"
+    },
+    {
+      "sha": "df2c896",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "owned path tests; to_kurbo validates first"
+    }
   ],
   "capabilities_done": [
     "OwnedPath { elements: Vec<PathElement>, fill_rule: FillRule } with PathElement MoveTo/LineTo/QuadTo/CubicTo/Close over f64 PathPoint; FillRule NonZero/EvenOdd (TryFrom<Winding>, Winding::None refused)",
@@ -19,7 +29,11 @@
     "passed": 3,
     "failed": 0,
     "command": "cargo test -p hsk-studio-nib --test owned_path --no-fail-fast",
-    "cases": ["owned_path_validation_rules", "canonical_json_round_trip_and_strictness", "kurbo_and_anchor_conversion"],
+    "cases": [
+      "owned_path_validation_rules",
+      "canonical_json_round_trip_and_strictness",
+      "kurbo_and_anchor_conversion"
+    ],
     "regression": "full nib suite still green: 3 unit + 3 owned_path + 2 path_boolean; clippy clean for nib",
     "tree": "shared edit tree at df2c896, not an export of the pushed SHA"
   },
@@ -30,5 +44,33 @@
   "cause_of_failed_run": "test fixture bug (an escape sequence in a strictness fixture was written as a plain character, so the fixture text was valid JSON); fixed in df2c896. The gameplan retry-guard was satisfied by a HEAD change, not bypassed.",
   "blockers": [],
   "next": "Independent validator round on df2c896; render-cpu consumes OwnedPath since f105552.",
-  "updated_at": "2026-10-11T09:10:00Z"
+  "updated_at": "2026-10-11T09:10:00Z",
+  "notes": {
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-NIB-ENG-1",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "canonical-json-exceeds-own-budget",
+            "file_line": "crates/hsk-studio-nib/src/owned_path.rs:372-382 vs :88,326"
+          },
+          {
+            "failure_class": "is-closed-contradicts-validate",
+            "file_line": "crates/hsk-studio-nib/src/owned_path.rs:174-185"
+          }
+        ],
+        "remediation": "Emit shortest round-trip exponent form (or budget >=330 B/number); is_closed treats MoveTo as opening a subpath; tests",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-NIB-ENG-1:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:09:34Z",
+ "updated_at": "2026-10-11T03:12:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -295,8 +295,8 @@
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -310,10 +310,10 @@
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
-   "candidate": "67c1723",
+   "candidate": "213b30a",
    "note": "12 tests; 16/32-bit; ICC via prism when admitted; export byte-identical unedited; CMYK/Lab/gray await prism n-channel path (ENG-3)",
    "review_findings": "R2-review-a findings fixed 1c80aef (regression tests)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 CONFIRMED fixed 213b30a (tile blob typed error; merged composite stale flag)"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -983,11 +983,15 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "fresh builder",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "213b30a"
+   ],
+   "verdicts": [],
+   "candidate": "213b30a",
+   "note": "CMYK/Lab/gray via WideEngine; clamp recorded; originals preserved; 18 tests"
   },
   {
    "lane_id": "SMB-DEVELOP-WIDE",
@@ -1023,7 +1027,7 @@
    "lane_id": "SMB-PRISM-ENG-6",
    "crate": "hsk-studio-prism",
    "origin": "develop-wide: wide transform ~110 ns/px",
-   "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044",
+   "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044; FIX DEFECT: gray kTRC + BPC on -> garbage black point (interop-psd notes.prism_defect_for_prism_lane)",
    "phase": "brief",
    "status": null,
    "owner": null,

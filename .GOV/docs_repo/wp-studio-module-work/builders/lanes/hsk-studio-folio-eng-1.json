@@ -3,8 +3,20 @@
   "crate": "hsk-studio-folio",
   "status": "READY_FOR_VALIDATION",
   "commits": [
-    {"sha": "89201e7", "tree": "6d1204c0529d2602c373527423eda13c146d1e44", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio: StudioSequence/StudioTrack/StudioClip timeline document members on integer Ticks"},
-    {"sha": "d2f4a5b", "tree": "70b36b5bdfb2edc9a087cbd6e9b338125be84a05", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "REMEDIATION R2-review-a (SMB-FOLIO-ENG-1): remove SequenceFrameRate::fps_fraction from Folio (CX-CAP-001; Pulse owns frame-rate conversion), add hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate); Folio handle() rejects relative/path-like media and primitive handles; +1 folio test, pulse test extended"}
+    {
+      "sha": "89201e7",
+      "tree": "6d1204c0529d2602c373527423eda13c146d1e44",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Folio: StudioSequence/StudioTrack/StudioClip timeline document members on integer Ticks"
+    },
+    {
+      "sha": "d2f4a5b",
+      "tree": "70b36b5bdfb2edc9a087cbd6e9b338125be84a05",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "REMEDIATION R2-review-a (SMB-FOLIO-ENG-1): remove SequenceFrameRate::fps_fraction from Folio (CX-CAP-001; Pulse owns frame-rate conversion), add hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate); Folio handle() rejects relative/path-like media and primitive handles; +1 folio test, pulse test extended"
+    }
   ],
   "remediation_r2": {
     "finding_1_cx_cap_001": "CONFIRMED and fixed: SequenceFrameRate::fps_fraction deleted from hsk-studio-folio (only caller was the folio timeline_contract test; no other crate used it). Folio keeps ticks_per_frame storage, accord() canonical-rate validation and its private gcd (still used by Speed validity). New hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate) -> Result<(u64,u64), PulseError::UnsupportedFrameRate> = accord() canonical check + pulse fps_fraction (single implementation). Behaviour change: non-canonical ticks_per_frame (previously returned a fraction for any nonzero value) is now UnsupportedFrameRate; validated documents are always canonical",
@@ -46,5 +58,24 @@
     "Snapshot::rename still targets layer/artboard/page_spread only"
   ],
   "next": "Independent re-validation of remediation commit d2f4a5b (folio timeline.rs + tests, pulse time.rs + tests): timeline_contract path_like_handles test and pulse foundation_contract fps_fraction_of first, then full folio + pulse suites",
-  "updated_at": "2026-10-11T02:14:00Z"
+  "updated_at": "2026-10-11T02:14:00Z",
+  "notes": {
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-FOLIO-ENG-1",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-1:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
 }

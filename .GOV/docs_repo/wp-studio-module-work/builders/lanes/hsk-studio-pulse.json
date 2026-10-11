@@ -134,6 +134,23 @@
       "deviation": "ticks_from_rational_seconds with Rounding::Exact and a value that is BOTH inexact and above the u64 tick range now reports overflow (accord checks range first) instead of inexact; both are refusals of the same input, no test covers it.",
       "accord_requests_resolved": "accord::FrameRate::fps_fraction / from_fps now exist (accord fa0e4b9); the earlier pulse-side fps_fraction/frame_rate_from_fps request is closed"
     },
-    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed"
+    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-PULSE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-PULSE:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

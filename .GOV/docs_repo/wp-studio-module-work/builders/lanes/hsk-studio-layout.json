@@ -4,9 +4,18 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "migration of layout from its crate-local page/frame/thread model to Folio pages, text frames, threads and StudioTextStory",
   "commits": [
-    {"sha": "87c1cd9", "subject": "Layout: page/spread geometry, text frames, threaded reflow with overset, first-fit and Knuth-Plass breakers (compiles, clippy clean)"},
-    {"sha": "259ea44", "subject": "Layout: 5 hand-computed focused tests, layout-consumer example, Knuth-Plass boundary tolerance, -0 sum normalisation"},
-    {"sha": "64dd62d", "subject": "Layout: consume Folio pages, text frames, threads and StudioTextStory; delete the crate-local Page/Spread/TextFrame model (reflow, breakers and overset unchanged; 5 oracle tests keep their values, +1 Folio-input test)"}
+    {
+      "sha": "87c1cd9",
+      "subject": "Layout: page/spread geometry, text frames, threaded reflow with overset, first-fit and Knuth-Plass breakers (compiles, clippy clean)"
+    },
+    {
+      "sha": "259ea44",
+      "subject": "Layout: 5 hand-computed focused tests, layout-consumer example, Knuth-Plass boundary tolerance, -0 sum normalisation"
+    },
+    {
+      "sha": "64dd62d",
+      "subject": "Layout: consume Folio pages, text frames, threads and StudioTextStory; delete the crate-local Page/Spread/TextFrame model (reflow, breakers and overset unchanged; 5 oracle tests keep their values, +1 Folio-input test)"
+    }
   ],
   "capabilities_done": [
     "Migration (64dd62d): public Margins/Page/Spread/TextFrame and the index-based thread are deleted; ReflowRequest now carries document: &StudioDocument (its revision is the current revision; expected_revision stays), story: &StudioTextStory, resolved_text: Option<&str> (stored content only, exactly byte_len bytes), paragraphs (Type-shaped, unchanged), obstacles: &[FrameObstacles], composer, space, expected_revision, limits",
@@ -70,6 +79,23 @@
     "shared_tree": {
       "Cargo.lock": "cargo updated Cargo.lock locally for the new layout -> folio edge; not staged or committed by this lane (the lock already shows staged changes from another actor); the steward lock/registry sync must pick it up",
       "commit": "pathspec commit -- crates/hsk-studio-layout with folio_input.rs added to the index in the same commit; no other crate touched; folio untouched"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-LAYOUT",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-LAYOUT:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

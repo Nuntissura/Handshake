@@ -117,6 +117,23 @@
       },
       "reel": "migrated by its own lane (b96a33e)"
     },
-    "process_incident": "Commit 26b37c8 (folio doc line, pathspec crates/hsk-studio-folio) swept in the folio lane's uncommitted src/lib.rs (mod layout/mod story, new fields) and timeline.rs visibility edits while layout.rs/story.rs were still untracked, so origin briefly did not compile for folio. The folio lane committed the missing files in ae75f55 (origin compiles again). A repair commit aac129b was prepared as an unreferenced object and NOT published (update-ref/push was denied by the permission classifier); it is unnecessary now. Lesson for shared worktrees: before a pathspec commit on a crate another lane edits, run git status/diff on that crate and commit only paths this lane changed."
+    "process_incident": "Commit 26b37c8 (folio doc line, pathspec crates/hsk-studio-folio) swept in the folio lane's uncommitted src/lib.rs (mod layout/mod story, new fields) and timeline.rs visibility edits while layout.rs/story.rs were still untracked, so origin briefly did not compile for folio. The folio lane committed the missing files in ae75f55 (origin compiles again). A repair commit aac129b was prepared as an unreferenced object and NOT published (update-ref/push was denied by the permission classifier); it is unnecessary now. Lesson for shared worktrees: before a pathspec commit on a crate another lane edits, run git status/diff on that crate and commit only paths this lane changed.",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-ACCORD-ENG-2",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-ACCORD-ENG-2:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

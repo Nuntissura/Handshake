@@ -4,12 +4,42 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 3 complete: lazy package source (assets and previews read on demand, none held at rest), host-supplied previews API",
   "commits": [
-    {"sha": "371ac82", "subject": "Session slice 1: open, revision-checked submit, atomic save, provider registry, one Observe report per operation", "pushed": true, "slice": 1},
-    {"sha": "a7640e7", "subject": "Session slice 1: four real round-trip contract tests and session-consumer example", "pushed": true, "slice": 1},
-    {"sha": "6a162da", "subject": "Session slice 2: injected Grant/Commit/Job/Clock ports, idempotency keys with canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation", "pushed": true, "slice": 2},
-    {"sha": "c3bcecd", "subject": "Session slice 2: four contract tests and checkpoint in session-consumer", "pushed": true, "slice": 2},
-    {"sha": "0a6f920", "subject": "Session slice 3: lazy package source (assets and previews read on demand, hash-verified, none held at rest), save pulls assets one at a time from the source, host-supplied previews API", "pushed": true, "slice": 3},
-    {"sha": "6d0616f", "subject": "Session slice 3: tests (lazy source with per-thread allocation and byte-read bounds, host-supplied previews follow the revision, typed lazy failures + memory sessions) and example stats", "pushed": true, "slice": 3}
+    {
+      "sha": "371ac82",
+      "subject": "Session slice 1: open, revision-checked submit, atomic save, provider registry, one Observe report per operation",
+      "pushed": true,
+      "slice": 1
+    },
+    {
+      "sha": "a7640e7",
+      "subject": "Session slice 1: four real round-trip contract tests and session-consumer example",
+      "pushed": true,
+      "slice": 1
+    },
+    {
+      "sha": "6a162da",
+      "subject": "Session slice 2: injected Grant/Commit/Job/Clock ports, idempotency keys with canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation",
+      "pushed": true,
+      "slice": 2
+    },
+    {
+      "sha": "c3bcecd",
+      "subject": "Session slice 2: four contract tests and checkpoint in session-consumer",
+      "pushed": true,
+      "slice": 2
+    },
+    {
+      "sha": "0a6f920",
+      "subject": "Session slice 3: lazy package source (assets and previews read on demand, hash-verified, none held at rest), save pulls assets one at a time from the source, host-supplied previews API",
+      "pushed": true,
+      "slice": 3
+    },
+    {
+      "sha": "6d0616f",
+      "subject": "Session slice 3: tests (lazy source with per-thread allocation and byte-read bounds, host-supplied previews follow the revision, typed lazy failures + memory sessions) and example stats",
+      "pushed": true,
+      "slice": 3
+    }
   ],
   "capabilities_done": [
     "slice 1: open (package -> folio snapshot), revision-checked submit through an instance-owned provider registry, atomic save with destination re-read, cancellation + budgets, one Observe frame per operation, session-consumer",
@@ -68,5 +98,29 @@
     "resolver in session-consumer grants everything: example stand-in only"
   ],
   "next": "Validator round on 6d0616f. Next slice candidates: streaming save once package offers a writer-based API, multi-output delivery capture (immutable revision/presets/output verification) behind the JobPort, lazy opaque-entry handling for very large unknown records.",
-  "updated_at": "2026-10-11T02:52:05Z"
+  "updated_at": "2026-10-11T02:52:05Z",
+  "notes": {
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-SESSION",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "successor-not-derived-from-snapshot",
+            "file_line": "crates/hsk-studio-session/src/session.rs:862-900"
+          }
+        ],
+        "remediation": "Verify successor equals snapshot except at revision_updates addresses, or have the session apply the provider patch",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-SESSION:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
 }

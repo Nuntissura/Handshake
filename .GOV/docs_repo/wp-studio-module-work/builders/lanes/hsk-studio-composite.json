@@ -4,14 +4,38 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 3 + clip align: clipping lowered to pigment clip-to-base route; pass-through group as clip base is a typed Unavailable (5814f8d)",
   "commits": [
-    {"sha": "5814f8d", "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"},
-    {"sha": "26f835e", "subject": "slice 3 (composite): lower Folio clipped layers to the clip-to-base route"},
-    {"sha": "4e533d5", "subject": "slice 3 (pigment, additive): clip-to-base route in the render-plan IR"},
-    {"sha": "118f8f8", "subject": "slice 2: delete local blend copy, use pigment blend_math/render_plan, lower_to_render_plan with validate(), Folio appearance (mode, opacity, fill, mask), root wrap"},
-    {"sha": "a6f2c7e", "subject": "slice 1: reference text"},
-    {"sha": "e362ba6", "subject": "slice 1: prism Transfer mapping, blend-law sweep (both moved to pigment)"},
-    {"sha": "d5ed91a", "subject": "slice 1: lower_plan, evaluate_static, observe report, consumer example, tests"},
-    {"sha": "4eb5cec", "subject": "slice 1: local blend maths (since deleted), plan lowering, static eval"}
+    {
+      "sha": "5814f8d",
+      "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"
+    },
+    {
+      "sha": "26f835e",
+      "subject": "slice 3 (composite): lower Folio clipped layers to the clip-to-base route"
+    },
+    {
+      "sha": "4e533d5",
+      "subject": "slice 3 (pigment, additive): clip-to-base route in the render-plan IR"
+    },
+    {
+      "sha": "118f8f8",
+      "subject": "slice 2: delete local blend copy, use pigment blend_math/render_plan, lower_to_render_plan with validate(), Folio appearance (mode, opacity, fill, mask), root wrap"
+    },
+    {
+      "sha": "a6f2c7e",
+      "subject": "slice 1: reference text"
+    },
+    {
+      "sha": "e362ba6",
+      "subject": "slice 1: prism Transfer mapping, blend-law sweep (both moved to pigment)"
+    },
+    {
+      "sha": "d5ed91a",
+      "subject": "slice 1: lower_plan, evaluate_static, observe report, consumer example, tests"
+    },
+    {
+      "sha": "4eb5cec",
+      "subject": "slice 1: local blend maths (since deleted), plan lowering, static eval"
+    }
   ],
   "capabilities_done": [
     "plan: lower() -> LoweredPlan; Step carries StepAppearance (StudioBlendMode from Folio u16, opacity/fill fractions from percent, clipped, enabled mask); Kahn order, fanout once, cycle/stale/budget/cancel; layer/node projections",
@@ -22,7 +46,14 @@
     "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer"
   ],
   "tests": {
-    "argv": ["cargo", "test", "-p", "hsk-studio-composite", "--tests", "--no-fail-fast"],
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "hsk-studio-composite",
+      "--tests",
+      "--no-fail-fast"
+    ],
     "exit": 0,
     "sha": "5814f8d",
     "passed": 12,
@@ -36,7 +67,12 @@
   "notes": {
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
-      "files": ["src/evaluate_static.rs", "src/lower_render_plan.rs", "src/lib.rs (DESCRIPTOR)", "tests/render_plan_lowering.rs"],
+      "files": [
+        "src/evaluate_static.rs",
+        "src/lower_render_plan.rs",
+        "src/lib.rs (DESCRIPTOR)",
+        "tests/render_plan_lowering.rs"
+      ],
       "reason_code": "clip_base_pass_through",
       "rationale": "render-cpu 9819e52 refuses a pass-through group as clip base (no isolated content to take the base alpha from, pigment defines G from isolated base content and blends with the base's mode); composite no longer emits a plan the backends will refuse. Photoshop semantics UNVERIFIED pending the oracle.",
       "test_added": "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger (lowering Err Unavailable, ledger Unsupported, parent step Unavailable, hidden base drops run, isolated Normal group base still lowers)",
@@ -46,7 +82,10 @@
     "tests_detail": "composite: static_plan 5/5, render_plan_lowering 7/7. Earlier slice: pigment render_plan 3/3, blend_math 6/6 unchanged; cargo check --tests --examples of pigment + render-cpu + render-gpu + interop-psd + develop clean.",
     "pigment_change_note": {
       "commit": "4e533d5",
-      "files": ["crates/hsk-studio-pigment/src/render_plan.rs", "crates/hsk-studio-pigment/tests/render_plan.rs"],
+      "files": [
+        "crates/hsk-studio-pigment/src/render_plan.rs",
+        "crates/hsk-studio-pigment/tests/render_plan.rs"
+      ],
       "design": "Clip-to-base is encoded WITHOUT changing any existing public struct or exhaustive enum, so render-cpu/render-gpu/interop-psd/develop and their literals still compile: MaskFormat (already non_exhaustive) gains BaseAlpha; MaskInput::clip_to_base() is the one canonical encoding (key 0, empty placement, zero hash, density 1, not inverted); PlanError gains ClipWithoutBase/ClipFields/ClipPassThrough; Operator::Mask(BaseAlpha) key 'clip_to_base', intrinsic Approximate; RenderBackend gains default method supports_clip_to_base() = false and admit() refuses any plan using the route as Unsupported{operator:'clip_to_base'} before consulting backend.exactness(), so a backend that has not opted in can never render a clipped layer unclipped. The base is implicit (nearest earlier unclipped layer, Photoshop rule), so an explicit clip_base index would be redundant; validate enforces a base exists, canonical fields, and no pass-through reference.",
       "semantics_recorded_in_doc": "run [base, c1..cn] = isolated unit G: G starts as base content with the base's own mask; each ci composited onto G with its own mode/opacity/fill, source alpha multiplied by base alpha, G alpha held at base alpha; G composited onto the parent backdrop with the BASE's mode/opacity/fill. Approximate: Photoshop's exact rule UNVERIFIED (oracle pending).",
       "backend_status": "render-cpu implements the route (9819e52, supports_clip_to_base = true, pass-through base refused); render-gpu does not yet (admit refuses, typed)",
@@ -63,6 +102,45 @@
       "Root rendered regardless of its visibility flag; root blend mode irrelevant over a transparent backdrop (W3C ab=0) but its opacity/fill/mask apply via a synthetic wrapper",
       "Extents are bounding upper bounds; opacity and masks do not shrink them"
     ],
-    "dep_requests": ["serde_json 1.0.151 dev-dependency (std) logged earlier"]
+    "dep_requests": [
+      "serde_json 1.0.151 dev-dependency (std) logged earlier"
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-COMPOSITE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "clip-under-hidden-base-over-refusal",
+            "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276"
+          }
+        ],
+        "remediation": "In evaluate skip status/extent of clipped inputs whose base is hidden or empty (mirror lowering base rule); add test",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE-CLIP-ALIGN:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

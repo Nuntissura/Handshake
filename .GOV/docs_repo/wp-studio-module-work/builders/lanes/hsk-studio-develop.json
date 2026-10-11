@@ -3,21 +3,96 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice4_wide_conversion_scalar_speed_and_r3_fixes_done_real_dng_awaiting_download_approval",
   "commits": [
-    {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"},
-    {"sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"},
-    {"sha": "c008daf470614710bd6cabed7c941a2e42f2dd63", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "DNG compression 7 via own lossless JPEG decoder (T.81 SOF3, predictors 1-7, point transform, restart rows)"},
-    {"sha": "2e3fd501c4821e40e37d4dd8ff6efa74b0d54a7f", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "develop_to_image helper, DNG unapplied-feature report + strict gate, explicit BaselineExposure policy"},
-    {"sha": "1cd586c64a59e337268a57d1b554b06ece061e37", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "cover Observe terminal outcome mapping"},
-    {"sha": "01bfeb38b4ec5a41e68909d880a89883b3936cbc", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "R2 review fixes: checked tile arithmetic + block bounds, Limits::validate, BlackLevelDeltaH/V applied, raw-IFD tag scoping, CM-path Y=1 normalisation, LJPEG bomb guard, independent FM/AB colour invariants; regression tests per finding"},
-    {"sha": "a8dd8e8c34eb68137f1c28b49aaec6ee8c4644c5", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "working->output profile conversion through Prism admitted route (develop_with + PrismConverter, receipt profile_route/profile_calls), CC0 linear ICC fixtures"},
-    {"sha": "12e3043470140aeafd2a364ee5d2d03191efbed5", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "develop-bench release timing example, ignored real-DNG harness (tests/real_dng.rs) + fetch-corpus.sh (not executed)"},
-    {"sha": "4c76e3792b113af88f08e081cb09796924e7379d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "byte-identity digest test (demosaic Bayer x4 incl. phase/origin/border, X-Trans, develop with exposure + curves + crop, tile bytes) pinned on the pre-rewrite oracle 12e3043"},
-    {"sha": "c90f967060a25b2003d2ff719fe7894d718803d2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "curve-evaluation digest pinned on the pre-rewrite oracle (domain ends, every control point, f64 neighbours, dense sweep)"},
-    {"sha": "0fc4de0e7c7cf18a96751f0ccca2bd0f91e3ce9c", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "scalar speed: per-phase-class demosaic stencils (reflect only within 2 samples of an edge, same summation order), plane channel lookup table, row-wise tile writes, binary-search curve segments; digests unchanged"},
-    {"sha": "bfbdbf40c41e4bbe73a3325ccf998ddf93159fb4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "output conversion through Prism WideEngine (plan cache, requests up to 262144 px), admitted inspection of both profiles kept, unclamped output + clip report, receipt profile_stats; wide-request test (chunk invariance, plan hits, clip count vs independent count)"},
-    {"sha": "84b77d25ffa2e0def62cf2e80f14859d0853eb3d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "branch-free curve segment search, stage-A fast path where the products provably cannot refuse, develop-bench adds the Display P3 -> sRGB wide-route stage"},
-    {"sha": "252025950183f504c6f727ff30334f5f178ad224", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "R3 CONFIRMED fixes: checked per-site black shift in cfa_plane (BlackLevelDelta at i64 limits -> typed invalid_levels, DOUBLE-encoded hostile test red on the old code at dng.rs:744); fetch-corpus.sh and the ignored real-DNG test share CORPUS_RELATIVE (sibling Handshake Worktrees/Handshake_Artifacts on D:) with a guard test"},
-    {"sha": "d40d553090845101ff5803543e58b1d7355c1f40", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "test for the converter length guard (R3 PLAUSIBLE pipeline.rs:639-647: wrong-length converter output -> typed invalid_length, no tile delivered; guard itself landed with the pipeline rewrite)"}
+    {
+      "sha": "68e87672ac310b9401461c20815f4dadff452fe2",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"
+    },
+    {
+      "sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"
+    },
+    {
+      "sha": "c008daf470614710bd6cabed7c941a2e42f2dd63",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "DNG compression 7 via own lossless JPEG decoder (T.81 SOF3, predictors 1-7, point transform, restart rows)"
+    },
+    {
+      "sha": "2e3fd501c4821e40e37d4dd8ff6efa74b0d54a7f",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "develop_to_image helper, DNG unapplied-feature report + strict gate, explicit BaselineExposure policy"
+    },
+    {
+      "sha": "1cd586c64a59e337268a57d1b554b06ece061e37",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "cover Observe terminal outcome mapping"
+    },
+    {
+      "sha": "01bfeb38b4ec5a41e68909d880a89883b3936cbc",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "R2 review fixes: checked tile arithmetic + block bounds, Limits::validate, BlackLevelDeltaH/V applied, raw-IFD tag scoping, CM-path Y=1 normalisation, LJPEG bomb guard, independent FM/AB colour invariants; regression tests per finding"
+    },
+    {
+      "sha": "a8dd8e8c34eb68137f1c28b49aaec6ee8c4644c5",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "working->output profile conversion through Prism admitted route (develop_with + PrismConverter, receipt profile_route/profile_calls), CC0 linear ICC fixtures"
+    },
+    {
+      "sha": "12e3043470140aeafd2a364ee5d2d03191efbed5",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "develop-bench release timing example, ignored real-DNG harness (tests/real_dng.rs) + fetch-corpus.sh (not executed)"
+    },
+    {
+      "sha": "4c76e3792b113af88f08e081cb09796924e7379d",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "byte-identity digest test (demosaic Bayer x4 incl. phase/origin/border, X-Trans, develop with exposure + curves + crop, tile bytes) pinned on the pre-rewrite oracle 12e3043"
+    },
+    {
+      "sha": "c90f967060a25b2003d2ff719fe7894d718803d2",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "curve-evaluation digest pinned on the pre-rewrite oracle (domain ends, every control point, f64 neighbours, dense sweep)"
+    },
+    {
+      "sha": "0fc4de0e7c7cf18a96751f0ccca2bd0f91e3ce9c",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "scalar speed: per-phase-class demosaic stencils (reflect only within 2 samples of an edge, same summation order), plane channel lookup table, row-wise tile writes, binary-search curve segments; digests unchanged"
+    },
+    {
+      "sha": "bfbdbf40c41e4bbe73a3325ccf998ddf93159fb4",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "output conversion through Prism WideEngine (plan cache, requests up to 262144 px), admitted inspection of both profiles kept, unclamped output + clip report, receipt profile_stats; wide-request test (chunk invariance, plan hits, clip count vs independent count)"
+    },
+    {
+      "sha": "84b77d25ffa2e0def62cf2e80f14859d0853eb3d",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "branch-free curve segment search, stage-A fast path where the products provably cannot refuse, develop-bench adds the Display P3 -> sRGB wide-route stage"
+    },
+    {
+      "sha": "252025950183f504c6f727ff30334f5f178ad224",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "R3 CONFIRMED fixes: checked per-site black shift in cfa_plane (BlackLevelDelta at i64 limits -> typed invalid_levels, DOUBLE-encoded hostile test red on the old code at dng.rs:744); fetch-corpus.sh and the ignored real-DNG test share CORPUS_RELATIVE (sibling Handshake Worktrees/Handshake_Artifacts on D:) with a guard test"
+    },
+    {
+      "sha": "d40d553090845101ff5803543e58b1d7355c1f40",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "test for the converter length guard (R3 PLAUSIBLE pipeline.rs:639-647: wrong-length converter output -> typed invalid_length, no tile delivered; guard itself landed with the pipeline rewrite)"
+    }
   ],
   "capabilities_done": [
     "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/contribution",
@@ -30,12 +105,38 @@
     "scalar speed (no SIMD, no unsafe, output byte-identical, pinned by develop_digest): demosaic stencil per (row phase, column phase, missing channel) with linear offsets in the reference summation order (sites within 2 samples of an edge use the original reflect routine), CfaPlane channel lookup table used by admission and normalisation, row-wise tile/alpha/coverage writes without per-pixel division, develop_to_image row copy, exposure == 1 with no curve skips only the identity multiply (finiteness refusal kept), curve segment found by branch-free count, stage-A products unchecked only when every gain/coefficient is 0 or within 1e-100..1e100 (then no product can overflow or round to zero; the f32 rounding refusals are kept)",
     "R3 fixes (validation/R3-review.json SMB-DEVELOP CONFIRMED): cfa_plane uses checked_sub for the per-site black shift and for sample - shift, so finite but absurd BlackLevel/BlackLevelDelta DOUBLE values (rounded black saturating at an i64 limit) give typed invalid_levels (Refuse and ClampReported) instead of an overflow panic/wrap; representable large shifts keep the old sample_out_of_range behaviour. fetch-corpus.sh default now resolves from the crate directory with the same CORPUS_RELATIVE string as tests/real_dng.rs (dry run prints the sibling Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/dng); STUDIO_DNG_CORPUS still overrides both; no download performed"
   ],
-  "tests": {"passed": 16, "failed": 0, "ignored": 1, "targets": {"develop_recipe": "5/5", "develop_dng": "6/6 (new dng_black_level_delta_overflow_is_a_typed_refusal; RED on 12e3043 with attempt to subtract with overflow at dng.rs:744, GREEN after the fix)", "develop_profile": "2/2 (profile_transform_admitted updated for the wide route: 1 request, 1 observation, ledger == provider lease; oracle 1e-4 unchanged; new wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip, also covers the wrong-length converter refusal)", "develop_digest": "2/2 new (scalar_output_is_byte_identical_to_the_pre_rewrite_oracle, curve_eval_is_byte_identical_to_the_pre_rewrite_oracle; digests taken on 12e3043 before the rewrite)", "real_dng": "1 passed (new fetch_script_default_matches_test_default) + 1 ignored (needs corpus download approval)"}, "check_tests": "PASS", "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)", "head": "d40d553090845101ff5803543e58b1d7355c1f40"},
-  "speed_release_24mp_synthetic": {"plane_admit_ms": 43, "demosaic_only_ms": 398, "develop_identity_ms": 1039, "develop_curve_exposure_ms": 2279, "mpix_per_s_identity": 23.1, "route": "scalar", "note": "single thread, 6000x4000 RGGB, Limits::LARGE, 384 tiles of 256, release, shared busy host, one run 2026-10-11 after 84b77d2; before (12e3043): plane_admit 106, demosaic_only 1628, identity 3335, curve+exposure 5308. New stage develop_profile_p3_to_srgb (Display P3 -> sRGB linear, WideEngine, 384 requests, 1 plan build / 383 hits / 2 parses, 2.68M pixels with out-of-gamut values in the clip report): 4137 ms = 5.8 Mpx/s, of which about 110 ns/px (2.6 s) is inside the Prism wide transform (probe: 262144 px = 28 ms; per-f32 output hashing only about 10 ns/px)"},
+  "tests": {
+    "passed": 16,
+    "failed": 0,
+    "ignored": 1,
+    "targets": {
+      "develop_recipe": "5/5",
+      "develop_dng": "6/6 (new dng_black_level_delta_overflow_is_a_typed_refusal; RED on 12e3043 with attempt to subtract with overflow at dng.rs:744, GREEN after the fix)",
+      "develop_profile": "2/2 (profile_transform_admitted updated for the wide route: 1 request, 1 observation, ledger == provider lease; oracle 1e-4 unchanged; new wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip, also covers the wrong-length converter refusal)",
+      "develop_digest": "2/2 new (scalar_output_is_byte_identical_to_the_pre_rewrite_oracle, curve_eval_is_byte_identical_to_the_pre_rewrite_oracle; digests taken on 12e3043 before the rewrite)",
+      "real_dng": "1 passed (new fetch_script_default_matches_test_default) + 1 ignored (needs corpus download approval)"
+    },
+    "check_tests": "PASS",
+    "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)",
+    "head": "d40d553090845101ff5803543e58b1d7355c1f40"
+  },
+  "speed_release_24mp_synthetic": {
+    "plane_admit_ms": 43,
+    "demosaic_only_ms": 398,
+    "develop_identity_ms": 1039,
+    "develop_curve_exposure_ms": 2279,
+    "mpix_per_s_identity": 23.1,
+    "route": "scalar",
+    "note": "single thread, 6000x4000 RGGB, Limits::LARGE, 384 tiles of 256, release, shared busy host, one run 2026-10-11 after 84b77d2; before (12e3043): plane_admit 106, demosaic_only 1628, identity 3335, curve+exposure 5308. New stage develop_profile_p3_to_srgb (Display P3 -> sRGB linear, WideEngine, 384 requests, 1 plan build / 383 hits / 2 parses, 2.68M pixels with out-of-gamut values in the clip report): 4137 ms = 5.8 Mpx/s, of which about 110 ns/px (2.6 s) is inside the Prism wide transform (probe: 262144 px = 28 ms; per-f32 output hashing only about 10 ns/px)"
+  },
   "blockers": [],
   "pending_operator_decision": {
     "real_dng_download": "3 CC0 samples from raw.pixls.us (license verified from https://raw.pixls.us/json/getrepository.php?set=all: creativecommons.org/publicdomain/zero/1.0 for ids 2204, 3839, 1988) -> oracle-corpus/dng; run tests/real_dng/fetch-corpus.sh --go after approval; then run the ignored test with STUDIO_EXIFTOOL set",
-    "files": ["id 2204 Canon EOS 5D Mark III 1.47MB sha256 1d77dcc6...b603e (lossless JPEG)", "id 3839 Samsung SM-G973U 1.26MB sha256 6492b7e0...ab1 (uncompressed, OpcodeList2)", "id 1988 Nikon D80 7.90MB sha256 5095ca26...e26bb (tiled lossless JPEG + LinearizationTable, raw in SubIFD)"]
+    "files": [
+      "id 2204 Canon EOS 5D Mark III 1.47MB sha256 1d77dcc6...b603e (lossless JPEG)",
+      "id 3839 Samsung SM-G973U 1.26MB sha256 6492b7e0...ab1 (uncompressed, OpcodeList2)",
+      "id 1988 Nikon D80 7.90MB sha256 5095ca26...e26bb (tiled lossless JPEG + LinearizationTable, raw in SubIFD)"
+    ]
   },
   "notes": [
     "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs",
@@ -46,7 +147,35 @@
     "SPEC DELTA (needs lead/Operator): STU-CON-044 (spec v02.215 line 22588) still says admitted Prism transform in bounded chunks of at most 64 pixels with accounted lifetime and no fallback to the legacy route; the wide route is neither 64-pixel nor ledger-accounted. Admitted inspection of both profiles is kept; the transform leg needs a spec enrichment or a Prism ledger hook",
     "Behaviour change: DevelopReceipt no longer derives Eq (profile_stats carries f64 clip overshoot); PRISM_CHUNK removed, WIDE_CHUNK_PIXELS added; PrismConverter::new now takes (&AdmittedPrism, &mut WideEngine, ...); profile_route for a converted run is prism_admitted_wide",
     "Prism perf finding: WideEngine::transform costs about 110 ns/px (moxcms two legs plus clip scan plus output hash); a matrix/TRC to matrix/TRC pair with linear TRCs could fuse into one 3x3 plan inside Prism (develop stays the consumer, no colour math here)",
-    "Not done (outside this task): multi-threaded tiles (tiles are independent; scoped threads are safe Rust), ledger accounting of wide requests, SIMD, R3 PLAUSIBLE LJPEG items (pre-allocation bound dng.rs:438-449; ljpeg.rs:141-158 fill bytes / RST sequence + hand KATs). R3 PLAUSIBLE pipeline.rs:639-647 (converter length) is fixed and tested"
+    "Not done (outside this task): multi-threaded tiles (tiles are independent; scoped threads are safe Rust), ledger accounting of wide requests, SIMD, R3 PLAUSIBLE LJPEG items (pre-allocation bound dng.rs:438-449; ljpeg.rs:141-158 fill bytes / RST sequence + hand KATs). R3 PLAUSIBLE pipeline.rs:639-647 (converter length) is fixed and tested",
+    {
+      "verdicts": [
+        {
+          "round": "STUDIO-R3",
+          "lane": "SMB-DEVELOP",
+          "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+          "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+          "decision": "failed",
+          "verdict": "FAIL_V1",
+          "failures": [
+            {
+              "failure_class": "black-delta-i64-overflow-panic",
+              "file_line": "crates/hsk-studio-develop/src/dng.rs:744 (black_at :684-696; DeltaH/V :573-587)"
+            },
+            {
+              "failure_class": "corpus-default-path-mismatch",
+              "file_line": "crates/hsk-studio-develop/tests/real_dng/fetch-corpus.sh:9 vs tests/real_dng.rs:91"
+            }
+          ],
+          "remediation": "Reject effective black outside [0,white] at decode; checked_sub at dng.rs:744; one shared corpus default path",
+          "round_ref": "validation/round-R3.json",
+          "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+          "idempotency_key": "STUDIO-R3:SMB-DEVELOP:404ff3ae8cd7:FAIL_V1",
+          "recorded_at": "2026-10-11T03:11:21Z",
+          "by": "wp_validator STUDIO-R3"
+        }
+      ]
+    }
   ],
   "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items; optional: tile-parallel develop (scoped threads), SIMD sse2 normalisation, encoded (non-linear) profiles when Prism admits them, spec STU-CON-044 enrichment for the wide route",
   "updated_at": "2026-10-11T03:08:39Z"

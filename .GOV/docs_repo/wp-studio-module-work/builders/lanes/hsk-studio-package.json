@@ -4,15 +4,60 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 4 complete (additive): streaming save (SMB-PACKAGE-STREAM-SAVE) on top of slice 3 + R2 fixes",
   "commits": [
-    {"sha": "8d9f694", "subject": "slice 1: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true, "slice": 1},
-    {"sha": "a6d049a", "subject": "slice 1: traversal/absolute name codes and foundation contract tests", "pushed": true, "slice": 1},
-    {"sha": "5bc338d", "subject": "slice 1: real process-exit-before-rename interrupted-save proof", "pushed": true, "slice": 1},
-    {"sha": "43e1baf", "subject": "slice 2: blob table raw|zstd, Read+Seek streaming reader on a shared Source, owner-marked temps with stale sweep", "pushed": true, "slice": 2},
-    {"sha": "7da88fc", "subject": "slice 2: sweep/stream/zstd in package-consumer, test READY detection fix", "pushed": true, "slice": 2},
-    {"sha": "1f56170", "subject": "slice 3: shuffle+zstd codec with element size, content-addressed preview entries, Extras write input", "pushed": true, "slice": 3},
-    {"sha": "d333e6c", "subject": "slice 3: tests for shuffle+zstd (measured ratios) and preview entries; consumer --shuffle/--preview", "pushed": true, "slice": 3},
-    {"sha": "64ece87", "subject": "R2 review fixes: aggregate decoded-bytes limit, ZIP64 locator only when announced, refuse non-ZIP64 extra fields, case-folded path conflicts, DESCRIPTOR refresh; one regression test per finding", "pushed": true, "slice": "R2"},
-    {"sha": "0dfac5e", "subject": "slice 4: streaming save (AssetStream, write_package_streaming into Write+Seek, save_atomic_streaming); byte-identical to the buffered writer; 4 focused tests incl. counting-allocator peak bound; consumer --stream", "pushed": true, "slice": 4}
+    {
+      "sha": "8d9f694",
+      "subject": "slice 1: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save",
+      "pushed": true,
+      "slice": 1
+    },
+    {
+      "sha": "a6d049a",
+      "subject": "slice 1: traversal/absolute name codes and foundation contract tests",
+      "pushed": true,
+      "slice": 1
+    },
+    {
+      "sha": "5bc338d",
+      "subject": "slice 1: real process-exit-before-rename interrupted-save proof",
+      "pushed": true,
+      "slice": 1
+    },
+    {
+      "sha": "43e1baf",
+      "subject": "slice 2: blob table raw|zstd, Read+Seek streaming reader on a shared Source, owner-marked temps with stale sweep",
+      "pushed": true,
+      "slice": 2
+    },
+    {
+      "sha": "7da88fc",
+      "subject": "slice 2: sweep/stream/zstd in package-consumer, test READY detection fix",
+      "pushed": true,
+      "slice": 2
+    },
+    {
+      "sha": "1f56170",
+      "subject": "slice 3: shuffle+zstd codec with element size, content-addressed preview entries, Extras write input",
+      "pushed": true,
+      "slice": 3
+    },
+    {
+      "sha": "d333e6c",
+      "subject": "slice 3: tests for shuffle+zstd (measured ratios) and preview entries; consumer --shuffle/--preview",
+      "pushed": true,
+      "slice": 3
+    },
+    {
+      "sha": "64ece87",
+      "subject": "R2 review fixes: aggregate decoded-bytes limit, ZIP64 locator only when announced, refuse non-ZIP64 extra fields, case-folded path conflicts, DESCRIPTOR refresh; one regression test per finding",
+      "pushed": true,
+      "slice": "R2"
+    },
+    {
+      "sha": "0dfac5e",
+      "subject": "slice 4: streaming save (AssetStream, write_package_streaming into Write+Seek, save_atomic_streaming); byte-identical to the buffered writer; 4 focused tests incl. counting-allocator peak bound; consumer --stream",
+      "pushed": true,
+      "slice": 4
+    }
   ],
   "capabilities_done": [
     "slices 1-2: Limits, STORE-only ZIP/ZIP64 writer, canonical bounded reader (slice and Read+Seek share one Source-based implementation), canonical manifest, write/read_package, PackageReader, save_atomic with injectable AtomicFs, owner-marked temps + sweep_stale_temps, blob codecs raw|zstd (ruzstd =0.9.0), DESCRIPTOR, Observe mapping, package-consumer",
@@ -30,11 +75,34 @@
     "passed": 18,
     "failed": 0,
     "command": "cargo test -p hsk-studio-package --no-fail-fast (targets foundation_contract: 14, streaming_save: 4; cargo env: studio-env.sh, never C:)",
-    "slice1": ["mixed_graph_roundtrip_with_assets", "hostile_zip_rejected", "manifest_integrity_and_version", "unknown_record_quarantined_verbatim", "atomic_save_retains_last_good_and_cancel"],
-    "slice2": ["blob_table_zstd_codec", "streaming_reader_matches_slice_reader_and_bounds_reads", "stale_temp_sweep_owner_marker"],
-    "slice3": ["shuffle_zstd_codec_exactness_and_ratio", "preview_entry_kind_declared_lazy_and_verified"],
-    "slice4": ["streaming_output_is_byte_identical_and_strictly_readable", "streaming_save_peak_heap_is_bounded_for_large_asset (64 MiB, ~18 s at opt-level 0 because sha2 is force-soft; well under the 120 s nextest cap)", "lying_stream_aborts_typed_and_keeps_last_good (flip -> hash_mismatch, short/long -> length_mismatch on raw and shuffle paths; absent, pre-cancelled, directory target, sink not at 0; last-good byte-identical, no temp or marker)", "codec_blobs_peak_is_independent_of_blob_count"],
-    "r2_regressions": ["r2_aggregate_decoded_bytes_bounded_from_manifest (9 x 512 MiB declarations refused from the manifest; gate proof with tight/roomy limits; streaming reader same)", "r2_zip64_locator_only_when_announced (trap archive with locator-signature bytes in the central directory reads fine; announced ZIP64 with damaged locator refused)", "r2_unknown_extra_fields_and_hidden_bytes_refused (0x7075 and 0x5455 in central/local, padded/ragged/duplicate ZIP64 records, case-folded path conflict)", "r2_descriptor_matches_api_and_limits (DESCRIPTOR parses, lists every public API/flag, limits equal Limits::default())"],
+    "slice1": [
+      "mixed_graph_roundtrip_with_assets",
+      "hostile_zip_rejected",
+      "manifest_integrity_and_version",
+      "unknown_record_quarantined_verbatim",
+      "atomic_save_retains_last_good_and_cancel"
+    ],
+    "slice2": [
+      "blob_table_zstd_codec",
+      "streaming_reader_matches_slice_reader_and_bounds_reads",
+      "stale_temp_sweep_owner_marker"
+    ],
+    "slice3": [
+      "shuffle_zstd_codec_exactness_and_ratio",
+      "preview_entry_kind_declared_lazy_and_verified"
+    ],
+    "slice4": [
+      "streaming_output_is_byte_identical_and_strictly_readable",
+      "streaming_save_peak_heap_is_bounded_for_large_asset (64 MiB, ~18 s at opt-level 0 because sha2 is force-soft; well under the 120 s nextest cap)",
+      "lying_stream_aborts_typed_and_keeps_last_good (flip -> hash_mismatch, short/long -> length_mismatch on raw and shuffle paths; absent, pre-cancelled, directory target, sink not at 0; last-good byte-identical, no temp or marker)",
+      "codec_blobs_peak_is_independent_of_blob_count"
+    ],
+    "r2_regressions": [
+      "r2_aggregate_decoded_bytes_bounded_from_manifest (9 x 512 MiB declarations refused from the manifest; gate proof with tight/roomy limits; streaming reader same)",
+      "r2_zip64_locator_only_when_announced (trap archive with locator-signature bytes in the central directory reads fine; announced ZIP64 with damaged locator refused)",
+      "r2_unknown_extra_fields_and_hidden_bytes_refused (0x7075 and 0x5455 in central/local, padded/ragged/duplicate ZIP64 records, case-folded path conflict)",
+      "r2_descriptor_matches_api_and_limits (DESCRIPTOR parses, lists every public API/flag, limits equal Limits::default())"
+    ],
     "check_clippy": "check/clippy -p hsk-studio-package --tests --examples: clean; cargo check -p hsk-studio-session -p hsk-studio-kernel-bindings --tests: clean",
     "extra_evidence": "package-consumer --write --shuffle --preview then --read on a real file; Python zipfile + libzstd (3.14 compression.zstd) independently unpacked, un-shuffled and hash-verified the shuffle_zstd asset (sha_ok) and the zstd preview (sha_ok); ruzstd Fastest encoder output previously verified against libzstd on 7 inputs",
     "tree": "shared edit tree, pushed as 0dfac5e (parent 07abf54); not an export of the pushed SHA"
@@ -63,5 +131,24 @@
     "ReadOnly folio inspections cannot be re-written; Opened materialises all non-preview entries (bounded by limits), use PackageReader::read_asset for lazy access"
   ],
   "next": "Validator round on 0dfac5e (foundation_contract 14 + streaming_save 4, once). SESSION MIGRATION (session lane, package untouched by it): (1) implement AssetStream for LazyAssets in hsk-studio-session/src/source.rs next to its AssetSource impl: open(digest, max) looks up the manifest entry as read() does (declared = raw_len.unwrap_or(len); missing -> Absent; > max -> TooLarge); for a Raw entry return AssetReader{len: entry.len, reader} where reader is a Read over the source file range EntryMeta::data_offset()..+size (own the lock guard or a cloned handle; hash is verified by the writer so the reader need not), for zstd/shuffle_zstd entries return Cursor over PackageReader::read_asset (one blob); keep recording the real cause in take_failure; open must be repeatable (codec requests open each digest twice) and keep one reader open at a time. (2) session.rs ~1129/1243: replace write_package_with into Vec + save_atomic(path, &built.bytes) by save_atomic_streaming(path, &StreamSave{doc, assets:&lazy, extras:Extras{quarantined, previews}, options}, &limits, cancel); WriteReceipt carries the same entries/bytes_written/doc_revision/zip64 for SaveReceipt; the package now re-verifies the file from disk, so session post-save VerifyMismatch can reuse that (known gap: it leaves the new file in place). (3) export_checkpoint must stay on write_package_with: Checkpoint is an in-memory verified package by contract. (4) corrupted source asset now fails during the stream with hash_mismatch/length_mismatch and the temp is discarded (same typed outcome, last-good intact); add a session test with its Tracking allocator asserting save peak independent of asset size, and refresh session DESCRIPTOR authority (a save no longer buffers the whole package). Package candidates after the round: delta/prediction prefilter for u16 height-like data, preview-from-render adapter once composite output exists, ArtifactService provider-port adapter shape when host wiring is allowed",
-  "updated_at": "2026-10-11T03:08:50Z"
+  "updated_at": "2026-10-11T03:08:50Z",
+  "notes": {
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-PACKAGE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-PACKAGE:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
 }

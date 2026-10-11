@@ -4,10 +4,22 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "additive layout members in Folio: pages in spreads, text frames, thread links, text story contract",
   "commits": [
-    {"sha": "26b37c8", "subject": "NOT mine: another lane's pathspec commit swept my in-progress lib.rs/timeline.rs wiring (mod layout/story, fields, validation) into HEAD before layout.rs/story.rs were tracked; HEAD did not build for about a minute until ae75f55 (see notes.incident)"},
-    {"sha": "ae75f55", "subject": "Folio: add layout.rs and story.rs (pages, text frames, thread links, text story) that lib.rs in 26b37c8 already declares; restore timeline.rs fps_fraction doc line"},
-    {"sha": "39788cb", "subject": "Folio: layout_contract tests (round trip, thread cycles and broken chains, dangling frames/pages and geometry, text story)"},
-    {"sha": "5d737e3", "subject": "Folio: PageLocation carries spread_index; page margin doc states the facing-pages inside/outside caveat"}
+    {
+      "sha": "26b37c8",
+      "subject": "NOT mine: another lane's pathspec commit swept my in-progress lib.rs/timeline.rs wiring (mod layout/story, fields, validation) into HEAD before layout.rs/story.rs were tracked; HEAD did not build for about a minute until ae75f55 (see notes.incident)"
+    },
+    {
+      "sha": "ae75f55",
+      "subject": "Folio: add layout.rs and story.rs (pages, text frames, thread links, text story) that lib.rs in 26b37c8 already declares; restore timeline.rs fps_fraction doc line"
+    },
+    {
+      "sha": "39788cb",
+      "subject": "Folio: layout_contract tests (round trip, thread cycles and broken chains, dangling frames/pages and geometry, text story)"
+    },
+    {
+      "sha": "5d737e3",
+      "subject": "Folio: PageLocation carries spread_index; page margin doc states the facing-pages inside/outside caveat"
+    }
   ],
   "capabilities_done": [
     "src/layout.rs: StudioPageSpread.pages (serde default, omitted when empty) = Vec<StudioPage{page_id (document-local key), width/height Length pt >0, side right_hand|left_hand|single_sided, margins LayoutEdges{top,right,bottom,left} pt >=0 leaving a positive margin box, bleed Option<PageBleed{top,bottom,inside_or_left,outside_or_right}> explicit-null-required}>; MAX_PAGES_PER_DOCUMENT 9999 (STU-LAY-105 hard max), pages charged to Budget.nodes; page ids unique document-wide",
@@ -69,7 +81,46 @@
       "Layout story input: StudioTextStory.inline_text() supplies the text for Inline content (Stored content needs the caller's artifact resolver); character_ranges[].applied_language and style_ref feed Type shaping and style resolution; story_direction/paragraph_direction can replace layout's RTL refusal heuristics (right_to_left, or unknown without paragraph directions, stays UnsupportedComposition); LayoutProposal.overset stays layout output and is not written into the document (overflows is derived).",
       "Do not change layout's public types until the lead decides; the crate-local TextFrame/Spread remain valid for the validator round on layout commit 259ea44."
     ],
-    "spec_anchors": ["STU-LAY-001", "STU-LAY-003", "STU-LAY-017", "STU-LAY-018", "STU-LAY-100", "STU-LAY-105", "STU-LAY-106", "STU-LAY-107", "STU-LAY-113", "STU-LAY-118", "STU-LAY-119", "STU-LAY-120", "STU-LAY-121", "STU-LAY-122", "STU-TYP-110", "STU-TYP-113", "STU-TYP-114", "STU-TYP-210", "STU-CON-017", "STU-CON-018", "STU-CON-037"],
-    "scratch": "A scratch copy used for pre-checks lives under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/folio-eng3-scratch (outside the repo, never committed); removable."
+    "spec_anchors": [
+      "STU-LAY-001",
+      "STU-LAY-003",
+      "STU-LAY-017",
+      "STU-LAY-018",
+      "STU-LAY-100",
+      "STU-LAY-105",
+      "STU-LAY-106",
+      "STU-LAY-107",
+      "STU-LAY-113",
+      "STU-LAY-118",
+      "STU-LAY-119",
+      "STU-LAY-120",
+      "STU-LAY-121",
+      "STU-LAY-122",
+      "STU-TYP-110",
+      "STU-TYP-113",
+      "STU-TYP-114",
+      "STU-TYP-210",
+      "STU-CON-017",
+      "STU-CON-018",
+      "STU-CON-037"
+    ],
+    "scratch": "A scratch copy used for pre-checks lives under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/folio-eng3-scratch (outside the repo, never committed); removable.",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-FOLIO-ENG-3",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-3:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

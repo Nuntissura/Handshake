@@ -4,11 +4,26 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice-2-complete",
   "commits": [
-    {"sha": "f058a1b", "subject": "slice 1: SVG import into Folio proposal + nib anchors + typed loss, hostile-input budgets, SVG export, AI blocker, PDF port"},
-    {"sha": "f95a3c0", "subject": "plain-attribute lookups (xlink:href counted once), five focused contract tests"},
-    {"sha": "ebd2efd", "subject": "hierarchical export_proposal, DESCRIPTOR, interop-vector-consumer example"},
-    {"sha": "41d4ff1", "subject": "report preserveAspectRatio slice as unclipped (Approximated)"},
-    {"sha": "f0cdb55", "subject": "slice 2: gradients as typed Paint, ordered appearance rows + paint-order, stroke cap/join/miter/dash, bounded SVGZ import + gzip_svg"}
+    {
+      "sha": "f058a1b",
+      "subject": "slice 1: SVG import into Folio proposal + nib anchors + typed loss, hostile-input budgets, SVG export, AI blocker, PDF port"
+    },
+    {
+      "sha": "f95a3c0",
+      "subject": "plain-attribute lookups (xlink:href counted once), five focused contract tests"
+    },
+    {
+      "sha": "ebd2efd",
+      "subject": "hierarchical export_proposal, DESCRIPTOR, interop-vector-consumer example"
+    },
+    {
+      "sha": "41d4ff1",
+      "subject": "report preserveAspectRatio slice as unclipped (Approximated)"
+    },
+    {
+      "sha": "f0cdb55",
+      "subject": "slice 2: gradients as typed Paint, ordered appearance rows + paint-order, stroke cap/join/miter/dash, bounded SVGZ import + gzip_svg"
+    }
   ],
   "capabilities_done": [
     "import_svg: svg viewBox/width/height/preserveAspectRatio, g/a, path (arcs, quad, smooth -> cubic anchors, relative handles in pt), rect(rx,ry), circle, ellipse, line, polyline, polygon, transform baked, fill/stroke/stroke-width/fill-rule/fill-opacity/stroke-opacity/opacity/color/display/visibility via attributes or inline style, px->pt recorded once in Provenance",
@@ -54,6 +69,23 @@
       "AI private-data marker names (/Illustrator, AIPrivateData, %AI) not confirmed on an Illustrator-saved fixture",
       "whether Folio expects one SVPT per layer or several for compound paths"
     ],
-    "deps": "roxmltree =0.21.1 (std), svgtypes =0.16.1 (std), miniz_oxide =0.9.1 (default-features off, with-alloc) in the crate manifest; three dep-requests lines appended; Cargo.lock not staged"
+    "deps": "roxmltree =0.21.1 (std), svgtypes =0.16.1 (std), miniz_oxide =0.9.1 (default-features off, with-alloc) in the crate manifest; three dep-requests lines appended; Cargo.lock not staged",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-INTEROP-VECTOR",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-INTEROP-VECTOR:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

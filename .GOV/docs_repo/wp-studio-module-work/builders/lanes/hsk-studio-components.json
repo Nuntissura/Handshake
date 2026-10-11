@@ -4,10 +4,22 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice-2-complete",
   "commits": [
-    {"sha": "69b63c1", "subject": "Components: definitions + variant sets, instances with property-granular overrides and DS-116 precedence, variables (collections, modes, alias cycle/type checks), constraints, prototype flow validated against Folio artboards, instance layer bridge"},
-    {"sha": "423cb0f", "subject": "Components: swap/variant switch with overrides_dropped re-match (STU-DS-119) and five hand-computed focused tests"},
-    {"sha": "556237d", "subject": "Components: components-consumer example (variant + mode + text override, footprint, Observe terminal outcome)"},
-    {"sha": "f8b5328", "subject": "Components slice 2: auto layout (STU-DS-144..149 subset) as an own f64 evaluator with typed refusals; four hand-computed tests"}
+    {
+      "sha": "69b63c1",
+      "subject": "Components: definitions + variant sets, instances with property-granular overrides and DS-116 precedence, variables (collections, modes, alias cycle/type checks), constraints, prototype flow validated against Folio artboards, instance layer bridge"
+    },
+    {
+      "sha": "423cb0f",
+      "subject": "Components: swap/variant switch with overrides_dropped re-match (STU-DS-119) and five hand-computed focused tests"
+    },
+    {
+      "sha": "556237d",
+      "subject": "Components: components-consumer example (variant + mode + text override, footprint, Observe terminal outcome)"
+    },
+    {
+      "sha": "f8b5328",
+      "subject": "Components slice 2: auto layout (STU-DS-144..149 subset) as an own f64 evaluator with typed refusals; four hand-computed tests"
+    }
   ],
   "capabilities_done": [
     "slice 1 (69b63c1..556237d): component definitions and variant sets, instances with property-granular overrides and STU-DS-116 precedence (Source + reads per field), variables with collections/modes/alias chains (AliasCycle, TypeMismatch, MissingModeValue), propose_overrides + check_footprint (same-key stale, disjoint admissible, record-level keys), swap_component/switch_variant/rematch_overrides with DroppedOverride (STU-DS-119), constraints MIN|CENTER|MAX|STRETCH|SCALE + resize_component, prototype flow validated against Folio artboards, instance_layer bridge, report()/DESCRIPTOR, components-consumer example",
@@ -58,6 +70,36 @@
       "shell commands run from the kernel root that mention gated words in text hit the WP-KERNEL-012 gameplan (broken confirm binding, other device); JSON written with the Write tool instead",
       "a formatter appears to rewrite edited .rs files on save",
       "no new crates.io dependency; Cargo.lock not staged by this lane"
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-COMPONENTS",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "override-type-unchecked-for-bound-fields",
+            "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:684-689"
+          },
+          {
+            "failure_class": "dead-action-reachability",
+            "file_line": "crates/hsk-studio-components/src/prototype.rs:141-172"
+          },
+          {
+            "failure_class": "duplicate-member-id-accepted",
+            "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:482-505,534"
+          }
+        ],
+        "remediation": "Type-check overrides vs property/variable type; reach edges only for action 0; reject dup member ids",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-COMPONENTS:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
     ]
   }
 }

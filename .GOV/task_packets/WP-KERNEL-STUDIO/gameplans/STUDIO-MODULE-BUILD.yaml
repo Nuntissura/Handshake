@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: batch
 assignment: STUDIO-MODULE-BUILD
 parent: null
-generation: 24
+generation: 40
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -33,3 +33,11 @@ steps:
 - {id: GP-015, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: CX-VAL-001 freeze candidate, state: retired}
 - {id: GP-016, role: any, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'infra: hook ignores inline GAMEPLAN_ROLE; dev loop machine checks only, role any', state: active}
 - {id: GP-017, role: any, at: before_round, do: verify toolchain pin 1.97.1 present, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/rust-toolchain.toml, contains: 1.97.1}, source: CX-HOST-001; pinned compiler, state: active}
+- {id: GP-018, role: any, at: before_round, do: verify develop_digest test has no TBD placeholder digest, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-develop/tests/develop_digest.rs, not_contains: TBD}, source: 'wasted run: develop_digest first round captured digests with placeholder', state: retired}
+- {id: GP-019, role: any, at: before_round, do: forbid move out of NodeKind match scrutinee in session mask_property, check: {type: file, path: crates/hsk-studio-session/src/session.rs, not_contains: 'match (address.target.node_kind,'}, source: 'wasted run: E0507 NodeKind not Copy, session R3 round 1', state: retired}
+- {id: GP-020, role: any, at: before_round, do: forbid move out of NodeKind match scrutinee in session mask_property, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-session/src/session.rs, not_contains: 'match (address.target.node_kind,'}, source: 'wasted run: E0507 NodeKind not Copy, session R3 round 1', state: retired}
+- {id: GP-021, role: any, at: before_round, do: forbid untyped int literal loop var before is_multiple_of in nib owned_path test, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-nib/tests/owned_path.rs, not_contains: for case in 0..400}, source: 'wasted run: E0689 ambiguous numeric type, nib R3 round 1', state: retired}
+- {id: GP-022, role: any, at: before_round, do: forbid non-physical all-ink pixel in synthetic CMYK display fixture, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-interop-psd/tests/precision_color_export.rs, not_contains: '[1.0, 1.0, 1.0, 1.0]]'}, source: 'wasted run: Lab(5,-50,40) has negative XYZ, engine clamps PCS, psd round 1', state: retired}
+- {id: GP-023, role: any, at: before_round, do: require BPC off for gray kTRC source in psd display routing, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-interop-psd/src/proposal.rs, contains: 'bpc && kind != WideKind::Gray'}, source: 'wasted run: prism gray BPC black L* -3613 at gamma 2.0, psd round 1', state: retired}
+- {id: GP-024, role: any, at: before_round, do: forbid descriptor test demanding the retired ENG-3 pending entry, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-interop-psd/tests/review_r2_regressions.rs, not_contains: the Prism dependency is recorded}, source: 'wasted run: stale descriptor assertion after wide conversion shipped, psd round 1', state: retired}
+- {id: GP-025, role: any, at: before_round, do: forbid arbitrary BPC delta threshold in psd CMYK display test, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-interop-psd/tests/precision_color_export.rs, not_contains: '- 5e-3, "BPC maps'}, source: 'wasted run: BPC delta 0.0049 under fixture black L* 5, closed form needed, psd round 1', state: retired}

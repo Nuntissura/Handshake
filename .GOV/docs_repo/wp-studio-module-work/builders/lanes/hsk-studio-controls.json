@@ -4,9 +4,18 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 2 pushed: spec-aligned gestures + undo coalescing, Observe report, integer domain, sections; 9 focused tests green (5 slice-1 + 4 slice-2)",
   "commits": [
-    {"sha": "a1d0fbd", "subject": "Controls slice 1: descriptor registry (number/toggle/choice/color/text), strict legality owner, validated value store with undo-friendly events, descriptor-driven egui renderer, agent JSON + manual projections, dead-control audit"},
-    {"sha": "2ea0c1e", "subject": "Controls slice 1: 5 focused tests (numeric legality + store/undo, headless egui frames, projection round-trip, orphan audit, descriptor refusal) + controls-consumer example"},
-    {"sha": "62ea29a", "subject": "Controls slice 2: spec-aligned gestures (STU-FX-149/SHL-188..194), one undo step per gesture, integer domain, collapsible sections across egui/agent JSON/manual, Observe report per operation; 4 focused tests"}
+    {
+      "sha": "a1d0fbd",
+      "subject": "Controls slice 1: descriptor registry (number/toggle/choice/color/text), strict legality owner, validated value store with undo-friendly events, descriptor-driven egui renderer, agent JSON + manual projections, dead-control audit"
+    },
+    {
+      "sha": "2ea0c1e",
+      "subject": "Controls slice 1: 5 focused tests (numeric legality + store/undo, headless egui frames, projection round-trip, orphan audit, descriptor refusal) + controls-consumer example"
+    },
+    {
+      "sha": "62ea29a",
+      "subject": "Controls slice 2: spec-aligned gestures (STU-FX-149/SHL-188..194), one undo step per gesture, integer domain, collapsible sections across egui/agent JSON/manual, Observe report per operation; 4 focused tests"
+    }
   ],
   "capabilities_done": [
     "slice 1: ControlSpec descriptors (id,label,unit,help,kind,default) for number(field|slider)/toggle/choice/color/text; Registry with duplicate/invalid refusal and ordered specs",
@@ -68,6 +77,28 @@
       "report() builds one Observe per call (caller supplies correlation/resource/actor); no Observe progress frames for live gesture samples",
       "egui rendering verified headless only via value/interaction/section-visibility outcomes; no pixel/visual proof"
     ],
-    "craft_lesson": "Dead-control audit is Registry::audit() (orphans + empty sections); every fixture control has a registered consumer and the orphan test proves detection (Craft: 55/141 dead preferences)."
+    "craft_lesson": "Dead-control audit is Registry::audit() (orphans + empty sections); every fixture control has a registered consumer and the orphan test proves detection (Craft: 55/141 dead preferences).",
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-CONTROLS",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "fine-step-silent-noop-precision-9",
+            "file_line": "crates/hsk-studio-controls/src/descriptor.rs:86-88 (MAX_PRECISION=9 :14; step_value :657-667)"
+          }
+        ],
+        "remediation": "Precision-aware clean() or cap MAX_PRECISION at 8; refuse a step with no effect; add precision-9 fine test",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-CONTROLS:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
   }
 }

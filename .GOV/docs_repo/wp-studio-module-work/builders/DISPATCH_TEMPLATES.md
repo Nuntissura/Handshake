@@ -27,6 +27,8 @@ STATE: keep `.GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-{cra
 
 ESCALATION: same error after 2 distinct fix attempts -> stop that capability, record the blocker (error text + file:line + what you tried) in the lane file, continue other capabilities; if nothing else remains, finish.
 
+GAMEPLAN + GIT DISCIPLINE (lead rules): do NOT add steps to the shared gameplan for product compile/test mistakes in your own crate (record them in your lane file notes and fix them with a commit, which clears the retry guard); gameplan steps are only for preparation/infrastructure failures that affect every lane. Never `git commit --amend`, never `git rebase`, never bare `git commit` in the shared worktree — new pathspec commits only.
+
 DEADLINE: first pushed commit within 30 min; then a pushed commit at least every 30 min.
 
 FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, suggested next slice.
