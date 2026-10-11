@@ -1,35 +1,34 @@
 {
   "crate": "hsk-studio-render-cpu",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1 pushed (plan/executor/blend math/path coverage/observe); starting slice-2 (remaining W3C blend modes)",
+  "phase": "pigment RenderBackend port + vector payload on nib OwnedPath (f105552); next: parallel chunks",
   "commits": [
-    {"sha": "98719b52f4f6bf1f31017b9b0f99df2629975eef", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "plan, bounded chunk executor, straight-alpha blend math, path coverage, observe report"},
-    {"sha": "a56af78", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "five focused cpu_plan tests"}
+    {"sha": "1e3cfaf", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"},
+    {"sha": "ff57d4a362aa291011a8de12f465d5876c5863e4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rustfmt"},
+    {"sha": "f105552", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "VectorFill payload = nib OwnedPath; local anchor model deleted; coverage rasterization kept; vector fault tests"}
   ],
   "capabilities_done": [
-    "BlendMode (7 STU-RAS-154 members) + typed UnsupportedBlend(code) + blend_mode_name",
-    "composite_straight (W3C straight-alpha source-over, f64 intermediate)",
-    "RenderPlan/Op(fill|tile|path_fill)/TileSource/SourceTile (+pigment ResolvedTile adapter, tested through pigment wire::Tile)",
-    "Renderer::render bounded chunk executor: cancel+deadline between chunks, stale revision, preflight validation (hash/stride/profile/space/value), RAII scratch lease + budget, RenderReceipt",
-    "PathFill coverage: exact winding of true curves (kurbo) at n*n samples, NonZero/EvenOdd, relative handles",
-    "report(): one Observe terminal frame; RenderError->Outcome mapping",
-    "examples/render-cpu-consumer (--descriptor, --selftest); DESCRIPTOR validated against constants"
+    "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/masks Exact, Vector+FillOpacity Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
+    "execution order: pigment admit() -> source verification -> bounded chunks; cancel+deadline between chunks; RAII scratch lease vs request.max_working_bytes; receipt only after last chunk",
+    "layers: opacity*fill_opacity product (Approximate), u8/u16 masks with inversion (density!=1 refused), isolated groups via per-depth scratch, pass-through groups onto the running backdrop, DAG fanout, leaf root",
+    "vector payload VectorFill { path: nib::OwnedPath (plan pixels), rgba, aa_samples }: nib validates (finite, bounded, MoveTo/Close rules), render-cpu closes open subpaths and rasterizes n*n supersampled exact-curve winding via kurbo; Serialize binds the path by nib canonical JSON so RenderPlan::digest covers it",
+    "blend arithmetic: ONLY pigment::blend_math::composite_over (f32)",
+    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR checked against constants (path_elements = nib MAX_PATH_ELEMENTS)"
   ],
   "tests": {
     "passed": 5,
     "failed": 0,
     "command": "cargo test -p hsk-studio-render-cpu --tests --no-fail-fast",
     "cases": ["known_alpha_mask_sample_math", "chunk_boundary_equals_independent_reference", "sink_error_cancel_releases_bytes", "unsupported_op_stale_result", "receipt_binds_revision_profile_and_observe"],
-    "check_tests_examples": "PASS no warnings",
-    "clippy": "PASS for this crate (only pre-existing observe too_many_arguments warnings, not ours)",
-    "tree": "shared edit tree, not export of pushed SHA"
+    "check_clippy": "PASS, no warnings from this crate",
+    "tree": "shared edit tree at f105552, not an export of the pushed SHA"
   },
-  "oracle_notes": "hand-computed Normal/Multiply/Screen/Darken/Lighten/Difference/Overlay vectors; independent per-pixel reference (analytic coverage) byte-equal across chunk sizes 1,2,3,4,64; Adobe parity NOT_PROVEN (W3C formulas only)",
+  "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN.",
   "decisions_for_lead": [
-    "OPEN: render-cpu defines its OWN plan IR (plan_sink.rs); composite has no shared edge to it. Steward/lead to decide where a neutral plan IR lives (candidate: pigment) or whether composite lowers into render-cpu types via an allowed edge.",
-    "Tile source contract: SourceTile (own view) with from_resolved(pigment::ResolvedTile, Grid) adapter, because render-cpu has no folio edge and ResolvedTile needs folio TileRef to construct."
+    "Typed refusals (no guess): pass-through opacity<1, non-isolated blended group, mask density != 1, mask on pass-through layer, premultiplied alpha, samples outside [0,1], invalid vector geometry, aa_samples outside 1..=16.",
+    "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
   ],
   "blockers": [],
-  "next": "slice-2: remaining W3C blend modes (colour_dodge, colour_burn, hard_light, soft_light, exclusion, hue, saturation, colour, luminosity) with hand-computed vectors; then masks (pigment coverage planes) and isolated groups",
-  "updated_at": "2026-10-11T05:25:00Z"
+  "next": "parallel chunks with deterministic sink order (in progress); independent validator round",
+  "updated_at": "2026-10-11T09:50:00Z"
 }

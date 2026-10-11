@@ -41,13 +41,18 @@
    "lane_id": "SMB-LAYOUT",
    "crate": "hsk-studio-layout",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-layout",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1 (reused)",
    "brief": "builders/briefs/hsk-studio-layout.md",
-   "commits": [],
+   "commits": [
+    "87c1cd9",
+    "259ea44"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-layout.json"
+   "lane_file": "builders/lanes/hsk-studio-layout.json",
+   "candidate": "259ea44",
+   "note": "geometry, threading w/ exact overset, first-fit + Knuth-Plass, UAX14; 5 tests; from_type not run on real Type output; InDesign parity UNVERIFIED"
   },
   {
    "lane_id": "SMB-DEVELOP",
@@ -57,9 +62,18 @@
    "status": null,
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
-   "commits": [],
+   "commits": [
+    "68e8767",
+    "e4d2b52",
+    "c008daf",
+    "2e3fd50",
+    "1cd586c"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-develop.json"
+   "lane_file": "builders/lanes/hsk-studio-develop.json",
+   "candidate": "1cd586c",
+   "note": "native develop + own DNG reader (LJPEG, linearization, DNG color mapping); 10 tests synthetic; slice3 real CC0 DNG + speed + prism output in progress",
+   "review_findings": "R2-review-a CONFIRMED: u64 overflow panic dng.rs:379, tautological warm-neutral test, min_bayer_side=1 panic, BlackLevelDeltaH/V ignored -> remediation dispatched (not a formal verdict; R2 did not open)"
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -83,19 +97,22 @@
    "commits": [
     "416b376",
     "9502a9b",
-    "e259dbe"
+    "e259dbe",
+    "28d8ed4",
+    "b12a524"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-pulse.json",
-   "candidate": "e259dbe",
-   "note": "slice2 timeline edit planners over Folio (trim/razor/roll/slip/slide, link+sync-lock); 11 tests; slice3 in progress"
+   "candidate": "b12a524",
+   "note": "slices1-3; lift/extract/close-gap, linked razor/roll/slide; 13 tests",
+   "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round"
   },
   {
    "lane_id": "SMB-SCORE",
    "crate": "hsk-studio-score",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "builder-score",
    "brief": "builders/briefs/hsk-studio-score.md",
    "commits": [
@@ -103,30 +120,36 @@
     "76ba23a",
     "31d8395",
     "6f736b8",
-    "59d5e09"
+    "59d5e09",
+    "b2379a5",
+    "4f549cc"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-score.json",
-   "candidate": "59d5e09",
-   "note": "engine/processors/EQ/FFT/rubato resample; 13 tests; next exact resampler + bounce receipt"
+   "candidate": "4f549cc",
+   "note": "exact-alignment resampler (5 pairs measured), bounce receipt; 16 tests; probe fix b2379a5",
+   "review_findings": "R2-review-b CONFIRMED: ramp cancel ordering, 44.1k->48k 48001 frames -> fresh remediation agent"
   },
   {
    "lane_id": "SMB-REEL",
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
     "f09f33b",
     "c3d013c",
-    "2e9361d"
+    "2e9361d",
+    "b6ab5e2",
+    "039fbee"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
-   "candidate": "2e9361d",
-   "note": "slice1 port/registry/ISOBMFF index/seek/WAV/Y4M; 6 tests; slice2 PCM-in-MOV/tmcd/fMP4/index cache in progress"
+   "candidate": "039fbee",
+   "note": "slice1+2: ISOBMFF+fMP4 index, PCM-in-MOV, tmcd raw, IndexCache; 10 tests; no reel->pulse edge (lead); slice3 Matroska in progress",
+   "review_findings": "R2-review-b CONFIRMED: wav underflow, y4m panic, isobmff unchecked add, edit media_time drop, shared sample budget, v2 doc mismatch, timing helper dup -> remediation dispatched"
   },
   {
    "lane_id": "SMB-MOTION",
@@ -146,39 +169,48 @@
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-motion.json",
    "candidate": "f06e184",
-   "note": "slice1+2 (PropertyStore); 8 tests"
+   "note": "slice1+2 (PropertyStore); 8 tests",
+   "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round"
   },
   {
    "lane_id": "SMB-COMPOSITE",
    "crate": "hsk-studio-composite",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite",
    "brief": "builders/briefs/hsk-studio-composite.md",
    "commits": [
     "4eb5cec",
     "d5ed91a",
     "e362ba6",
-    "a6f2c7e"
+    "a6f2c7e",
+    "118f8f8"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-composite.json",
-   "candidate": "a6f2c7e",
-   "note": "slice1 35 blend modes w/ fidelity classes, plan lowering, static eval; 11 tests; next slice paused pending SMB-PIGMENT-ENG-1 (IR + blend-math single owner); migrating to pigment IR/blend_math (03:55Z)"
+   "candidate": "118f8f8",
+   "note": "migrated to pigment; lowers Folio appearance; clipping typed Unavailable; next: pigment clip route + clipping lowering"
   },
   {
    "lane_id": "SMB-RENDER-CPU",
    "crate": "hsk-studio-render-cpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-cpu",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu",
    "brief": "builders/briefs/hsk-studio-render-cpu.md",
-   "commits": [],
+   "commits": [
+    "98719b5",
+    "a56af78",
+    "badff26",
+    "1e3cfaf",
+    "ff57d4a"
+   ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
-   "note": "; migrating to pigment IR/blend_math (03:55Z)"
+   "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN",
+   "candidate": "ff57d4a"
   },
   {
    "lane_id": "SMB-RENDER-GPU",
@@ -196,39 +228,43 @@
    "lane_id": "SMB-PACKAGE",
    "crate": "hsk-studio-package",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-package",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "builder-package",
    "brief": "builders/briefs/hsk-studio-package.md",
    "commits": [
     "8d9f694",
     "a6d049a",
     "5bc338d",
-    "43e1baf"
+    "43e1baf",
+    "7da88fc"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-package.json",
-   "candidate": "5bc338d",
-   "note": "slice1 STORE-only ZIP64 + manifest + atomic save; 5/5; deps pending steward sync (crc32fast, sha2, serde, serde_json); slice2 in progress; slice2 43e1baf blob table raw|zstd + Read+Seek"
+   "candidate": "7da88fc",
+   "note": "slice1+2: ZIP64/manifest/atomic save + zstd blob codec (ruzstd, libzstd cross-checked) + strict streaming reader + lock-based stale-temp sweep; 8 tests; slice3 shuffle+preview in progress",
+   "review_findings": "R2-review-a CONFIRMED: zstd aggregate cap, ZIP64 locator sentinel, unknown extra IDs, stale descriptor -> remediation dispatched (not a formal verdict; R2 did not open)"
   },
   {
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
     "ee30d62",
     "710ab18",
     "4cc3742",
-    "fe3c193"
+    "fe3c193",
+    "d07ffb4"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
-   "candidate": "fe3c193",
-   "note": "own parser; 28 blend keys -> pigment StudioBlendMode; byte-identical rewrite; to_proposal via folio; 5 tests; UNVERIFIED items need Photoshop fixtures"
+   "candidate": "d07ffb4",
+   "note": "own parser; 28 blend keys -> pigment StudioBlendMode; byte-identical rewrite; to_proposal via folio; 5 tests; UNVERIFIED items need Photoshop fixtures; writes Folio appearance (d07ffb4); slice3 deep color/CMYK-Lab via prism/export in progress",
+   "review_findings": "R2-review-a CONFIRMED: duplicate BlendMode enum, 1-byte tail drop, user-mask rect bit4, stale descriptor -> remediation dispatched (not a formal verdict; R2 did not open)"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -267,12 +303,13 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-pulse (reused)",
+   "brief": "builders/briefs/hsk-studio-interop-media.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-interop-media.json"
   },
   {
    "lane_id": "SMB-CONTROLS",
@@ -289,12 +326,13 @@
    "lane_id": "SMB-SESSION",
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-session",
+   "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-session.json"
   },
   {
    "lane_id": "SMB-HARNESS",
@@ -399,19 +437,21 @@
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
    "candidate": "5882f3c",
-   "note": "slice1 provider+engine trait+quotas+double; slice2 rquickjs 0.14.0 per prep expression-provider-adoption.json"
+   "note": "slice1 provider+engine trait+quotas+double; slice2 rquickjs 0.14.0 per prep expression-provider-adoption.json",
+   "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round"
   },
   {
    "lane_id": "SMB-PRISM-ENG-1",
    "crate": "hsk-studio-prism",
    "origin": "research/color-codecs-raw.md risk 1; lead decision START_LOG decisions 01:50Z",
    "scope": "Prism-owned black-point compensation flag (STU-COL-136) on top of moxcms 0.9.1 transforms; published BPC algorithm",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-1 (reused)",
    "brief": "research/engine-color.md topic bpc-algorithm (ISO 18619); prevent double-apply with moxcms hard-coded BPC (RGB v4 LUT perceptual/saturation)",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
   },
   {
    "lane_id": "SMB-TYPE-ENG-1",
@@ -486,33 +526,36 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "absolute colorimetric with media-white scaling + first-class clip/gamut report in transform receipts",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-1 (reused)",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
   },
   {
    "lane_id": "SMB-PRISM-ENG-3",
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-1 (reused)",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
   },
   {
    "lane_id": "SMB-PRISM-ENG-4",
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "scalar-determinism harness: SIMD features off + fma check; engine id in receipts; byte-identical materialisation",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-1 (reused)",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
   },
   {
    "lane_id": "SMB-PRISM-ENG-5",
@@ -530,22 +573,23 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/baseline.md",
    "scope": "fix 3 failing vendored ttf-parser doctests (ttf_parser:: paths) src/provider/ttf/mod.rs:182,205,2080",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "type-lane",
    "commits": [
     "94331b00b51f2ba6e2e48abc2e9fc7949bf16289"
    ],
    "verdicts": [],
-   "candidate": "94331b0"
+   "candidate": "94331b0",
+   "review_findings": "R2-review-b CONFIRMED: provenance '0 drift' claim false (CRLF vs committed bytes) -> remediation dispatched"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-1",
    "crate": "hsk-studio-folio",
    "origin": "spec-reader-b report; STU-VID-010; lead decision 02:45Z",
    "scope": "Folio timeline document types: sequence, track (video/audio), clip (source ref, in/out, timeline position) with time fields as hsk_studio_accord::Ticks (folio may depend only on accord); snapshot/schema integration; neutral contract for interop-media TimelineProposal",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": null,
    "owner": "builder-folio-eng-1",
    "depends_on_lanes": [],
    "commits": [
@@ -554,7 +598,8 @@
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json",
    "candidate": "89201e7",
-   "note": "timeline doc types; 19/0 folio tests; decisions accepted (ticks_per_frame, local sequence ids, sign-only reversal)"
+   "note": "timeline doc types; 19/0 folio tests; decisions accepted (ticks_per_frame, local sequence ids, sign-only reversal)",
+   "review_findings": "R2-review-a CONFIRMED: fps_fraction duplicate of pulse (CX-CAP-001) -> remediation dispatched (not a formal verdict; R2 did not open)"
   },
   {
    "lane_id": "SMB-PIGMENT-ENG-1",
@@ -569,7 +614,8 @@
    ],
    "verdicts": [],
    "candidate": "4c3ac91",
-   "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it"
+   "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it",
+   "review_findings": "R2-review-a: PASS recommendation (no CONFIRMED findings); formal verdict pending next round"
   },
   {
    "lane_id": "SMB-ROUND-ENTRYPOINT",
@@ -598,7 +644,8 @@
     "94331b00b51f2ba6e2e48abc2e9fc7949bf16289"
    ],
    "verdicts": [],
-   "candidate": "94331b0"
+   "candidate": "94331b0",
+   "review_findings": "R2-review-b: follow-ups OK (fixtures byte-identical, OFL, no external paths)"
   },
   {
    "lane_id": "SMB-ACCORD-ENG-1",
@@ -612,7 +659,8 @@
     "b1fe6e8"
    ],
    "verdicts": [],
-   "candidate": "b1fe6e8"
+   "candidate": "b1fe6e8",
+   "review_findings": "R2-review-a: PASS recommendation (no CONFIRMED findings); formal verdict pending next round"
   },
   {
    "lane_id": "SMB-TYPE-FONTS",
@@ -626,7 +674,8 @@
     "947b5e7c2bb4e844311734072e60c645d8bad2db"
    ],
    "verdicts": [],
-   "candidate": "947b5e7"
+   "candidate": "947b5e7",
+   "review_findings": "R2-review-b: OK"
   },
   {
    "lane_id": "SMB-TYPE-FIXTURES",
@@ -640,19 +689,58 @@
     "31ea01e5f5f389d13174de3443067b5bb700396e"
    ],
    "verdicts": [],
-   "candidate": "31ea01e"
+   "candidate": "31ea01e",
+   "review_findings": "R2-review-b: OK"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-2",
    "crate": "hsk-studio-folio",
    "origin": "interop-psd gap: StudioLayer lacks appearance",
    "scope": "additive layer appearance: opacity, fill_opacity, blend_mode discriminant (STU-RAS-154/039), clipped, isolation flag, mask ref + flags; interop-psd writes them",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-interop-psd (reused)",
+   "commits": [
+    "a51f7fa"
+   ],
+   "verdicts": [],
+   "candidate": "a51f7fa",
+   "note": "LayerAppearance (percent per STU-RAS-006), blend discriminant 1..=35, clipped, isolation, mask; 23 folio tests"
+  },
+  {
+   "lane_id": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "origin": "render-cpu: VectorFill path model local until nib owns serializable path",
+   "scope": "additive serializable path type in nib; render-cpu migrates VectorFill to it",
    "phase": "build",
    "status": null,
-   "owner": "builder-interop-psd (reused)",
+   "owner": "builder-render-cpu (reused)",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "origin": "layout builder gaps",
+   "scope": "Folio text-frame object, STU-LAY-122 thread fields, page list with per-page margins in spread, story-content contract; layout migrates its crate-local frame/thread model",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-ACCORD-ENG-2",
+   "crate": "hsk-studio-accord",
+   "origin": "R2-review-b cap_duplicate reel timing helpers vs pulse; reel cannot depend on pulse",
+   "scope": "single owner of rational timescale/rate -> Ticks conversion in accord (additive); pulse and reel consume it; remove duplicates",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }
  ],
- "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane"
+ "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
+ "dispatch_queue": []
 }

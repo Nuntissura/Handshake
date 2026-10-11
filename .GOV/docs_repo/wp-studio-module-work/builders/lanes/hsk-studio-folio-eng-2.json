@@ -1,0 +1,38 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-FOLIO-ENG-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "additive per-layer appearance in Folio + importer switched to it",
+  "commits": [
+    {"sha": "a51f7fa", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio: additive per-layer appearance (opacity, fill_opacity, StudioBlendMode discriminant, clipped, group isolation, StudioMask coverage reference) with typed validation"},
+    {"sha": "d07ffb4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "interop-psd: writes the Folio appearance fields; sidecar reduced to PSD-only extras"}
+  ],
+  "capabilities_done": [
+    "StudioLayer.appearance: Option<LayerAppearance>, serde default + skip_serializing_if, so absent == kind identity default and old documents re-serialize unchanged; StudioLayer::effective_appearance() resolves the default (group = pass_through/blend 1, others = normal/blend 2, 100 percent, not clipped, no mask)",
+    "LayerAppearance { opacity, fill_opacity (percent 0..=100, finite), blend_mode: u16 StudioBlendMode discriminant, clipped, isolation: pass_through|isolated, mask: Option<StudioMask> } with opacity_fraction()/fill_opacity_fraction() helpers; deny_unknown_fields; schemars ranges",
+    "StudioMask { tiles: Vec<TileRef> (coverage_u8 | coverage_u16le), enabled, linked } using the existing TileRef style: layer_id match, key grammar, object_key unique across raster payload + mask, SCPF profile id, non-empty manifest/digest, resolver dispositions reported as <layer>/mask/<key>; counted in Budget.payload_bytes",
+    "validation: blend discriminant 1..=35 else Code::UnknownBlendMode; 24/25 (tool-only) and 1 on a leaf else Code::InapplicableBlendMode; percent out of range, group blend 1 <-> isolation pass_through mismatch, leaf isolation pass_through, bad mask tile => Code::InvalidAppearance (3 new additive Code variants; external matches use wildcards)",
+    "extension(): appearance and mask objects are closed (unknown field => read-only inspection with original bytes preserved, like every other Folio object); DESCRIPTOR and generated schema describe the fields",
+    "Folio depends on accord only; no change to existing API behaviour"
+  ],
+  "tests": {"new": 4, "new_file": "crates/hsk-studio-folio/tests/appearance_contract.rs", "existing_still_passing": "foundation_contract 15/15, timeline_contract 4/4", "passed": 23, "failed": 0, "clippy": "clean (--tests --examples)", "dependents_checked": "cargo check chronicle, package, pigment --tests: PASS"},
+  "spec_notes": [
+    "Spec STU-RAS-006 parameter table defines StudioLayer.opacity/fill_opacity in PERCENT 0..100, default 100, precision 1; the lane brief said 0..=1. Stored as spec percent; fraction helpers provided. Lead/composite lanes: consume opacity_fraction().",
+    "Blend members 31..=35 (STU-RAS-039) are in the known set (applicability 'unknown' in spec) and accepted at storage; whether a compositor can run them is Pigment's Exactness facts. Pigment already has TryFrom<u16> for StudioBlendMode and StudioBlendMode::discriminant(); no change to pigment was needed.",
+    "pass_through is stored both as blend_mode 1 and isolation=pass_through on groups and cross-validated, so there is one canonical form; spec says pass_through is the default group mode, hence the group identity default.",
+    "StudioMask density and feather (spec STU-RAS-006 table) are NOT stored yet; PSD mask density/feather (mask flags bit 4) is reported as loss mask_density_feather_not_stored; the PSD mask 'default colour outside the rectangle' has no Folio field and stays in the importer sidecar (LayerExtras.mask_default_color)."
+  ],
+  "importer_local_labels": {
+    "note": "lead decision: keep, namespaced importer-local until the spec defines canonical kinds",
+    "layer_kinds": ["psd_adjustment", "psd_fill", "psd_raster_unmapped"],
+    "unsupported_payload_schema_ids": ["psd.tagged.<key>", "psd.raster"],
+    "artboard_name": "canvas"
+  },
+  "unverified": [
+    "PSD mask flags bit 0 read as linked, bit 1 as disabled (spec names: position relative to layer / mask disabled); iOpa read as fill opacity (key absent from the spec text; behaviour of other readers)",
+    "Folio ordered_composite ordinal 0 = bottom-most child (importer assumption)"
+  ],
+  "blockers": [],
+  "next": "validator round on the pushed SHA; composite lane can read effective_appearance(); optional follow-up: StudioMask density/feather, blend-if ranges, knockout fields",
+  "updated_at": "2026-10-11T01:59:00Z"
+}

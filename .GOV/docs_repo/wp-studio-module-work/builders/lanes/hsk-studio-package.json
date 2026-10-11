@@ -2,46 +2,51 @@
   "crate": "hsk-studio-package",
   "mt": "MT-35547",
   "status": "READY_FOR_VALIDATION",
-  "phase": "minimal slice complete: container write/read/preflight/manifest/atomic save + observe mapping + consumer example",
+  "phase": "slice 2 complete: blob table (raw|zstd), Read+Seek streaming reader, owner-marked temps + stale sweep",
   "commits": [
-    {"sha": "8d9f694", "subject": "Package: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true},
-    {"sha": "a6d049a", "subject": "Package: traversal/absolute name codes and foundation contract tests (roundtrip, hostile ZIP, manifest, quarantine, atomic save)", "pushed": true},
-    {"sha": "5bc338d", "subject": "Package: real process-exit-before-rename interrupted-save proof, rustfmt", "pushed": true}
+    {"sha": "8d9f694", "subject": "Package: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true, "slice": 1},
+    {"sha": "a6d049a", "subject": "Package: traversal/absolute name codes and foundation contract tests", "pushed": true, "slice": 1},
+    {"sha": "5bc338d", "subject": "Package: real process-exit-before-rename interrupted-save proof, rustfmt", "pushed": true, "slice": 1},
+    {"sha": "43e1baf", "subject": "Package slice 2: blob table with raw|zstd codecs, Read+Seek streaming reader on a shared Source, owner-marked temps with stale sweep", "pushed": true, "slice": 2},
+    {"sha": "7da88fc", "subject": "Package: sweep/stream/zstd in package-consumer, fix test READY detection for libtest no-capture output", "pushed": true, "slice": 2}
   ],
   "capabilities_done": [
-    "Limits (entries, entry bytes, total bytes, name length, manifest bytes); STORE-only; nothing is ever inflated, deflate entries rejected as unsupported_compression",
-    "In-house ZIP/ZIP64 writer: deterministic (fixed times, fixed order), Zip64Policy Auto|Always",
-    "Canonical-form bounded reader preflight(): EOCD must be final record, ZIP64 locator/record cross-checks, CD vs local-header agreement, entries tile [0,cd_offset) exactly (no gap/overlap/prepend/trailing), no descriptors/comments/encryption, ASCII-only safe names, dup + case-fold dup + file-vs-dir conflict, CRC-32",
-    "Canonical manifest: strict parse (unknown container_version reported first, re-serialization must equal bytes), per-entry SHA-256 + len, kinds document|asset|preview|opaque",
-    "write_package / write_package_with: digest-keyed assets/<sha256hex> via AssetSource (MemoryAssetSource for fixtures), absent/oversize/lying asset = typed error before any output, preserved quarantined entries re-emitted as opaque",
-    "read_package: folio::inspect_bytes reuse, verified assets map, Quarantined + LossNote (unlisted|opaque|preview), manifest<->document identity check, referenced-asset presence check",
-    "save_atomic / save_atomic_with: injectable AtomicFs, temp in same dir (create_new), sync_all, read-back verify + byte compare, rename with PermissionDenied/sharing-violation backoff; last-good retained on every failure path",
-    "DESCRIPTOR, outcome_for / outcome_for_opened / report (Observe mapping), example package-consumer (--descriptor, --write DOC OUT [--assets DIR], --read IN)"
+    "slice 1: Limits, STORE-only ZIP/ZIP64 writer, canonical bounded reader, canonical manifest, write/read_package, save_atomic, DESCRIPTOR, Observe mapping, package-consumer",
+    "slice 2 (1) blob table: ManifestEntry gains optional codec (raw default, never serialised) and raw_len; len = stored bytes, sha256_hex = identity of decoded bytes; v1 manifests stay valid and canonical; zstd only legal on assets with a declared raw_len <= max_entry_bytes",
+    "slice 2 (1) zstd decode via ruzstd =0.9.0 (std only; hash feature off): single frame, output capped at declared raw_len (expansion bomb stops at first over-read), window capped by new Limits.max_window_bytes (default 64 MiB), trailing bytes after the frame rejected, decoded SHA-256 verified",
+    "slice 2 (1) zstd encode: WriteOptions.asset_codec = Zstd uses ruzstd Fastest per blob, only when it shrinks (otherwise raw); deterministic; VERIFIED against libzstd 1.5.7 (Python 3.14 compression.zstd) on 7 inputs (empty, 1 byte, zeros, 1 MiB noise, 4 MiB pattern, f32 ramp, text) before enabling, plus end-to-end: package-consumer --zstd output unpacked and decoded by Python zipfile + libzstd, SHA-256 equals manifest identity",
+    "slice 2 (2) streaming: one strict implementation over a Source trait (slice or Read+Seek); preflight_stream, read_package_stream, PackageReader (open, manifest, entries, verify_all, read_asset by identity, into_opened); reads bounded to 1 MiB chunk / one central-directory record / manifest / entry being materialised; CD parsed record by record, never as one allocation",
+    "slice 2 (3) stale-temp sweep: StdFs now creates <temp>.owner marker (magic, pid, temp name) and holds an exclusive File::lock on it until replace/remove; sweep_stale_temps(target) deletes only the temp named by a valid, lock-free marker of another process (OS drops the lock when the owner dies, so no pid-liveness guessing and no pid-reuse hazard), never unmarked files, look-alikes, foreign-named markers, non-regular files, locked markers or this process's own saves; filesystems without locks get no marker and are never swept",
+    "package-consumer: --write [--assets DIR] [--zstd], --read (now streaming from File), --sweep TARGET"
   ],
   "tests": {
-    "passed": 5,
+    "passed": 8,
     "failed": 0,
     "command": "cargo test -p hsk-studio-package --no-fail-fast --no-default-features --test foundation_contract",
-    "names": ["mixed_graph_roundtrip_with_assets", "hostile_zip_rejected", "manifest_integrity_and_version", "unknown_record_quarantined_verbatim", "atomic_save_retains_last_good_and_cancel"],
-    "check_clippy": "check/clippy -p hsk-studio-package --tests --examples: clean (only pre-existing observe too_many_arguments warnings)",
-    "extra_evidence": "python zipfile testzip() accepts the written container; package-consumer --write then --read works on a real file; atomic test spawns a real child process that exits between durable temp and rename (exit code 86): last-good byte-identical, exactly one complete stale temp, next save recovers",
-    "tree": "shared edit tree at 5bc338d, not an export of the pushed SHA"
+    "slice2_new": ["blob_table_zstd_codec", "streaming_reader_matches_slice_reader_and_bounds_reads", "stale_temp_sweep_owner_marker"],
+    "slice1": ["mixed_graph_roundtrip_with_assets", "hostile_zip_rejected", "manifest_integrity_and_version", "unknown_record_quarantined_verbatim", "atomic_save_retains_last_good_and_cancel (child-process kill step moved into the sweep test)"],
+    "check_clippy": "check/clippy -p hsk-studio-package --tests --examples: clean",
+    "slice2_evidence": "blob test: libzstd-produced frames (with and without content checksum) decode; length lies, trailing bytes, damaged frame, hash lie, 12.5 MiB RLE expansion bomb from ~400 bytes, window above limit, codec on non-asset, missing raw_len all rejected with typed codes. Stream test: identical verdict from slice and stream readers for every truncation and a bit flip at every offset of a package; 2.4 MB blob read with largest single request <= 1 MiB; hostile 4 GiB virtual source with 60000-entry EOCD dies at first record with reads <= 64 KiB. Sweep test: real child process exits at rename (dead owner swept, last-good untouched), second real child holds an open save (live owner skipped, files intact), dies without cleanup (then swept), decoys (unmarked temp, garbage marker, marker naming another file) never touched, own in-flight save never swept",
+    "tree": "shared edit tree at 7da88fc, not an export of the pushed SHA"
   },
   "blockers": [],
-  "dep_requests": "builders/dep-requests.jsonl: crc32fast 1.5.2, sha2 0.10.9 (force-soft), serde 1.0.229, serde_json 1.0.151 (pins already in the crate manifest; steward registry/lock sync pending; tools/workspace-probe.rs not run by builder; Cargo.lock not committed by this lane)",
+  "dep_requests": "builders/dep-requests.jsonl: slice 1 crc32fast 1.5.2, sha2 0.10.9, serde 1.0.229, serde_json 1.0.151; slice 2 ruzstd 0.9.0 (features std only; MIT; no new transitive crates because hash/twox-hash is off). Pins are already in the crate manifest; steward registry/lock sync pending; Cargo.lock not committed by this lane; tools/workspace-probe.rs not run by builder",
   "decisions": [
     "Followed lead decision (in-house STORE-only ZIP64 + crc32fast) over the brief's zip crate; Limits has no max_ratio",
-    "No mimetype entry (would invent a MIME name); first physical entry is manifest.json (enforced)",
-    "Entry names restricted to ASCII [A-Za-z0-9._-] components: removes unicode normalisation/case-fold ambiguity; non-ASCII names in foreign archives are rejected whole",
-    "Archive comment and any trailing bytes are rejected (EOCD must be last 22 bytes or follow ZIP64 record+locator)",
-    "UnsupportedVersion maps to Failure(Validation) per brief; Io, absent/unauthorized/missing asset map to Failure(Unavailable)"
+    "No mimetype entry; first physical entry is manifest.json (enforced)",
+    "Entry names restricted to ASCII [A-Za-z0-9._-] components; non-ASCII names in foreign archives are rejected whole",
+    "Archive comment and trailing bytes are rejected",
+    "Blob table implemented as optional per-entry codec/raw_len fields in the existing manifest (not a separate table, not a container_version bump): keeps slice-1 packages valid and one canonical form",
+    "Re-saving an Opened package normalises compressed assets to whatever WriteOptions.asset_codec says (Raw default); identity and tile references are unaffected",
+    "StdFs is no longer a unit struct (holds owner locks): construct with StdFs::new() or Default"
   ],
   "known_gaps": [
-    "Oracle independence: roundtrip oracle is own writer vs own reader; mitigated by Python zipfile acceptance and an independent raw ZIP builder in the hostile test; a validator should add a third-party unzip/7z open of a written package",
-    "kill during the rename call itself and stale-temp sweep after a crash not covered (stale temp is left, never deleted by liveness guess)",
-    "ReadOnly folio inspections cannot be re-written (write takes a Snapshot)",
-    "No streaming from Read (slice is &[u8] / Write)"
+    "Oracle independence for the container: own writer vs own reader; mitigated by Python zipfile acceptance, an independent raw ZIP builder in tests, and (zstd) libzstd as independent encoder and decoder",
+    "ruzstd encoder verified at CompressionLevel::Fastest only (higher levels are marked unimplemented upstream); f32 tile payloads barely compress without a byte-shuffle prefilter (not built)",
+    "kill during the rename call itself not covered; sweep relies on File::lock (std 1.89+, toolchain 1.97.1); marker lifecycle on network filesystems with unreliable locks is unverified",
+    "ReadOnly folio inspections cannot be re-written (write takes a Snapshot); preview entry kind still only preserved opaque (skipped per instruction)",
+    "Opened materialises all assets (bounded by limits.max_total_bytes); use PackageReader::read_asset for lazy access"
   ],
-  "next": "Validator round on pushed 5bc338d; next slice: blob table with codec ids (raw first, ruzstd decode behind approved dep), streaming reader over Read+Seek with bounded EOCD scan, stale-temp sweep with owner-pid marker, previews entries as real kind",
-  "updated_at": "2026-10-11T03:40:00Z"
+  "next": "Validator round on pushed 7da88fc (run the 8-test target once). Next slice candidates: byte-shuffle/delta prefilter codec for f32 tiles, preview entry kind, ArtifactService provider-port adapter shape once host wiring is allowed",
+  "updated_at": "2026-10-11T04:40:00Z"
 }

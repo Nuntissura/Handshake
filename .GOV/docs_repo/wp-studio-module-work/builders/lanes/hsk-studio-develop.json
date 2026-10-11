@@ -1,19 +1,31 @@
 {
   "crate": "hsk-studio-develop",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice1_pushed_dng_reader_next",
+  "phase": "dng_reader_ljpeg_pushed",
   "commits": [
     {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"},
-    {"sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"}
+    {"sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"},
+    {"sha": "c008daf470614710bd6cabed7c941a2e42f2dd63", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "DNG compression 7 via own lossless JPEG decoder (T.81 SOF3, predictors 1-7, point transform, restart rows)"},
+    {"sha": "2e3fd501c4821e40e37d4dd8ff6efa74b0d54a7f", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "develop_to_image helper, DNG unapplied-feature report + strict gate, explicit BaselineExposure policy"},
+    {"sha": "1cd586c64a59e337268a57d1b554b06ece061e37", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "cover Observe terminal outcome mapping"}
   ],
   "capabilities_done": [
-    "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves, validate refuses unsupported process/engine/token/demosaic/WB/crop/profile/contribution",
-    "pipeline: CfaPlane (spec_v1 + large limits, Bayer x4 + X-Trans 6x6, phase/origin), normalised demosaic bilinear_reflect_native_v1, WB gains, calibration matrix, exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8)",
-    "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt, plane immutable, sha256 in receipt",
-    "observe: report() outcome mapping, DESCRIPTOR, develop-consumer example"
+    "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/profile/contribution",
+    "pipeline: CfaPlane (spec_v1 + large limits, Bayer x4 + X-Trans 6x6, phase/origin), normalised bilinear_reflect_native_v1 demosaic, as-shot WB gains, calibration matrix, exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8), develop_to_image",
+    "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt; plane immutable; sha256 in receipt; route recorded (scalar only, sse2 refused)",
+    "observe: report() outcome mapping, DESCRIPTOR, develop-consumer example",
+    "dng: classic TIFF IFD walk (bounded), SubIFD raw selection, strips/tiles, uncompressed 8/16-bit LE/BE, lossless JPEG (compression 7), LinearizationTable, per-site BlackLevel repeat, WhiteLevel, ActiveArea, DefaultCrop, cfa_plane windows (Refuse | ClampReported counted), unapplied-feature report (opcode lists, default scale/user crop, profile maps, orientation)",
+    "colour: DNG camera->XYZ D50 (CM/FM two-profile mired interpolation, iterative white from AsShotNeutral or AsShotWhiteXY, Robertson 1968 CCT, Bradford, ForwardMatrix and ColorMatrix paths), recipe built from DNG tags with BaselineExposure policy"
   ],
-  "tests": {"passed": 5, "failed": 0, "target": "develop_recipe", "check_tests": "PASS", "clippy_tests": "PASS (no develop findings)"},
+  "tests": {"passed": 10, "failed": 0, "targets": {"develop_recipe": "5/5", "develop_dng": "5/5"}, "check_tests": "PASS", "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)", "head": "1cd586c64a59e337268a57d1b554b06ece061e37"},
   "blockers": [],
-  "next": "dng.rs: TIFF/DNG IFD parser (uncompressed + lossless JPEG), CFA/black/white/linearization, ColorMatrix/ForwardMatrix -> camera_to_profile_rgb, window to CfaPlane; then decode_container for DNG",
-  "updated_at": "2026-10-11T01:40:00Z"
+  "notes": [
+    "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs; EXIF passthrough metadata can add it later",
+    "UNVERIFIED: whether Adobe anchors the CFA pattern at the raw frame origin or the ActiveArea origin; reader refuses ActiveArea origins that are not a multiple of the pattern period",
+    "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; DNG SDK light-source temperatures for non-standard LightSource codes are approximations",
+    "No real camera DNG was available locally (none downloaded per rules); all DNG tests use synthesized bytes",
+    "stale gameplan retry-guard hit once after a failed full test run: cleared by committing (HEAD change), gameplan untouched"
+  ],
+  "next": "full-frame performance check on a synthetic large plane (release), then Prism working->output profile transform (admitted route), SIMD sse2 normalization route, X-Trans/DNG 6x6 real-file validation, HSL/detail stages per adobe-behavior order",
+  "updated_at": "2026-10-11T02:04:00Z"
 }

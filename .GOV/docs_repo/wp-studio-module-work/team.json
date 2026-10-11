@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T01:53:20Z",
+ "updated_at": "2026-10-11T02:13:54Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -129,7 +129,7 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (first review done; offset ticks)",
+   "status": "idle (tick 1 reviewed; v3 adopted)",
    "resumed": "2026-10-11T01:02Z",
    "output": "workflow/workflow-review-001.md, workflow/workflow.json"
   },
@@ -239,7 +239,7 @@
     "builders/lanes/hsk-studio-score.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule; >500k tokens); score lane READY 4f549cc"
   },
   {
    "name": "builder-motion",
@@ -323,7 +323,7 @@
     "lane verdicts"
    ],
    "launched": "2026-10-11T01:53:20Z",
-   "status": "running"
+   "status": "done (R2 not opened: stale lock infra)"
   },
   {
    "name": "reviewer-r2-a",
@@ -334,7 +334,7 @@
     "validation/R2-review-a.json"
    ],
    "launched": "2026-10-11T01:53:20Z",
-   "status": "running"
+   "status": "done"
   },
   {
    "name": "reviewer-r2-b",
@@ -345,6 +345,34 @@
     "validation/R2-review-b.json"
    ],
    "launched": "2026-10-11T01:53:20Z",
+   "status": "done"
+  },
+  {
+   "name": "builder-session",
+   "agent_id": "a15179c750db6823e",
+   "model": "sonnet",
+   "role": "builder session",
+   "owns": [
+    "crates/hsk-studio-session/**",
+    "builders/lanes/hsk-studio-session.json"
+   ],
+   "launched": "2026-10-11T02:08:13Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-folio-fps",
+   "agent_id": "a571cb74ac7a1a8ea",
+   "model": "sonnet",
+   "role": "remediation folio fps dup",
+   "launched": "2026-10-11T02:13:54Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-score",
+   "agent_id": "a74bbf655d7711639",
+   "model": "sonnet",
+   "role": "remediation score (review B)",
+   "launched": "2026-10-11T02:13:54Z",
    "status": "running"
   }
  ]

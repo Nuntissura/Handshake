@@ -2,7 +2,7 @@
   "crate": "hsk-studio-pulse",
   "mt": "MT-35540",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-2 sequence-time planners over Folio timeline types",
+  "phase": "slice-3 lift/extract/close-gap, linked razor/roll/slide, example",
   "commits": [
     {
       "sha": "416b3761f6d74ba86bad23663673c255df59bde8",
@@ -21,6 +21,18 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "Pulse: sequence-time edit planners over Folio timeline members (trim, ripple, razor, roll, slip, slide) with link and sync-lock semantics"
+    },
+    {
+      "sha": "28d8ed429b53e062ab9d6bbc04d7f9efd8cd8e19",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Pulse: use accord::Ticks Ord/checked_sub (drop wrappers); lift/extract/close-gap and linked razor/roll/slide planners"
+    },
+    {
+      "sha": "b12a52424e66e62b4a4e3d88b01205f64bfc7616",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Pulse: tests for lift/extract/range/close-gap and linked razor/roll/slide/extract; pulse-timeline-consumer example; descriptor update"
     }
   ],
   "capabilities_done": [
@@ -34,12 +46,13 @@
     "scheduling queries over ordered lane: range_at, next_edit_point, prev_edit_point, gaps, close_gap",
     "lift_span / extract_span with LanePiece{origin, range, head_cut, tail_cut} (consumer moves source windows by the cuts); roll_edit; slide",
     "snap_to_frame (Rounding), parse_timecode (':' NDF, ';' DF), TimeDisplay enumeration STU-VID-012a codes 100-112/200/201, time_display_from_import (113 -> frame-rate-matched + warning), format_ticks",
-    "plan_timeline_edit(Snapshot, sequence_id, expected_revision, TimelineEdit{TrimOut,TrimIn,Razor,Roll,Slip,Slide}, EditContext{budget,resolver,extents,cancel}) -> EditProposal{changes, read/write footprint, Folio-validated prospective Snapshot at revision+1}; link groups trim/slip together; ripple shifts edited + other sync-locked tracks (sync_lock_blocked/track_locked); video edits whole-frame; SourceExtents typed port (unknown length refuses source-out extension); razor/roll/slide refuse linked clips; zero-effect edit = no_change; Folio validate_document runs on the result (not duplicated)"
+    "plan_timeline_edit(Snapshot, sequence_id, expected_revision, TimelineEdit{TrimOut,TrimIn,Razor,Roll,Slip,Slide}, EditContext{budget,resolver,extents,cancel}) -> EditProposal{changes, read/write footprint, Folio-validated prospective Snapshot at revision+1}; link groups trim/slip together; ripple shifts edited + other sync-locked tracks (sync_lock_blocked/track_locked); video edits whole-frame; SourceExtents typed port (unknown length refuses source-out extension); razor/roll/slide refuse linked clips; zero-effect edit = no_change; Folio validate_document runs on the result (not duplicated)",
+    "slice 3: Ticks wrappers dropped (pulse::checked_add/checked_sub removed; accord::Ticks Ord/checked_add/checked_sub used; accord reports underflow as TickOverflow -> pulse overflow); TimelineEdit::{LiftClip, ExtractClip, LiftRange, ExtractRange, CloseGap} over lane lift_span/extract_span/gaps (targeted tracks for range ops, sync-locked tracks ripple, straddled clip takes next caller-supplied fresh id); linked razor (LinkedRazor: right-half ids + new link group), linked roll/slide (allowed when every touched link group is wholly among the touched clips); shift onto a sync-locked video track now requires whole frames; examples/pulse-timeline-consumer.rs (plan_timeline_edit CLI over a built-in Folio sequence, ran: ripple trim 20321280000, extract, razor, overlap refusal exit 2, cancel exit 2)"
   ],
   "scope_note": "2026-10-11 lead decision: pulse owns time only. A first draft of Sequence/Track/Clip/EditProposal planners was written but NEVER committed; moved out of the crate (not in repo; scratchpad copy only) before the first commit. Folio lane (SMB-FOLIO-ENG-1) owns sequence/track/clip document types and consumes pulse time types.",
   "accord_requests": [
-    "accord::Ticks has no checked_sub, Ord/PartialOrd or Hash; pulse keeps wrappers (checked_sub -> Underflow, compare via value()) until the accord lane lands them",
-    "accord::FrameRate exposes only ticks_per_frame(); pulse adds fps_fraction/frame_rate_from_fps externally"
+    "accord::FrameRate exposes only ticks_per_frame(); pulse adds fps_fraction/frame_rate_from_fps externally (optional later accord change)",
+    "accord::Ticks::checked_sub reports underflow as TickOverflow (no distinct underflow code); pulse offset()/TickDelta keep distinct underflow"
   ],
   "tests": {
     "check_tests": "PASS",
@@ -55,7 +68,7 @@
         "cancel_and_observe"
       ]
     },
-    "passed": 11,
+    "passed": 13,
     "failed": 0,
     "schedule_and_display": {
       "passed": 2,
@@ -66,13 +79,15 @@
       ]
     },
     "timeline_edit": {
-      "passed": 4,
+      "passed": 6,
       "failed": 0,
       "cases": [
         "ripple_trim_out_links_and_sync_lock",
         "trims_bounds_reverse_speed_and_grid",
         "razor_roll_slip_slide_exact_ticks",
-        "refusals_cancel_and_folio_validation"
+        "refusals_cancel_and_folio_validation",
+        "lift_extract_range_and_close_gap_exact_ticks",
+        "linked_razor_roll_slide_extract_exact_ticks"
       ]
     }
   },
@@ -81,8 +96,8 @@
     "timecode": "29.97 DF frame 1800 -> 00:01:00;02, 17982 -> 00:10:00;00, 107892 -> 01:00:00;00; 59.94 DF 3600 -> 00:01:00;04, 35964 -> 00:10:00;00 (FFmpeg libavutil/timecode.c drop rule fetched 2026-10-11; Wikipedia SMPTE timecode lists no 59.94 DF); 23.976 NDF 86400 frames = 915372057600000 ticks (3603.6 s)"
   },
   "blockers": [],
-  "next": "lift/extract/close-gap planners over Folio tracks using lane lift_span/extract_span + LanePiece cuts; linked razor/roll/slide; rate stretch via SpeedMath; multicam cut-list algebra; media decoder typed port wiring with Reel; example consumer for plan_timeline_edit",
-  "updated_at": "2026-10-11T01:48:36Z",
+  "next": "rate stretch via SpeedMath; linked range cuts once cut-half link naming is specified; multicam cut-list range algebra; Reel-backed SourceExtents adapter; feet+frames display after verification",
+  "updated_at": "2026-10-11T02:01:45Z",
   "open_interpretations": [
     "UNVERIFIED: a timecode display counts frames of its own rate over real time (a 25 fps sequence showing 24 fps timecode); no Adobe oracle yet",
     "UNVERIFIED: code 113 fallback for 29.97/59.94 picks the non-drop member; feet+frames displays (111/112) return timecode_unsupported until frames-per-foot is verified"
@@ -90,8 +105,20 @@
   "speed_convergence": "2026-10-11: pulse::Speed removed; one owner = folio::Speed (document type). Pulse keeps reduced_speed(num,den) and SpeedMath (span_for_duration/duration_for_span) as functions/extension trait over folio::Speed.",
   "dependency_change": "Cargo.toml: added hsk-studio-folio (path, =0.1.0, default-features=false); allowed by root workspace.metadata.studio.dependencies.hsk-studio-pulse. Cargo.lock not staged.",
   "known_limits": [
-    "razor/roll/slide on linked clips refused (linked_edit_unsupported); razor of a link group needs caller-supplied right-half ids and a new link group id",
-    "SourceExtents port has no default provider: UnknownExtents refuses source-out extension; Reel/host supplies real lengths",
-    "lift/extract/close-gap lane ops exist (range.rs) but have no timeline planner yet; multicam, transitions, nesting not started"
-  ]
+    "SourceExtents has no default provider (UnknownExtents refuses source-out extension); Reel/host must supply lengths",
+    "fresh clip ids and link group names are caller-supplied (pulse mints no ids)",
+    "multicam, transitions, nesting, rate stretch, markers/snapping not started"
+  ],
+  "linked_semantics": {
+    "supported": [
+      "trim/slip/lift/extract: whole link group, one clip per track",
+      "razor: every member split at the same tick; needs LinkedRazor ids else insufficient_ids; right halves get the new link group",
+      "roll/slide: every member track, same delta, only when every link group touched (anchor group and neighbour groups) is wholly inside the touched clips"
+    ],
+    "still_refused_linked_edit_unsupported": [
+      "two members of one link group on the same track",
+      "roll/slide whose touched clips have a link-group partner outside the edit (not closed)",
+      "LiftRange/ExtractRange overlapping any linked clip (a cut would split or orphan a link group; semantics for group naming of cut halves not specified)"
+    ]
+  }
 }

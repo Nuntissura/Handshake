@@ -1,0 +1,265 @@
+{
+ "round": "STUDIO-R2",
+ "reviewer": "B",
+ "reviewed_commit": "87c1cd9570a52f422f6ba3bd1e75f42997682ee0",
+ "notes": "origin/codex/handshake-studio-assets moved to 2e3fd50 during review; all findings are pinned to 87c1cd9. Not reviewed: later commits 28d8ed4/b12a524 (pulse), 3bfc100 (reel), d339544 (score). Cargo was not run because the shared worktree HEAD != 87c1cd9 and the tree is dirty. Evidence comes from committed blobs, python recomputation and the local rubato 5.0.1 source. Reel and score lanes were reviewed by delegated sub-reviewers, and the lead re-verified their key CONFIRMED findings.",
+ "lanes": [
+  {
+   "lane": "hsk-studio-motion",
+   "crate": "hsk-studio-motion",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-motion/src/property.rs:370",
+     "evidence": "evaluate_with sets self.disabled for every non-cancel provider error, including ExprErrorCode::Budget. With one shared Fuel in PropertyStore, a property can exhaust the allowance and leave a later property with Budget. That later property's expression then stays disabled (sticky) on all later ticks, even though the cause was transient and came from another property. The spec basis for disabling on a resource budget, as opposed to a script error, was not verified.",
+     "remediation": "Treat Budget as a per-evaluation fallback (no sticky disable) or cite the MOT rule that requires disable"
+    }
+   ],
+   "recommendation": "PASS",
+   "checks_run": [
+    "Recomputed asymmetric bezier X=[0,.5,.75,1] Y=[0,4,10,8]: x(.5)=19/32, y=6.25, tick 19/32*2*254016000000=301644000000 (matches test)",
+    "Recomputed smoothstep 10(3u^2-2u^3) at u=.25 = 1.5625",
+    "Control points Y1=v0+s0*io*dts, Y2=v1-s1*ii*dts verified against the test tangents (4,.5)/(-4,.25) -> 4,10",
+    "DateProfile::utc_ms matches STU-MOT-256 text exactly (checked i128 N, bound before trunc, trunc toward zero)",
+    "DepGraph find_cycle/eval_order read: atomic commit, self-read cycle, iterative DFS, Kahn with BTreeSet ties",
+    "Forbidden scan: forbid(unsafe_code), deps accord+observe only, no .GOV/C:/todo!/unimplemented!; Hinnant civil algorithms named (public-domain algorithm)"
+   ]
+  },
+  {
+   "lane": "hsk-studio-motion-js",
+   "crate": "hsk-studio-motion-js",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-motion-js/src/provider.rs:414-424",
+     "evidence": "The deadline is enforced only inside HostBridge::checkpoint/charge/read. MotionJsProvider::evaluate never compares clock.now_ns() against deadline_ns after engine.run returns. An adapter that runs past the deadline without calling checkpoint still has its value accepted. Fuel has the same cooperative shape, so the adapter's guarantee is only as strong as each engine's checkpoint discipline.",
+     "remediation": "Add a post-run now_ns()>deadline_ns check mapping to Budget(Deadline); document engine checkpoint obligation"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stub",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-motion-js/src/lib.rs:21",
+     "evidence": "The production public API exports ScriptedEngine, a command-word test double and not JavaScript. The lane honestly declares JS engine evaluation NOT_PROVEN. Every quota, fuel, recursion and memory behaviour is proven only against this double, and the double enforces recursion and memory itself. The adapter does not prove those two.",
+     "remediation": "Gate ScriptedEngine behind a test-support feature; keep NOT_PROVEN until a real engine adapter passes the same suite"
+    }
+   ],
+   "recommendation": "PASS",
+   "checks_run": [
+    "Read provider.rs end to end: source-size preflight before permit, CAS permit with RAII release, catch_unwind poison, realm fresh/dropped poison, typed ExprErrorCode mapping, post-run cancel check, iterative output size/depth check before shape check",
+    "Host-read quota and fuel charging live in adapter Bridge (not the double); deadline uses injectable Clock (ManualClock for tests)",
+    "Deps accord+motion+observe; forbid(unsafe_code); no .GOV/C:/todo!",
+    "Counterfactual: engine returning Ok after ManualClock advanced past deadline with no checkpoint -> accepted (see finding)"
+   ]
+  },
+  {
+   "lane": "hsk-studio-pulse",
+   "crate": "hsk-studio-pulse",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-pulse/src/time.rs:32,93",
+     "evidence": "At 87c1cd9, pulse publicly re-exports `checked_sub(Ticks,Ticks)` and `checked_add(Ticks,Ticks)` wrappers. Accord already owns Ticks::checked_sub/checked_add/Ord since b1fe6e8, an ancestor of 87c1cd9. The lane's accord_requests note is stale. Later commit 28d8ed4 (not in the reviewed commit) drops them.",
+     "remediation": "Drop the pub wrappers; call accord Ticks::checked_sub/checked_add and map errors locally"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-pulse/src/time.rs:32 vs hsk-studio-folio/src/timeline.rs:73",
+     "evidence": "pulse::fps_fraction(FrameRate) and folio::SequenceFrameRate::fps_fraction compute the same reduced TPS/tpf fraction. That is two owners of one conversion; the reel review found a third copy in Y4M.",
+     "remediation": "Pick one owner (accord FrameRate) and have pulse/folio/reel consume it"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-pulse/src/display.rs:130",
+     "evidence": "STU-VID-012a members 111/112 (16 mm / 35 mm feet+frames) are enumerated, but format_ticks returns timecode_unsupported for them. The lane declares this as a known limit (frames per foot unverified).",
+     "remediation": "Implement 16mm=40 / 35mm 4-perf=16 frames per foot with a cited source, or keep as declared gap"
+    }
+   ],
+   "recommendation": "PASS",
+   "checks_run": [
+    "DF label math recomputed: 29.97 1800->00:01:00;02, 17982->00:10:00;00, 107892->01:00:00;00; 59.94 3600->00:01:00;04, 35964->00:10:00;00; inverse refuses 00:01:00;00 DF",
+    "23.976 NDF 86400 frames = 915372057600000 ticks = 3603.6 s",
+    "Hand-recomputed timeline_edit tests: head trim [2F,4F,3F,2F], ripple head Z->4F, reversed tail trim source_in F / F-1, 2x speed source_out 2F, seq duration 6F",
+    "STU-VID-012a codes 100-112/200/201 match spec v02.215 table; 113 fallback per 012b",
+    "Pulse reuses accord Ticks/FrameRate and folio Speed (pulse::Speed removed; SpeedMath extension trait)",
+    "Deps accord+folio+observe; forbid(unsafe_code); no .GOV/C:; no copied FFmpeg code (formula only)",
+    "Note: remote moved; 28d8ed4/b12a524 (lift/extract/linked planners) are after 87c1cd9 and were not reviewed"
+   ]
+  },
+  {
+   "lane": "hsk-studio-reel",
+   "crate": "hsk-studio-reel",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/wav.rs:315",
+     "evidence": "`delivered = deliver_end - start` underflows when the request starts past the truncation point (start > available_samples, want_end <= declared). Debug builds panic; release returns Truncated{delivered: ~2^64}. Probe: 1000 declared frames, file cut at 300, request 320..330. Re-verified by the round lead.",
+     "remediation": "Return Truncated{delivered:0} or OutOfRange when start >= available; use checked_sub; add probe test"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/y4m.rs:116",
+     "evidence": "`token.split_at(1)` on validated UTF-8 header tokens panics when the first char is multi-byte. Example: header token 'é' is reachable via Registry::detect->probe. A crafted file crashes the caller instead of returning typed Corrupt. Re-verified by the round lead.",
+     "remediation": "Take tag via token.as_bytes()[0] / split_at_checked; non-ASCII tag -> Corrupt"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/isobmff.rs:991",
+     "evidence": "In the moov branch, `pos + size > file_len` is an unchecked add on a 64-bit largesize. It panics in debug; in release it wraps and misreports. The sibling branch uses checked_add. Re-verified by the round lead.",
+     "remediation": "Use pos.checked_add(size).filter(|e| *e <= file_len) else Corrupt{moov-exceeds-file}"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/isobmff.rs:918",
+     "evidence": "build_presentation starts each edit at the first sample with pts >= media_time. The sample whose interval contains media_time is dropped. Example: AAC elst media_time 2112 over 1024-sample frames skips frame 2048, so presentation runs 960 samples late and seek(0) is OutOfRange. Tests only use aligned media_time.",
+     "remediation": "Start at last sample with pts <= media_time, clamp its presented pts; add unaligned-edit test"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/isobmff.rs:635",
+     "evidence": "Index expands each track to one SampleEntry per sample, with one shared max_samples budget (4M). A QuickTime PCM track (one sample per PCM frame) at 48 kHz longer than ~83 s makes the whole MOV fail LimitExceeded, so video seek fails too. Out of scope: later commit 3bfc100 claims a compact PCM index.",
+     "remediation": "Compact run-length index for constant-size/duration tracks or per-track budget"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "cap_duplicate",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/time.rs:16; src/y4m.rs:160-172,391-395",
+     "evidence": "Reel reimplements these pulse-owned conversions: media_to_ticks with NearestHalfUp and exact flag (pulse ticks_from_rational_seconds), the Y4M F-tag fps->FrameRate (pulse frame_rate_from_fps), fps_fraction, and ticks-per-sample. The allow-list forbids reel->pulse, so the shared owner belongs in accord.",
+     "remediation": "Hoist timescale->tick rounding and fps<->FrameRate helpers into accord; pulse and reel consume them"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/isobmff.rs:6,558-571",
+     "evidence": "The module doc claims QuickTime sound v2 is typed Unsupported. In the code, parse_stsd parses only version <= 1 and sets audio=None for v2 with no error, so the track indexes silently.",
+     "remediation": "Return Unsupported{quicktime-sound-v2} for v2 sample entries or correct the doc"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/y4m.rs:268-289",
+     "evidence": "Y4M decode never checks start against complete_frames. A request past the end of a complete file returns Truncated{0} (Loss), while WAV returns OutOfRange in the same case.",
+     "remediation": "Return OutOfRange when the file is record-aligned and want_end > complete_frames"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/src/registry.rs:176; src/isobmff.rs:1184-1203",
+     "evidence": "proxy_usable probes the original before its grant is verified. decode_packets accepts a prebuilt MediaIndex with no content_id/revision/len binding, so an index can be replayed against a different same-length file.",
+     "remediation": "Verify grant before probe; bind content_id+revision+len into MediaIndex and check in decode_packets"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "fake_test",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-reel/tests/foundation_contract.rs:128-158; src/lib.rs:14",
+     "evidence": "Weak oracles: colr is tested only with (1,1,1,false) and pasp only with (1,1), so swapped fields would pass. ctts v1, negative offsets, elst v1 and largesize are never exercised. pub mod fixtures ships test byte builders in the public API.",
+     "remediation": "Use asymmetric colr/pasp values, add ctts-v1/elst-v1/largesize cases, gate fixtures behind a feature"
+    }
+   ],
+   "recommendation": "FAIL",
+   "checks_run": [
+    "Reel tree at 87c1cd9 == lane commit 2e9361d",
+    "Recomputed TPF(30000/1001)=8475667200, 25fps=10160640000, 48k tps=5292000; GOP ctts presentation/decode-from tables and open-GOP preroll match tests",
+    "Y4M 4:2:0 frame sizes 64x36=3456, 1920x1080=3110400, 3x3=17 match",
+    "Box parser: size 0/largesize/size<header -> Corrupt; table counts bounded before Vec::with_capacity",
+    "forbid(unsafe_code); deps accord+observe == allow-list; no .GOV/C:; no FilmCraft copy found",
+    "Round lead re-verified wav.rs:315, y4m.rs:116, isobmff.rs:991 in 87c1cd9 source"
+   ]
+  },
+  {
+   "lane": "hsk-studio-score",
+   "crate": "hsk-studio-score",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-score/src/ramp.rs:61",
+     "evidence": "RampedGain::process polls cancel before `self.before = self.current`, and Chain::reset (chain.rs:182-184) resets every stage, including stages that never ran. Sequence: block A ramps 0->1 and publishes, then block B is canceled in stage 0 (current reverts to 0), then block C re-ramps 0->1 where flat 1.0 was expected. That is a 0.75 step, which breaks 'a changed volume never steps'. Re-verified by the round lead.",
+     "remediation": "Record before/committed value prior to any early return; add chain cancel-then-continue ramp test"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-score/src/resample.rs:174",
+     "evidence": "The output count comes from rubato 5.0.1 process_all_into_buffer, which uses ceil(f64 ratio*len). For 44100->48000 with 44100 frames, 1.0884353741496597*44100 = 48000.00000000001, so 48001 frames are published while the exact u128 request is 48000. end_sample then overlaps the next clip by one sample. Re-verified by the round lead (python + rubato lib.rs:330).",
+     "remediation": "Publish exactly the u128 requested count (trim and report tail) or refuse; test 44.1k->48k @44100 frames"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-score/src/block.rs:49",
+     "evidence": "InputBlock::validate rejects only rate 0 or > 768000. A rate that does not divide TICKS_PER_SECOND (e.g. 47999) is processed and published, and only receipt start_ticks()/end_ticks() fail afterwards.",
+     "remediation": "Call ticks_per_sample(rate) and end-tick conversion during admission, before any write"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-score/src/dsp.rs:514; src/eq.rs:229",
+     "evidence": "On discard, HardLimiter and Equalizer reset to their initial state, not the last-published state. The resubmitted block therefore starts with a 341-sample delay-line gap and zeroed EQ history, which can click.",
+     "remediation": "Snapshot state at publish into preallocated buffers and restore on discard, or document dropout"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-score/src/dsp.rs:113",
+     "evidence": "Gain::new and mix send levels are only finite-checked. Large values (f32::MAX gain) publish +inf samples and an inf peak, and nothing checks the output is finite.",
+     "remediation": "Bound gain/send to the authored range or refuse non-finite output before publish"
+    }
+   ],
+   "recommendation": "FAIL",
+   "checks_run": [
+    "RBJ recompute: peaking +12dB@1kHz=12.000, LP Butterworth corner -3.0103, shelves DC +6/Nyquist -9",
+    "Pan centre 0.707107, pan .5 (0.382683,0.923880); -6 dB=0.5011872; ticks/sample 5292000/5760000/7938000",
+    "Hann/FFT naive DFT N=1024: window sum 512, bin64=0.5, neighbours 0.25",
+    "Limiter latency 341/240/313; python port never exceeded ceiling",
+    "rubato =5.0.1 pinned in workspace metadata; deps MIT/Apache/0BSD/Zlib, no copyleft; forbid(unsafe_code); no .GOV/C:",
+    "Real-time paths (process/chain/limiter/mix) allocation-free"
+   ]
+  },
+  {
+   "lane": "hsk-studio-type",
+   "crate": "hsk-studio-type",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-type/third-party/rustybuzz-0.20.1/source-provenance.json:580 (derivative_files)",
+     "evidence": "Follow-up 'provenance-drift-fix' (94331b0) claims 'both vendored provenance files now 0 drift'. Rehashing the committed blobs at 87c1cd9 gives 25 of 74 rustybuzz derivative_files mismatches. Each mismatched recorded hash equals the sha256 of the CRLF-converted blob (Windows working-tree bytes), not the committed LF bytes. The hash refreshed in this very commit, hb/ot_shape_plan.rs 45b26548..., is a CRLF hash; the committed blob is f5be07b3... Other mismatches include hb/aat_layout.rs, hb/buffer.rs, hb/mod.rs and mod.rs. ttf-parser: 67/67 match.",
+     "remediation": "Recompute derivative hashes from committed blobs (git show / hash-object), add a test that rehashes them"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-type/third-party/unicode-bidi-0.3.18/provenance.json (derivative_files)",
+     "evidence": "All 9 of 9 bidi derivative_files hashes mismatch the committed blobs (for example src/provider/bidi/mod.rs matches only the CRLF form). This predates R2 (the file is untouched since 55c1096), but the vendored-provenance integrity claim does not hold on any LF checkout.",
+     "remediation": "Rehash from committed bytes; normalise via .gitattributes eol=lf before recording provenance"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "forbidden",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-type/tests/support/mod.rs:42,203,1286",
+     "evidence": "HSK_TYPE_RESEARCH_ROOT/HSK_TYPE_FONT_ROOT/HSK_TYPE_REFERENCE_FILE remain optional overrides. Defaults resolve under CARGO_MANIFEST_DIR, and studio-env.sh sets none of them. The recipe and preparation JSON still embed absolute D:/ and Handshake_Artifacts paths, used only as file-name keys. Fonts and the reference are hash-checked, but research JSON loaded through an override is not.",
+     "remediation": "Hash-check recipe/preparation/variable JSON against FIXTURES_PROVENANCE pins when an override is used"
+    }
+   ],
+   "recommendation": "FAIL",
+   "checks_run": [
+    "All 15 tests/fixtures blobs rehashed at 87c1cd9: every sha256 equals FIXTURES_PROVENANCE.json and recipe pins (fonts 529be850/bdff3e56/faa6c9df/29160a80, reference 6579f9a9, recipe 4b5e892e, preparation b6e733fd, goldens 90a42d9e); .gitattributes '* -text'",
+    "Font name table parsed: IDs 13/14 = SIL OFL 1.1 and fsType 0 for all 4 fonts; OFL.txt/NotoSans-OFL.txt/Inter-variable-OFL.txt are OFL-1.1 texts; Unicode-data-license.txt is Unicode License V3",
+    "tests/support defaults: fixtures()=CARGO_MANIFEST_DIR/tests/fixtures, research()=fixtures/evidence, font_root()=fixtures/fonts, reference_file()=fixtures/evidence; no ancestors()/Handshake_Artifacts/wtc- path in tests/support, foundation_contract or examples",
+    "SMB-TYPE-DOCTEST: the 3 ttf doc fences changed to text; no remaining runnable doc blocks in src",
+    "Vendored provenance rehash: ttf-parser 67/67 OK; rustybuzz 25/74 mismatch (CRLF hashes); unicode-bidi 9/9 mismatch",
+    "Type tree identical between 87c1cd9 and later 2e3fd50"
+   ]
+  }
+ ]
+}

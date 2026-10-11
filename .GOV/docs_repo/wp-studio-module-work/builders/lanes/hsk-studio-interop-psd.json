@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "mt": "MT-35548",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1 complete (reader, byte-exact writer, loss report, Folio proposal, StudioBlendMode mapping, Observe report); mask sidecar next",
+  "phase": "slice-1 + Folio appearance switch complete",
   "commits": [
     {
       "sha": "ee30d62",
@@ -27,6 +27,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "pass is a group pass-through flag (LayerAppearance.pass_through), leaf pass is a typed loss (pass_through_on_leaf_layer), raw key preserved; all 28 PSD keys map to Pigment StudioBlendMode, unknown keys are typed loss never Normal"
+    },
+    {
+      "sha": "d07ffb4",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "writes Folio appearance fields (opacity/fill percent, StudioBlendMode discriminant, clipped, isolation, mask coverage tiles); sidecar renamed LayerExtras (raw blend key, clbl/infx/knko, group key, mask default colour); unknown or leaf-pass blend => psd_raster_unmapped unsupported layer"
     }
   ],
   "capabilities_done": [
@@ -42,7 +48,8 @@
     "to_proposal: Folio snapshot via folio::inspect_bytes (hierarchy, group mix ops with bottom-first ordinals, hidden flag -> visible, canvas artboard), 8-bit RGB/gray pixels -> linear-light rgb_f32le + straight f32 alpha Pigment tiles (256 grid, sRGB EOTF, sparse), appearance sidecar (opacity, blend key + Pigment StudioBlendMode, clipping, clbl/infx/knko), layer_map, provenance (sha256, icc hash, assumed profile)",
     "edit loop: Snapshot::rename -> ImportProposal::apply_to_document -> write_psd -> read_psd, only name/visibility change",
     "Observe: report() emits exactly one terminal frame (Success | Failure(Validation|Unsupported|Loss) | Canceled)",
-    "limits: input, layers, pixels, decoded bytes, tagged block size/count, name units, resources, group depth; cancellation checks; truncation sweep + byte-flip sweep never panic"
+    "limits: input, layers, pixels, decoded bytes, tagged block size/count, name units, resources, group depth; cancellation checks; truncation sweep + byte-flip sweep never panic",
+    "Folio appearance: to_proposal now writes opacity, fill_opacity (iOpa), blend_mode, clipped, isolation and StudioMask coverage tiles (coverage_u8 over the layer rectangle, default colour outside the mask rectangle; MaskTileBlob bytes in ImportProposal::mask_tiles)"
   ],
   "tests": {
     "passed": 5,
@@ -58,10 +65,12 @@
     "PSB merged-image RLE uses 4-byte row counts (spec only states this for layer channels)",
     "global tagged-block alignment (pad to 4 outside length) vs layer-level (inside length): parser tries both and stores pad bytes; round trip is exact either way",
     "ordinal 0 = bottom-most child in Folio ordered_composite edges (assumed from PSD file order; Folio fixture does not state direction)",
-    "Folio v1 StudioLayer has no opacity/blend/clipping/mask fields: they travel only in ImportProposal::appearance; kind strings psd_adjustment, psd_fill, psd_raster_unmapped and schema_id psd.tagged.<key> are importer-local labels (open vocabulary), need lead naming decision"
+    "Folio v1 StudioLayer has no opacity/blend/clipping/mask fields: they travel only in ImportProposal::appearance; kind strings psd_adjustment, psd_fill, psd_raster_unmapped and schema_id psd.tagged.<key> are importer-local labels (open vocabulary), need lead naming decision",
+    "PSD mask flags bit0 = linked, bit1 = disabled; iOpa = fill opacity (key absent from spec text)",
+    "importer-local labels kept per lead decision: kinds psd_adjustment / psd_fill / psd_raster_unmapped, schema_id psd.tagged.<key> and psd.raster, artboard name 'canvas'"
   ],
   "blockers": [],
-  "next": "layer-mask planes as Pigment-compatible coverage_u8 sidecar; then Photoshop-authored fixtures (oracle tier 0/1) to verify flags bit, prediction, 16-bit scale; ICC conversion of tiles via prism once a profile route exists",
+  "next": "Photoshop-authored fixtures to settle UNVERIFIED items; ICC conversion of tiles via prism once a profile route exists",
   "dep_requests": "miniz_oxide =0.9.1 (with-alloc) and serde_json =1.0.151 (std), both default-features=false, inline in crate manifest, lines appended to dep-requests.jsonl; Cargo.lock not staged",
-  "updated_at": "2026-10-11T01:49:00Z"
+  "updated_at": "2026-10-11T01:59:00Z"
 }

@@ -2,25 +2,26 @@
   "crate": "hsk-studio-score",
   "mt": "MT-35541",
   "status": "READY_FOR_VALIDATION",
-  "phase": "foundation + resampler + chain + mix + equalizer + ramp + spectrum + meters pushed; ready for independent validator round (later commits would supersede this SHA)",
+  "phase": "foundation + resampler (exact alignment) + chain + mix + equalizer + ramp + spectrum + meters + bounce receipt pushed; ready for independent validator round at 4f549cc",
   "commits": [
     {"sha": "6e17a6a72883cd88a6282c60d8df4562c1458141", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "foundation: engine/admission/cancel/busy/stale, Unity/Gain/Pan/ChannelMix, HardLimiter, observe report, consumer"},
     {"sha": "76ba23aec8b03f32e20a37e79f481c321e7f51fe", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rubato sinc ClipResampler via Engine::resample, exact gain/pan/mix tests, resampling properties"},
     {"sha": "31d83959dead354ac930b5e3796e54ba6919785e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "effect Chain (per-stage bypass, live latency sum) + Engine::mix ordered send submix"},
     {"sha": "6f736b80d766ff7f4ff1baa634ea2db3d215b8d6", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Equalizer (RBJ biquad cascade, FX-136a ranges, analytic magnitude_db) with known-response test"},
-    {"sha": "59d5e09ca1493a1cf3e4a9b1d8d223ab69c8a02e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "RampedGain, SpectrumAnalyzer (Hann + radix-2 FFT, checked against naive DFT), per-channel RMS in BlockReceipt"}
+    {"sha": "59d5e09ca1493a1cf3e4a9b1d8d223ab69c8a02e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "RampedGain, SpectrumAnalyzer (Hann + radix-2 FFT, checked against naive DFT), per-channel RMS in BlockReceipt"},
+    {"sha": "b2379a56a0b56a4e35249b9b1533cca45b428eb8", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "explicit features = [] on rubato pin (probe registry_features_missing)"},
+    {"sha": "d33954415fe59ba1de727374f3bfda3f9663345e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "exact-alignment sinc resampler (pad + drop), Engine::bounce + BounceReceipt, Processor::identity, std-only SHA-256"},
+    {"sha": "4f549cc6a2db88c5c624d1e164142cb52124be51", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "alignment_bounce focused tests (3), tone alignment bound tightened to 0.05 frames"}
   ],
   "capabilities_done": [
     "ChannelLayout (ordered unique labels; stereo [100,101]), BlockSpec, exact sample<->ticks (5_292_000 ticks/sample @48k, 5_760_000 @44.1k, 7_938_000 @32k; non-divisor rates rejected)",
-    "Engine::process: admission order cancel>MissingContext>ResourceMismatch>StaleRevision>Busy(RAII Reservation)>frames/rate/channels/lengths/overflow/non-finite>processor rate+layout>capacity; zero writes on refusal (previous publication preserved); discard-unpublished + processor reset on mid-block cancel or revision bump; Copy allocation-free BlockReceipt (labels, per-channel peak and rms, latency, start/end sample + ticks)",
-    "Processors: Unity (bit-exact), Gain, RampedGain, Pan (mono->stereo equal power, exact endpoints), ChannelMix (matrix; stereo_to_mono, mono_to_stereo), HardLimiter (FX-136a ranges, lookahead sliding-min + release + boxcar, clamp backstop, overshoot_events diagnostic, latency=round(ms*rate/1000)=341 @7.1ms/48k), Equalizer (peaking/low-high shelf/low-high pass, f64 TDF2, FX-136a ranges, analytic magnitude_db)",
-    "Chain: ordered effect stack that is a Processor; per-stage bypass (layout-preserving only); live latency sum; preallocated scratch; Processor::max_frames admission",
-    "Engine::mix: ordered SendRoute list -> submix (level per send), refuse-before-write incl. TimelineMismatch",
-    "Engine::resample + ClipResampler: rubato Async sinc 256-tap, startup delay trimmed, exact requested-vs-actual output frame accounting, exact-or-refused timeline mapping",
-    "SpectrumAnalyzer: own radix-2 FFT (no dep), Hann, bin-centred sine reads its amplitude, verified against naive DFT",
-    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised (slots in0..in3)",
-    "Observe report(): Success/Canceled/Failure(Validation|Unavailable), exactly one terminal frame",
-    "DESCRIPTOR + examples/score-consumer (--descriptor --frames --capacity --rate --limiter --cancel)"
+    "Engine::process: admission order cancel>MissingContext>ResourceMismatch>StaleRevision>Busy(RAII Reservation)>frames/rate/channels/lengths/overflow/non-finite>processor rate+layout>capacity; zero writes on refusal; discard-unpublished + processor reset on mid-block cancel or revision bump; Copy allocation-free BlockReceipt (labels, per-channel peak and rms, latency, start/end sample + ticks)",
+    "Processors: Unity, Gain, RampedGain, Pan, ChannelMix, HardLimiter (FX-136a; latency 341 @7.1ms/48k), Equalizer (RBJ biquads, FX-136a ranges, analytic magnitude_db); Chain (ordered, per-stage bypass, live latency sum); Engine::mix (ordered SendRoute submix); SpectrumAnalyzer (own radix-2 FFT)",
+    "Engine::resample + ClipResampler: EXACT ALIGNMENT. Output frame count = ceil(frames*out/in) exactly (requested == actual). Alignment derived from rubato 5.0.1 internals (start index -(SINC_LEN-1), trim floor(SINC_LEN*r/2)): rubato leaves the output ahead by 1-frac(128 r) frames (0.4..1.0 measured); the resampler prepends pad_input_frames zeros (smallest s with q | 128+s and non-negative lag) and drops drop_output_frames, giving whole-frame alignment. Pad/drop: 48k->44.1k (32,29), 44.1k->48k (19,20), 32k->48k (2,2), 48k->96k (1,1), 48k->48k (1,0). Impulse test on those five pairs: peak lands on the exact image index, residual offset 0.007..0.010 frames (about the 1/128 sinc-table step). Sinc path retained (no FFT feature, no new deps).",
+    "Engine::bounce + BounceReceipt (STU-ARC-021): whole clip rendered in blocks, latency-compensated (renders latency extra silent frames, drops the first latency outputs), requested_frames vs actual_frames, exact start/end/duration ticks, blocks, revision, latency_dropped_frames, whole-clip peak/rms, chain_identity (SHA-256 of Processor::identity, domain-separated, includes crate version), digest (SHA-256 per-channel stream scheme, independent of block size; scheme in BounceReceipt docs); sink gets contiguous BounceChunks on the input timeline; all refusals before first block/sink call; slot held for the whole bounce; processor reset at start and on failure",
+    "Processor::identity canonical strings for Unity/Gain/Pan/ChannelMix/RampedGain/HardLimiter/Equalizer/Chain (f32/f64 as exact bit hex); custom processors report 'unspecified'",
+    "std-only SHA-256 (digest.rs): NIST vectors and hashlib oracle values in tests; crate closure stays std + rubato (no sha2 dep added)",
+    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised; Observe report(); DESCRIPTOR + examples/score-consumer"
   ],
   "tests": {
     "foundation_contract": {"passed": 5, "failed": 0},
@@ -28,22 +29,23 @@
     "chain_mix": {"passed": 2, "failed": 0},
     "eq_response": {"passed": 1, "failed": 0},
     "ramp_spectrum": {"passed": 2, "failed": 0},
-    "passed": 13,
+    "alignment_bounce": {"passed": 3, "failed": 0},
+    "passed": 16,
     "failed": 0,
-    "command": "whole-crate run, no-fail-fast flag: 5 integration files, 13 tests, 0 unit/doc tests, all green at 59d5e09",
+    "command": "whole-crate run, no-fail-fast flag: 6 integration files, 16 tests, 0 unit/doc tests, all green at 4f549cc",
     "check_tests_examples": "PASS exit0",
     "clippy_tests_examples": "PASS: no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe, not this lane)",
-    "oracle_values": "unity fixture 256 frames bit-exact; gain 0.5/2.0, pan endpoints (1,0)/(0,1), stereo_to_mono [1,.5]/[.5,-.5] -> [.75,0], chain [.75,.125,0,.125], mix [3,4,5,6], ramp 0->1 over 4 = [0,.25,.5,.75]; resample 48k->44.1k 4800->4410 frames, 1 kHz amplitude 0.5+-1e-3, residual <1e-3; peaking +12 dB exact at centre, Butterworth -3.0103 dB corner, shelf DC/Nyquist gain; FFT vs naive DFT within 1e-6"
+    "oracle_values": "bounce gain-0.5 fixture digest 5482ae8c...a8c0 and transparent-limiter (latency 240) digest 70a93016...1f9e computed independently with Python hashlib per the documented scheme; chain identity bfcb1642...7283; start_ticks 254_016_000_000 for sample 48000 @48k; rms 0.15309311; SHA-256('abc') ba7816bf...; impulse index 1600->1470 (48k->44.1k) exact"
   },
-  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/reset added; Engine owns resource + live revision (RequestContext has no current_revision) so a revision bump mid-block discards the block; BlockReceipt is Copy with labels()/peak()/rms() slices; HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed).",
+  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
   "limitations": [
-    "ClipResampler alignment: rubato trims floor(256*ratio/2) output frames; measured residual lead 0.4..1.02 output frames across 48k->44.1k, 48k->48k, 48k->96k, 44.1k->48k (test bound 1.6). Exact alignment would need the rubato Fft resampler (default feature; adds realfft/rustfft) or an own calibrated trim.",
     "Equalizer shapes follow the W3C Audio EQ Cookbook; Adobe curve parity and spec flags constant_q/low2ndorder/high2ndorder/ultraquiet are not mapped (spec declares no semantics).",
-    "Cancel inside Engine::resample is polled only at admission and at the publication gate (rubato process_all is one call; bounded by MAX_BLOCK_FRAMES).",
-    "RampedGain::reset restores the pre-block value (discard semantics); a Chain un-bypass reset therefore reverts that stage's last ramp."
+    "Cancel inside Engine::resample is polled only at admission and at the publication gate (rubato process_all is one call; bounded by MAX_BLOCK_FRAMES). Engine::bounce polls between blocks.",
+    "RampedGain::reset restores the pre-block value (discard semantics); a Chain un-bypass reset therefore reverts that stage's last ramp.",
+    "Resampler residual alignment 0.007..0.010 frames is a measured value on five rate pairs, not a proof for every pair; pairs whose reduced denominator q needs pad > MAX_BLOCK_FRAMES are rejected with invalid_rate."
   ],
   "blockers": [],
-  "dep_requests": ["rubato 5.0.1 (default-features=false) logged in builders/dep-requests.jsonl with resolved closure; steward must add registry pins for audioadapter 5.0.0, audioadapter-buffers 5.2.0, audioadapter-sample 5.2.0, audio-codec-algorithms 0.8.1 (0BSD OR Apache-2.0), num-integer 0.1.47, num-traits 0.2.19, autocfg 1.5.1, windowfunctions 0.1.1, visibility 0.1.1, syn 2.0.119, quote 1.0.47, proc-macro2 1.0.107, unicode-ident 1.0.26 and sync Cargo.lock (builder never stages Cargo.lock)"],
-  "next": "independent validator round on 59d5e09 (needs steward Cargo.lock sync + rubato registry pins first); then: exact-alignment resampler option (rubato Fft feature or calibrated trim), sample-format conversion/interleave once an owner and convention are decided, bounce/export exact-count receipt (STU-ARC-021) over Engine::process sequences",
-  "updated_at": "2026-10-11T01:49:00Z"
+  "dep_requests": ["rubato 5.0.1 (default-features=false, features=[]) logged in builders/dep-requests.jsonl with resolved closure; no new dependency in this round (SHA-256 is in-crate). Builder never stages Cargo.lock."],
+  "next": "independent validator round on 4f549cc; then: bounce over a sample-rate-converting stage (ClipResampler inside a bounce), loudness (spec gap STU-FX-147) once the Operator selects a standard, score-device/score-plugin crates consume Processor + Engine::process",
+  "updated_at": "2026-10-11T02:25:00Z"
 }

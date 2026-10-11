@@ -23,13 +23,27 @@ Over ~2 min: run_in_background and poll. Cargo build-dir lock waits are normal (
 
 LOOP: implement the brief's minimal slice -> check -> clippy -> focused tests (≤5, no massive suites) -> commit + push as soon as it compiles (message: what capability landed) -> next capability. If `git commit` hits index.lock, wait 5 s and retry. Push: `git push origin codex/handshake-studio-assets`.
 
-STATE: keep `.GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-{crate}.json` current (you own it): {crate, status: null|READY_FOR_VALIDATION|BLOCKED, phase, commits:[sha+subject], capabilities_done:[], tests:{passed,failed}, blockers:[{error, file_line, attempts}], next, updated_at}. Set READY_FOR_VALIDATION only when the slice compiles, clippy is clean and focused tests pass on a pushed commit. Never claim PASS.
+STATE: keep `.GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-{crate}.json` current (you own it) with EXACTLY these keys (workflow v3): {crate, lane, status: null|READY_FOR_VALIDATION|BLOCKED, phase, commits:[{sha, subject}], capabilities_done:[], tests:{argv, exit, sha, passed, failed}, blockers:[{error, file_line, attempts}], lock_wait_s, bg_pids:[], next, updated_at, notes:{...anything else}}. Every timestamp comes from `date -u +%Y-%m-%dT%H:%M:%SZ` — never estimated. Commit only with a pathspec: `git commit -m "..." -- crates/hsk-studio-{crate}` (never a bare commit; the shared index may hold a stale lock after steward sync commits). Set READY_FOR_VALIDATION only when the slice compiles, clippy is clean and focused tests pass on a pushed commit. Never claim PASS.
 
 ESCALATION: same error after 2 distinct fix attempts -> stop that capability, record the blocker (error text + file:line + what you tried) in the lane file, continue other capabilities; if nothing else remains, finish.
 
 DEADLINE: first pushed commit within 30 min; then a pushed commit at least every 30 min.
 
 FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, suggested next slice.
+
+</topic>
+
+<topic id="prism-eng" status="active" version="1">
+
+## Prism engine lanes dispatch (queued; give to the next free builder, prefer the develop builder)
+
+Lanes in order: SMB-PRISM-ENG-3 (first; interop-psd CMYK/Lab blocked) -> ENG-1 -> ENG-2 -> ENG-4. Crate `hsk-studio-prism`, strictly ADDITIVE (pigment, composite, interop-psd, develop, render-cpu, render-gpu depend on it; existing tests stay green; dependents keep compiling — prove with `cargo check -p hsk-studio-pigment -p hsk-studio-interop-psd --tests`).
+Read: START_LOG (repo-rules, cargo-tooling, workflow-v2-adoption, decisions: license policy, BPC owner), WORKSPACE_RULES.md, research/engine-color.md (moxcms 0.9.1 internals; hard-coded BPC only RGB v4 LUT perceptual/saturation; abs colorimetric lacks media-white scaling; determinism: SIMD/fma; topic bpc-algorithm ISO 18619 with two garbled spots), research/color-codecs-raw.md prism topic, existing prism source.
+- ENG-3: lift 64 KiB profile cap to a bounded value admitting real CMYK (557-723 KB) and HLG (973 KB) profiles; enable moxcms `lut` feature (pin =0.9.1 unchanged; verify feature name in local registry Cargo.toml); admission order v4 matrix, v2 curv, mAB, then mft/CMYK; typed refusal otherwise; tests must not depend on C: files (synthetic large-profile test; installed-profile tests skip with typed reason if absent).
+- ENG-1: Prism-owned BPC flag (STU-COL-136) per ISO 18619 on top of moxcms without double-applying where moxcms already applies its hard-coded BPC; document the exact rule; hand-computed values.
+- ENG-2: absolute colorimetric with media-white scaling + clip/gamut report in receipts.
+- ENG-4: scalar-determinism harness (SIMD off, fma check, engine id in receipts).
+Loop per lane: <=3 focused tests, --no-fail-fast, commit + push, lane file `builders/lanes/hsk-studio-prism-eng.json` {lanes:{...}}. Cargo form: studio-env.sh; never C:. Keep prism compiling at every save.
 
 </topic>
 

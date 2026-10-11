@@ -1,0 +1,61 @@
+{
+  "crate": "hsk-studio-interop-media",
+  "mt": "MT-35552",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap",
+  "commits": [
+    {
+      "sha": "8be9cee8603fec9bce780550b87d5a2d61d085dc",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Interop-media: CMX3600 EDL import into neutral proposal with typed losses, Folio sequence + validated document revision, deterministic export, native PRPROJ/AEP/SESX blocked-loudly sniffing, example"
+    }
+  ],
+  "capabilities_done": [
+    "import_cmx3600(bytes, ImportRequest{frame_rate, assume_drop, record_origin_frames, known_reels}, Limits, cancel) -> TimelineProposal: TITLE, FCM, cuts on V/A/A2../AA/B/AA-V, M2 speed as exact rational (negative = reverse), FROM/TO CLIP NAME, bounded bytes/events/line, typed errors with 1-based line",
+    "typed losses (STU-IO-186 vocabulary): dissolve/wipe/key dropped, zero-length cut anchors, freeze frame, unknown track, unknown reel (Missing), channel pair collapsed (Approximate), M2 vs span disagreement (Approximate, spans used), other directives",
+    "build_sequence(TimelineProposal, SequenceOptions{sequence_id, name, reels}, IdSource) -> Folio StudioSequence; unmapped reel = explicit offline reference + Missing loss; SequentialIds deterministic uuid_v7-shaped ids (caller can supply any IdSource)",
+    "propose_document_revision(Snapshot, expected_revision, BuiltSequence, FolioContext) -> DocumentProposal with Folio validate_document at revision+1 (insert or replace by sequence id); nothing committed",
+    "export_cmx3600(TimelineProposal) deterministic text for the round-trip-able subset (cuts, V index 0 + A/A2.., names, M2 speed as exact decimal); fixed point after one import/export cycle",
+    "time adapters: parse_frame_rate (integer, n/d, decimal aliases 23.976/29.97/59.94 with RateSpelling receipt), frame_rate_from_ticks (legacy normalization receipt), timecode_to_frames / frames_to_timecode incl. drop-frame, rational_to_ticks with Exactness (Exact / NormalizedLegacy / Approximate(HalfAwayFromZero))",
+    "native gap: sniff_native (gzip magic = PRPROJ candidate, RIFX = AEP candidate, XML root sesx / AfterEffectsProject), import_native always blocked with Missing loss for 7 entity classes; detection strings are UNVERIFIED candidates (need black-box saves)",
+    "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2"
+  ],
+  "tests": {
+    "check_tests_examples": "PASS",
+    "clippy_tests_examples": "PASS (no findings in interop-media)",
+    "foundation_contract": {
+      "passed": 4,
+      "failed": 0,
+      "cases": [
+        "edl_fixture_ticks_losses_and_folio_sequence",
+        "timecode_rational_and_rates",
+        "edl_negative_paths_and_dispositions",
+        "round_trip_export_and_native_formats_blocked"
+      ]
+    },
+    "passed": 4,
+    "failed": 0
+  },
+  "oracle_values": {
+    "ticks": "01:00:00:00 at 25 fps = frame 90000 = 914457600000000 ticks; 50-frame record duration = 508032000000; 29.97 DF 01:00:00;00 = 107892 frames, 00:10:00;00 = 17982, 00:01:00;02 = 1800; rational (48, 24/1) = 508032000000 Exact, (1, 24000/1001) = 10594584000 Exact, (1, 13/1) = 19539692308 Approximate",
+    "edl": "hand-authored synthetic fixtures only; no Adobe-exported file used yet"
+  },
+  "contradiction_resolved": "brief said Folio has no timeline types; Folio now has StudioSequence/Track/Clip (89201e7) so the proposal maps into a Folio-validated sequence revision",
+  "edge_requests": [
+    "interop-media -> pulse is NOT in the allowed list (root metadata + STUDIO_MODULES). Timecode/drop-frame/rate label arithmetic is duplicated minimally in src/time.rs (documented). CX-CAP-001 wants one owner: lead decision needed to add the pulse edge and then collapse time.rs onto pulse."
+  ],
+  "dep_requests": [
+    "sha2 (optional): digest of the original bytes for source_sha256 and opaque native blobs; line appended to builders/dep-requests.jsonl"
+  ],
+  "blockers": [],
+  "known_limits": [
+    "EDL has no frame rate: the caller supplies it (ImportRequest.frame_rate); source timecode assumed at the sequence rate",
+    "dissolves/wipes/keys are cuts-only with a loss note; the outgoing clip is not extended",
+    "linked V+A pairs from B events are linked in the Folio sequence; export splits them into two events",
+    "FCP7 XML, FCPXML, OTIO JSON, AAF/OMF not started (OTIO needs the pinned serde_json via dep request)",
+    "PRPROJ/AEP/SESX: no decoder; detection candidates UNVERIFIED; black-box oracle saves from the installed apps need an Operator-approved session"
+  ],
+  "next": "OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
+  "updated_at": "2026-10-11T02:13:44Z"
+}

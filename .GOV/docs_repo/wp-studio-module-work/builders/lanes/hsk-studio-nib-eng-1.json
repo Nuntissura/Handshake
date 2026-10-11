@@ -1,0 +1,34 @@
+{
+  "lane": "hsk-studio-nib-eng-1",
+  "crate": "hsk-studio-nib",
+  "mt": "SMB-NIB-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "scope": "strictly additive: new module src/owned_path.rs + pub use in lib.rs + tests/owned_path.rs; no existing file body changed",
+  "commits": [
+    {"sha": "59ef3b1", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Nib: additive owned serializable path geometry"},
+    {"sha": "df2c896", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "owned path tests; to_kurbo validates first"}
+  ],
+  "capabilities_done": [
+    "OwnedPath { elements: Vec<PathElement>, fill_rule: FillRule } with PathElement MoveTo/LineTo/QuadTo/CubicTo/Close over f64 PathPoint; FillRule NonZero/EvenOdd (TryFrom<Winding>, Winding::None refused)",
+    "validate(&PathLimits): finite and |v| <= 1e9, element budget, must start with MoveTo, no drawing after Close without MoveTo, Close needs drawn segment, optional require_closed per subpath; is_closed()",
+    "to_kurbo()/from_kurbo() lossless, to_kurbo validates first (kurbo debug-asserts on a missing MoveTo)",
+    "from_anchors(anchors, closed, winding, unit, ppi, limits): relative handles, unit conversion via accord Length::convert, implicit straight close",
+    "to_canonical_json() / strict from_canonical_json() / content_sha256(): deterministic text, -0 normalised, shortest round-trip decimals, no unknown or duplicate fields, bounded input"
+  ],
+  "tests": {
+    "passed": 3,
+    "failed": 0,
+    "command": "cargo test -p hsk-studio-nib --test owned_path --no-fail-fast",
+    "cases": ["owned_path_validation_rules", "canonical_json_round_trip_and_strictness", "kurbo_and_anchor_conversion"],
+    "regression": "full nib suite still green: 3 unit + 3 owned_path + 2 path_boolean; clippy clean for nib",
+    "tree": "shared edit tree at df2c896, not an export of the pushed SHA"
+  },
+  "decisions_for_lead": [
+    "NO serde in nib: nib has no serde dependency and hand-rolls its strict encodings, so adding serde (plus its proc-macro closure) would have turned a validated crate's registry/probe pins red until the steward syncs. Serialization is canonical JSON text + SHA-256 (sha2 already a nib dependency); consumers that need serde Serialize wrap the canonical text (render-cpu does).",
+    "Coordinates are unit-agnostic f64; from_anchors takes the target unit explicitly. Handles are anchor-relative vectors (nib descriptor 'zero relative pt vectors')."
+  ],
+  "cause_of_failed_run": "test fixture bug (an escape sequence in a strictness fixture was written as a plain character, so the fixture text was valid JSON); fixed in df2c896. The gameplan retry-guard was satisfied by a HEAD change, not bypassed.",
+  "blockers": [],
+  "next": "Independent validator round on df2c896.",
+  "updated_at": "2026-10-11T09:10:00Z"
+}

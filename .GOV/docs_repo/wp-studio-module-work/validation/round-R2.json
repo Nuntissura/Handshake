@@ -1,0 +1,69 @@
+{
+ "round": "STUDIO-R2",
+ "round_opened": false,
+ "outcome": "canary_failed_infrastructure_no_round",
+ "rule_refs": ["CX-VAL-005", "CX-VAL-006", "CX-VAL-010", "CX-STATUS-001", "CX-EXEC-015(4)"],
+ "candidate": "87c1cd9570a52f422f6ba3bd1e75f42997682ee0",
+ "candidate_tree": "2a8ade13672fdf89b88f28c6ff979837972061f3",
+ "candidate_contains": "faf1be4 (round entrypoint + lock sync)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "manifest_sha256": "b8dfc7cac77c7f81291a6f00a7ccc0b3698b1e5780df54d6d044e8ca66b2a76e",
+ "export": {"file_count": 447, "git_blob_equal": true, "refresh": {"added": 136, "changed": 33, "unchanged": 278, "deleted": 0}},
+ "started_at": "2026-10-11T01:53:58Z",
+ "completed_at": "2026-10-11T02:06:25Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R2-canary",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 10/10 @ edit HEAD 2e3fd501 (confirm notes name candidate 87c1cd95); GP-012 added after canary failure",
+ "canary": {
+  "command": "bash tools/run-round.sh --canary --all --results <studio-round>/results/R2-canary --target-dir <WP-KERNEL-STUDIO>/studio-team-dev/target",
+  "started_at": "2026-10-11T02:03:06Z",
+  "ended_at": "2026-10-11T02:03:10Z",
+  "build_exit": 102,
+  "run_exit": null,
+  "result": "FAIL",
+  "failure_kind": "infrastructure",
+  "failure_class": "lock-unsynced-at-candidate",
+  "cause": "Cargo.lock @87c1cd95 not synced: layout 87c1cd9 added accord/observe/type path deps + unicode-linebreak =0.1.5",
+  "evidence": [
+   "results/R2-canary/round.json sha256 17028a7d721b17601e6ffa8499173352bb827a7595d39e43699ae4c25ecb0391",
+   "results/R2-canary/build.stderr.txt sha256 9ac35918398608a0596f60ea1ccc7b87e2f712362d2ab6a5f457e486c65e9d35: 'cannot update the lock file ... because --locked was passed'",
+   "Cargo.lock @87c1cd95: hsk-studio-layout entry has no dependencies; no unicode-linebreak record",
+   "independent repro: cargo +1.97.1 metadata --locked --offline --manifest-path <export>/Cargo.toml -> exit 101 (0.9 s)"
+  ],
+  "affects": "whole workspace (cargo metadata resolves the full lock); any crate selection fails the same way"
+ },
+ "pre_round_observations_not_verdicts": {
+  "workspace_probe": {
+   "binary": "rustc +1.97.1 --edition=2024 -O tools/workspace-probe.rs (sha256 21f127ba442c3a407097424289f0d7b5780d694c6a13386e11e9c364d21e32fa) -> studio-round/probe/workspace-probe.exe",
+   "provenance": "studio-round/probe/provenance-87c1cd9.toml (Cargo.toml, Cargo.lock, rust-toolchain.toml, all 35 crate manifests)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R2-probe",
+   "accepted": ["hsk-studio-package", "hsk-studio-interop-psd", "hsk-studio-develop", "hsk-studio-pigment", "hsk-studio-folio", "hsk-studio-accord", "hsk-studio-motion", "hsk-studio-motion-js", "hsk-studio-pulse", "hsk-studio-reel", "hsk-studio-type"],
+   "rejected": [{"package": "hsk-studio-score", "code": "registry_features_missing", "file_line": "crates/hsk-studio-score/Cargo.toml:13 rubato pin lacks features = []", "note": "fixed after freeze by b2379a5; re-probe next round"}],
+   "note": "probe passes input selection only; it is not a verdict while no round is open"
+  },
+  "adversarial_reviews": "validation/R2-review-a.json and R2-review-b.json absent at 02:06Z; not needed (no verdicts this round)"
+ },
+ "lanes": [
+  {"lane": "SMB-PACKAGE", "crate": "hsk-studio-package", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-INTEROP-PSD", "crate": "hsk-studio-interop-psd", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-DEVELOP", "crate": "hsk-studio-develop", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-PIGMENT-ENG-1", "crate": "hsk-studio-pigment", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-FOLIO-ENG-1", "crate": "hsk-studio-folio", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-ACCORD-ENG-1", "crate": "hsk-studio-accord", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-MOTION", "crate": "hsk-studio-motion", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-MOTION-JS", "crate": "hsk-studio-motion-js", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-PULSE", "crate": "hsk-studio-pulse", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-REEL", "crate": "hsk-studio-reel", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-SCORE", "crate": "hsk-studio-score", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-TYPE-DOCTEST", "crate": "hsk-studio-type", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-TYPE-ENV", "crate": "hsk-studio-type", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null, "foundation_contract_env_free": "NOT_PROVEN (no test run)"},
+  {"lane": "SMB-TYPE-FONTS", "crate": "hsk-studio-type", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null},
+  {"lane": "SMB-TYPE-FIXTURES", "crate": "hsk-studio-type", "verdict": null, "status_change": "none (infrastructure)", "failures": [], "remediation": null}
+ ],
+ "infrastructure": [
+  "Canary build_exit 102 at 87c1cd95: lock unsynced (failure_class lock-unsynced-at-candidate, 1st occurrence)",
+  "origin HEAD 989d91d6 at 02:06Z still has the faf1be4 lock; manifests changed since: layout, pulse, render-cpu, render-gpu, score",
+  "CX-EXEC-015(4): a 2nd round with this class blocks rounds until a pushed commit fixes it; steward lock sync must land first",
+  "Gameplan GP-012 (cargo metadata --locked --offline on export == 0) now gates before_round"
+ ],
+ "next_round_prerequisite": "steward pushes Cargo.lock sync (+ registry_sync/probe approvals) for all manifests changed since faf1be4; then freeze new HEAD"
+}

@@ -191,12 +191,19 @@ Adopted:
 - Per-lane state file `builders/lanes/<crate>.json` written at every commit and before long jobs (with PID); `ledger.json` = lead index; resume + lead-restart prompts in DISPATCH_TEMPLATES.
 - Continuous rounds with one reusable round script; re-check a PASS lane only when its relevant inputs changed (CX-VAL-002); every engine brief carries >= 1 oracle value the builder cannot edit (e.g. PSD Maximize-Compatibility merged composite as a no-Adobe-launch oracle).
 - Paperwork cap: at most one kernel commit per lead tick; no new gameplan step without an observed failure.
+- Agent refresh rule (Operator: refresh agents to keep context fresh): when a builder has used >~400k tokens and its next lane is in a different crate, end it and spawn a fresh agent from DISPATCH_TEMPLATES + lane file + brief; continuing slices in the same crate may reuse the agent. Session cap: 20 concurrent subagents; queue lanes in ledger.dispatch_queue when full.
 - Shared-tree rule (observed 03:45Z: pigment mid-edit E0583 blocked dependents): every agent keeps its crate compiling at every save; new module files first, `mod` wiring last in one edit.
 - Workflow tick stays +7 min (11,26,41,56); after two quiet ticks may drop to 30 min (lead decides per tick).
 
 Adapted:
 - Model choice: builders stay Sonnet (Operator: cheap agents for code); an engine lane escalates to an Opus builder at its first NEEDS_NEW_APPROACH or second FAIL; Opus diagnostics on any repeated failure.
 - One build per disk (CX-984-002) KEPT without waiver: validator rounds use the SAME shared target dir as builders (`studio-team-dev/target`), so Cargo's build-dir lock serializes them (different source path = separate fingerprints; disk cost accepted).
+
+Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ticks.md tick 1; adopted):
+- Rounds freeze ONLY on steward sync commits (steward derives Cargo.lock + registry pins + probe list from an export of HEAD's committed manifests, commits via temp index with compare-and-swap `update-ref`), lead names that SHA in the round dispatch; at most one round per 20 min while lanes wait. Round-time lock derivation rejected (CX-VAL-007/009).
+- Round entrypoint step 0: fail-fast locked metadata + registry sync check (~1 s) before any build (CX-EXEC-015(4)).
+- Lane-file fixed key set + `date -u` timestamps only (12/17 lane files had future stamps); pathspec-only commits for builders.
+- Adversarial review findings are routed to builders immediately (do not wait for the round to open).
 
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).

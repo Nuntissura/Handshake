@@ -1,31 +1,77 @@
 {
   "crate": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice1 complete: provider port + registry + ISOBMFF/MOV index + WAV + Y4M; pushed, check/clippy/focused tests green",
+  "phase": "slice2 READY_FOR_VALIDATION (039fbee); slice3 in progress: Matroska/WebM EBML index + sampled identity/relink",
   "commits": [
-    {"sha": "f09f33b", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "provider port, registry, ISOBMFF/MOV sample index + seek, WAV, Y4M"},
-    {"sha": "c3d013c", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "5 focused contract tests, reel-consumer example, encoder cancel checkpoint"},
-    {"sha": "2e9361d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decode_packets over prebuilt index, colr/pasp tags, empty-edit + inexact-timebase proofs (candidate)"}
+    {
+      "sha": "f09f33b",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice1: provider port, registry, ISOBMFF/MOV index + seek, WAV, Y4M"
+    },
+    {
+      "sha": "c3d013c",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice1: 5 focused contract tests, reel-consumer example"
+    },
+    {
+      "sha": "2e9361d",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice1: decode_packets over prebuilt index, colr/pasp, empty-edit + inexact-timebase proofs"
+    },
+    {
+      "sha": "3bfc100",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice2 plumbing (compiles, clippy clean)"
+    },
+    {
+      "sha": "b6ab5e2",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice2: PCM-in-MOV, tmcd, fMP4 + sidx, IndexCache, 4 focused tests"
+    },
+    {
+      "sha": "039fbee",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "descriptor lists slice2 capabilities (candidate for validation)"
+    }
   ],
   "capabilities_done": [
-    "model: MediaProvider port (decode_segment/encode_segment/probe/sniff), CodecDescriptor, Limits, Grant (verified before first read), SegmentRequest, SegmentReceipt (requested vs actual Span, Disposition, source Original|Proxy, decoder id+version, ticks_exact), typed ReelError with stable MEDIA_* codes",
-    "registry: instance-owned (no global), enumerable descriptors + JSON, magic-number detect, ImportUnsupported names detected type, proxy/original arbitration (layout match, export refuses proxy, stale proxy falls back with note)",
-    "isobmff: own moov index reader (ftyp/moov/trak/tkhd/mdhd/hdlr/stsd/stts/ctts v0+v1/stss/stsz/stsc/stco/co64/elst incl. empty edits), presentation PTS in Pulse ticks (exact or nearest-rounded + flag), seek(requested -> actual, decode_from sync incl. open-GOP conservative start), bounded packet delivery with pre-roll flags, decode_packets over cacheable MediaIndex, colr/pasp tags; fragmented/stz2/multi-description typed Unsupported; Decoded output of compressed entry = CodecUnavailable naming FourCC",
-    "wav-pcm: bounded streaming range decode (chunked, exact ticks/sample), OutOfRange vs Truncated, non-PCM tag = CodecUnavailable, exact-header encode with cancel -> complete:false",
-    "y4m: one-frame-resident decode (8-bit 420/422/444/mono), Truncated with delivered count, Corrupt/Unsupported/LimitExceeded before trust, encode byte-identical to fixture",
-    "observe: report()/outcome_for() one terminal frame per outcome; DESCRIPTOR + example reel-consumer (--descriptor --list-codecs --encode-roundtrip --probe --decode --seek)"
+    "slice1: MediaProvider port, Registry (instance-owned, enumerable, detect, proxy/original arbitration), ISOBMFF/MOV index + frame-accurate seek + packet delivery, WAV, Y4M, observe report, typed MEDIA_* errors",
+    "slice2 PCM-in-MOV: twos/sowt/in24/in32/fl32/fl64/raw/lpcm(v2) sound descriptions verified against Apple QTFF pages + FFmpeg mov.c/isom_tags.c; regular PCM tracks stay compact chunk runs (never one entry per audio frame, proven under max_samples=100 with 5000 frames); bounded LE slices across chunk runs; exact tick timing; one non-empty edit + leading empty edits; irregular/odd cases typed Unsupported (lpcm non-interleaved/unpacked, multi-edit, non-frame-aligned edit); compressed audio entries = CodecUnavailable naming FourCC while packets still demux",
+    "slice2 tmcd: TimecodeDescription (drop/24h/negative/counter flags verified vs Apple page, timescale, frame duration, fps), tref/tmcd link, read_timecode_start -> raw 32-bit sample + signed frame_number + pts; NO label formatting",
+    "slice2 fMP4: mvex/trex, moof/mfhd/traf/tfhd/tfdt/trun (flag masks verified vs Bento4 headers), data-offset base rules (explicit base, default-base-is-moof, first-traf moof start, previous-traf end), first-sample-flags, non-sync bit 0x10000, tfdt or continuation DTS, sidx v0/v1 with absolute offsets, truncated_tail flag, sample budget checked before allocation, same exact-PTS + seek + packet rules",
+    "slice2 IndexCache: keyed (content id, revision, length, limits), LRU capacity <= 64, new revision drops older entries, hit still verifies grant (StaleGrant), decode_cached(), approx_bytes stats"
   ],
   "tests": {
     "check_tests": "PASS exit0",
     "clippy_tests_examples": "PASS exit0, no hsk-studio-reel findings",
-    "foundation_contract": "PASS 5/5 (--no-fail-fast)",
-    "lib_unit": "PASS 1/1 (time rounding)",
-    "passed": 6,
+    "foundation_contract": "PASS 5/5 (slice 1; one expectation changed: moof before moov is now 'moof-before-moov')",
+    "slice2_contract": "PASS 4/4 (--no-fail-fast)",
+    "lib_unit": "PASS 1/1",
+    "passed": 10,
     "failed": 0,
-    "tree": "shared edit tree at commit 2e9361d; not an export of the pushed SHA; workspace-probe not run by builder"
+    "tree": "shared edit tree at 039fbee; not an export of the pushed SHA; workspace-probe not run by builder"
   },
   "blockers": [],
+  "known_gaps": [
+    "fMP4: legacy 'previous traf end' base rule implemented per ISO but untested (fixture has one traf per moof); multi-description tracks, trun version-0 composition offsets read as signed (same convention as progressive ctts)",
+    "tmcd counter-mode / legacy timecode-record sample interpretation not applied: raw_sample is authoritative",
+    "PCM: packets output of compact PCM tracks is Unsupported by design; PCM with edit lists beyond one real edit is Unsupported",
+    "compressed codecs, MXF, Matroska, relink remain out (STU-VID-084 licence decision)"
+  ],
   "deps": "none beyond accord + observe (path); no dep-requests entry",
-  "next": "validator round on 2e9361d (foundation_contract first). Candidate next slices: PCM-in-MOV audio decode (twos/sowt/in24/fl32) + tmcd start timecode; fMP4 (moof/trun/sidx) index; Matroska demux own reader; sampled-identity source hash + relink; IndexCache keyed (content id, revision); ProRes/DNxHR pure decoders (intra) after VID-084 licence decision",
-  "updated_at": "2026-10-11T01:55:00Z"
+  "next": "validator round on 039fbee (slice2_contract and foundation_contract). Candidate next slices: Matroska/WebM own EBML demux index; MXF OP1a index; sampled-identity source hash + relink; PCM 'packets' view for compact tracks; AIFF/CAF PCM providers; ProRes/DNxHR pure decoders after VID-084",
+  "updated_at": "2026-10-11T02:40:00Z",
+  "decisions": [
+    {
+      "id": "reel-no-pulse-edge",
+      "by": "coordinator 2026-10-11",
+      "text": "NO reel->pulse edge; module map keeps reel on accord+observe. Reel exposes raw tmcd fields (TimecodeDescription, TimecodeStart); consumers (session/interop-media) format labels with pulse."
+    }
+  ]
 }

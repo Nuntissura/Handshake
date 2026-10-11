@@ -1,0 +1,45 @@
+{
+  "lane": "hsk-studio-layout",
+  "crate": "hsk-studio-layout",
+  "mt": "MT-35537",
+  "status": "READY_FOR_VALIDATION",
+  "commits": [
+    {"sha": "87c1cd9", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Layout: page/spread geometry, text frames, threaded reflow with overset, first-fit and Knuth-Plass breakers (compiles, clippy clean)"},
+    {"sha": "259ea44", "tree": "4105015d373b89fa7fb1a97379d984188f0b6c9f", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Layout: 5 hand-computed focused tests, layout-consumer example, Knuth-Plass boundary tolerance, -0 sum normalisation"}
+  ],
+  "capabilities_done": [
+    "geometry.rs: Margins/Page/Spread (facing pages left to right, spread coordinates)/TextFrame (spread+page ref, inset, explicit first baseline, obstacle rects)/Rect, all lengths _pt",
+    "paragraph.rs: LayoutGlyph/ShapedParagraph (from_type flattens a Type ParagraphResult; from_fixed_advance toy fixture), break_opportunities via unicode-linebreak UAX #14, box/glue/penalty items (hanging trailing space, forced breaks, in-word opportunities after hyphen)",
+    "breaker.rs: Composer::FirstFit (greedy single-line) and Composer::KnuthPlass(KnuthPlassParams): badness 100|r|^3 capped 10000, demerits (line_penalty+b)^2 with penalty term, 4 fitness classes + adjacent-class demerits, per-(line,class) candidates, 3 passes (tolerance 200, 10000, overfull allowed), varying per-line widths, fallback to first-fit",
+    "threaded_reflow.rs: reflow(ReflowRequest, &CancellationToken) -> LayoutProposal {base_revision, frames[FramePlacement{lines[Line]}], overset: exact first unplaced byte .. story end}; obstacle-narrowed line slots (widest gap), blocked baselines skipped; deterministic (no hashing)",
+    "Typed refusals: StaleRevision, CyclicThread, InvalidGeometry, InvalidInput, MissingFont, UnsupportedComposition (RTL, non-Latn/Zyyy), BudgetExceeded (lines, glyphs, paragraphs, slot scans), Canceled; DESCRIPTOR; report() -> one Observe terminal outcome; example layout-consumer"
+  ],
+  "tests": {
+    "check_tests": "PASS",
+    "clippy_tests_examples": "PASS no layout warnings (type crate emits its own pre-existing warnings)",
+    "threaded_reflow": "PASS 5/5 (two_frame_flow_overset, obstacle_wrap_and_overfull_word, knuth_plass_hand_computed_and_deterministic, cyclic_missing_font_budget_cancel_stale_unsupported, break_opportunities_forced_breaks_and_report)",
+    "passed": 5,
+    "failed": 0,
+    "oracle": "toy font 6 pt/glyph, 60 pt line; Knuth-Plass example 'aa bb cc dd ee fffff' hand-computed (single feasible pass-1 breaking, r=-1, demerits 12100+100) and cross-checked against an independent Python enumeration of all breakings; first-fit gives 3 lines instead",
+    "not_proven": "from_type was compile-checked against hsk-studio-type's public API but NOT run on a real Type ParagraphResult (needs the ~1300 LOC Type test ports/fonts; not replicated); no InDesign oracle; RTL/CJK only refused, never laid out"
+  },
+  "blockers": [],
+  "dep_requests": ["unicode-linebreak 0.1.5 (UAX #14) appended to builders/dep-requests.jsonl; Cargo.lock updated locally by cargo (not staged); resolved version 0.1.5 confirmed by the lock"],
+  "folio_additions_needed": [
+    "Text frame object (spec STU-LAY-018/122): schema + id for a text frame carrying spread/page ref, bounds in document unit (folio Length), inset, first-baseline settings, wrap/obstacle refs (STU-LAY-024/126), auto-size and vertical justification (STU-LAY-118..121)",
+    "Thread contract fields on the frame (STU-LAY-122): parent_story, start_text_frame, end_text_frame, previous_text_frame, next_text_frame, text_frame_index, overflows (bool); cyclic/duplicate thread validation to live beside folio's existing cycle checks",
+    "Page/spread model: folio StudioPageSpread has only name/parent/bounds; layout needs a pages list with per-page width/height/margins (and master/section later) inside the spread",
+    "Story primitive link: folio Payload::Text{story_id} exists, but there is no StudioTextStory content/paragraph/style contract for layout to read; layout currently takes caller-supplied ShapedParagraph + story text",
+    "Overset result: a place to record the overset span/overflows flag as derived state (not authored) once the frame object lands",
+    "Layout keeps its frame/thread model crate-local (TextFrame, thread: &[usize]) until the lead decides these"
+  ],
+  "decisions_for_lead": [
+    "SourceSpan is layout-local (u64 byte range, From<type::SourceRange>) so layout's public types stay plain for components/interop-layout",
+    "Hanging trailing whitespace belongs to the line's glyph range (ranges tile the paragraph exactly) but not to width_pt; hang_pt reports it",
+    "Empty paragraph occupies one empty line; no space before/after paragraphs; left-aligned only (no justification/hyphenation/columns) in this slice",
+    "Relation of this Knuth-Plass to the Adobe Paragraph Composer is UNVERIFIED (research/adobe-behavior.md)",
+    "Brief lists src/threaded_reflow.rs + src/paragraph.rs + tests/threaded_reflow.rs: matched; extra files geometry.rs and breaker.rs added by this slice"
+  ],
+  "next": "Independent validator round on the pushed HEAD for crates/hsk-studio-layout: tests/threaded_reflow first. Later scope: nib WrapProvider contour wrap, columns, justification/hyphenation, a real Type end-to-end test through from_type.",
+  "updated_at": "2026-10-11T05:30:00Z"
+}

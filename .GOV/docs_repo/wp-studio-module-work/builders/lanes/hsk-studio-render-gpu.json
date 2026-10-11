@@ -1,0 +1,29 @@
+{
+  "crate": "hsk-studio-render-gpu",
+  "mt": "MT-35546",
+  "status": "IN_PROGRESS",
+  "phase": "slice-1 first commit pushed (compiles, check --tests clean); tests + example + clippy next",
+  "commits": [
+    {"sha": "a813cf3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile Normal/Multiply/Screen composite, chunked read-back, report"}
+  ],
+  "capabilities_done": [
+    "GpuContext::acquire/acquire_next: headless instance+adapter+device, no surface, validation layers off, bounded block_on, generation counter, device-lost callback + uncaptured-error latch",
+    "GpuBackend (Ready|Lost|Unavailable state, Mutex), new() never fails, reacquire(cancel) explicit recovery (generation+1, residency cleared), with_injected_loss (doc(hidden) fault injection), simulate_device_loss (real device.destroy path)",
+    "Residency: pure-Rust LRU with pins, hard budget, exact used/peak/evictions counters, mark/release_since (release on every exit)",
+    "WGSL kernel.wgsl: one compute pass per layer, straight-alpha source-over + Normal/Multiply/Screen, same formula as pigment blend_math::composite_over",
+    "plan_sink: admit() first, source verification (hash/stride/shape/domain), then chunk loop (chunk shrinks to fit min(request.max_working_bytes, residency budget, device buffer limit)), clear + per-layer dispatch + staging read-back into TileSink; receipt only after last chunk",
+    "exactness table: tile/solid exact, blend normal/multiply/screen fitted, fill_opacity approximate, everything else unsupported (refused at admission)",
+    "report(): one Observe terminal frame, same outcome mapping as render-cpu",
+    "DESCRIPTOR"
+  ],
+  "tests": {"passed": null, "failed": null, "note": "not yet written/run at this record"},
+  "backend_qualified_proof": "NOT_YET: no GPU execution test has run",
+  "decisions_for_lead": [
+    "Exactness for blend operators is Fitted (per diagnostics/render-plan-ir.md); an export request with min_exactness Exact therefore refuses the GPU backend by design.",
+    "observe outcome mapping reuses render-cpu's (BudgetExceeded -> Validation) rather than the brief's (BudgetExceeded -> Unsupported) so one BackendError has one terminal outcome on every backend.",
+    "Brief test 1 says a missing adapter must FAIL the GPU test; lead's dispatch says skip-with-typed-Unavailable is acceptable only for the GPU-execution test. Implemented: the test asserts the typed Unavailable(NoAdapter) explicitly and prints NOT_PROVEN; it does not claim a GPU proof."
+  ],
+  "blockers": [],
+  "next": "tests/gpu_plan.rs (admission refusal w/o adapter, typed unavailable + injected loss + reacquire, pure residency, no wgpu in public API, GPU blend parity vs blend_math), examples/render-gpu-consumer.rs, clippy, run tests",
+  "updated_at": "2026-10-11T09:00:00Z"
+}
