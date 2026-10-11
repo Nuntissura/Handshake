@@ -1,0 +1,27 @@
+{
+  "crate": "hsk-studio-session",
+  "mt": "MT-35554",
+  "status": null,
+  "phase": "slice 1 library pushed; tests and session-consumer example in progress",
+  "commits": [
+    {"sha": "371ac82", "subject": "Session slice 1: open (package -> folio snapshot), revision-checked submit of chronicle-prepared transactions, atomic save, enumerable instance-owned provider registry, one Observe report per operation", "pushed": true, "slice": 1}
+  ],
+  "capabilities_done": [
+    "Session::open_path / open_bytes: bounded PackageReader stream -> folio Snapshot, assets held for re-save, unknown entries kept verbatim, read-only documents refused, per-property revision vector seeded at 0",
+    "Session::submit(provider, params, expected_revision, cancel): provider proposes a chronicle Prepared on the immutable snapshot; session re-checks document id, revision (stale -> stale_revision), exactly +1 successor, property revision vector; publishes atomically or not at all",
+    "Session::save / save_to: package write -> save_atomic -> re-read destination manifest (revision + document id); codec inherited from opened package; previews dropped and counted",
+    "ProviderRegistry: instance-owned, sorted enumeration (ids/list), validated ids, duplicate/full refusal, built-in chronicle.patch provider; no global state",
+    "Cancellation via accord CancellationToken at entry, in provider, before commit; budgets = package Limits + chronicle Budget (folio inside)",
+    "One Observe terminal frame per operation (open, submit, save); fresh token for the report so a post-commit cancel cannot recast a committed edit"
+  ],
+  "tests": {"passed": null, "failed": null},
+  "blockers": [],
+  "dep_requests": "builders/dep-requests.jsonl: serde_json 1.0.151 (dev) for tests/example; all runtime deps are allowed path edges (accord, folio, chronicle, package, observe); no new crates.io runtime dependency",
+  "known_gaps": [
+    "brief ports not in this slice: GrantPort / CommitPort / JobPort, idempotency keys + receipts, reconcile, shutdown drain (next slice)",
+    "assets are held in memory after open (package Opened); lazy PackageReader::read_asset is a later slice",
+    "previews are dropped on save (derived data describing the pre-edit document) and counted in SaveReceipt"
+  ],
+  "next": "tests/session_contract.rs (<=5) + examples/session-consumer.rs, then READY_FOR_VALIDATION",
+  "updated_at": "2026-10-11T05:10:00Z"
+}

@@ -3,8 +3,20 @@
   "crate": "hsk-studio-folio",
   "status": "READY_FOR_VALIDATION",
   "commits": [
-    {"sha": "89201e7", "tree": "6d1204c0529d2602c373527423eda13c146d1e44", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio: StudioSequence/StudioTrack/StudioClip timeline document members on integer Ticks"}
+    {"sha": "89201e7", "tree": "6d1204c0529d2602c373527423eda13c146d1e44", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio: StudioSequence/StudioTrack/StudioClip timeline document members on integer Ticks"},
+    {"sha": "d2f4a5b", "tree": "70b36b5bdfb2edc9a087cbd6e9b338125be84a05", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "REMEDIATION R2-review-a (SMB-FOLIO-ENG-1): remove SequenceFrameRate::fps_fraction from Folio (CX-CAP-001; Pulse owns frame-rate conversion), add hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate); Folio handle() rejects relative/path-like media and primitive handles; +1 folio test, pulse test extended"}
   ],
+  "remediation_r2": {
+    "finding_1_cx_cap_001": "CONFIRMED and fixed: SequenceFrameRate::fps_fraction deleted from hsk-studio-folio (only caller was the folio timeline_contract test; no other crate used it). Folio keeps ticks_per_frame storage, accord() canonical-rate validation and its private gcd (still used by Speed validity). New hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate) -> Result<(u64,u64), PulseError::UnsupportedFrameRate> = accord() canonical check + pulse fps_fraction (single implementation). Behaviour change: non-canonical ticks_per_frame (previously returned a fraction for any nonzero value) is now UnsupportedFrameRate; validated documents are always canonical",
+    "finding_2_path_handles": "CONFIRMED and fixed: handle() accepted relative paths (media/a.mov, ./a.mov, ../a.mov, file:///a.mov) because it refused only backslash, leading slash and drive prefix, contradicting its own doc and ClipSource 'never a filesystem path'. Now refuses any '/' or '\\', '~' prefix, bare '.' and '..'; applies to ClipSource::Media artifact_manifest_id and ClipSource::Primitive object_id; same typed error as before (Code::InvalidField, target '<clip_id>/source'); no new Code variant. New test path_like_handles_are_rejected_for_media_and_primitive_sources (11 path spellings x media+primitive rejected; opaque ids manifest-a, offline-reel-A001.mov, a..b still accepted)",
+    "tests": {
+      "folio_no_fail_fast": "PASS 24/24 (4 appearance + 15 foundation + 5 timeline_contract)",
+      "pulse_no_fail_fast": "PASS 13/13 (5 foundation_contract + 2 schedule_and_display + 6 timeline_edit)",
+      "clippy_tests_folio_pulse": "PASS no warnings in folio/pulse (2 pre-existing too-many-arguments warnings in hsk-studio-observe, not touched)",
+      "check_tests_dependents": "PASS: chronicle, package, pigment, composite, interop-psd, session, interop-media (cargo check --tests); folio+pulse --all-targets PASS"
+    },
+    "not_touched_out_of_scope": "hsk-studio-interop-media/src/time.rs:114 carries its own fps_fraction copy (and edl.rs uses it): same CX-CAP-001 class, owned by the interop-media lane"
+  },
   "capabilities_done": [
     "New src/timeline.rs: StudioSequence, StudioTrack, StudioClip (schema ids hsk.studio.sequence|track|clip@1), SequenceFrameRate{ticks_per_frame}, Speed{numerator:i64,denominator:u64}, ClipSource{Media|Sequence|Primitive}, TrackKind{video,audio,caption,submix}, consts MAX_SEQUENCES/MAX_TRACKS_PER_SEQUENCE/MAX_CLIPS_PER_SEQUENCE/MAX_HANDLE_BYTES",
     "StudioDocument.sequences: optional member (serde default, omitted when empty): absent == empty, encoding of existing documents unchanged",
@@ -25,7 +37,7 @@
   },
   "blockers": [],
   "decisions_for_lead": [
-    "frame_rate stored as {ticks_per_frame:u64} per STU-VID-011 (not num/den); exact reduced fraction via SequenceFrameRate::fps_fraction() (e.g. 24000/1001); only canonical STU-VID-013 table values accepted",
+    "frame_rate stored as {ticks_per_frame:u64} per STU-VID-011 (not num/den); exact reduced fraction via hsk_studio_pulse::fps_fraction_of(&SequenceFrameRate) (e.g. 24000/1001; Folio no longer carries fps_fraction after R2 remediation d2f4a5b); only canonical STU-VID-013 table values accepted",
     "sequence_id is a document-local key: v02.215 declares no sequence identity prefix (accord has none, STU-CON-004 table lists none)",
     "reversal carried by speed sign only (spec lists both a reversed flag and negative speed; Pulse uses the sign)",
     "sequence.duration == last clip end exactly is MY choice (spec silent); clip order by timeline_start required (Pulse lanes are ordered)",
@@ -33,6 +45,6 @@
     "no new Code variants and no Budget fields added (strict additivity); overlap/order/duration use Code::InvalidField with target suffix /overlap /unordered /duration; StudioDocument gained a pub field: struct-literal constructors need sequences: Vec::new() (none exist in the workspace)",
     "Snapshot::rename still targets layer/artboard/page_spread only"
   ],
-  "next": "Independent validator round on pushed 89201e7 or later HEAD (crates/hsk-studio-folio unchanged since): timeline_contract first, then foundation_contract",
-  "updated_at": "2026-10-11T03:35:00Z"
+  "next": "Independent re-validation of remediation commit d2f4a5b (folio timeline.rs + tests, pulse time.rs + tests): timeline_contract path_like_handles test and pulse foundation_contract fps_fraction_of first, then full folio + pulse suites",
+  "updated_at": "2026-10-11T02:14:00Z"
 }

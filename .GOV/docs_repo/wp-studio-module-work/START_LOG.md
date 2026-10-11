@@ -210,6 +210,7 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
 - D3: change the global gameplan hook to match gated words only in command position, not inside quoted text/heredocs (global tooling; Operator-only).
 - D4: prep tools `ae_render.py`, `ae_scripting.py`, `adobe-install-harvest.py` (prep corpus `_tools/`) extract embedded JSON/string tables from Adobe DLLs (string extraction, not disassembly). Lead: NOT run this session pending Operator policy.
+- D9 (provisional lead decision 2026-10-11T02:14:33Z): add dependency edge hsk-studio-interop-media -> hsk-studio-pulse (no cycle) so timeline interchange uses Pulse's timecode instead of a duplicate (CX-CAP-001). Root Cargo `allowed` updated by steward; STUDIO_MODULES.json NOT edited (drift recorded, like pigment->folio). Operator may reverse (then interop-media keeps raw fields only).
 - D5: black-box oracle sessions (Photoshop/Illustrator/InDesign/AE render-reference export scripts per `research/adobe-behavior.md`) open foreground windows and the Photoshop gamma-blend check flips a global Color Settings value (restore after) -> needs an Operator-approved session.
 
 </topic>

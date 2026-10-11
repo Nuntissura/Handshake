@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T01:53:20Z",
+ "updated_at": "2026-10-11T02:16:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -216,20 +216,26 @@
    "lane_id": "SMB-RENDER-GPU",
    "crate": "hsk-studio-render-gpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-gpu",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu",
    "brief": "builders/briefs/hsk-studio-render-gpu.md",
-   "commits": [],
+   "commits": [
+    "a813cf3",
+    "989d91d",
+    "7e7579f"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-render-gpu.json"
+   "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
+   "candidate": "7e7579f",
+   "note": "GpuBackend on pigment port; DX12+Vulkan RTX3090 5/5; parity 2.4e-7; device-loss proof; no-adapter typed path; slice2 modes/masks/groups in progress"
   },
   {
    "lane_id": "SMB-PACKAGE",
    "crate": "hsk-studio-package",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-package",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-package",
    "brief": "builders/briefs/hsk-studio-package.md",
    "commits": [
@@ -237,13 +243,16 @@
     "a6d049a",
     "5bc338d",
     "43e1baf",
-    "7da88fc"
+    "7da88fc",
+    "1f56170",
+    "d333e6c",
+    "64ece87"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-package.json",
-   "candidate": "7da88fc",
-   "note": "slice1+2: ZIP64/manifest/atomic save + zstd blob codec (ruzstd, libzstd cross-checked) + strict streaming reader + lock-based stale-temp sweep; 8 tests; slice3 shuffle+preview in progress",
-   "review_findings": "R2-review-a CONFIRMED: zstd aggregate cap, ZIP64 locator sentinel, unknown extra IDs, stale descriptor -> remediation dispatched (not a formal verdict; R2 did not open)"
+   "candidate": "64ece87",
+   "note": "slices1-3 + R2-review-a fixes (aggregate decode cap, ZIP64 sentinel, extra fields, descriptor); shuffle codec; previews; 14 tests",
+   "review_findings": "R2-review-a findings fixed in 64ece87 (regression tests)"
   },
   {
    "lane_id": "SMB-INTEROP-PSD",
@@ -270,9 +279,9 @@
    "lane_id": "SMB-INTEROP-VECTOR",
    "crate": "hsk-studio-interop-vector",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-vector",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-interop-vector",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -303,21 +312,25 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pulse (reused)",
    "brief": "builders/briefs/hsk-studio-interop-media.md",
-   "commits": [],
+   "commits": [
+    "8be9cee"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-interop-media.json"
+   "lane_file": "builders/lanes/hsk-studio-interop-media.json",
+   "candidate": "8be9cee",
+   "note": "CMX3600 EDL import/export fixed point; native formats detection-only blocked; 4 tests; time.rs duplicates pulse (pending edge D9)"
   },
   {
    "lane_id": "SMB-CONTROLS",
    "crate": "hsk-studio-controls",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-controls",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-controls",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -360,9 +373,9 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-press",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -588,18 +601,19 @@
    "crate": "hsk-studio-folio",
    "origin": "spec-reader-b report; STU-VID-010; lead decision 02:45Z",
    "scope": "Folio timeline document types: sequence, track (video/audio), clip (source ref, in/out, timeline position) with time fields as hsk_studio_accord::Ticks (folio may depend only on accord); snapshot/schema integration; neutral contract for interop-media TimelineProposal",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1",
    "depends_on_lanes": [],
    "commits": [
-    "89201e7"
+    "89201e7",
+    "d2f4a5b"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json",
-   "candidate": "89201e7",
+   "candidate": "d2f4a5b",
    "note": "timeline doc types; 19/0 folio tests; decisions accepted (ticks_per_frame, local sequence ids, sign-only reversal)",
-   "review_findings": "R2-review-a CONFIRMED: fps_fraction duplicate of pulse (CX-CAP-001) -> remediation dispatched (not a formal verdict; R2 did not open)"
+   "review_findings": "fps dup fixed d2f4a5b (pulse::fps_fraction_of); path handles refused"
   },
   {
    "lane_id": "SMB-PIGMENT-ENG-1",
@@ -723,19 +737,32 @@
    "crate": "hsk-studio-folio",
    "origin": "layout builder gaps",
    "scope": "Folio text-frame object, STU-LAY-122 thread fields, page list with per-page margins in spread, story-content contract; layout migrates its crate-local frame/thread model",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-3",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json"
   },
   {
    "lane_id": "SMB-ACCORD-ENG-2",
    "crate": "hsk-studio-accord",
    "origin": "R2-review-b cap_duplicate reel timing helpers vs pulse; reel cannot depend on pulse",
    "scope": "single owner of rational timescale/rate -> Ticks conversion in accord (additive); pulse and reel consume it; remove duplicates",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
+   "owner": "builder-accord-eng-2",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-MEDIA-PULSE",
+   "crate": "hsk-studio-interop-media",
+   "origin": "interop-media builder; CX-CAP-001 timecode duplicate",
+   "scope": "after steward adds interop-media->pulse edge (provisional D9): replace src/time.rs timecode/DF arithmetic with pulse APIs; tests unchanged; also interop-media src/time.rs:114 fps_fraction copy",
+   "phase": "blocked",
+   "status": "BLOCKED",
+   "blocked_on": "steward: root allowed edge interop-media->pulse (provisional D9)",
    "owner": null,
    "commits": [],
    "verdicts": []

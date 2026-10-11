@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:13:54Z",
+ "updated_at": "2026-10-11T02:16:22Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -179,7 +179,7 @@
     "builders/lanes/hsk-studio-package.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule 561k); package READY 64ece87"
   },
   {
    "name": "builder-interop-psd",
@@ -227,7 +227,7 @@
     "builders/lanes/hsk-studio-pulse.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule, 630k tokens); pulse READY b12a524; interop-media READY 8be9cee"
   },
   {
    "name": "builder-score",
@@ -365,7 +365,7 @@
    "model": "sonnet",
    "role": "remediation folio fps dup",
    "launched": "2026-10-11T02:13:54Z",
-   "status": "running"
+   "status": "done d2f4a5b"
   },
   {
    "name": "fix-score",
@@ -373,6 +373,46 @@
    "model": "sonnet",
    "role": "remediation score (review B)",
    "launched": "2026-10-11T02:13:54Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-accord-eng-2",
+   "agent_id": "a52571b2273932349",
+   "model": "sonnet",
+   "role": "accord timescale owner",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-controls",
+   "agent_id": "abb5da73c855d6649",
+   "model": "sonnet",
+   "role": "controls slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-interop-vector",
+   "agent_id": "ac756412f109473d5",
+   "model": "sonnet",
+   "role": "interop-vector slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-press",
+   "agent_id": "aacf8b02a8fb66445",
+   "model": "sonnet",
+   "role": "press slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-folio-eng-3",
+   "agent_id": "a726a92f68abc536d",
+   "model": "sonnet",
+   "role": "Folio frames/threads/pages",
+   "launched": "2026-10-11T02:16:22Z",
    "status": "running"
   }
  ]

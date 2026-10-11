@@ -1,29 +1,52 @@
 {
   "crate": "hsk-studio-render-gpu",
   "mt": "MT-35546",
-  "status": "IN_PROGRESS",
-  "phase": "slice-1 first commit pushed (compiles, check --tests clean); tests + example + clippy next",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 pushed: GpuBackend (pigment RenderBackend port) with device lifecycle, residency, WGSL Solid/Tile Normal/Multiply/Screen, read-back, receipt, report, 5 focused tests, consumer example",
   "commits": [
-    {"sha": "a813cf3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile Normal/Multiply/Screen composite, chunked read-back, report"}
+    {"sha": "a813cf3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite, chunked read-back, report"},
+    {"sha": "989d91d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "five focused tests (tests/gpu_plan.rs), render-gpu-consumer example, rustfmt"},
+    {"sha": "7e7579f", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Auto = one platform-preferred backend per instance (DX12 then Vulkan on Windows), real device-loss + reacquire proof on the parity device, HSK_STUDIO_TEST_GPU_BACKEND test selector, probe backend argument"}
   ],
   "capabilities_done": [
-    "GpuContext::acquire/acquire_next: headless instance+adapter+device, no surface, validation layers off, bounded block_on, generation counter, device-lost callback + uncaptured-error latch",
-    "GpuBackend (Ready|Lost|Unavailable state, Mutex), new() never fails, reacquire(cancel) explicit recovery (generation+1, residency cleared), with_injected_loss (doc(hidden) fault injection), simulate_device_loss (real device.destroy path)",
-    "Residency: pure-Rust LRU with pins, hard budget, exact used/peak/evictions counters, mark/release_since (release on every exit)",
-    "WGSL kernel.wgsl: one compute pass per layer, straight-alpha source-over + Normal/Multiply/Screen, same formula as pigment blend_math::composite_over",
-    "plan_sink: admit() first, source verification (hash/stride/shape/domain), then chunk loop (chunk shrinks to fit min(request.max_working_bytes, residency budget, device buffer limit)), clear + per-layer dispatch + staging read-back into TileSink; receipt only after last chunk",
-    "exactness table: tile/solid exact, blend normal/multiply/screen fitted, fill_opacity approximate, everything else unsupported (refused at admission)",
-    "report(): one Observe terminal frame, same outcome mapping as render-cpu",
-    "DESCRIPTOR"
+    "GpuContext::acquire/acquire_next: headless instance+adapter+device (no surface, no window, no focus), validation layers off, bounded block_on, generation counter (1, +1 per reacquire), device-lost callback + uncaptured-error latch (no wgpu panic path)",
+    "GpuBackend (Ready|Lost|Unavailable under one Mutex): new() never fails; reacquire(cancel) is the only recovery (generation+1, residency cleared, failed reacquire keeps the loss); with_injected_loss (doc(hidden) fault injection); simulate_device_loss (real device.destroy path)",
+    "Residency: pure-Rust LRU with pins, hard budget, exact used/peak/evictions, hit/touch, mark/release_since (release on every exit); every device buffer is charged BEFORE it is created",
+    "WGSL kernel.wgsl: one compute pass per layer (solid or uploaded region), straight-alpha source-over + Normal/Multiply/Screen = pigment blend_math::composite_over in f32",
+    "plan_sink: pigment admit() first, source verification (hash/stride/shape/domain) before the device state check, chunk loop (chunk shrinks from 512 to fit min(request.max_working_bytes, residency budget, device buffer limit); < 64 texels -> BudgetExceeded), clear + per-layer dispatch + staging read-back into TileSink, cancel/deadline between chunks and layers, receipt only after last chunk",
+    "exactness table: tile/solid exact, blend normal/multiply/screen fitted, fill_opacity approximate (product), everything else unsupported and refused at admission (other modes, masks, nested/pass-through groups, vector, premultiplied)",
+    "report(): one Observe terminal frame, same outcome mapping as render-cpu; DESCRIPTOR; example render-gpu-consumer --descriptor | --probe [backend] | --selftest"
   ],
-  "tests": {"passed": null, "failed": null, "note": "not yet written/run at this record"},
-  "backend_qualified_proof": "NOT_YET: no GPU execution test has run",
+  "tests": {
+    "command": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture",
+    "check_tests_examples": "PASS no warnings",
+    "clippy": "PASS for this crate (only pre-existing observe too_many_arguments warnings, not ours)",
+    "cases": ["admission_refusals_run_without_adapter", "device_loss_and_unavailable_are_explicit", "residency_lru_budget_accounting", "no_wgpu_types_in_public_api", "gpu_blend_parity_vs_pigment_blend_math"],
+    "with_adapter_auto_dx12": "5 passed, 0 failed, 14.35 s",
+    "with_adapter_vulkan": "5 passed, 0 failed, 6.67 s (HSK_STUDIO_TEST_GPU_BACKEND=vulkan)",
+    "without_adapter": "5 passed, 0 failed, 0.00 s (HSK_STUDIO_TEST_GPU_BACKEND=none); the GPU test prints NOT_PROVEN and asserts the typed Unavailable(NoAdapter) + BackendError::Unavailable, it does not claim a GPU proof",
+    "tree": "shared edit tree at 7e7579f (not an export of the pushed SHA)"
+  },
+  "backend_qualified_proof": {
+    "adapter": "NVIDIA GeForce RTX 3090 (discrete)",
+    "backends_proven": ["dx12", "vulkan"],
+    "not_proven": ["metal", "integrated/software adapters", "other discrete vendors"],
+    "hand_oracle": "backdrop (0.2,0.4,0.6,1.0) + red (1,0,0,1) at opacity 0.5: Normal (0.6,0.2,0.3,1.0), Multiply (0.2,0.2,0.3,1.0), Screen (0.6,0.4,0.6,1.0): max error 0 on both backends",
+    "parity_vs_pigment_blend_math": "37x29 extent at (3,-2), 16-texel chunks (6 chunks), 5 layers (2 tiles with exact 0/1 samples, 2 solids, fill_opacity): max error 2.38e-7 (2 ulp) on both backends; stated tolerance 1e-6 per layer (5e-6 for 5 layers)",
+    "device_loss": "real device.destroy -> DeviceLost{generation 1}; reacquire -> generation 2; executes again; residency back to 0",
+    "residency_facts": "peak_working_bytes = 3*16*16*16+64 = 12352 for 16x16 chunks (exact); used returns to 0 after success, sink rejection (mid read-back) and BudgetExceeded",
+    "latency_note": "headless device acquire takes 7-13 s per process on this machine (Vulkan ~13 s, DX12 ~7 s, loaded by parallel builds); Auto therefore creates one single-backend instance at a time"
+  },
+  "oracle_notes": "independent oracles: hand-computed values above and pigment::blend_math::composite_over (not render-cpu); CPU-vs-GPU equality is not used as proof of either (MT-35546). Adobe parity NOT_PROVEN (W3C formulas only).",
   "decisions_for_lead": [
-    "Exactness for blend operators is Fitted (per diagnostics/render-plan-ir.md); an export request with min_exactness Exact therefore refuses the GPU backend by design.",
-    "observe outcome mapping reuses render-cpu's (BudgetExceeded -> Validation) rather than the brief's (BudgetExceeded -> Unsupported) so one BackendError has one terminal outcome on every backend.",
-    "Brief test 1 says a missing adapter must FAIL the GPU test; lead's dispatch says skip-with-typed-Unavailable is acceptable only for the GPU-execution test. Implemented: the test asserts the typed Unavailable(NoAdapter) explicitly and prints NOT_PROVEN; it does not claim a GPU proof."
+    "Exactness for blend operators is Fitted (per diagnostics/render-plan-ir.md); an export request with min_exactness Exact therefore refuses the GPU backend by design (preview/accelerated path, CPU stays the reference).",
+    "Observe outcome mapping reuses render-cpu's (BudgetExceeded -> Validation) rather than the brief's (BudgetExceeded -> Unsupported) so one BackendError has one terminal outcome on every backend.",
+    "Brief test 1 says a missing adapter must FAIL the GPU test; lead's dispatch says skip-with-typed-Unavailable is acceptable only for the GPU-execution test. Implemented the dispatch: the GPU test passes without an adapter only after asserting the typed Unavailable and printing NOT_PROVEN. The validator host needs an adapter (this one has an RTX 3090) for a GPU PASS.",
+    "Residency has no cross-call tile cache in slice 1 (ResidentKey::Tile is reserved for it); every allocation is per-call and released, so 'used returns to the pre-call value' holds exactly.",
+    "Auto backend order is a product decision I made for latency: Windows DX12 then Vulkan, Apple Metal, otherwise Vulkan. Vulkan/Dx12/Metal remain selectable.",
+    "wgpu pin =27.0.1 features [std,wgsl,vulkan,dx12,metal] (verified against wgpu-27.0.1/Cargo.toml in the cargo registry); dep-request line appended; steward must run registry_sync + probe approval (wgpu, naga, wgpu-core, wgpu-hal, gpu-allocator, windows 0.58 closure, pure_rust false)."
   ],
   "blockers": [],
-  "next": "tests/gpu_plan.rs (admission refusal w/o adapter, typed unavailable + injected loss + reacquire, pure residency, no wgpu in public API, GPU blend parity vs blend_math), examples/render-gpu-consumer.rs, clippy, run tests",
-  "updated_at": "2026-10-11T09:00:00Z"
+  "next": "slice 2 candidates (not started): remaining separable/non-separable blend modes in WGSL each with a blend_math parity case, masks (coverage_u8/u16 buffers), isolated groups via per-group scratch buffers, content-addressed tile cache across executes (ResidentKey::Tile + LRU eviction already in Residency), Metal/other-vendor qualification",
+  "updated_at": "2026-10-11T09:55:00Z"
 }
