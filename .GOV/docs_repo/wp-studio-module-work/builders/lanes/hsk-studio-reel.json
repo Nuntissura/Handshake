@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 4 complete: R5 remediation, Matroska ContentEncodings + A_PCM, MXF OP1a/OP-Atom index reader, IndexCache over MkvIndex (on top of slice 3 + AV1 routing)",
+  "phase": "slice 4 complete + R6 V4 hardening: deny(clippy::arithmetic_side_effects) now on every untrusted-byte module (isobmff, fragments, wav, y4m, identity, registry added); dims_u32_max/aggregate_over_budget tests per container family",
   "commits": [
     {
       "sha": "f09f33b",
@@ -95,6 +95,18 @@
     {
       "sha": "d9bf614",
       "subject": "tests: synthetic frame-wrapped constant-size MXF over two body partitions + scan fallback; DESCRIPTOR wording"
+    },
+    {
+      "sha": "2a6f32e",
+      "subject": "V4-01/V4-02 hardening group 1: deny(arithmetic_side_effects) on y4m, wav, identity, registry; checked sizes/offsets/counters; encode lying-unit wrap, y4m frame buffer sized before the source was checked, wav clamped byte rate; tests/v4_hardening.rs + v4_alloc_budget.rs"
+    },
+    {
+      "sha": "3c82784",
+      "subject": "V4-01/V4-02 hardening group 2: deny(arithmetic_side_effects) on isobmff and fragments; constant-size stsz sample count bounded by the chunk tables before allocation, read_sample bounded by the source before allocation, fragment scan box budget typed (was a silent partial index); isobmff/fragments dims_u32_max + aggregate_over_budget tests"
+    },
+    {
+      "sha": "b555905",
+      "subject": "comment-only: two doc claims weakened (V4-07); no code change"
     }
   ],
   "capabilities_done": [
@@ -112,20 +124,21 @@
     "slice4 Matroska ContentEncodings (RFC 9559 5.1.4.1.31): header stripping (algo 3) and zlib (algo 0) undone per frame (lacing split first), stacked encodings in ContentEncodingOrder descending order, private scope decodes CodecPrivate, AV1-in-Matroska gets decoded packets; encryption (type 1), bzlib/lzo1x, scope 0x4 and malformed/unknown encodings are a typed per-track refusal (Unsupported content-encryption | content-compression-algo | content-encoding-scope-next | content-encoding, Corrupt content-encoding-scope | content-encoding-order); output capped by max_chunk_bytes (LimitExceeded content-decoded-bytes), damaged zlib or adler is Corrupt content-zlib",
     "slice4 Matroska A_PCM/INT/LIT, A_PCM/INT/BIG (8-bit unsigned, others signed), A_PCM/FLOAT/IEEE (little endian): compact PcmStream per track through the shared deliver_pcm_stream (bounded slices, exact requested/actual ticks, big-endian swapped to little endian); positions by running frame count, block timestamps only as a 1-unit consistency check (Unsupported pcm-timestamp-discontinuity); probe reports the PCM window",
     "slice4 MXF (ST 377-1:2019, read from pub.smpte.org): build_mxf_index (run-in, header pack, partition enumeration by footer chain with KLV scan fallback, Fill-aware partition layout, Primer + Local Set header metadata resolved to picture/sound tracks with descriptors, Essence Container Data BodySID/IndexSID), Index Table Segments with static tags (constant EditUnitByteCount incl. contiguous-base rule, variable entries, slices, delta entries, temporal offsets, identical header/footer repeats collapsed), MxfIndex::{locate, locate_coded, display_position_of, element_offset (11.4), edit_unit_element (key inspection), wrapping_of, clip_end}, MxfProvider (opt-in via Registry::register; probe; Packets output in decode order with pre-roll to the previous random access point for pictures, per-unit for sound, clip-wrapped slices for OP-Atom; Decoded = CodecUnavailable naming the coding)",
-    "slice4 IndexCache over MkvIndex: one capacity/LRU shared with MediaIndex, entry answers only its own kind, hit verifies the grant, failed builds cache nothing, new revision invalidates older ones"
+    "slice4 IndexCache over MkvIndex: one capacity/LRU shared with MediaIndex, entry answers only its own kind, hit verifies the grant, failed builds cache nothing, new revision invalidates older ones",
+    "v4 hardening (2a6f32e, 3c82784): V4-01 deny on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (111 sites fixed); V4-02 dims_u32_max + aggregate_over_budget tests for y4m, wav, isobmff, fragments, identity; 3 per-thread largest-allocation proofs; 7 latent bugs fixed (see notes.v4_hardening)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --tests (default: 35) / --features av1 (39); clippy --tests --examples clean in both feature sets",
+    "argv": "cargo test -p hsk-studio-reel --tests (default: 48 = 35 existing + 13 new) / --features av1 (52 = 39 + 13); cargo clippy -p hsk-studio-reel --tests --examples clean in both feature sets; cargo fmt -p hsk-studio-reel --check clean",
     "exit": 0,
-    "sha": "d9bf614",
-    "passed": 39,
+    "sha": "3c82784",
+    "passed": 52,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on d9bf614 (default and --features av1). Steward: pins for miniz_oxide =0.9.1 (with-alloc) on hsk-studio-reel (dep-requests.jsonl line appended 2026-10-11). Open: V4-01 deny(arithmetic_side_effects) is still missing on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (listed by clippy -W, ~110 sites); MXF is not in Registry::standard() (pinned at 4 providers by foundation_contract and reel-native tests); reel-native tests/av1_worker.rs follow-up from SMB-REEL-AV1-ROUTE still pending.",
-  "updated_at": "2026-10-11T06:33:28Z",
+  "next": "Validator round on b555905 (code identical to 3c82784) (default and --features av1). Open: MXF is not in Registry::standard() (pinned at 4 providers by foundation_contract and reel-native tests); reel-native tests/av1_worker.rs follow-up from SMB-REEL-AV1-ROUTE still pending; pub mod fixtures (62 arithmetic sites, synthetic byte builders) is deliberately not under deny. Scratch tree for the red proofs (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/reel-v4-redproof (src, target, tmp).",
+  "updated_at": "2026-10-11T07:27:06Z",
   "notes": {
     "decisions": [
       {
@@ -232,7 +245,23 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-REEL", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission d9bf614 (not in bd8533f) queued for next round", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-REEL:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-REEL",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission d9bf614 (not in bd8533f) queued for next round",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-REEL:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
     ],
     "lanes": {
       "SMB-REEL-ENG-3": {
@@ -454,13 +483,221 @@
       ]
     },
     "v4_compliance": {
-      "V4-01": "deny(clippy::arithmetic_side_effects) module-wide on: matroska.rs, mkv_content.rs, mkv_pcm.rs, isobmff/pcm.rs, cache.rs, model.rs, video.rs, av1_config.rs, av1/ (incl. ffi.rs), mxf/ (all). NOT yet: isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs. Note: the lint is clippy-only (cargo check does not run it).",
-      "V4-02": "dims_u32_max-style: r5 lying decoder u32::MAX x u32::MAX, r5 matroska u32::MAX/2^32 dims, mxf u32::MAX entry/delta/essence-container counts and u64::MAX BER; aggregate_over_budget-style: matroska max_samples, zlib bomb vs max_chunk_bytes, mxf max_samples (index entries) and max_probe_bytes.",
+      "V4-01": "deny(clippy::arithmetic_side_effects) module-wide on: matroska.rs, mkv_content.rs, mkv_pcm.rs, isobmff.rs (+ submodules fragments.rs, timecode.rs; pcm.rs has its own), isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs, cache.rs, model.rs, video.rs, av1_config.rs, av1/ (incl. ffi.rs), mxf/ (all). Not under deny: error.rs, report.rs, time.rs (no sites), fixtures/ (synthetic test builders, not parsers). Note: the lint is clippy-only (cargo check does not run it).",
+      "V4-02": "dims_u32_max-style: r5 lying decoder u32::MAX x u32::MAX, r5 matroska u32::MAX/2^32 dims, mxf u32::MAX entry/delta/essence-container counts and u64::MAX BER; aggregate_over_budget-style: matroska max_samples, zlib bomb vs max_chunk_bytes, mxf max_samples (index entries) and max_probe_bytes. R6 hardening slice: tests/v4_hardening.rs (y4m, wav, isobmff, fragments, identity: dims_u32_max + aggregate_over_budget each) and tests/v4_alloc_budget.rs (3 largest-allocation proofs).",
       "V4-03": "No test needs hardware or an external corpus; fixtures are committed; no machine-local paths in tests. No NOT_PROVEN prints (open items are listed above, not asserted).",
       "V4-05": "No deflate/CRC of our own: miniz_oxide library only.",
-      "V4-06": "see remediation_R5.v4_06_*",
+      "V4-06": "see remediation_R5.v4_06_*; hardening slice (111 sites in six modules): see notes.v4_hardening",
       "V4-07": "absolute words weakened or tied to a named test in the new modules (mxf, mkv_content, mkv_pcm, provider docs).",
       "V4-09": "all commits after the V4 notice use git commit -F with a message file; scripts live in scratchpad/hsk-studio-reel/ (V4-12)."
+    },
+    "v4_hardening": {
+      "slice": "R6 hardening: V4-01/V4-02 on the untrusted-byte parsers that still lacked them (builder session 2026-10-11, product commits 2a6f32e and 3c82784 on codex/handshake-studio-assets)",
+      "base_before_slice": "reel sources of d9bf614 (identical at b77518c, the red-proof base)",
+      "v4_06_failure_class": "unchecked arithmetic, lossy `as` casts and allocations sized from untrusted numbers (sizes, offsets, counts, durations, running totals) in modules that parse file bytes",
+      "v4_06_search": {
+        "authoritative": "cargo clippy -p hsk-studio-reel --tests -- -W clippy::arithmetic_side_effects",
+        "regex": "\\bas (u8|u16|u32|u64|usize|i8|i16|i32|i64)\\b|\\s[-+*/%]=?\\s  over src/{y4m,wav,identity,registry,isobmff,isobmff/fragments}.rs (casts + operators; the lint is the complete operator check, the regex lists the casts it does not see)",
+        "now_enforced_by": "#![deny(clippy::arithmetic_side_effects)] in the six modules: a new site fails clippy"
+      },
+      "v4_06_sites": {
+        "y4m.rs": {
+          "baseline": 14,
+          "fixed": 14,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "87:13",
+            "178:24",
+            "179:18",
+            "186:26",
+            "262:21",
+            "269:22",
+            "280:15",
+            "282:25",
+            "308:13",
+            "339:25",
+            "420:50",
+            "425:16",
+            "433:17",
+            "435:13"
+          ],
+          "forms": "header read loop + frame/record sizes + frame index/offset/pts + receipt counters (one u32 chunk counter drives loop, index and receipt) + encode unit/byte totals; encode `units * frame_bytes` was a real wrap"
+        },
+        "wav.rs": {
+          "baseline": 30,
+          "fixed": 30,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "31:9",
+            "34:9",
+            "39:34",
+            "42:34",
+            "42:45",
+            "42:56",
+            "75:9",
+            "93:17",
+            "112:21",
+            "143:46",
+            "166:28",
+            "173:17",
+            "260:21",
+            "277:29",
+            "291:19",
+            "297:39",
+            "298:25",
+            "299:61",
+            "312:13",
+            "313:13",
+            "314:13",
+            "349:25",
+            "390:21",
+            "394:31",
+            "401:36",
+            "431:36",
+            "441:16",
+            "447:13",
+            "448:13",
+            "453:13"
+          ],
+          "forms": "chunk header offsets (advance() = checked_add), fmt/extensible reads (le16/le32 return Result), block_align product, skip sizes (i64::try_from), sample/byte offsets, slice sizes (slice_bytes closure), chunk/byte counters, encode header fields (u32/u16 try_from, byte rate checked) and running totals"
+        },
+        "identity.rs": {
+          "baseline": 9,
+          "fixed": 9,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "49:9",
+            "66:37",
+            "111:32",
+            "114:13",
+            "117:31",
+            "120:26",
+            "212:13",
+            "217:13",
+            "229:17"
+          ],
+          "forms": "covered bytes, window offsets (u128 checked_mul/checked_div), exhaustive loop offsets, relink counters (saturating: bounded by candidate count)"
+        },
+        "registry.rs": {
+          "baseline": 1,
+          "fixed": 1,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "136:13"
+          ],
+          "forms": "detect() head-read loop: filled via checked_add bounded by the buffer"
+        },
+        "isobmff.rs": {
+          "baseline": 49,
+          "fixed": 49,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "199:9",
+            "340:42",
+            "343:38",
+            "363:32",
+            "364:17",
+            "377:30",
+            "382:32",
+            "450:13",
+            "456:9",
+            "513:9",
+            "646:85",
+            "657:32",
+            "666:33",
+            "667:33",
+            "668:33",
+            "813:15",
+            "813:48",
+            "813:75",
+            "814:13",
+            "826:17",
+            "830:13",
+            "835:21",
+            "838:17",
+            "845:17",
+            "866:13",
+            "938:9",
+            "952:13",
+            "972:30",
+            "1034:9",
+            "1204:27",
+            "1208:45",
+            "1209:43",
+            "1272:9",
+            "1276:25",
+            "1280:17",
+            "1294:32",
+            "1297:17",
+            "1306:31",
+            "1310:42",
+            "1316:29",
+            "1317:31",
+            "1539:9",
+            "1663:42",
+            "1682:16",
+            "1685:15",
+            "1694:18",
+            "1722:9",
+            "1723:9",
+            "1725:13"
+          ],
+          "forms": "approx_bytes (saturating), Boxes iterator (checked header/uuid/pos), Cur::remaining, seek/sync_for index math (checked_sub), colr/pasp metadata reads (be16/be32 Option), stsc run walk, stts/ctts/stss totals (checked_add), sample budget (checked_sub), edit presentation (checked_sub), read_moov offsets/budgets, receipt byte/chunk/pts counters, deliver_packets span/slot math"
+        },
+        "isobmff/fragments.rs": {
+          "baseline": 8,
+          "fixed": 8,
+          "not_applicable": 0,
+          "baseline_line_col": [
+            "109:9",
+            "117:17",
+            "132:35",
+            "138:42",
+            "141:17",
+            "146:66",
+            "295:26",
+            "311:9"
+          ],
+          "forms": "bytes_read budget (saturating, bounded by box count), payload/offset math (checked), per_sample bytes (saturating_mul), sample budget (checked_sub), sync index (try_from)"
+        }
+      },
+      "v4_06_count_check": "baseline 111 = identity 9 + registry 1 + wav 30 + y4m 14 + isobmff 49 + fragments 8; fixed 111; not_applicable 0; after the slice the same lint reports 0 sites in these six files (mismatch would block READY_FOR_VALIDATION; there is none)",
+      "v4_06_cast_sites_after": {
+        "fixed": "fragments.rs sync index `i as u32` -> u32::try_from (LimitExceeded sample-count); isobmff build_presentation sample count `n as u32`, probe track count `as u32`, ICC profile size `as u32`, from_external_samples sync index `i as u32` -> try_from with typed error or untagged metadata",
+        "not_applicable_lossless_widening": "u32/u16/u8 -> usize/u64 widenings (isobmff.rs Cur/table/stsd/stsz/elst counts, rest.len(), presented.len(), slot and sample indices, read_sample size; fragments.rs trun count; y4m.rs frame marker length, max_chunk_bytes; wav.rs MAX_ENCODE_DATA_BYTES, fmt buffer with size <= 64 validated), `x.max(0) as u64` of a non-negative i64 (presentation durations), `e as u32` of an edit index bounded by 4096",
+        "not_applicable_intended_reinterpretation": "signed two-complement fields read as unsigned words: isobmff.rs Cur::i32 (ctts offset, trun data_offset), elst media_time `u64 as i64` (values below -1 refused), `(vf >> 24) as u8` version byte, `float_rate as u32` behind a range check"
+      },
+      "not_in_slice": {
+        "fixtures/mod.rs, fixtures/mov.rs, fixtures/mkv.rs": "62 sites; pub synthetic byte BUILDERS for tests and the example, no untrusted bytes parsed; not under deny",
+        "tests/*.rs": "18 sites in older test files; test code, not product code",
+        "hsk-studio-accord, hsk-studio-observe": "41 sites in other crates, other owners"
+      },
+      "latent_bugs_found": [
+        "y4m encode: `units * frame_bytes` with `units` from the ChunkSource wrapped in release (debug build: panic `attempt to multiply with overflow` at y4m.rs:420, observed in the red proof): a lying count whose product equals the buffer length modulo 2^64 was counted as written frames (with total_units equal to the lie the receipt reads complete=true; derived, not observed). wav encode had the same unchecked product, caught only by the later total check with the wrong error class. Now checked_mul; a mismatch is Corrupt chunk-size-mismatch.",
+        "y4m decode sized the declared frame buffer (805 MB for a 16384x16384 4:4:4 header, 41-byte file) before checking the source can hold one record, whenever the caller widened max_chunk_bytes. Now allocated only when a whole record fits at the seek position (Truncated otherwise).",
+        "wav encode wrote a clamped byte rate (`rate.saturating_mul(block)`) into the header and used unchecked `as u32`/`as u16` header fields; y4m receipt `chunks: delivered as u32` truncated silently. Now typed LimitExceeded.",
+        "isobmff: a constant-size stsz carries no table bytes, so ~400 bytes declaring 4,000,000 samples reserved 160 MB (samples) + 16 MB (sizes) before failing with stsc-short. addressable_samples() (stsc runs x chunk count) must cover the count first: same refusal, before the allocation.",
+        "isobmff read_sample sized its buffer from the declared sample size (4 GiB with max_chunk_bytes widened) before checking the source holds it. The sample must lie inside the source first (Truncated{delivered} as before).",
+        "fragments scan stopped silently after 2^20 top-level boxes and returned a partial index with truncated_tail=false. Bytes left after the box budget are now LimitExceeded fragment-box-count (a file ending exactly on the budget still indexes).",
+        "registry detect() and y4m header read trusted Read to return n <= buf.len(); an over-reporting reader is now Io(InvalidData)."
+      ],
+      "tests": {
+        "v4_hardening.rs (10)": "y4m_dims_u32_max, y4m_aggregate_over_budget, wav_dims_u32_max, wav_aggregate_over_budget, isobmff_dims_u32_max (largesize boxes at u64::MAX, uuid below header, table counts u32::MAX, stco u32::MAX / co64 u64::MAX, sample size u32::MAX, edit lists u64::MAX / i64::MAX / i64::MIN / summed overflow, ctts i32::MIN/MAX with u32::MAX durations, timescale u32::MAX and 1, requests at u64::MAX), isobmff_aggregate_over_budget (65,536 box budget at its exact boundary, probe/sample/edit/track budgets, one budget shared by video+audio tracks), fragments_dims_u32_max (tfdt u64::MAX, dts i64::MAX + duration u32::MAX, trun count u32::MAX, base u64::MAX + data_offset i32::MAX/MIN + size u32::MAX, sidx first_offset u64::MAX / 65535 refs / 2 GiB refs, moof size 4 / u32::MAX / largesize u64::MAX, second moov), fragments_aggregate_over_budget (shared sample and probe budgets across fragments, 2^20 box budget at its exact boundary), identity_aggregate_over_budget (exact windows x window read cost on a 1 TiB source), identity_dims_u32_max (params u32::MAX, u64::MAX-byte source, digest chunk bounds)",
+        "v4_alloc_budget.rs (3, own binary with a per-thread largest-allocation counter)": "y4m_frame_buffer_is_bounded_by_the_source, isobmff_sample_storage_is_bounded_by_the_chunk_tables, isobmff_sample_buffer_is_bounded_by_the_source",
+        "counts": "default 48 = 35 existing + 13 new; --features av1 52 = 39 + 13; all pass at 3c82784",
+        "sha_note": "tests.sha 3c82784 is the last commit with code changes; b555905 on top of it changes two comments only (clippy checked, tests not rerun: no input of any test changed)"
+      },
+      "red_proof_V4_11_12": {
+        "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/reel-v4-redproof/src (git archive of b77518c = previous reel sources, plus the two new test files); STUDIO_OWNER=reel-v4-redproof own target and tmp; shared edit tree never reverted",
+        "result": "RED on the previous sources: v4_alloc_budget 3/3 fail (largest single allocation 805,306,368 B y4m frame, 160,000,000 B isobmff samples, 4,294,967,295 B isobmff sample buffer); v4_hardening 3 fail (y4m_dims_u32_max: panic `attempt to multiply with overflow` at y4m.rs:420 = the lying-unit wrap; wav_dims_u32_max: Ok(complete) EncodeReceipt with a clamped byte rate; fragments_aggregate_over_budget: Ok(MediaIndex) with truncated_tail=false for a 1,048,577-box file); the other 6 of the 9 v4_hardening cases that existed at that run pass on the old sources (regression guards for code that was already checked) and on the new ones; identity_aggregate_over_budget was added after the red run and was not run against the old sources",
+        "green": "all 13 pass on 3c82784 in the shared tree"
+      },
+      "v4_rules_followed": "V4-01 deny per module; V4-02 both test classes per family; V4-03 no machine-local paths, no NOT_PROVEN needed; V4-04 no fault hooks added; V4-05 no new ZIP/CRC/supervision copies; V4-07 no new absolute doc claims; V4-09 commits via git commit -F with a message file, edits via scripts/tools under the scratchpad lane folder; V4-11 red proof on a fresh archive extract (current mtimes), nothing restored over the shared tree; V4-12 helper scripts only under scratchpad/smb-reel-v4 and only ones this session wrote",
+      "not_proven": [
+        "the 2^32-th chunk of one segment (u32 receipt counter) is refused by checked_add in y4m, wav and deliver_packets but not exercised: it needs 4.3e9 sink calls",
+        "behaviour on 32-bit usize targets (u32 -> usize widenings are lossless only for usize >= 32 bits; every `as usize` of a u64 is behind a range check or try_from)",
+        "process-level RSS: the allocation proofs count the largest single allocation request per thread, not resident memory"
+      ]
     }
   }
 }

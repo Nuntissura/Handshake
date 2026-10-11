@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:26:25Z",
+ "updated_at": "2026-10-11T07:27:28Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1112,7 +1112,7 @@
     "builders/lanes/hsk-studio-reel.json"
    ],
    "launched": "2026-10-11T06:37:43Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:27:28Z (SMB-REEL READY at 3c82784)"
   },
   {
    "name": "builder-pigment-window",

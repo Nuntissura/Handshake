@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:26:25Z",
+ "updated_at": "2026-10-11T07:27:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -213,7 +213,8 @@
     "34ec20a",
     "fa365cd",
     "dcc1b37",
-    "d9bf614"
+    "d9bf614",
+    "3c82784"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
@@ -221,8 +222,8 @@
     "STUDIO-R6 PASS_V3 @bd8533f (newer submission d9bf614 pending)"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
-   "candidate": "d9bf614",
-   "note": "slice 4: Matroska ContentEncodings (zlib, header stripping, stacked; encryption/bzlib/lzo refused) + A_PCM int/float decode (b105e4c, c952022, 0993b25; ffprobe/libavcodec/zlib oracles); MXF OP1a/OP-Atom index reader per ST 377-1 (231115f, d9bf614; offsets match ffprobe; essence opaque; multi-partition constant path synthetic only); IndexCache over MkvIndex (bb1ad00); 35 default / 39 av1 green; V4-01 still missing on isobmff/fragments/wav/y4m/identity/registry (~110 sites)",
+   "candidate": "3c82784",
+   "note": "V4 hardening 2a6f32e/3c82784/b555905: deny(arithmetic_side_effects) on identity/registry/wav/y4m/isobmff/fragments (111 sites); 7 latent bugs fixed (y4m frame count wrap, y4m 805 MB alloc from 41-byte file, wav clamped byte rate, isobmff stsz 160 MB reservation, read_sample 4 GiB pre-check, fMP4 silent partial index after 2^20 boxes -> LimitExceeded, Read n>len trust); 48 default / 52 av1 green; red proof on old sources (805 MB, 160 MB, 4.29 GB allocations seen)",
    "review_findings": "R2-review-b 7 CONFIRMED fixed 75a4d89 (regression tests)",
    "review_findings_r3": "R3 FAIL_V1 remediated dcc1b37 (checked lace sum + duration fill)"
   },
