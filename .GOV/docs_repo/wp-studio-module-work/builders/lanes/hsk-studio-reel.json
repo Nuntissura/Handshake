@@ -13,7 +13,8 @@
     {"sha": "34ec20a", "subject": "slice3: sampled source identity + full digest + relink (sha2 0.10.9 force-soft)"},
     {"sha": "75a4d89", "subject": "STUDIO-R2 confirmed findings fixed + hostile-input regression per bug"},
     {"sha": "b96a33e", "subject": "migrate tick/fps conversion to accord Timescale (SMB-ACCORD-ENG-2)"},
-    {"sha": "fa365cd", "subject": "slice3: Matroska/WebM EBML demux index, cue-based seek, matroska provider in the standard registry"}
+    {"sha": "fa365cd", "subject": "slice3: Matroska/WebM EBML demux index, cue-based seek, matroska provider in the standard registry"},
+    {"sha": "dcc1b37", "subject": "R3 confirmed findings: checked lace-size sum + checked duration fill (Matroska), one hostile-input regression each"}
   ],
   "capabilities_done": [
     "slice1: MediaProvider port, Registry, ISOBMFF/MOV index + frame-accurate seek + packets, WAV, Y4M, observe report",
@@ -21,21 +22,22 @@
     "slice3 Matroska/WebM: EBML header + DocType check, Segment (known/unknown size), SeekHead/Void skipped, Info (TimestampScale divisor of 1e9, Duration), Tracks (codec id/private, default duration, lacing flag, video/audio params, codec delay, seek pre-roll, ContentEncodings flagged), Clusters (known/unknown size, truncated tail), SimpleBlock + BlockGroup (BlockDuration, ReferenceBlock), Xiph/EBML/fixed lacing, Cues; exact PTS in ticks via accord Timescale, open-GOP pre-roll, packets via shared deliver_packets; Decoded = CodecUnavailable(CodecID); content-encoded tracks typed Unsupported",
     "slice3 cued_seek: Cues -> start cluster, bounded partial scan, same SeekResult as the full index plus file offsets and clusters_scanned",
     "slice3 identity/relink: SourceIdentity (len + SHA-256 over head/tail/interior windows), full_digest, relink with Sampled vs Full confidence, ambiguity never resolved silently, optional full verification",
+    "R3 fixes (dcc1b37, SMB-REEL-ENG-3): matroska.rs lace-size sum via try_fold/checked_add -> Corrupt lace-sizes-exceed-block; finish_durations checked_sub (falls back, never panics); tests/review_r3_regressions.rs r3_1/r3_2 (RED on 404ff3a code: overflow panics at accum.rs / matroska.rs:1045; GREEN after fix)",
     "R2 fixes: wav truncation underflow, y4m non-ASCII token, moov largesize overflow, unaligned edit start (trim_start), PCM chunk runs charge the budget, sound version typed, index bound to source_len, original grant verified before proxy probe",
     "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-reel --no-fail-fast",
     "exit": 0,
-    "sha": "fa365cd",
-    "passed": 20,
+    "sha": "dcc1b37",
+    "passed": 22,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "validator round on fa365cd; candidate follow-ups: Matroska ContentEncodings (header stripping) and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
-  "updated_at": "2026-10-11T02:37:10Z",
+  "updated_at": "2026-10-11T03:03:43Z",
   "notes": {
     "decisions": [
       {"id": "reel-no-pulse-edge", "by": "coordinator 2026-10-11", "text": "NO reel->pulse edge; reel exposes raw tmcd fields (TimecodeDescription, TimecodeStart); consumers format labels with pulse."}

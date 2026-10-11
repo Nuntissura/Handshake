@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:01:38Z",
+ "updated_at": "2026-10-11T03:09:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -64,8 +64,8 @@
    "lane_id": "SMB-DEVELOP",
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [
@@ -80,10 +80,10 @@
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
-   "candidate": "12e3043",
+   "candidate": "d40d553",
    "note": "11 tests + 1 ignored real-DNG; prism output route; 24MP full develop 3.3s scalar; real CC0 DNGs await Operator download approval (D10)",
    "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)"
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -519,12 +519,17 @@
    "lane_id": "SMB-INTEROP-LRCAT",
    "crate": "hsk-studio-interop-lrcat",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-lrcat",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-lrcat",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "e478186",
+    "bab2221"
+   ],
+   "verdicts": [],
+   "candidate": "bab2221",
+   "note": "bounded read-only SQLite-byte decoder (no engine, CX-503R), WAL overlay gated, fingerprint SourceChanged; 5 tests + break-it; Lightroom schema UNVERIFIED (D12)"
   },
   {
    "lane_id": "SMB-MOTION-JS",
@@ -989,20 +994,40 @@
    "crate": "hsk-studio-develop",
    "origin": "prism ENG lanes landed",
    "scope": "output via WideEngine large chunks + demosaic speed tables, byte-identical output",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "fresh builder",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "d40d553"
+   ],
+   "verdicts": [],
+   "candidate": "d40d553",
+   "note": "WideEngine output + speed tables (byte-identical); 24MP demosaic 1628->398ms"
   },
   {
    "lane_id": "SMB-PACKAGE-STREAM-SAVE",
    "crate": "hsk-studio-package",
    "origin": "session slice 3: save peaks ~4.25x asset size",
    "scope": "writer-based streaming package save (assets streamed from source readers, bounded memory) + atomic save over a streaming writer; session migrates after",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-package-stream",
+   "commits": [
+    "0dfac5e"
+   ],
+   "verdicts": [],
+   "candidate": "0dfac5e",
+   "note": "streaming save: 64MiB asset peak heap 1283 KiB; byte-identical to buffered; failure safety; session migration dispatched to session remediation agent"
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "origin": "develop-wide: wide transform ~110 ns/px",
+   "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "blocked_on": "after SMB-PRISM-ENG-5 agent releases crate",
    "commits": [],
    "verdicts": []
   }

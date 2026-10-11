@@ -477,7 +477,7 @@
    "model": "sonnet",
    "role": "develop WideEngine + speed",
    "launched": "2026-10-11T02:39:54Z",
-   "status": "running"
+   "status": "done d40d553"
   },
   {
    "name": "builder-interop-lrcat",
@@ -485,7 +485,7 @@
    "model": "sonnet",
    "role": "interop-lrcat slice 1",
    "launched": "2026-10-11T02:46:55Z",
-   "status": "running"
+   "status": "done bab2221"
   },
   {
    "name": "builder-interop-layout",
@@ -509,7 +509,7 @@
    "model": "sonnet",
    "role": "package streaming save",
    "launched": "2026-10-11T02:53:18Z",
-   "status": "running"
+   "status": "done 0dfac5e"
   },
   {
    "name": "builder-folio-eng-4",
