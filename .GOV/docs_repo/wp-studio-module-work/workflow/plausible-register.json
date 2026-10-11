@@ -1231,7 +1231,7 @@
    "status": "OPEN",
    "verified_at": "71be1aa",
    "disposition": "FIX_LANE",
-   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+   "disposition_note": "render-cpu part fixed b8b31c7; remainder split to PLR-082"
   },
   {
    "id": "PLR-071",
@@ -1352,6 +1352,66 @@
    "verified_at": "4b76604",
    "disposition": "FIX_LANE",
    "disposition_note": "doc rewording + tests in the next reel-native lane"
+  },
+  {
+   "id": "PLR-079",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "file_line": "tests/effects_ops.rs:337-341 vs extensions.rs:386",
+   "finding": "changed nested() fixture no longer pins the layer.input.0 < node guard (root is node 2; node 1 unreachable)",
+   "first_seen": "R15-review-a",
+   "seen_in": [
+    "R15-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "b8b31c7",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+  },
+  {
+   "id": "PLR-080",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "file_line": "tests/plan_followups.rs:1183 (PLR-073 tripwire)",
+   "finding": "tripwire misses extensions.layers inside admit_extended_with_limits, other parameter names, const fn and new files",
+   "first_seen": "R15-review-a",
+   "seen_in": [
+    "R15-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "b8b31c7",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+  },
+  {
+   "id": "PLR-081",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "file_line": "pigment/render-cpu docs (3 sentences)",
+   "finding": "three added never/guarantees doc sentences lack the V4-07 test citation",
+   "first_seen": "R15-review-a",
+   "seen_in": [
+    "R15-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "b8b31c7",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+  },
+  {
+   "id": "PLR-082",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "file_line": "render-gpu plan_sink.rs:964-965 + effect budgets",
+   "finding": "PLR-070 split: render-cpu closed; render-gpu caller limits (D20) and envelope effect budgets as PlanLimits remain open",
+   "first_seen": "R15-review-a",
+   "seen_in": [
+    "R15-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "b8b31c7",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
   }
  ],
  "process_items": [

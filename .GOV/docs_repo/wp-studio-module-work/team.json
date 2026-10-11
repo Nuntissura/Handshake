@@ -2241,7 +2241,7 @@
     "validation/R15-review-a.json"
    ],
    "launched": "2026-10-11T23:35:29Z",
-   "status": "running"
+   "status": "done 2026-10-11T23:59:29Z (COMPLETE: PASS_WITH_NOTES; PLR-079..082)"
   },
   {
    "name": "validator-r15",
