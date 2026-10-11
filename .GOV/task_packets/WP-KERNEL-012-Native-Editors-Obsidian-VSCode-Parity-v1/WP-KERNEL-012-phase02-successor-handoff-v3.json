@@ -6,8 +6,8 @@
   "version": 3,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "phase_id": "PHASE-02",
-  "updated_at": "2026-10-11T18:59:05.397299+00:00",
-  "updated_at_utc": "2026-10-11T18:59:05.397299+00:00",
+  "updated_at": "2026-10-11T20:05:48.586Z",
+  "updated_at_utc": "2026-10-11T20:05:48.586Z",
   "status": "CURRENT_HANDOFF_PHASE02_V3_OPEN_SOURCE_CLEAR135_ROUND29_RUNNING_AUTH_PROPOSAL_PENDING",
   "authority_precedence": [
     "Live Operator direction",
@@ -111,7 +111,7 @@
     "accepted_mts": {
       "accepted": 0,
       "total": 5,
-      "basis": "All current MT171\u2013175 lifecycle BLOCKED, validator_verdict null, completed_by null"
+      "basis": "All current MT171–175 lifecycle BLOCKED, validator_verdict null, completed_by null"
     },
     "compiler": "Actual Round29 required wholecore RUNNING exitnull on reviewed135freeze24a6c349; result/postbinding pending. Latest completed Round28FAILED101 preserved historical. No compilerPASS/runtime/native/acceptance0of5.",
     "record_staleness": "Leader reconciled MT172/MT173 remedy aggregate states to AFFECTED_SOURCE_CLEAR_COMPILER_AND_ACCEPTANCE_PENDING and MT174 current_proof_floor to both affected source rechecks. Historic SOURCE_BLOCKED findings remain history; ALL lifecycle/scope/closure/acceptance preserved. Older grant aggregate30-error/pending-review labels still lag exact round04; use newest owning attempt/evidence.",
@@ -203,7 +203,7 @@
         "sha256": "d4ea2226c801bff2ff7b34c445fcbbf458295cc17192223b78d67a6c2afde8d2",
         "verification": "Leader verified exact binding",
         "changed_files": "candle_e2e_smoke and model_registry only",
-        "producer_report": "37 unchanged dependencies;both syntax exits0;original production query digest unchanged;assertion counts40\u219241,12\u219212,13\u219211 with two PG-gate assertions replaced by actual engine fault claimed",
+        "producer_report": "37 unchanged dependencies;both syntax exits0;original production query digest unchanged;assertion counts40→41,12→12,13→11 with two PG-gate assertions replaced by actual engine fault claimed",
         "review_requirement": "Independent reviewer must verify every original proof-strength obligation,not assertion count;current affected review dispatched source-only",
         "delivery_preparation": {
           "status": "PREPARED_EXPLICIT_RUN_DISPATCHED_CARGO_START_UNVERIFIED",
@@ -317,7 +317,7 @@
         "path_kernel_relative": "../Handshake_Artifacts/WP-KERNEL-012/MT-172/coder-team-leader/round17-user-manual-connected/bindings.json",
         "sha256": "a6e2480c35b97a455617fcd977fdf4134f2158095a4ed31d665d9a0b4f38f7c0",
         "verification": "Recorder independently opened/parsed/rehashed exact combined binding;coder reports A/B complete/frozen. Delivery L1 independently reports72/72unique live paths match. No independent source verdict.",
-        "reported_inputs": "6changed+59unchanged+7additional dependencies=72;producerbcf5f2799bcc7c4e69cd7e2dec047fce66be740e5a1a80cf4bf559dd82926f15 and wiring6ecd67... match per delivery L1;prior facadea639\u2192foundationb4ff lineage/mappings retained.",
+        "reported_inputs": "6changed+59unchanged+7additional dependencies=72;producerbcf5f2799bcc7c4e69cd7e2dec047fce66be740e5a1a80cf4bf559dd82926f15 and wiring6ecd67... match per delivery L1;prior facadea639→foundationb4ff lineage/mappings retained.",
         "independent_review": "Final independent combined review NOT_SOURCE_CLEAR on a6e248...:F-R17-R1P1 cyclic different-tool-ID overwrite breaks repeat seed tools_changed0/no receipt. Both reviewer helpers COMPLETE;wiring slice only SOURCE_CLEAR,no combined source-clear.",
         "delivery_readiness": "L1 completed READ_ONLY:minimum future private-wrapper adaptation current binding path/hash;traverse facade then foundation mappings;include additional_dependencies;verify both coder freezes. Existing profile/wrapper unchanged;review and root build admission pending.",
         "limits": "No launch/wrapper mutation admitted before review/readiness;no SOURCE_CLEAR/compiler/runtime/acceptance advancement. Old bad unpublished manifest explicitly NOT PROOF;history retained,0of5.",
@@ -892,7 +892,7 @@
       "coordination_corrections": [
         {
           "id": "WP012-P2-R19-AUTH-CORRECTION-001",
-          "correction": "Explicit correction:diagnosis directly opened api/authority1046-1066 native channel capture+64hex token\u2192state.surreal.authenticate_local_session,and storage/local_accounts325 real SDK record access\u2192canonical LocalSessionContext. Real production authentication EXISTS;stale account_scope no-auth-layer documentation cannot support global absence. Scope parser remains persisted tuple parsing. Missing scoped handoff is shared ResourceAccessLifecycleRegistry owner/registration/invalidation from real authentication.",
+          "correction": "Explicit correction:diagnosis directly opened api/authority1046-1066 native channel capture+64hex token→state.surreal.authenticate_local_session,and storage/local_accounts325 real SDK record access→canonical LocalSessionContext. Real production authentication EXISTS;stale account_scope no-auth-layer documentation cannot support global absence. Scope parser remains persisted tuple parsing. Missing scoped handoff is shared ResourceAccessLifecycleRegistry owner/registration/invalidation from real authentication.",
           "limits": "Coordination correction only,not new feature/requirement approval;mutation held and acceptance0of5 unchanged"
         }
       ]
@@ -1249,10 +1249,40 @@
       "cache_pid": 23284,
       "physical_disk": 0,
       "free_bytes_before": 413474369536,
-      "target_bytes_before": 11828640041.0,
+      "target_bytes_before": 11828640041,
       "cap_bytes": 180000000000,
       "runtime_acceptance": "NOT_RUN",
-      "proof_limits": "Result/postbinding pending; no compilerPASS/native/runtime/Git acceptance0of5. Auth proposal approvals remain pending."
+      "proof_limits": "Result/postbinding pending; no compilerPASS/native/runtime/Git acceptance0of5. Auth proposal approvals remain pending.",
+      "verification_observation": {
+        "id": "WP012-P2-ROUND29-STATUS-RECOVERY-001",
+        "observed_at_utc": "2026-10-11T20:05:48.586Z",
+        "state": "Direct Node fs actual state RUNNING/exitnull; last owned observation confirms Cargo52564. Result/postbinding absent from actual directory; stderr only Compiling handshake_core",
+        "latest_wrapper_observation": {
+          "utc": "2026-10-11T20:05:00.6008158Z",
+          "cargo_pid": 52564,
+          "target_bytes": 11828307762,
+          "cap_bytes": 180000000000
+        },
+        "access_recovery": "Read-only Node fs path recovered; earlier PowerShell read sessions79169/83170/root20825 remained pending without result. Current diagnosis dispatch1144 now confirmed by root; delivery informed",
+        "limits": "No exit/PASS/runtime/native acceptance; earlier wait/cache historical root cause unproven"
+      },
+      "current_resource_sample": {
+        "id": "WP012-P2-ROUND29-RESOURCE-SAMPLE-001",
+        "recorded_at_utc": "2026-10-11T20:05:48.586Z",
+        "sample_timestamp": "Root live WMI measurement; exact sample timestamp not supplied; dated on recording",
+        "provenance": "Parent root direct live WMI measurement report, not recorder WMI query",
+        "physical_bytes": 16652169216,
+        "available_MiB": 469,
+        "committed_bytes": 55554949120,
+        "pages_input_per_second": 78167,
+        "page_reads_per_second": 12624,
+        "disk_bytes_per_second": 158051687,
+        "disk_queue": 58,
+        "rustc_pid": 47108,
+        "rustc_private_bytes": 10361667584,
+        "conclusion": "Current memory pressure evidenced by dated live sample; exact earlier fifteen-minute delay/cache root cause UNPROVEN",
+        "limits": "No new build/settings/process/source authority or proof invalidation inferred"
+      }
     }
   },
   "current_workflow": {
@@ -2665,7 +2695,7 @@
     }
   ],
   "resume_next_actions": [
-    "Monitor actual Round29 required wholecore RUNNING Cargo52564/wrapper22652 on SOURCE_CLEAR13524a6c349; result/postbinding pending, no PASS. Preserve frozen inputs/current warm target/profile/cache and existing owned monitoring limits. R2 adoption+Spec11.1.6 exact human registry diff approval pending; no auth contract scope amendment/publication. All0of5/runtime/native limits retained.",
+    "Use recovered read-only Node fs for actual Round29 status/owned observations if shell reads hang. Actual stateRUNNING/exitnull/latest owned sample2026-10-11T20:05:00.6008158Z Cargo52564; no result/postbinding. Current WMI memory-pressure sample is evidenced, historical delay/cache cause unproven. Delivery informed/diagnosis dispatch confirmed; existing owned thresholds only, no foreign intervention/newbuild/settings. Preserve inputs/source135/accepted0of5/auth approvals pending.",
     "Diagnosis chat01a129cd-bd03-73a2-a09a-60efba6055f3 awaits exact unresolved F2 question or actual compiler failure after narrow steering stopped F3 exploration. Source-observed pending acquisition token/envelope retention is not a verdict. Four fresh other chats startup VERIFIED; reviewer/delivery ownership unchanged.",
     "Preserve actual canonical targetbindingsNone; earlier recomputation recommendation is RETRACTED, no new algorithm. F1 sourcefix does not prove compile/runtime. Retain partial5ebc.../all originalF1-F5/001-007/controller/full8A-H/history then fullrawre-freeze/independent affected review/gameplan wholeCargo/actual perMTcompiledcheckpoint+push/independent canonical engine runtime HBR.",
     "Freeze the whole connected changed boundary and assertion mapping once; independent affected source review before current required full-core compile. Reuse only unchanged prior evidence; no SQLx blind restore, exclusion, weakened assertions or --lib substitute.",
@@ -5613,7 +5643,7 @@
       "overall": "Finish retained WP012 behavior, independent combined acceptance, independent integration and agreed deployment, then remaining original source work; no earlier phase or scope reset.",
       "progress_metric": "Frozen changed product deltas, actual required compiler/runtime outcomes and independent acceptance; coordination volume/source review count is not accepted completion."
     },
-    "progress": "Final retirement135freeze24a6c349 independently SOURCE_CLEAR source-only; actual Round29 RUNNING wrapper22652/Cargo52564 exitnull required wholecore, result/postbinding pending. Latest completedRound28FAILED101 historical; allMTBLOCKED/nullverdicts/accepted0of5/runtimeNOT_RUN.",
+    "progress": "Final retirement135freeze24a6c349 independent SOURCE_CLEAR source-only. Round29 actual state RUNNING/exitnull recovered via Node fs; latest owned observation2026-10-11T20:05:00.6008158Z Cargo52564 target11828307762B. Result/postbinding absent/stderr onlyCompiling. Current memory-pressure sample recorded, earlier delay/cache cause UNPROVEN;accepted0of5/runtimeNOT_RUN.",
     "operator_retirement": {
       "quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
       "scope": "Actual explicitly authorized backend-test retirement source changes executed by assigned coder, not recorder:20paths10deletions. Capture repaired preserving three valid cases/noPGexecutor;135-input replacement freeze pending independent affected review. Valid Surreal/prohibition coverage and historical raw backups remain required; coverage gaps under investigation, not waived.",
@@ -5792,7 +5822,7 @@
     "agent_rules_ref": "teams/current_workflow/monitoring;root high-level developer leader,direct peer scoped helpers/exclusive file owner/one combined freeze/independent affected review/separate acceptance authority. Current coder /root/round19_boot_coder frozen standby;old external coder no future repair dispatch.",
     "dos_donts": "Current MT authority wins;preserve raw bytes/history/valid Surreal/prohibition coverage. No PostgreSQL/SQLite execution revival/SQLx add/fake auth-env-active/test skip-gate-delete substitute/lib-only acceptance/foreign process disruption/overlap/frozen proof edits. No duplicate broad audit/repeated green checks.",
     "timesinks": "Full connected source-bound closure before exact facade/caller fixes;avoid incomplete recipes/blind imports/per-coderCargo/new targets-profiles/cache restarts/unnecessary serial waits/root technical relay bottleneck. Reuse valid unaffected evidence/focused new dependency additions;do not confuse source-clear with compiler/runtime proof.",
-    "next_actor": "Delivery monitor owned Round29 and capture numeric exit/postbinding; no native/runtime until actual required predecessorPASS. R2 adoption and exact registry human review await actual user answer, proposal-only/no publication.",
+    "next_actor": "Delivery continue owned monitoring/status verification; read-only diagnosis dispatch confirmed for recovered host/status-access path. Numeric result/postbinding still unproven, inputs frozen; no new builds/settings/process intervention. R2 adoption/human registry review pending.",
     "coordination_observation": {
       "id": "WP012-P2-V3-TRANSPORT-FALLBACK-001",
       "actual": "Root-owned app toolcells1060/1062/1068 terminated after pending more than10min; wait/send/automation update completion unknown, no applied update claimed. Actual local scope reviewer and primary coder/disjoint child fallback used; retired coder chat not resumed.",
