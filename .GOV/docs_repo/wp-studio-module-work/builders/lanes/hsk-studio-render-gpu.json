@@ -5,6 +5,10 @@
   "phase": "slice 5 (a6ac630): Blend-If agreement check against pigment evaluate_stack (adjustment layer + plain layer agree, clip-base ranges refused as blend_if_clip_base because pigment does not define them), layer effects waves 1+2 (drop shadow, colour overlay, stroke, inner shadow, outer glow, inner glow) as WGSL matte passes with frame margins, reported operator classes never above pigment's. Earlier: R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
   "commits": [
     {
+      "sha": "ba3e47d",
+      "subject": "render-gpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
+    },
+    {
       "sha": "2aeeeba",
       "subject": "render-gpu: align Blend-If clip-role refusals to pigment's keys and roles (SMB-BLENDIF-CLIP-ADOPT)"
     },
@@ -88,9 +92,269 @@
   "blockers": [],
   "lock_wait_s": 772,
   "bg_pids": [],
-  "next": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
-  "updated_at": "2026-10-11T10:11:27Z",
+  "next": "SMB-REFUSAL-KEYS READY_FOR_VALIDATION on ba3e47d (new lane id; the claim of the top-level lane stays a6ac630, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on ba3e47d for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+  "updated_at": "2026-10-11T11:02:48Z",
   "notes": {
+    "refusal_keys": {
+      "lane": "SMB-REFUSAL-KEYS",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "ba3e47d",
+      "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/plan_sink.rs (prepare, verify_tile; imports; group_node read before the run walk; refusal_keys module declaration)",
+        "src/fx.rs (from_effect incl. new EffectError::Unsupported arm; compile_effect unknown kind)",
+        "src/ext.rs (compile_adjustment unknown kind)",
+        "src/plan_sink/refusal_keys.rs (new, cfg(test))"
+      ],
+      "changes": [
+        {
+          "rule": "samples outside [0, 1]",
+          "before": "literal sample_range_outside_unit",
+          "after": "SAMPLE_RANGE_OPERATOR"
+        },
+        {
+          "rule": "coverage mask with density below 1 on the v1 path",
+          "before": "literal mask_density",
+          "after": "MASK_DENSITY_OPERATOR"
+        },
+        {
+          "rule": "pass-through layer below full fill",
+          "before": "reported under the opacity key (group_pass_through_opacity), one check for opacity or fill; pigment admit reports group_pass_through_fill_opacity",
+          "after": "two checks in admission order: opacity -> Operator::PassThroughOpacity.key(), fill -> PASS_THROUGH_FILL_OPERATOR"
+        },
+        {
+          "rule": "non-isolated blended group; blend mode without a body; mask format without a reader",
+          "before": "literals group_non_isolated_blended, blend_mode, mask_format",
+          "after": "Operator::NonIsolatedBlendedGroup.key(), Operator::Blend(mode).key(), Operator::Mask(format).key()"
+        },
+        {
+          "rule": "gradient glow, glow range, glow jitter, Precise technique (EffectError::Unsupported)",
+          "before": "fell into the wildcard and was reported as effect_parameter",
+          "after": "EffectFeature::key, the key admit_extended reports"
+        },
+        {
+          "rule": "effect kind / adjustment kind without a GPU encoding (unknown future variants)",
+          "before": "literals effect_kind, adjustment_kind",
+          "after": "ExtOperator::Effect(kind).key(), AdjustmentKind::key (as the supported check already did for known kinds)"
+        },
+        {
+          "rule": "clipping run whose base is a pass-through group",
+          "before": "literal clip_base_pass_through (Unsupported)",
+          "after": "BackendError::InvalidPlan(PlanError::ClipBasePassThrough { node }) exactly as pigment's validation returns it"
+        }
+      ],
+      "keys_changed_on_defence_only_paths": [
+        "only on paths that shared admission refuses before any device use: clip_base_pass_through -> InvalidPlan(plan_clip_base_pass_through); pass-through fill below 1: group_pass_through_opacity -> group_pass_through_fill_opacity (the one real drift, fixed); blend_mode -> the mode's key; mask_format -> the format's key; effect_kind / adjustment_kind -> the kind's key (unknown future variants only, unreachable today); effect_parameter -> the feature key for EffectError::Unsupported. Strings already equal to pigment's (sample_range_outside_unit, mask_density, group_pass_through_opacity, group_non_isolated_blended) are byte-identical. Blend-If clip roles and knockout/adjustment kind keys already came from pigment (unchanged)."
+      ],
+      "tests_added": [
+        "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments (src/plan_sink/refusal_keys.rs)"
+      ],
+      "tests_changed": {},
+      "test_detail": "same seven rules as render-cpu through the GPU prepare (GpuBackend with BackendChoice::None, so no adapter is needed and nothing is NOT_PROVEN) plus the four EffectFeature cases against admit_extended; the pass-through fill case would fail on the old code (opacity key)",
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-render-cpu",
+          "-p",
+          "hsk-studio-render-gpu",
+          "-p",
+          "hsk-studio-composite",
+          "--no-fail-fast"
+        ],
+        "exit": 0,
+        "sha": "ba3e47d",
+        "passed": 22,
+        "failed": 0,
+        "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
+      },
+      "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu",
+      "pigment_gaps": [
+        "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
+      ],
+      "not_changed": [
+        "backend-owned keys pigment's admission does not report: plan_shape, effects_with_blend_if, effect_cost, effect_size, effect_plan, mask_feather_radius, mask_feather_cost, blend_if_channel, blend_if_entries, curves_lut, alpha_premultiplied, sample_format, mask_on_pass_through",
+        "effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun.",
+        "tests/gpu_plan.rs and tests/gpu-proof.toml untouched; the test-faults gating of 459c5d9 is untouched"
+      ],
+      "v4": {
+        "V4-01": "deny(clippy::arithmetic_side_effects) kept on every touched module; the only new conversions are u32::try_from(node index) with the typed overflow error",
+        "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
+        "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 41 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 24, 'FIXED': 11, 'PIGMENT_ALREADY': 6}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
+        "V4-07": "no DESCRIPTOR text names a changed key",
+        "V4-09": "commit message through git commit -F",
+        "V4-11": "no file restored; no scratch tree"
+      }
+    },
+    "v4_06_regex": "\\bunsupported\\(|\\bUnsupported\\s*\\{|FxError::Unsupported\\(|\\bErr\\(\"[a-z_]+\"\\)|\\bok_or\\(\"[a-z_]+\"\\)|Unavailable\\(\"[a-z_]+\"\\)|\\bPlanError::[A-Za-z]+ \\{",
+    "v4_06_sites": [
+      {
+        "file_line": "src/ext.rs:57",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_channel' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/ext.rs:65",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_entries' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/ext.rs:70",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_entries' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/ext.rs:115",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'curves_lut' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/ext.rs:130",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'curves_lut' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/fx.rs:108",
+        "verdict": "FIXED: EffectFeature::key (EffectError::Unsupported arm added; was effect_parameter)"
+      },
+      {
+        "file_line": "src/fx.rs:109",
+        "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+      },
+      {
+        "file_line": "src/fx.rs:128",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/fx.rs:130",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/fx.rs:223",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/fx.rs:352",
+        "verdict": "FIXED: ExtOperator::Effect(kind).key() (was effect_kind)"
+      },
+      {
+        "file_line": "src/fx.rs:378",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_plan' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:202",
+        "verdict": "PIGMENT_ALREADY: operator is Operator::key() / the unsupported() helper argument"
+      },
+      {
+        "file_line": "src/plan_sink.rs:239",
+        "verdict": "PIGMENT_ALREADY: key from blend_if_clip_refusal (ExtOperator::key) or the FxError payload"
+      },
+      {
+        "file_line": "src/plan_sink.rs:316",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:352",
+        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+      },
+      {
+        "file_line": "src/plan_sink.rs:360",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'mask_feather_radius' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:365",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'mask_feather_cost' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:382",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:385",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'sample_format' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:443",
+        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+      },
+      {
+        "file_line": "src/plan_sink.rs:468",
+        "verdict": "FIXED: Operator::PassThroughOpacity.key()"
+      },
+      {
+        "file_line": "src/plan_sink.rs:471",
+        "verdict": "FIXED: PASS_THROUGH_FILL_OPERATOR"
+      },
+      {
+        "file_line": "src/plan_sink.rs:475",
+        "verdict": "FIXED: Operator::NonIsolatedBlendedGroup.key()"
+      },
+      {
+        "file_line": "src/plan_sink.rs:478",
+        "verdict": "FIXED: Operator::Blend(mode).key()"
+      },
+      {
+        "file_line": "src/plan_sink.rs:490",
+        "verdict": "PIGMENT_ALREADY: Knockout::key"
+      },
+      {
+        "file_line": "src/plan_sink.rs:524",
+        "verdict": "FIXED: MASK_DENSITY_OPERATOR"
+      },
+      {
+        "file_line": "src/plan_sink.rs:527",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'mask_on_pass_through' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:534",
+        "verdict": "FIXED: Operator::Mask(format).key()"
+      },
+      {
+        "file_line": "src/plan_sink.rs:595",
+        "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+      },
+      {
+        "file_line": "src/plan_sink.rs:606",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effects_with_blend_if' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:618",
+        "verdict": "PIGMENT_ALREADY: key from blend_if_clip_refusal (ExtOperator::key) or the FxError payload"
+      },
+      {
+        "file_line": "src/plan_sink.rs:682",
+        "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1047",
+        "verdict": "PIGMENT_ALREADY: operator is Operator::key() / the unsupported() helper argument"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1402",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1527",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1579",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1670",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1781",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/plan_sink.rs:1971",
+        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_cost' (pigment admission does not report this rule under it)"
+      },
+      {
+        "file_line": "src/report.rs:12",
+        "verdict": "NOT_APPLICABLE: report mapping of an error to Outcome, no key"
+      }
+    ],
     "blendif_clip_adopt": {
       "lane": "SMB-BLENDIF-CLIP-ADOPT",
       "status": "READY_FOR_VALIDATION",

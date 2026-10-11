@@ -5,6 +5,10 @@
   "phase": "adjustments + mask parameters + Blend-If + knockout + effects waves 1/2 + real folio graph adjustment layers lowered; remediation_R6 (pass-through fill ledger); compiled, clippy clean, 22/22 on pushed b2cf5c6",
   "commits": [
     {
+      "sha": "b7064fc",
+      "subject": "composite: the pass-through clip-base refusal key is pigment's PlanError code, not a literal (SMB-REFUSAL-KEYS, PLR-006)"
+    },
+    {
       "sha": "1f99350",
       "subject": "composite: report Blend-If clip-role operators like pigment and refuse Blend Clipped Layers as Group off (SMB-BLENDIF-CLIP-ADOPT)"
     },
@@ -105,9 +109,334 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
-  "updated_at": "2026-10-11T10:11:27Z",
+  "next": "SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+  "updated_at": "2026-10-11T11:02:48Z",
   "notes": {
+    "refusal_keys": {
+      "lane": "SMB-REFUSAL-KEYS",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "b7064fc",
+      "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/lower_extensions.rs (REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough { node: 0 }.code())",
+        "src/evaluate_static.rs (ledger key and evaluation reason use the constant; doc)",
+        "src/lower_render_plan.rs (lowering reason uses the constant; doc)",
+        "src/lib.rs (DESCRIPTOR render_plan_mapping text and proof map entry refusal_keys)",
+        "tests/render_plan_lowering.rs (pass_through_base_fixture helper; the existing pass-through clip-base test compares with the pigment code; new test)"
+      ],
+      "changes": [
+        {
+          "rule": "clipping run whose base is a rendered pass-through group",
+          "before": "literal clip_base_pass_through (evaluate_static.rs ledger.record and reason, lower_render_plan.rs reason)",
+          "after": "REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough code plan_clip_base_pass_through, the way PlanError::AdjustmentClipBase and EffectClipRun are already used for the other clip-base entries"
+        }
+      ],
+      "keys_changed_on_defence_only_paths": [
+        "evaluation-ledger operator key and the Unavailable reason text for a pass-through clip base: clip_base_pass_through -> plan_clip_base_pass_through (class Unsupported, step Unavailable and the lowering refusal are unchanged). Public observable: RenderReceipt exactness operator key and StepStatus::Unavailable / CompositeError::Unavailable text; no other crate matches the old string (grep over the workspace at 2026-10-11T11:01:46Z: only a pigment test fn name and plan_-prefixed text remain)."
+      ],
+      "tests_added": [
+        "refusal_keys_are_pigments (tests/render_plan_lowering.rs)"
+      ],
+      "tests_changed": {
+        "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger": "asserts the pigment code (PlanError::ClipBasePassThrough { node: 0 }.code()) instead of the literal; fixture moved to pass_through_base_fixture, shared with the new test"
+      },
+      "test_detail": "refusal_keys_are_pigments: (1) pigment validate on a hand-built plan [solid, non-isolated group, isolated root with a pass-through layer over the group and a clipped layer] is Err(PlanError::ClipBasePassThrough { node: 2 }) and composite's evaluation ledger for the equivalent document holds an Unsupported operator with exactly that code; (2) pigment admit on a pass-through layer with fill 0.25 is Unsupported{PASS_THROUGH_FILL_OPERATOR} and composite's ledger for the equivalent document holds that operator as Unsupported. Other composite ledger keys are pigment-derived and were already pinned by evaluation_ledger_keys_and_classes_are_pigments, the adjustment/effects clip-base assertions and blend_if_on_clip_roles_is_reported_and_refused_like_pigment.",
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-render-cpu",
+          "-p",
+          "hsk-studio-render-gpu",
+          "-p",
+          "hsk-studio-composite",
+          "--no-fail-fast"
+        ],
+        "exit": 0,
+        "sha": "ba3e47d",
+        "passed": 25,
+        "failed": 0,
+        "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
+      },
+      "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu; composite is not rustfmt-clean at HEAD (124 pre-existing diffs) so fmt was not applied to it",
+      "pigment_gaps": [
+        "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
+      ],
+      "not_changed": [
+        "composite-owned reason and refusal codes (REFUSE_* constants, clip_without_base, clip_base_adjustment, clipped_pass_through_unsupported, mask_empty, ...): pigment's admission does not report them under these strings; the ledger key of the rules that have a pigment name (adjustment clip base, effects on a clip base, pass-through fill, Blend-If clip roles) was already pigment's",
+        "REFUSE_EFFECT_PARAMETER / REFUSE_EFFECT_LIMIT: effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun.",
+        "lower_render_plan.rs mask_format parse of the tile format strings coverage_u8 / coverage_u16le (an input parse, not a refusal key)"
+      ],
+      "v4": {
+        "V4-01": "no arithmetic added",
+        "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
+        "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 64 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 48, 'PIGMENT_ALREADY': 14, 'FIXED': 2}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
+        "V4-07": "composite DESCRIPTOR cites test refusal_keys_are_pigments for the new key and the proof map lists it; render-cpu / render-gpu DESCRIPTORs name no changed key",
+        "V4-09": "commit message through git commit -F",
+        "V4-11": "no file restored; no scratch tree"
+      }
+    },
+    "v4_06_regex": "\\.record\\(|\\bconst REFUSE_[A-Z_]+: &str|\\breturn Some\\(\"|\\bUnavailable\\(\\s*\"|UnsupportedDescriptor\\(\\s*\"|\"\\{[^\"]*\\}[:/][a-z_/]*[a-z_]+\"|format!\\(\"[^\"{]*\\{[^\"]*\\}:[a-z_]+\"|\\bPlanError::[A-Za-z]+ \\{",
+    "v4_06_sites": [
+      {
+        "file_line": "src/evaluate_static.rs:133",
+        "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:147",
+        "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:196",
+        "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:200",
+        "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:210",
+        "verdict": "NOT_APPLICABLE: composite evaluation concept 'source' (pigment calls it tile)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:214",
+        "verdict": "PIGMENT_ALREADY: StudioBlendMode facts key"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:219",
+        "verdict": "PIGMENT_ALREADY: PASS_THROUGH_FILL_OPERATOR (closed earlier, efda89a)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:246",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:249",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:258",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:396",
+        "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:449",
+        "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:453",
+        "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:467",
+        "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:494",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:498",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:500",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:568",
+        "verdict": "FIXED: REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough code (was clip_base_pass_through)"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:575",
+        "verdict": "PIGMENT_ALREADY: next line passes PlanError::AdjustmentClipBase / EffectClipRun code"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:576",
+        "verdict": "PIGMENT_ALREADY: PlanError::AdjustmentClipBase code"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:585",
+        "verdict": "PIGMENT_ALREADY: next line passes PlanError::AdjustmentClipBase / EffectClipRun code"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:586",
+        "verdict": "PIGMENT_ALREADY: PlanError::EffectClipRun code"
+      },
+      {
+        "file_line": "src/evaluate_static.rs:595",
+        "verdict": "NOT_APPLICABLE: composite-owned ledger key for a file setting (Blend Clipped Layers as Group off) pigment does not define"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:41",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:43",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:45",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:47",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:50",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:52",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:54",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:56",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:58",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:60",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:62",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:64",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:66",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:69",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:71",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:73",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:75",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:78",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:79",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:80",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:81",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:83",
+        "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:90",
+        "verdict": "NOT_APPLICABLE: composite-owned ledger key for a file setting (Blend Clipped Layers as Group off) pigment does not define"
+      },
+      {
+        "file_line": "src/lower_extensions.rs:96",
+        "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:161",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:189",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:222",
+        "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:294",
+        "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:319",
+        "verdict": "PIGMENT_ALREADY: match on pigment's PlanError::AdjustmentUnsupported, key = kind.key() on the next line"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:322",
+        "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:334",
+        "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:459",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:471",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:501",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:553",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:610",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:619",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:720",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:744",
+        "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:879",
+        "verdict": "PIGMENT_ALREADY: ExtOperator key and class"
+      },
+      {
+        "file_line": "src/lower_render_plan.rs:885",
+        "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+      }
+    ],
     "blendif_clip_adopt": {
       "lane": "SMB-BLENDIF-CLIP-ADOPT",
       "status": "READY_FOR_VALIDATION",

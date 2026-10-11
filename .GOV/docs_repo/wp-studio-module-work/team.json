@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:03:27Z",
+ "updated_at": "2026-10-11T11:03:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1421,7 +1421,7 @@
     "crates/hsk-studio-render-gpu/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:03:43Z (SMB-REFUSAL-KEYS READY at ba3e47d)"
   },
   {
    "name": "builder-score-guards",
