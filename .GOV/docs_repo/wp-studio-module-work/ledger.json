@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:32:26Z",
+ "updated_at": "2026-10-11T11:35:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1657,6 +1657,12 @@
     "to": "rem-motionjs-reelnative",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r8_prereview": {
+    "result": "SAFE_TO_JUDGE",
+    "at": "2026-10-11T11:35:03Z",
+    "ref": "validation/R8-prereview-reel.json",
+    "head": "589f544"
    }
   },
   {
@@ -1665,7 +1671,7 @@
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": null,
    "owner": "builder-reel-native-av1 (reused)",
    "commits": [
     "bfef27f",
@@ -1683,7 +1689,20 @@
     "to": "builder-reel-2",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
-   }
+   },
+   "r8_prereview": {
+    "result": "FIX_FIRST (PLR-032 decoded picture vs declared size; fix dispatched)",
+    "at": "2026-10-11T11:35:03Z",
+    "ref": "validation/R8-prereview-reel.json",
+    "head": "589f544"
+   },
+   "blockers": [
+    {
+     "error": "PLR-032 open (pre-review FIX_FIRST, V4-19)",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:293-324",
+     "attempts": 0
+    }
+   ]
   },
   {
    "lane_id": "SMB-PIGMENT-ENG-2",

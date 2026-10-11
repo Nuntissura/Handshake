@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:32:26Z",
+ "updated_at": "2026-10-11T11:35:03Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1511,7 +1511,7 @@
     "validation/R8-prereview-reel.json"
    ],
    "launched": "2026-10-11T11:20:25Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:35:03Z"
   },
   {
    "name": "builder-fx-ops-adopt",
@@ -1536,6 +1536,17 @@
     "validation/R8-prereview-press.json"
    ],
    "launched": "2026-10-11T11:32:26Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-plr032",
+   "agent_id": "PENDING-P32",
+   "model": "sonnet",
+   "role": "reel PLR-032 + PLR-029 before R8",
+   "owns": [
+    "crates/hsk-studio-reel/**"
+   ],
+   "launched": "2026-10-11T11:35:03Z",
    "status": "running"
   }
  ]
