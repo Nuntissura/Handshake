@@ -2206,6 +2206,18 @@
    ],
    "launched": "2026-10-11T22:20:04Z",
    "status": "done 2026-10-11T22:37:22Z (SAFE both; PLR-078)"
+  },
+  {
+   "name": "validator-r14",
+   "agent_id": "a015c1acae1e22e95",
+   "model": "opus",
+   "role": "WP validator STUDIO-R14 on 4b76604 (reel lanes; reuse R13 run if identical)",
+   "owns": [
+    "validation/round-R14.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T22:37:37Z",
+   "status": "running"
   }
  ]
 }
