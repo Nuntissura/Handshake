@@ -2,134 +2,171 @@
  "crate": "hsk-studio-reel-native",
  "lane": "SMB-REEL-NATIVE-FAULTS",
  "status": "READY_FOR_VALIDATION",
- "phase": "PLR-055 (R8 review B, SMB-REEL-NATIVE-AV1-WORKER PLAUSIBLE) confirmed with a red test and fixed: the host classifies a worker picture above the container-declared size as a worker protocol fault before reel's route sees it; pushed 471b679; crate untouched after it (V4-14)",
+ "phase": "PLR-055 fixed at 471b679 (worker picture above the container-declared size is a counted worker protocol fault) and, by lead decision, the same-class adjacent item fixed at a024461 (a FRAME reply to OPEN is a counted worker protocol fault); both pushed, crate untouched after a024461 (V4-14)",
  "commits": [
   {
    "sha": "471b679",
    "subject": "reel-native (SMB-REEL-NATIVE-FAULTS, PLR-055): a worker picture above the container-declared size is a worker protocol fault in the host"
+  },
+  {
+   "sha": "a024461",
+   "subject": "reel-native (SMB-REEL-NATIVE-FAULTS, same class as PLR-055): a FRAME reply to OPEN is a worker protocol fault in the host"
   }
  ],
  "capabilities_done": [
-  "host.rs Pool::exchange: every reply FRAME is compared with the container-declared (width, height) (Call.declared, taken from VideoStreamSpec in open_session via WorkerSession.declared) by within_declared_size BEFORE on_frame hands it to reel's route; a larger picture under the reply cap is Failure::Protocol: protocol_faults +1, worker terminated, Av1Error::Worker(Protocol) with the fault slot filled, no picture delivered. Reel's Forward check stays as defence in depth. Smaller pictures stay legal (AV1-ISOBMFF 2.2.4 / Matroska V_AV1 declare the sequence maximum) and a side declared as 0 is not checked. The OversizeFrame (over the reply cap) path is unchanged and still ends as decoder_output_too_large / killed_oversize.",
-  "test-faults only (V4-04): WorkerTestFault::OversizePicture (every decoded frame answered 2 pixels wider, zeroed planes, 18x16 against the 16x16 fixtures, 483 bytes on the wire against a reply cap of 896) and WorkerTestFault::UndersizePicture (2 pixels narrower and lower, 14x14); worker.rs Faults::reshape is called from flush_batch through a cfg(feature = test-faults) parameter, so a product worker has neither the hook nor the parameter",
-  "DESCRIPTOR bound and module docs name the rule and cite the tests (V4-07)"
+  "host.rs Pool::exchange: every reply FRAME is compared with the container-declared (width, height) (Call.declared, taken from VideoStreamSpec in open_session via WorkerSession.declared) by within_declared_size BEFORE on_frame hands it to reel's route; a larger picture under the reply cap is Failure::Protocol: protocol_faults +1, worker terminated, Av1Error::Worker(Protocol) with the fault slot filled, no picture delivered. Reel's Forward check stays as defence in depth. Smaller pictures stay legal (AV1-ISOBMFF 2.2.4 / Matroska V_AV1 declare the sequence maximum) and a side declared as 0 is not checked. The OversizeFrame (over the reply cap) path is unchanged and still ends as decoder_output_too_large / killed_oversize. (471b679)",
+  "host.rs Pool::exchange: a FRAME reply is taken only for a batch request (arm guard want == Want::BatchEnd); a FRAME answering OPEN falls to the existing catch-all arm: Failure::Protocol, protocol_faults +1, worker terminated, Av1Error::Worker(Protocol) with the fault slot filled (through the Registry route: ReelError::DecoderFault{Protocol}, counted). The open_session closure that used to refuse it (uncounted Av1Error::Reel) stays as a second refusal; module docs gain a protocol bullet citing the tests. (a024461)",
+  "test-faults only (V4-04): WorkerTestFault::OversizePicture (every decoded frame answered 2 pixels wider, zeroed planes, 18x16 against the 16x16 fixtures, 483 bytes on the wire against a reply cap of 896), WorkerTestFault::UndersizePicture (2 pixels narrower and lower, 14x14) and WorkerTestFault::FrameOnOpen (OPEN answered with a well-formed 2x2 mono FRAME, wire::encode_tiny_frame behind av1-worker + test-faults); worker.rs Faults::reshape is called from flush_batch through a cfg(feature = test-faults) parameter and Faults::on_open from the OPEN arm, so a product worker has neither hook",
+  "DESCRIPTOR bounds and module docs name both rules and cite the tests (V4-07)"
  ],
  "tests": {
-  "argv": "scratch tree smb-reel-native-faults-redproof at origin 6d232da + this crate (content of 471b679): studio-env.sh with STUDIO_OWNER=smb-reel-native-faults-redproof; cargo nextest run -p hsk-studio-reel-native --no-fail-fast (default, --features av1-worker, --features av1-worker,test-faults); cargo test --doc -p hsk-studio-reel-native (same three sets); cargo clippy -p hsk-studio-reel-native --tests (default, av1, av1-worker, av1-worker+test-faults, av1+test-faults); cargo fmt -p hsk-studio-reel-native --check",
+  "argv": "scratch tree smb-reel-native-faults-redproof at origin bd5bd60 + this crate (content of a024461): studio-env.sh with STUDIO_OWNER=smb-reel-native-faults-redproof; cargo nextest run -p hsk-studio-reel-native --no-fail-fast (default, --features av1-worker, --features av1-worker,test-faults); cargo test --doc -p hsk-studio-reel-native (same three sets); cargo clippy -p hsk-studio-reel-native --tests (default, av1, av1-worker, av1-worker+test-faults, av1+test-faults); cargo fmt -p hsk-studio-reel-native --check",
   "exit": 0,
-  "sha": "471b679",
-  "passed": 13,
+  "sha": "a024461",
+  "passed": 14,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator round on 471b679 with round-features [av1-worker] and [av1-worker,test-faults] (unchanged). Not fixed here (adjacent, see notes.adjacent_not_fixed): a FRAME reply to OPEN is refused by the open_session closure as Reel(DecoderFault Protocol) without bumping protocol_faults. Open and untouched: D18 shared supervisor, D14 packaging. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-redproof (src, target, tmp).",
- "updated_at": "2026-10-11T13:09:02Z",
+ "next": "Validator round on a024461 with round-features [av1-worker] and [av1-worker,test-faults] (unchanged). Open and untouched: D18 shared supervisor, D14 packaging. Red-proof scratch tree kept (lead instruction; movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-redproof (src, target, tmp).",
+ "updated_at": "2026-10-11T13:29:08Z",
  "notes": {
   "plr": "PLR-055 (R8-review-b, PLAUSIBLE at f6e5a49). Confirmed with a red test first: on a scratch tree of origin 528d01c plus the new test infrastructure and tests but host.rs unchanged, oversize_picture_under_the_reply_cap_is_a_protocol_fault failed at tests/av1_worker.rs:500 with left Reel(DecoderFault { fault: Protocol }) and right Worker(Protocol); the other 11 tests of that run passed (incl. exact_and_smaller_pictures_than_declared_are_accepted, a regression guard that passes on origin by design).",
   "tests_added": {
    "tests/av1_worker.rs oversize_picture_under_the_reply_cap_is_a_protocol_fault": "OversizePicture worker, mp4 then mkv through decode_av1: Av1Error::Worker(Protocol), code worker_protocol, empty sink, stats (protocol_faults n, killed_oversize 0, crashed 0, alive 0) so it is not the output-cap kill; then through a Registry with_video_decoder untrusted decode_segment: ReelError::DecoderFault{Protocol}, empty sink, protocol_faults 3",
    "tests/av1_worker.rs exact_and_smaller_pictures_than_declared_are_accepted": "default worker (exact 16x16, 384 bytes per frame) and UndersizePicture worker (14x14, 294 bytes per frame), mp4 and mkv: complete receipt, 3 chunks each, stats (spawned 1, protocol_faults 0, killed_oversize 0, crashed 0, alive 1)",
-   "src/host.rs tests declared_size_is_a_maximum_checked_per_side": "pure rule: exact, smaller either side, 1x1 accepted against 16x16; 17x16, 16x17, 17x17, 32x8, 8x32, u32::MAX wide refused; declared 0 on a side not checked (both sides, each side)"
+   "src/host.rs tests declared_size_is_a_maximum_checked_per_side": "pure rule: exact, smaller either side, 1x1 accepted against 16x16; 17x16, 16x17, 17x17, 32x8, 8x32, u32::MAX wide refused; declared 0 on a side not checked (both sides, each side)",
+   "tests/av1_worker.rs frame_reply_to_open_is_a_protocol_fault": "FrameOnOpen worker, mp4 then mkv through decode_av1: Av1Error::Worker(Protocol), code worker_protocol, empty sink, stats (protocol_faults n, killed_oversize 0, crashed 0, alive 0); then the Registry route: ReelError::DecoderFault{Protocol}, empty sink, protocol_faults 3"
   },
   "red_proofs": {
-   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-redproof/src/handshake-studio-assets (git archive of origin plus a private git history C0..C8, one commit per variant so every run has its own HEAD), STUDIO_OWNER=smb-reel-native-faults-redproof with its own target and tmp; the shared edit tree was never reverted (V4-11). Files copied into it get fresh mtimes (cp, git show, git checkout), none restored with preserved timestamps.",
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-redproof/src/handshake-studio-assets (git archive of origin plus a private git history C0..C11, one commit per variant so every run has its own HEAD), STUDIO_OWNER=smb-reel-native-faults-redproof with its own target and tmp; the shared edit tree was never reverted (V4-11). Files copied into it get fresh mtimes (cp, git show, git cat-file, git checkout, touch), none restored with preserved timestamps.",
    "R1 origin host.rs + new infra/tests (base 528d01c)": "12 tests: oversize_picture_under_the_reply_cap_is_a_protocol_fault FAIL (Reel(DecoderFault) vs Worker(Protocol)), 11 PASS. Log: scratchpad SMB-REEL-NATIVE-FAULTS/red-c1.log",
    "R2 within_declared_size always true (permissive, base 528d01c)": "host unit declared_size_is_a_maximum_checked_per_side FAIL (17x16 must be refused), oversize e2e FAIL (Reel(DecoderFault) vs Worker(Protocol)), exact_and_smaller PASS",
    "R3 strict less-than (rejects exact size, base 6d232da)": "unit FAIL (16x16 must be accepted), exact_and_smaller_pictures_than_declared_are_accepted FAIL (tests/av1_worker.rs:559, the exact decode), oversize e2e PASS",
    "R4 equality (rejects smaller, base 6d232da)": "unit FAIL (15x16 must be accepted), exact_and_smaller_pictures_than_declared_are_accepted FAIL (tests/av1_worker.rs:566, the UndersizePicture decode), oversize e2e PASS",
-   "green": "C3 on origin 528d01c and C6 on origin 6d232da (crate content identical to 471b679 modulo CRLF in one scratch file): nextest default 0 tests (no-tests=pass), av1-worker 5/5, av1-worker+test-faults 13/13; doctests 0 tests, exit 0, for all three sets; clippy --tests clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (only the 2 pre-existing too_many_arguments warnings of hsk-studio-observe, a dependency, not ours); fmt --check clean. Origin moved to bd5bd60 after the green run; reel src differences from the base (6d232da) to the push base are comment and DESCRIPTOR text only (git diff 6d232da..07f6abd -- crates/hsk-studio-reel/src), no code."
+   "R5 FrameOnOpen test against origin bd5bd60 host.rs (471b679 content) + new infra/test (C10)": "14 tests: frame_reply_to_open_is_a_protocol_fault FAIL at tests/av1_worker.rs:613 (left Reel(DecoderFault { fault: Protocol }), right Worker(Protocol)), 13 PASS. Log: scratchpad SMB-REEL-NATIVE-FAULTS/red-open.log",
+   "green": "471b679: C3 on origin 528d01c and C6 on origin 6d232da. a024461: C11 on origin bd5bd60 (no reel/accord/observe/Cargo difference from bd5bd60 to the push base 6d1c591), crate content identical to a024461 modulo CRLF in scratch files: nextest default 0 tests (no-tests=pass), av1-worker 5/5, av1-worker+test-faults 14/14; doctests 0 tests, exit 0, for all three sets; clippy --tests clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (only the 2 pre-existing too_many_arguments warnings of hsk-studio-observe, a dependency, not ours); fmt --check clean. Logs: scratchpad SMB-REEL-NATIVE-FAULTS/green3.log and clippy3.log"
   },
   "route_notes": {
-   "shared_tree_state": "when this lane started the shared edit tree held another builder's uncommitted, non-compiling hsk-studio-reel edits (isobmff.rs missing clean_aperture and field_info), so reel-native could not build there; all runs used the scratch tree above and the commit is a pathspec commit of crates/hsk-studio-reel-native from the shared tree (content compared with the green scratch crate: identical modulo line endings).",
-   "retry_guard": "Two expected-failure red-proof runs (R3, R4) were blocked by the retry guard as identical reruns of the R2 failure (same normalized command, same shared-tree HEAD, same gameplan digest). Route taken: no flag or filter change and no gameplan step; the shared-tree HEAD is the guard key (confirm root = wt-studio-assets), so the run was repeated unchanged after the shared HEAD moved (my own push, then another builder's commit). Not a product failure and not an infrastructure cause, so no gameplan step was added.",
-   "hook_visibility": "all gated cargo commands were issued directly in the command text (no wrapper script), so the hook saw them; the first -D warnings clippy invocation failed on 2 pre-existing hsk-studio-observe warnings in a dependency and was rerun without -D warnings (clippy is not hook-gated)."
+   "shared_tree_state": "when this lane started the shared edit tree held another builder's uncommitted, non-compiling hsk-studio-reel edits (isobmff.rs missing clean_aperture and field_info), so reel-native could not build there; all runs used the scratch tree above and each commit is a pathspec commit of crates/hsk-studio-reel-native from the shared tree (content compared with the green scratch crate: identical modulo line endings).",
+   "retry_guard": "Expected-failure red runs (R3, R4, R5) were each followed by an identical-command run that the retry guard blocked (same normalized command, same shared-tree HEAD, same gameplan digest): R3 and R4 against the R2 failure, and the a024461 green run against the R5 failure. Route taken every time: no flag or filter change and no gameplan step; the guard key is the shared-tree HEAD (confirm root = wt-studio-assets), so the run was repeated unchanged once another builder's commit moved that HEAD. Not a product failure and not an infrastructure cause, so no gameplan step was added.",
+   "hook_visibility": "all gated cargo commands were issued directly in the command text (no wrapper script), so the hook saw them; the first -D warnings clippy invocation failed on 2 pre-existing hsk-studio-observe warnings in a dependency and was rerun without -D warnings (clippy is not hook-gated).",
+   "stray_dir": "one stray owner directory Handshake_Artifacts/WP-KERNEL-STUDIO/x (empty target and tmp plus two marker files) was created by sourcing studio-env.sh with a placeholder STUDIO_OWNER in the shared tree; removed again at once (rm of the two files I had just created, rmdir of the empty directories)."
   },
-  "adjacent_not_fixed": [
+  "adjacent_not_fixed": [],
+  "adjacent_fixed": [
    {
-    "file_line": "crates/hsk-studio-reel-native/src/host.rs open_session OPEN closure (&mut |_| Err(ReelError::DecoderFault { fault: DecoderFault::Protocol }))",
-    "text": "A FRAME reply to OPEN (the worker answering OPEN with a picture) is refused by this closure through on_frame: the worker is terminated and the call fails with Av1Error::Reel(DecoderFault Protocol) but protocol_faults is not bumped and the fault slot is not set. Same shape as PLR-055 but a different class (an unexpected reply kind, no picture is forwarded to reel); not part of this defect, not covered by a fault variant, left unchanged on purpose (conservative scope, lane SMB-REEL-NATIVE-AV1-WORKER is at 2 failed verdicts). Cheap fix if wanted: guard the Reply::Frame arm of exchange with want == Want::BatchEnd so an OPEN-time frame falls to the existing catch-all Failure::Protocol arm, plus a WorkerTestFault variant that answers OPEN with a FRAME."
+    "file_line": "crates/hsk-studio-reel-native/src/host.rs Pool::exchange Reply::Frame arm and open_session OPEN closure",
+    "text": "A FRAME reply to OPEN was refused by the open_session closure through on_frame as Av1Error::Reel(DecoderFault Protocol) without bumping protocol_faults or setting the fault slot. Fixed in a024461 by lead decision (same class): the Reply::Frame arm is guarded with want == Want::BatchEnd, so an OPEN-time FRAME falls to the catch-all Failure::Protocol arm. Test frame_reply_to_open_is_a_protocol_fault (red R5, green C11)."
    }
   ],
-  "v4_06_class": "a worker FRAME picture reaches reel's route (or the caller's sink) without the host's own check against the container-declared size, so a lying worker surfaces as a reel error that is not counted as a worker protocol fault",
-  "v4_06_regex": "(code lines only, comment lines starting with // excluded) \\b(on_frame|Reply::Frame|within_declared_size|WireFrame|to_picture)\\b over crates/hsk-studio-reel-native/src/**/*.rs at 471b679 (git show per file, CR stripped, grep -P)",
-  "v4_06_scope": "crates/hsk-studio-reel-native/src at 471b679 (unit-test modules inside src included, tests/ not scanned)",
+  "v4_06_class": "a worker protocol violation (a reply the request does not allow, or a FRAME picture above the container-declared size) that reaches reel's route, the caller's sink or a closure and surfaces as a reel error instead of the host's counted Failure::Protocol (protocol_faults +1, worker terminated, Av1Error::Worker(Protocol))",
+  "v4_06_regex": "(code lines only, comment lines starting with // excluded) \\b(on_frame|Reply::Frame|Reply::Opened|within_declared_size|WireFrame|to_picture|Failure::Protocol|DecoderFault::Protocol|encode_tiny_frame)\\b over crates/hsk-studio-reel-native/src/**/*.rs at a024461 (git show per file, CR stripped, grep -P)",
+  "v4_06_scope": "crates/hsk-studio-reel-native/src at a024461 (unit-test modules inside src included, tests/ not scanned)",
   "v4_06_count": {
-   "hits": 31,
-   "listed": 31
+   "hits": 43,
+   "listed": 43
   },
   "v4_06_sites": [
    {
-    "file_line": "src/host.rs:50",
+    "file_line": "src/host.rs:54",
     "verdict": "NOT_APPLICABLE: import"
    },
    {
-    "file_line": "src/host.rs:710",
+    "file_line": "src/host.rs:240",
+    "verdict": "NOT_APPLICABLE: Av1WorkerFault::Protocol mapped to reel's DecoderFault::Protocol for the port"
+   },
+   {
+    "file_line": "src/host.rs:692",
+    "verdict": "NOT_APPLICABLE: Failure::Protocol arm of fail(), the counting path the fixes route into"
+   },
+   {
+    "file_line": "src/host.rs:714",
     "verdict": "NOT_APPLICABLE: exchange parameter type"
    },
    {
-    "file_line": "src/host.rs:741",
-    "verdict": "FIXED: the only place a Reply::Frame is received from a worker"
+    "file_line": "src/host.rs:738",
+    "verdict": "NOT_APPLICABLE: malformed wire frame, already Failure::Protocol (counted)"
    },
    {
-    "file_line": "src/host.rs:744",
-    "verdict": "FIXED: within_declared_size(&picture.format, declared) -> Failure::Protocol before on_frame"
+    "file_line": "src/host.rs:747",
+    "verdict": "FIXED: the only place a Reply::Frame is accepted; now only for want == Want::BatchEnd (FRAME answering OPEN falls to the catch-all, :769)"
    },
    {
     "file_line": "src/host.rs:750",
-    "verdict": "FIXED: on_frame is reached only after the declared-size check"
+    "verdict": "FIXED: within_declared_size(&picture.format, declared) check precedes on_frame"
    },
    {
-    "file_line": "src/host.rs:773",
+    "file_line": "src/host.rs:754",
+    "verdict": "NOT_APPLICABLE: the Failure::Protocol the declared-size check and the frame-count bound return (counted)"
+   },
+   {
+    "file_line": "src/host.rs:756",
+    "verdict": "FIXED: on_frame is reached only for a batch frame after the declared-size check"
+   },
+   {
+    "file_line": "src/host.rs:762",
+    "verdict": "NOT_APPLICABLE: OPENED accepted only for want == Want::Opened with no frames before it"
+   },
+   {
+    "file_line": "src/host.rs:769",
+    "verdict": "FIXED: catch-all arm, Failure::Protocol (counted); now also receives a FRAME answering OPEN (test frame_reply_to_open_is_a_protocol_fault)"
+   },
+   {
+    "file_line": "src/host.rs:779",
     "verdict": "NOT_APPLICABLE: WireFrame to DecodedPicture conversion, called only from the send/finish closures"
    },
    {
-    "file_line": "src/host.rs:822",
+    "file_line": "src/host.rs:828",
     "verdict": "NOT_APPLICABLE: request() parameter type"
    },
    {
-    "file_line": "src/host.rs:842",
-    "verdict": "NOT_APPLICABLE: passes on_frame to exchange, which checks every frame"
+    "file_line": "src/host.rs:848",
+    "verdict": "NOT_APPLICABLE: passes on_frame to exchange, which classifies every frame"
    },
    {
-    "file_line": "src/host.rs:870",
-    "verdict": "NOT_APPLICABLE: send closure, invoked only by exchange after the check"
+    "file_line": "src/host.rs:876",
+    "verdict": "NOT_APPLICABLE: send closure, invoked only by exchange for a batch frame after the checks"
    },
    {
-    "file_line": "src/host.rs:885",
-    "verdict": "NOT_APPLICABLE: finish closure, invoked only by exchange after the check"
+    "file_line": "src/host.rs:891",
+    "verdict": "NOT_APPLICABLE: finish closure, invoked only by exchange for a batch frame after the checks"
    },
    {
-    "file_line": "src/host.rs:1190",
-    "verdict": "FIXED: the rule itself (new)"
+    "file_line": "src/host.rs:1088",
+    "verdict": "FIXED: open_session OPEN closure (uncounted Reel(DecoderFault Protocol)); no longer reachable for a FRAME because exchange classifies it first, kept as a second refusal"
    },
    {
-    "file_line": "src/host.rs:1278",
-    "verdict": "NOT_APPLICABLE: unit test of the rule"
+    "file_line": "src/host.rs:1198",
+    "verdict": "FIXED: the declared-size rule itself (new in 471b679)"
    },
    {
-    "file_line": "src/host.rs:1291",
-    "verdict": "NOT_APPLICABLE: unit test of the rule"
-   },
-   {
-    "file_line": "src/host.rs:1295",
-    "verdict": "NOT_APPLICABLE: unit test of the rule"
-   },
-   {
-    "file_line": "src/host.rs:1296",
-    "verdict": "NOT_APPLICABLE: unit test of the rule"
-   },
-   {
-    "file_line": "src/host.rs:1297",
-    "verdict": "NOT_APPLICABLE: unit test of the rule"
-   },
-   {
-    "file_line": "src/host.rs:1298",
+    "file_line": "src/host.rs:1286",
     "verdict": "NOT_APPLICABLE: unit test of the rule"
    },
    {
     "file_line": "src/host.rs:1299",
+    "verdict": "NOT_APPLICABLE: unit test of the rule"
+   },
+   {
+    "file_line": "src/host.rs:1303",
+    "verdict": "NOT_APPLICABLE: unit test of the rule"
+   },
+   {
+    "file_line": "src/host.rs:1304",
+    "verdict": "NOT_APPLICABLE: unit test of the rule"
+   },
+   {
+    "file_line": "src/host.rs:1305",
+    "verdict": "NOT_APPLICABLE: unit test of the rule"
+   },
+   {
+    "file_line": "src/host.rs:1306",
+    "verdict": "NOT_APPLICABLE: unit test of the rule"
+   },
+   {
+    "file_line": "src/host.rs:1307",
     "verdict": "NOT_APPLICABLE: unit test of the rule"
    },
    {
@@ -145,27 +182,43 @@
     "verdict": "NOT_APPLICABLE: worker-side encoder"
    },
    {
-    "file_line": "src/wire.rs:471",
-    "verdict": "NOT_APPLICABLE: decode_reply maps KIND_FRAME to Reply::Frame; wire-level consistency (plane count and plane lengths against the frame's own format, overflow) is already Malformed -> protocol_faults (test frame_dims_u32_max_is_malformed, wire_roundtrip_and_bounds); the declared-size rule needs the stream's declared size and lives in the host"
+    "file_line": "src/wire.rs:437",
+    "verdict": "NOT_APPLICABLE: test-faults encoder of the FrameOnOpen fault (cfg av1-worker + test-faults)"
    },
    {
-    "file_line": "src/wire.rs:476",
-    "verdict": "NOT_APPLICABLE: decode_frame signature, see :471"
+    "file_line": "src/wire.rs:453",
+    "verdict": "NOT_APPLICABLE: WireFrame built by that encoder"
    },
    {
-    "file_line": "src/wire.rs:544",
-    "verdict": "NOT_APPLICABLE: constructs the decoded WireFrame, see :471"
+    "file_line": "src/wire.rs:477",
+    "verdict": "NOT_APPLICABLE: decode_reply returns Reply::Opened for KIND_OPENED; whether it is allowed is decided in exchange (:762)"
    },
    {
-    "file_line": "src/wire.rs:556",
+    "file_line": "src/wire.rs:498",
+    "verdict": "NOT_APPLICABLE: decode_reply maps KIND_FRAME to Reply::Frame; wire-level consistency (plane count and plane lengths against the frame's own format, overflow) is already Malformed -> protocol_faults (tests frame_dims_u32_max_is_malformed, wire_roundtrip_and_bounds); the declared-size rule needs the stream's declared size and lives in the host"
+   },
+   {
+    "file_line": "src/wire.rs:503",
+    "verdict": "NOT_APPLICABLE: decode_frame signature, see :498"
+   },
+   {
+    "file_line": "src/wire.rs:571",
+    "verdict": "NOT_APPLICABLE: constructs the decoded WireFrame, see :498"
+   },
+   {
+    "file_line": "src/wire.rs:583",
     "verdict": "NOT_APPLICABLE: wire unit test fixture"
    },
    {
-    "file_line": "src/wire.rs:570",
+    "file_line": "src/wire.rs:597",
     "verdict": "NOT_APPLICABLE: wire unit test fixture"
    },
    {
-    "file_line": "src/wire.rs:615",
+    "file_line": "src/wire.rs:642",
+    "verdict": "NOT_APPLICABLE: wire unit test round trip"
+   },
+   {
+    "file_line": "src/wire.rs:643",
     "verdict": "NOT_APPLICABLE: wire unit test round trip"
    },
    {
@@ -173,15 +226,19 @@
     "verdict": "NOT_APPLICABLE: import (worker side)"
    },
    {
-    "file_line": "src/worker.rs:72",
+    "file_line": "src/worker.rs:74",
+    "verdict": "NOT_APPLICABLE: Faults::on_open, the test-faults hook that answers OPEN with a FRAME (cfg test-faults only)"
+   },
+   {
+    "file_line": "src/worker.rs:79",
     "verdict": "NOT_APPLICABLE: Faults::reshape, the test-faults hook that produces the oversize and undersize pictures (cfg test-faults only)"
    },
    {
-    "file_line": "src/worker.rs:126",
+    "file_line": "src/worker.rs:134",
     "verdict": "NOT_APPLICABLE: worker-side to_wire signature"
    },
    {
-    "file_line": "src/worker.rs:127",
+    "file_line": "src/worker.rs:135",
     "verdict": "NOT_APPLICABLE: worker-side WireFrame construction"
    }
   ]

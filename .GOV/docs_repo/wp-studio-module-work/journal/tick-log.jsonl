@@ -155,3 +155,5 @@
 {"t": "2026-10-11T13:10:26Z", "event": "press R9 pre-review FIX_FIRST (R9-F1..F3 CONFIRMED); lead decision: positive-determination proof (approach change); press excluded from R9", "progress": "no direct progress (verdict routing)"}
 {"t": "2026-10-11T13:11:01Z", "event": "SMB-REEL-ENG-1 READY_FOR_VALIDATION bd5bd60 (builder-reel-eng-1)", "lanes_moved": ["SMB-REEL-ENG-1 READY"], "commits": ["bd5bd60"], "progress": "direct: product commit"}
 {"t": "2026-10-11T13:14:07Z", "event": "SMB-PARITY-FOLLOWUP READY_FOR_VALIDATION 1c80811 (rem-composite-adj)", "lanes_moved": ["SMB-PARITY-FOLLOWUP READY"], "commits": ["1c80811"], "progress": "direct: product commit"}
+{"t": "2026-10-11T13:29:27Z", "event": "SMB-REEL-NATIVE-FAULTS READY_FOR_VALIDATION a024461 (builder-reel-native-faults)", "lanes_moved": ["SMB-REEL-NATIVE-FAULTS READY"], "commits": ["a024461"], "progress": "direct: product commit"}
+{"t": "2026-10-11T13:29:55Z", "event": "SMB-REEL-NATIVE-FAULTS READY a024461; V4-13 pre-review of reel + reel-native (2-FAIL lanes reopened) dispatched", "progress": "no direct progress (pre-review dispatch)"}

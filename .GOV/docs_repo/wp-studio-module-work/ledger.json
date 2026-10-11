@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:14:07Z",
+ "updated_at": "2026-10-11T13:29:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2513,15 +2513,17 @@
    "crate": "hsk-studio-reel-native",
    "origin": "PLR-055 (R8-review-b)",
    "scope": "worker picture larger than the declared size but under the reply cap -> worker Protocol fault counted in protocol_faults (not Av1Error::Reel)",
-   "phase": "build (extension: FRAME-to-OPEN protocol fault, lead decision 2026-10-11T13:09:37Z)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-native-faults",
    "commits": [
-    "471b679"
+    "471b679",
+    "a024461"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-reel-native-faults.json",
-   "note": "471b679: Pool::exchange checks reply picture vs declared size before reel; oversize under cap -> Failure::Protocol (counted, worker terminated, Av1Error::Worker(Protocol)); smaller legal; test-faults hooks OversizePicture/UndersizePicture; 3 new tests red on scratch origin; mutation reds for always-true / < / ==; av1-worker 5/5, +test-faults 13/13; V4-06 31 = 31"
+   "note": "PLR-055 + same-class extension: Pool::exchange compares reply picture with declared size before reel (oversize under cap -> Failure::Protocol, counted, worker terminated, Av1Error::Worker(Protocol)); FRAME reply accepted only for a batch request, so FRAME answering OPEN -> Failure::Protocol; test-faults hooks OversizePicture/UndersizePicture/FrameOnOpen; tests red on scratch origin, green: av1-worker 5/5, +test-faults 14/14, doctests, clippy (5 feature sets), fmt; V4-06 43/43",
+   "candidate": "a024461"
   },
   {
    "lane_id": "SMB-WEB-PARITY",
@@ -2644,7 +2646,8 @@
   "SMB-SCORE-PLUGIN-RATE",
   "SMB-INTEROP-PSD-BUDGET",
   "SMB-REEL-ENG-1",
-  "SMB-PARITY-FOLLOWUP"
+  "SMB-PARITY-FOLLOWUP",
+  "SMB-REEL-NATIVE-FAULTS"
  ],
  "round_R6": {
   "candidate": "bd8533f",

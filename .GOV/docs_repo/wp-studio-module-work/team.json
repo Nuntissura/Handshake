@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:14:07Z",
+ "updated_at": "2026-10-11T13:29:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1695,7 +1695,7 @@
     "builders/lanes/hsk-studio-reel-native-faults.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:29:27Z (SMB-REEL-NATIVE-FAULTS READY at a024461)"
   },
   {
    "name": "builder-web-parity",
@@ -1730,6 +1730,17 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T13:11:01Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r9-reel",
+   "agent_id": "a1147709c8b4fa7b7",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER (reopened by ENG-1 / NATIVE-FAULTS)",
+   "owns": [
+    "validation/R9-prereview-reel.json"
+   ],
+   "launched": "2026-10-11T13:29:55Z",
    "status": "running"
   }
  ]
