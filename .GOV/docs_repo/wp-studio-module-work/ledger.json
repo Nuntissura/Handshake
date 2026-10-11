@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:36:48Z",
+ "updated_at": "2026-10-11T05:37:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -421,11 +421,12 @@
     "d575678",
     "958f431",
     "198a8e5",
-    "5e058ae"
+    "5e058ae",
+    "f40d6a2"
    ],
    "verdicts": [],
-   "candidate": "5e058ae",
-   "note": "slices1-2: + reflow/overset via layout (fixed-advance shaper port), Folio->IDML export, group frames typed loss, first-baseline mapping UNVERIFIED; 9 tests",
+   "candidate": "f40d6a2",
+   "note": "R5 remediation: ParaModel/RunModel share Arc props per source range (no per-Content clone) + Limits.max_model_bytes 256 MiB charged (BudgetExceeded model_bytes) also bounding export; PLAUSIBLE fixed: local vs central ZIP header cross-check now method/CRC/sizes/encryption; red-first 132,199 B per extra paragraph; 11 of 11 green",
    "r5_review_routed": {
     "to": "rem-layout",
     "at": "2026-10-11T05:31:12Z",
@@ -1409,6 +1410,7 @@
   "SMB-SCORE-DEVICE",
   "SMB-RENDER-GPU",
   "SMB-INTEROP-VECTOR",
-  "SMB-INTEROP-VECTOR-FOLIO-MIGRATE"
+  "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+  "SMB-INTEROP-LAYOUT"
  ]
 }

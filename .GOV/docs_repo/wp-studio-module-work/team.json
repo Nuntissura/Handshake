@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:36:48Z",
+ "updated_at": "2026-10-11T05:37:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -129,7 +129,7 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (tick 1 reviewed; v3 adopted)",
+   "status": "idle (tick 2 done: v4 amendments adopted; next ping at :11/:26/:41/:56 when lead idle)",
    "resumed": "2026-10-11T01:02Z",
    "output": "workflow/workflow-review-001.md, workflow/workflow.json"
   },
@@ -796,7 +796,7 @@
     "crates/hsk-studio-interop-layout/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:37:43Z (SMB-INTEROP-LAYOUT READY at f40d6a2)"
   },
   {
    "name": "rem-components",
