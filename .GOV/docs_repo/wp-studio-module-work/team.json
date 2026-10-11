@@ -2231,6 +2231,29 @@
    ],
    "launched": "2026-10-11T22:52:08Z",
    "status": "done 2026-10-11T23:27:24Z (SMB-PIGMENT-FOLLOWUPS READY at b8b31c7)"
+  },
+  {
+   "name": "reviewer-r15-a",
+   "agent_id": "a0fa9875c4e139fbd",
+   "model": "sonnet",
+   "role": "R15 reviewer (pigment follow-ups + sweep)",
+   "owns": [
+    "validation/R15-review-a.json"
+   ],
+   "launched": "2026-10-11T23:35:29Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r15",
+   "agent_id": "afbd3bc89b3bed4c4",
+   "model": "opus",
+   "role": "WP validator STUDIO-R15 on b8b31c7",
+   "owns": [
+    "validation/round-R15.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T23:35:29Z",
+   "status": "running"
   }
  ]
 }
