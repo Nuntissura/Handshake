@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:53:55Z",
+ "updated_at": "2026-10-11T07:54:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1848,6 +1848,28 @@
    "verdicts": [],
    "candidate": "8d46aa8",
    "note": "wave-2 effects (inner shadow, outer/inner glow) through the windowed path, no kind-specific code; six-effect stack bit-identical across chunks 48/17/7/5 x 1-3 workers; 304 px margin identical to uncut oracle; exactness = pigment Approximate; refusals by feature key, 0 sink calls; 29 green via the per-test runner"
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-8",
+   "crate": "hsk-studio-prism",
+   "origin": "prism R6 plausibles e26f623",
+   "scope": "non-monotonic destination table curve inverse per ICC.1:2022 (refuse or monotonic envelope, cited)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-prism-eng8",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "origin": "prism R6 plausibles e26f623",
+   "scope": "carry prism AbsoluteReport (media_white_rule, divergence) into psd receipts/losses; sweep other dropped receipt fields",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-psd-receipt",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

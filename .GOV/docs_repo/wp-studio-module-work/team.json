@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:53:55Z",
+ "updated_at": "2026-10-11T07:54:48Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1237,6 +1237,28 @@
     "crates/hsk-studio-kernel-bindings/**"
    ],
    "launched": "2026-10-11T07:47:52Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-prism-eng8",
+   "agent_id": "a96c336734bab0381",
+   "model": "sonnet",
+   "role": "SMB-PRISM-ENG-8: non-monotonic destination table curves per ICC.1:2022",
+   "owns": [
+    "crates/hsk-studio-prism/**"
+   ],
+   "launched": "2026-10-11T07:54:48Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-receipt",
+   "agent_id": "ae8a7a62c6cf7e72d",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-RECEIPT: carry prism AbsoluteReport (DIV-ABS divergence) into psd receipts",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T07:54:48Z",
    "status": "running"
   }
  ]
