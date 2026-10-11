@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:10:13Z",
+ "updated_at": "2026-10-11T12:34:11Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1632,6 +1632,18 @@
     "validation/R8-review-b.json"
    ],
    "launched": "2026-10-11T12:10:13Z",
+   "status": "done 2026-10-11T12:33:34Z (COMPLETE; 3 rechecks SAFE; 0 CONFIRMED; PLR-053..056)"
+  },
+  {
+   "name": "builder-score-plugin-rate",
+   "agent_id": "afda75ca38dfed07b",
+   "model": "sonnet",
+   "role": "SMB-SCORE-PLUGIN-RATE (PLR-054)",
+   "owns": [
+    "crates/hsk-studio-score-plugin/**",
+    "builders/lanes/hsk-studio-score-plugin-rate.json"
+   ],
+   "launched": "2026-10-11T12:34:11Z",
    "status": "running"
   }
  ]

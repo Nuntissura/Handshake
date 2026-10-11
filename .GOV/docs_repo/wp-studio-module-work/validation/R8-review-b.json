@@ -1,0 +1,364 @@
+{
+ "round": "STUDIO-R8",
+ "group": "B",
+ "reviewed_commit": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+ "reviewer": "independent adversarial reviewer (Opus), group B (reel, reel-native, interop-psd, score, components, folio), read-only, committed blobs at f6e5a49 only (git archive of the six crates into scratch; git show/diff against dff7ef5), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T12:10:05Z",
+ "updated_at": "2026-10-11T12:32:49Z",
+ "severity_rule": "CONFIRMED = file:line read at f6e5a49 by this reviewer; PLAUSIBLE = reasoning, process or external fact not proven at f6e5a49",
+ "recommendation_rule": "FAIL when a lane has a CONFIRMED product defect in its claimed scope; PASS_WITH_NOTES when CONFIRMED items are doc/process-only or PLAUSIBLE only; validator decides",
+ "method": "git archive f6e5a49 and dff7ef5 (6 crates) into scratch; git log/diff dff7ef5..f6e5a49 per crate; line-numbered reads; V4-06 regex recount with grep -P on the archived crate; external citations fetched (aomediacodec.github.io/av1-isobmff, ietf-wg-cellar matroska codec/av1.md); lane files, ledger, register, START_LOG read in the kernel; waived register items not re-raised",
+ "rechecks": {
+  "SMB-REEL-AV1-ROUTE": "SAFE_TO_JUDGE",
+  "SMB-REEL-NATIVE-AV1-WORKER": "SAFE_TO_JUDGE",
+  "SMB-COMPONENTS": "SAFE_TO_JUDGE"
+ },
+ "lanes": [
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "claim 8438b1d + 589f544 + bf3c196; reel commits dff7ef5..f6e5a49 are exactly these three (git log -- crates/hsk-studio-reel); bf3c196 also carries SMB-REEL PLR-029 (fixtures -> tests/common), listed in both lane notes (V4-14 ok)",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (R5 FAIL_V1, R7 FAIL_V2) + V4-18",
+    "prior": "R8-prereview-reel SMB-REEL-AV1-ROUTE FIX_FIRST at 589f544, only on PLR-032 (decoded picture vs container-declared size; oversize picture packed before max_chunk_bytes)",
+    "evidence": "bf3c196 video.rs: Forward now holds declared (video.rs:277) = (video.width, video.height) (video.rs:479), filled from the av01 VisualSampleEntry width/height (isobmff.rs:766-767 -> :1729-1730) and Matroska PixelWidth/PixelHeight (matroska.rs:440-441, bounded <= 1<<20 by video_dimension -> :1538-1539). Forward::accept (video.rs:321-368): tag/preroll filter, then planes_match_format || within_declared_size -> DecoderFault::Protocol (:331-335), then format-change check, then packed_len (checked_add over the existing planes, :314-319) > max_chunk_bytes -> LimitExceeded av1-frame-bytes (:346-350), and only then packed.clear + extend_from_slice (:351-354). Nothing is allocated or copied before both checks. within_declared_size (:307-310) uses <= per side, 0 = undeclared. Citation verified online: AV1-ISOBMFF section 2.2.4 Semantics says the VisualSampleEntry width/height SHALL equal max_frame_width_minus_1 + 1 / max_frame_height_minus_1 + 1 of the Sequence Header OBU; the Matroska AV1 codec mapping says PixelWidth/PixelHeight MUST be max_frame_width_minus_1+1 / max_frame_height_minus_1+1. The declared size is therefore the sequence MAXIMUM; frames may be smaller (frame_size_override), so <= is the correct rule and == would refuse conformant streams. Both routes go through Forward: the in-process session hands pictures to the same PictureSink (av1/mod.rs:207, site list) and external sessions are pumped by Pump (video.rs:378-393). Tests would fail if reverted: video_route.rs decoded_picture_size_is_checked_against_the_container_declared_size feeds 17x16/16x17/32x16/16x32/64x64 pictures (all inside the 8 MiB budget) for a 16x16 mp4 and mkv and asserts Protocol + empty sink + one packet fed; removing within_declared_size delivers them (lane red proof: 17x16 delivered, video_route.rs:736); it also accepts 16x16, 8x8, 16x1, 1x16, 1x1 (pins <= vs ==) and checks 0-declared sides. v4_alloc_budget.rs oversize_decoded_picture_is_refused_before_it_is_copied: case 1 (declared 16x16, 4096x4096 picture) wants Protocol (reverting the declared check yields LimitExceeded: lane red proof v4_alloc_budget.rs:449), case 2 (declared 4096x4096, 24 MiB picture) wants LimitExceeded with largest single allocation < 1 MiB (reverting the reorder copies 24 MiB), case 3 shows the meter sees an accepted packing copy (instrument check). PLR-033 not regressed: bf3c196 changes only doc comments in registry.rs (diff: decode_segment and decode_segment_routed docs) and does not touch choose() (video.rs:221-230, the only trust read) or the proxy route construction; the trust test trusted_original_never_lends_its_trust_to_a_proxy is unchanged except its fixture import."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "first_sample_entry_only",
+     "file_line": "crates/hsk-studio-reel/src/isobmff.rs:734-767 (parse_stsd reads the entry count, then parses entry 1 only); video.rs:479 (Forward::declared from that entry)",
+     "evidence": "The declared size, like the av1C record, comes from the first VisualSampleEntry. An av01 track with several sample entries whose later entry declares a larger sequence maximum would have those pictures refused as DecoderFault::Protocol. Fail-closed (no unsafe acceptance) and the single-entry assumption predates this lane (the av1C of entry 1 already configures the decoder for the whole track). Not a defect of the PLR-032 fix.",
+     "remediation": "Optional: refuse an av01 track with more than one sample entry as Unsupported at probe, or carry per-entry declared sizes"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "external_citation_scope",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:301-310 (within_declared_size doc cites AV1-ISOBMFF 2.2.4 and Matroska V_AV1)",
+     "evidence": "Citations checked online: AV1-ISOBMFF section 2.2.4 'Semantics' states the VisualSampleEntry width and height SHALL equal max_frame_width_minus_1 + 1 and max_frame_height_minus_1 + 1 of the Sequence Header OBU; the Matroska AV1 codec mapping (codec/av1.md, Mandatory TrackEntry elements) states PixelWidth/PixelHeight MUST be max_frame_width_minus_1+1 / max_frame_height_minus_1+1. The <= rule is therefore correct for conformant files. Files from non-conformant muxers that write the render (display) size into the sample entry or PixelWidth would be refused as Protocol; whether common muxers do so is UNVERIFIED (both repo fixtures declare exactly their decoded size: 16x16 mp4 sample entry 16x16, mkv PixelWidth/PixelHeight 16/16, 1080p mp4 1920x1080, read from the fixture bytes).",
+     "remediation": "None required; optionally record the refusal reason in the error (e.g. what: av1-picture-above-declared-size) so a muxer mismatch is diagnosable"
+    }
+   ],
+   "verified_fixes": [
+    "PLR-032 FIXED (bf3c196): declared-size check and packed-size check run before any copy; see recheck.evidence (video.rs:277, :307-319, :321-354, :479).",
+    "R7 FAIL PLR-033 (proxy inherits original trust) stays FIXED: registry.rs:28-51 ProxySource.trust (new = Untrusted, with_trust per proxy); :255-276 the proxy is decoded with proxy_route {trust: proxy_trust}; the caller's trust builds only the original's route (:236-239, :289-290). bf3c196 changed only doc comments in registry.rs.",
+    "R5 FAIL external-picture-plane-size-overflow stays FIXED: planes_match_format checked u64 chain (video.rs:287-299), unchanged by bf3c196.",
+    "Pre-review findings 2-3 (proxy no-fallback undocumented; decode_segment doc incomplete) addressed in docs: registry.rs:180-187 and :215-224 state the original-only trust and the no-fallback rule and name the pinning block ('nothing registered', tests/video_route.rs:539).",
+    "V4-06: lane regex (notes.v4_06_regex) recounted with grep -P over src at f6e5a49 (crate unchanged since bf3c196): 86 code-line hits = 86 listed, identical file:line sets.",
+    "V4-07: DESCRIPTOR video_routing.picture_checks and the Forward/VideoStreamSpec docs cite decoded_picture_size_is_checked_against_the_container_declared_size and oversize_decoded_picture_is_refused_before_it_is_copied; av1_config.rs:43-44 doc now cites the latter.",
+    "Tests assert the claim and are red on revert (lane red proof at a 589f544 scratch copy: v4_alloc_budget.rs:449 LimitExceeded != Protocol; video_route.rs:736 17x16 delivered); the <= rule is pinned by the accepted 8x8/16x1/1x16/1x1 cases."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "All three FAIL/FIX_FIRST items of this lane (R5 plane overflow, R7 PLR-033, pre-review PLR-032) are fixed with tests that fail on revert; the <= rule matches the verified AV1-ISOBMFF 2.2.4 and Matroska V_AV1 texts. Only optional PLAUSIBLE notes remain. PLR-030 lead-WAIVED and PLR-031 (Operator D14) not re-raised. Last verdict before CX-EXEC-015(1); no reason found to spend it."
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "commit_scope": "7886369 (READY); git diff 7886369..f6e5a49 -- crates/hsk-studio-reel-native is empty; last crate commit at f6e5a49 is 7886369 (V4-14 ok); dependency hsk-studio-reel changed by bf3c196",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (R5 FAIL_V1, R7 FAIL_V2) + V4-18 (pre-review stands while the crate is unchanged; the dependency change is checked here)",
+    "prior": "R8-prereview-reel SMB-REEL-NATIVE-AV1-WORKER SAFE_TO_JUDGE at 589f544 (crate = 7886369)",
+    "evidence": "Crate bytes identical to the pre-reviewed 7886369. What bf3c196 changes for it: (1) the worker binary hosts hsk_studio_reel::av1::Av1Decoder directly (worker.rs:25, :103-108), not the routed in-process path, so the new Forward refusal does not run inside the worker; (2) the host's decode path goes through reel's route (host.rs:999-1006 VideoRoute::untrusted().with_external -> decode_segment_routed -> Forward), so a worker picture larger than the declared track size but under the host reply cap (declared_frame_cap, host.rs:1035) is now refused by Forward; the sink error reaches exchange's on_frame branch (host.rs:737-741), which terminates the worker (usable = false, host.rs:392-404; checkin drops a dead session, host.rs:650-653) and returns the error, so no out-of-sync worker is reused; (3) the OversizeFrame supervision case is a 2 MiB frame stopped by the wire reply cap before Forward (worker.rs:83-85; tests/av1_worker.rs:381-385 expects OutputTooLarge and killed_oversize 1), unchanged; (4) nothing in the crate used hsk_studio_reel::fixtures (git grep at f6e5a49: only reel's own compile_fail doctest and tests/common mention it), and tests/av1_worker.rs takes its fixtures by include_bytes from reel's tests/fixtures (av1_worker.rs:23-24), still present. The reel+av1 and reel-native round units re-prove the build."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "new_refusal_not_counted_as_worker_protocol_fault",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:737-741 (on_frame error: terminate + Av1Error::Reel), :680-684 (Failure::Protocol bumps protocol_faults and sets Av1WorkerFault::Protocol); hsk-studio-reel src/video.rs:331-335 (new declared-size refusal)",
+     "evidence": "Since bf3c196 a worker that returns a picture larger than the declared track size but under the reply cap is refused by reel's Forward. That refusal arrives through the sink, so exchange terminates the worker (correct, not reused) but reports Av1Error::Reel(ReelError::DecoderFault { Protocol }) without bumping stats.protocol_faults and without filling the FaultSlot, while a malformed wire frame from the same worker is counted as protocol_faults / Av1WorkerFault::Protocol. A lying worker is contained either way; only the stats/typed fault differ. No test covers a worker picture between the declared size and the reply cap.",
+     "remediation": "Optional: when on_frame returns ReelError::DecoderFault, bump protocol_faults and record Av1WorkerFault::Protocol in the slot; or check width/height against spec.width/height in the host before forwarding"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_prereview_items",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:918-923 (configured program checked with is_file, then Command::new at :579); :615 (HELLO wall = spawn_timeout only)",
+     "evidence": "R8-prereview-reel new findings 1-2 (bare explicit program name resolved by the Windows search path; HELLO wait bounded by spawn_timeout, not the segment deadline) are unchanged at f6e5a49 (crate unchanged). Both optional, pre-existing, caller-supplied/override-only or default-safe; the supervision duplicate stays D18.",
+     "remediation": "As in the pre-review (optional)"
+    }
+   ],
+   "verified_fixes": [
+    "R7 FAIL PLR-034 worker-lookup-parent-dir FIXED: discover_beside joins only exe.parent() and requires is_file (host.rs:464-467); discover_program delegates (:469-471); used only when no program is configured (:918-923).",
+    "R7 FAIL PLR-035 hello-wait-ignores-cancel FIXED: HELLO waits through Session::wait (host.rs:615), which polls recv_timeout(WAIT_SLICE), then cancel, then the wall (:373-389); Canceled -> fail(Failure::Canceled) kills and reaps (:617, :665-668).",
+    "R5 classes stay fixed (pre-review table; crate bytes identical to 7886369): checked declared-dims cap and decoder budget, checked wire frame dims, test-fault hooks only under the av1 + test-faults gate (test_fault.rs header, :6-22), worker feature closure.",
+    "Dependency change bf3c196 re-checked (recheck.evidence): the worker hosts Av1Decoder directly (worker.rs:25, :103-108), the OversizeFrame test is stopped by the reply cap before Forward (av1_worker.rs:381-385), no use of the removed hsk_studio_reel::fixtures."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Crate unchanged since the SAFE_TO_JUDGE pre-review; both R7 CONFIRMED items fixed with red-on-revert tests; the reel dependency change only adds a host-side refusal that terminates the worker. Notes are optional observability items. Round must run [av1-worker] and [av1-worker,test-faults]."
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "commit_scope": "lane head ed9b130 (PASS_V4 at dff7ef5); crate changed by 3b6e9a9 (SMB-FOLIO-UNIQUENESS step 2 + SMB-COMPONENTS-FOOTPRINT), dependency hsk-studio-folio changed by bd4e811; last crate commit at f6e5a49 is 3b6e9a9",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (R3 FAIL_V1, R5 FAIL_V2) / V4-18 (crate changed after the R7 SAFE_TO_JUDGE)",
+    "prior_fail_classes": [
+     "R3 override-type-unchecked-for-bound-fields",
+     "R3 dead-action-reachability",
+     "R3 duplicate-member-id-accepted",
+     "R5 swap-switch-skip-variable-binding-type-check",
+     "R5 (FOLIO-MIGRATE) design-new-accepts-duplicate-component-ids"
+    ],
+    "evidence": "3b6e9a9 touches design.rs (Design::new), instance_resolution.rs (VariableTable::new/index, propose_overrides footprint), lib.rs (doc + DESCRIPTOR) and tests; it does not touch prototype.rs (dead-action class) or check_shape / its two call sites (instance_resolution.rs:757, :783; swap/switch binding class) or the override type check. Duplicate classes: Design::new now calls hsk_studio_folio::check_identity_uniqueness first (design.rs:96), which claims document nodes (artboards, page spreads, layers: one namespace), design entries, component+set ids (one namespace) with their container layers reported with the claiming id, collections, variables, instances, paint styles (folio identity.rs:100-131) -- a superset of the deleted local rules, in the same order (nodes, entries, components then sets with id-then-layer, collections, variables); Code::DuplicateIdentity maps to ComponentsError::Duplicate(target) (components lib.rs:114). The plain inserts that follow (design.rs:106-120, VariableTable::index instance_resolution.rs:128-142) can no longer replace a record because the pass ran first. VariableTable::new keeps its own refusal through check_variable_identity_uniqueness (instance_resolution.rs:123-124). Tests: design_refuses_repeated_ids (tests/instance_resolution.rs:1826) asserts Duplicate for shared member id SCMP 51, layer twice, layer vs artboard id, two design entries, two definitions on one container layer (reported SCMP 12), repeated collection, repeated variable, repeated instance, and VariableTable::new standalone; set_members_must_have_distinct_ids (:1520) keeps the R3 member case. No prior FAIL class reopened."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_item",
+     "file_line": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR ('never a flattened subtree copy; base definitions are never mutated', 'a missing mode value is an error, never zero')",
+     "evidence": "PLR-048 (OPEN, FIX_LANE: never-claims cite no test, V4-07) is unchanged by 3b6e9a9, which edited the same DESCRIPTOR (footprints/records/recovery) and added test citations only for the new text. PLR-047 (Operator) and PLR-045 (folio ENG-4) not re-raised.",
+     "remediation": "Cite the pinning tests next to each never-claim or weaken the wording (V4-07)"
+    }
+   ],
+   "verified_fixes": [
+    "Two-FAIL recheck SAFE_TO_JUDGE (see recheck.evidence): no prior FAIL class reopened by 3b6e9a9; duplicate-id classes now rest on Folio's pass with tests per namespace.",
+    "R5 swap-switch binding class untouched: check_shape is still called with the design (instance_resolution.rs:757, :783) and 3b6e9a9 does not touch it."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Re-proof after the crate change; changed inputs reviewed under SMB-FOLIO-UNIQUENESS and SMB-COMPONENTS-FOOTPRINT."
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "lane head was 3c82784 (PASS_V4 at dff7ef5); crate changed by 8438b1d, 589f544, bf3c196; PLR-029 fix is in bf3c196 and listed in the lane notes (plr_032_029.plr_029) and the ledger SMB-REEL note; CX-VAL-009 re-include",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_R7_items",
+     "file_line": "crates/hsk-studio-reel/src/mkv_content.rs (per-frame inflate cap), src/model.rs Limits (no aggregate decoded-bytes field); src/matroska.rs MkvIndex::approx_bytes",
+     "evidence": "R7-review-b SMB-REEL PLAUSIBLE 1-2 (no aggregate decoded-bytes bound per request; approx_bytes omits ContentEncodings settings) are not touched by bf3c196 (diff limited to lib.rs, video.rs, registry.rs docs, av1_config.rs doc, tests and the example) and remain; the lane next field states they are not in this pass.",
+     "remediation": "As in R7 (optional; not in a register disposition)"
+    }
+   ],
+   "verified_fixes": [
+    "PLR-029 FIXED (bf3c196): `pub mod fixtures` is gone from lib.rs (module list lib.rs:34-49 has no fixtures; grep of src finds the word only in the doctest at lib.rs:20). The builders live in tests/common/mod.rs (+ mkv.rs, mov.rs), which is not a Cargo test target (subdirectory) and is pulled in by `mod common;` in 9 integration tests and by `#[path = \"../tests/common/mod.rs\"] mod common;` in examples/reel-consumer.rs:12-13; no feature, no cfg, so the product library has no route to them under any feature set (stronger than the register's 'non-default feature' note, V4-04).",
+    "compile_fail doctest at lib.rs:19-21 (`use hsk_studio_reel::fixtures::wav_pcm16;`) fails for the right reason: wav_pcm16 existed in the old module (now tests/common/mod.rs:17), and the passing sibling doctest (lib.rs:26-29) resolves hsk_studio_reel::Registry, so a misspelt crate name cannot make the first one pass; lane red proof: the doctest failed ('compiled successfully') on a 589f544 copy.",
+    "No other workspace crate referenced hsk_studio_reel::fixtures at f6e5a49 (git grep: only reel's doctest and tests/common doc comment); reel-native includes the binary AV1 fixtures by include_bytes path, unaffected."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "PLR-029 (carried FIX_LANE) closed with a proof doctest; the routing changes in the same crate are reviewed under SMB-REEL-AV1-ROUTE. Remaining notes are the two carried R7 PLAUSIBLEs."
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "lane head 569023e (PASS_V2 at dff7ef5); re-included because bf3c196 makes the in-process (feature av1, Trusted) path refuse pictures above the declared size; src/av1/** unchanged dff7ef5..f6e5a49 (git diff --stat empty), av1_config.rs doc-only",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "in_process_half_untested",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:207 (in-process session hands pictures to the route's PictureSink); src/video.rs:331-335; tests/video_route.rs and tests/v4_alloc_budget.rs (both new tests use fake EXTERNAL decoders)",
+     "evidence": "The in-process route shares Forward (video.rs:448-456 opens the in-process session, :473-485 the same Forward), so the declared-size refusal applies by construction; but no test drives the in-process decoder into it. A cheap one exists: copy av1-16x16-3f.mp4, patch the av01 sample entry width/height to 8x8 (bytes after the 16 reserved bytes of the VisualSampleEntry) and decode it Trusted under --features av1 -> expect DecoderFault::Protocol and an empty sink. Real fixtures are not affected: the 16x16 mp4/mkv and the 1080p mp4 declare exactly their decoded size (fixture bytes read; av1_decode.rs:101 and :204-205 assert those sizes).",
+     "remediation": "Optional: add the patched-fixture test to tests/av1_decode.rs (feature av1)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_R7_item",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:149-157; src/av1_config.rs:40-66",
+     "evidence": "R7-review-b ENG-3 PLAUSIBLE (rav1d pre-allocation limit from the av1C layout; a heavier sequence-header layout can allocate up to ~4x the chunk budget before the packed-size check) is unchanged; the new declared-size check bounds width/height after decode, not the allocation. Trusted-input-only path (PLR-030 WAIVED).",
+     "remediation": "As in R7 (optional)"
+    }
+   ],
+   "verified_fixes": [
+    "R5 FAIL av1-default-pixel-limit-refuses-1080p stays fixed: pixel_limit from av1C (av1_config.rs:45 saturating/checked), test av1_1080p_decodes_at_default_limits_and_a_smaller_limit_still_refuses_it (av1_decode.rs:200) asserts 1920x1080x8 and the oracle digests; the 1080p fixture's sample entry declares 1920x1080, so the new check does not refuse it.",
+    "Behaviour change is fail-closed and conformant: in-process pictures above the declared sequence maximum become DecoderFault::Protocol (no packing); pictures at or below it are unchanged."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "No in-process code changed; the shared post-decode check only adds a refusal. Optional in-process regression test suggested."
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "commit_scope": "claim 2fa2202 (R7 FAIL_V1 remediation) over eb7080d/cbed946; one later crate commit f6e5a49 belongs to READY lane SMB-FX-OPS-ADOPT (listed in the interop-psd lane file next field and the ledger; adds two loss notes in note_clip_role_gaps and two DESCRIPTOR strings, proposal.rs:656-722, no change to the records, parsers or the validation sink)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "input_caused_budget_refusal_reported_as_mapping_defect",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:1716-1720 (comment added by 2fa2202: 'a rejection here is a mapping defect, not input'; every non-cancel error -> PsdError::Proposal(raster_records_rejected) for the whole import); hsk-studio-folio src/raster.rs:1019 (cx.nodes(r.layers.len())) and :757 (cx.nodes(s.effects.len()) per stack) charged against ONE fresh Budget (values.rs:39-58; default nodes 4096, folio lib.rs:451); interop-psd caps effects only per layer (effects.rs:381-382, MAX_EFFECTS 1024) and layers at 8192 (limits.rs:27)",
+     "evidence": "Code path read at f6e5a49: the record set is validated with cfg.budget after the document passed inspect_bytes with the same budget. Records count one node per record layer plus one per effect instance, cumulatively, with no importer-side pre-charge. A structurally valid PSD with a few layers that each carry several hundred multi-list effects (e.g. 6 layers x 700 dropShadowMulti/frameFXMulti entries, well under the descriptor item caps) passes the document inspection, then validate_raster_records returns BudgetExceeded and the WHOLE import fails as raster_records_rejected. Bounded and fail-closed (no unsafe allocation), so not the R7 descriptor-number class; but it contradicts the new comment at :1716 and the DESCRIPTOR raster_records sentence ('unreadable or out-of-range record keeps the layer a typed unsupported layer') for an input-caused refusal, and the code hides the budget cause behind a mapping-defect code. No test covers an effects-heavy document; whether a whole-import refusal is the intended budget semantics is a design choice (inspect_bytes refuses an over-budget layer count the same way, as folio_rejected).",
+     "remediation": "Cheap: map Code::BudgetExceeded from validate_raster_records to a distinct error (e.g. PsdError::Limit or Proposal(raster_records_budget)) and reword the :1716 comment; or pre-charge record nodes in the builder and keep stacks beyond the budget as a typed loss (effects_budget) so the import continues"
+    }
+   ],
+   "verified_fixes": [
+    "R7 FAIL_V1 hostile-cged-nonfinite-refuses-whole-import FIXED: CgEd Brgh/Cntr are taken as numeric items of any value (adjust.rs:297) and then must be finite and inside -150..150 via brightness_contrast_value (adjust.rs:276-282, :299-300), else Err(brightness_contrast_range) -> typed unsupported layer; a refused CgEd never falls back to brit; the legacy brit i16 pair is held to the same range (adjust.rs:316-317).",
+    "Class closed at every descriptor-number site: Value::number is gone; raw_number is private (descriptor.rs:60) and the only crate-visible readers are finite_number (NaN/inf -> None, :70-72) and is_number (:76-78). All 13 consumer sites use them (adjust.rs:297-300; effects.rs:101, 111, 119, 129, 162-163, 187, 351); descriptors are parsed only in adjust.rs:293 (CgEd) and effects.rs:346 (lfx2/lmfx) -- no other module calls descriptor::.",
+    "Folio-parity sweep beyond descriptors (reviewer, against folio raster.rs:575-936, 994-1080): levels (input_floor < input_ceiling, <= 255, gamma 10..=999 -> adjust.rs:126-132 vs folio :654-662), curves (2..=19 points <= 256, values <= 255, strictly ascending, unique channels from a bitmap or 0..count -> :171-204 vs :665-674), hue/saturation (shift ranges incl. colorize saturation >= 0, 6 bands <= 64 -> :229-264 vs :600-617, :676-693), exposure (finite, gamma > 0 -> :333 vs :706-714), threshold (<= 255 -> :344 vs :721), posterize (2..=255 -> :355 vs :727), blend ranges (u8 pairs ordered, unique channels -> :365-379, :414-420 vs :733-751), mask (density u8 -> 0..100, feather finite and <= MAX_MASK_FEATHER, record only with an appearance mask -> adjust.rs:485-492, proposal.rs:491-499 vs folio :1043-1053), effects (percent 0..100, pixels >= 0, angle -180..180, altitude 0..90, scale > 0, colour 0..255 -> 0..1, contour label + 2..=256 ascending 0..255 points, blend ids from a fixed 16-mode table that excludes pass-through and tool-only modes, gradient/pattern/texture never emitted -> effects.rs:97-198, :207-331 vs folio :753-936). No remaining parser admits a value folio refuses.",
+    "Adjacent fix: a channel table naming one channel twice with non-default ranges is refused as blend_ranges_duplicate_channel (adjust.rs:415-419) instead of failing the import (folio :736); test duplicate_channel_ids_in_blend_ranges_are_a_typed_loss_not_an_import_failure (tests/adjustment_records.rs:866) asserts the code, no record, assert_valid, and the single-entry control.",
+    "Test non_finite_descriptor_numbers_are_typed_losses_not_import_failures (tests/adjustment_records.rs:727) unwraps the proposal (import must succeed) for 13 hostile Brgh and 13 hostile Cntr encodings (doub/UntF NaN incl. payload NaN, +-inf, 150.5, f64::MAX, long 1000, i32::MIN), brit i16 extremes, expA NaN/inf per slot and gamma 0/-1, 8 hue2 cases, 3 levl cases, 12 lfx2 effect values, contour NaN/inf/256, stack scale NaN/inf/0/-5, and a two-layer document; lane red proof: both new tests fail at dff7ef5 with Proposal(raster_records_rejected).",
+    "V4-06: lane regex recounted with grep -P over adjust.rs, descriptor.rs, effects.rs at f6e5a49: 37 hits = 37 listed, identical file:line sets (2fa2202 and f6e5a49 leave these files unchanged after the list was taken).",
+    "V4-01: adjust.rs:22, descriptor.rs:11, effects.rs:22, proposal.rs:35 carry deny(clippy::arithmetic_side_effects).",
+    "V4-07: the adjust.rs module doc and the proposal.rs:1716-1717 comment now cite the hostile-number test (see the PLAUSIBLE budget note for the comment's reach)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "The R7 FAIL class is closed at the root (no descriptor number reaches Folio without a finite check) and every parser was re-checked against Folio's raster validator: none admits a value Folio refuses. One PLAUSIBLE: an effects-heavy but valid file can exceed the Folio node budget and fail the whole import under a mapping-defect code. PLR-016 (Operator D5) not re-raised."
+  },
+  {
+   "lane": "SMB-SCORE-GUARDS",
+   "crate": "hsk-studio-score",
+   "commit_scope": "9546819 (only commit; last score commit at f6e5a49, V4-14 ok); register PLR-015 parts 1-2 (lead FIX_LANE 10:18:58Z), part 3 (limiter/EQ reset-on-discard snapshot) deferred by the same decision",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-06_V4-20_format",
+     "file_line": "kernel builders/lanes/hsk-studio-score.json notes.guards.v4_06_sites (a prose string, no regex, no count, no file:line list)",
+     "evidence": "V4-20 asks for notes.v4_06_sites = [{file_line, verdict}] with a mechanical count and V4-06 for a search regex. The guards note lists producers by reading ('not a regex count'). The reviewer's own sweep agrees with its content: every frames_finite/all_finite site is a guard (block.rs:164-168 helper; engine.rs:262 run_block, used by process :225, bounce :252 via bounce.rs, and the bounce_resampled stages stage.rs:157; chain.rs:195 intermediates; mix.rs:82; resample.rs:346; stream_resample.rs:303; spectrum.rs:103), and the rate gate sites are block.rs:60, dsp.rs:395, eq.rs:156, bounce.rs:146, src_bounce.rs:225, resample.rs:119-120. Process-only.",
+     "remediation": "Emit notes.v4_06_sites with a regex such as 'frames_finite|all_finite|ticks_per_sample\\(' and one entry per hit"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-11",
+     "file_line": "kernel ledger.json SMB-SCORE-GUARDS note; lane notes.guards.mistakes_recorded",
+     "evidence": "The first red-proof attempts reverted files in the SHARED tree (self-reported, V4-11 breach, hit index.lock). The final tree equals 9546819 (lane: git diff empty; reviewer: the f6e5a49 archive is the committed blob, so the judged sources are unaffected). Recorded for the lead only.",
+     "remediation": "None for the product; red proofs on a scratch copy with its own STUDIO_OWNER (V4-11)"
+    }
+   ],
+   "verified_fixes": [
+    "Rate gate: ticks_per_sample (layout.rs:79-87: > 768000 refused, then accord Timescale::new + exact_ticks_per_unit, None -> InvalidRate, so 0 and non-divisors are refused) is now called by InputBlock::validate (block.rs:60), HardLimiter::new (dsp.rs:395) and Equalizer::new (eq.rs:156); bounce (bounce.rs:146), the resampled plan (src_bounce.rs:225) and ClipResampler::new (resample.rs:119-120) already used it. No other rate admission remains in the crate (grep of MAX_SAMPLE_RATE_HZ / InvalidRate at f6e5a49).",
+    "Output guard: Engine::run_block discards a processed block with a NaN or infinity after process and settle and before commit/measure/publish, resetting the processor (engine.rs:255-270); process, bounce and both StageRunner stages of bounce_resampled go through run_block. Chain refuses a non-finite intermediate stage before the next stage reads it (chain.rs:192-197). Engine::mix (mix.rs:59 unpublish, :81-84 guard before measure/publish), Engine::resample (resample.rs:344-349, resets the converter), the streaming chunk before the receiver and meters (stream_resample.rs:298-306; push_stream aborts the stream on any error, :147) and SpectrumAnalyzer bins (spectrum.rs:101-105) are guarded. OutputBlock::with_capacity refuses capacity 0 (block.rs:99-101), so frames_finite's chunks(capacity) cannot panic.",
+    "Meters stay finite: BlockReceipt::measure accumulates energy in f64 (engine.rs:103-104), so a published f32::MAX block does not make rms infinite.",
+    "Tests assert and were red on the parent (lane red proof, 1c3fd8c sources): rate_gate_admits_exactly_the_tick_divisors (8000..768000 with hand-checked ticks per sample; 0, 11000, 22051, 44101, 47999, 96001, 768001, u32::MAX refused at every entry point and the previous publication untouched), overflowing_stages_are_discarded_not_published (Gain MAX on 2.0, ChannelMix, EQ +48 dB on 1e37, ramp revert), overflow_never_reaches_a_sink_or_a_later_stage (chain, bounce sink sees only finite blocks, whole-clip and streaming resampled bounce), mix_converter_and_spectrum_refuse_overflow (tests/guards.rs:59-311).",
+    "V4-07: new doc claims (error.rs NotFinite, Chain, Engine::process, mix, ticks_per_sample, DESCRIPTOR rate_rule/output_guard) are each exercised by tests/guards.rs."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Both claimed guards hold at every producer of caller-visible samples in the crate; tests pin them. Notes are process-only. The score-plugin consumer still keeps its own 0/MAX rate rule (see cross_lane_notes)."
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "commit_scope": "lane head 70ce263 (PASS_V3 at bd8533f, proof-reused in R7); crate changed by 9546819 (SMB-SCORE-GUARDS) -> CX-VAL-009 re-include",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_items",
+     "file_line": "crates/hsk-studio-score/src/bounce.rs:207 (chain_identity: identity_digest(&proc.identity()) taken after bounce_blocks ran); src/dsp.rs HardLimiter::reset, src/eq.rs Equalizer::reset",
+     "evidence": "PLR-014 (OPEN, FIX_LANE, no lead waiver): the receipt identity is still hashed after the bounce ran, so RampedGain's identity carries its end value. PLR-015 part 3 (limiter/EQ reset-on-discard clears to the initial state instead of a commit snapshot) is deferred by the lead decision 10:18:58Z and stays as documented in the lane notes.",
+     "remediation": "PLR-014: capture identity right after proc.reset() (bounce.rs:189), before bounce_blocks runs"
+    }
+   ],
+   "verified_fixes": [
+    "R3 FAIL bounce-uses-input-layout stays fixed: bounce_held takes labels and channel count from the OUTPUT block (bounce.rs:133-134) and passes out_labels to the receipt (:208); 9546819 only replaced the 0/MAX rate check at :146 with the single gate.",
+    "Guard changes reviewed under SMB-SCORE-GUARDS add refusals only (InvalidRate for non-divisors, NotFinite for overflowing output); no accepted input of the earlier PASS changes its output."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Re-proof lane; no regression of the prior FAIL class; PLR-014 remains open as a register FIX_LANE item."
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOOTPRINT",
+   "crate": "hsk-studio-components",
+   "commit_scope": "3b6e9a9 (shared with SMB-FOLIO-UNIQUENESS step 2; last components commit at f6e5a49)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "host_contract_untested",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:801-811 (write_footprint doc: the host must move (instance_id, \"\") on every accepted write into the record, including part-record writers); :899 (write_footprint = [(instance_id, \"\")]); read keys (instance_id, property/<name>) only for properties the edited fields read (:588)",
+     "evidence": "The proposal replaces the whole instance record, so a concurrent edit of an UNREAD instance property is detected only if that writer also moves the record key, which is a host duty stated in the doc and DESCRIPTOR. This crate produces no property-write proposal, so nothing here can violate it, but no test pins the contract from the writer side (concurrent_proposals_on_one_instance_conflict covers two override proposals). Per lead decision PLR-046 (widened footprint chosen over a delta payload).",
+     "remediation": "Optional: when a host port exists, a test that a property write moving only (instance_id, property/x) is reported; or list the full set of instance property keys in read_footprint"
+    }
+   ],
+   "verified_fixes": [
+    "PLR-046 FIXED: propose_overrides writes exactly [(instance_id, \"\")] (instance_resolution.rs:884-887, :899) and removes that key from the read set (:894); override_key() is gone; two instances of one component still write different records.",
+    "Test concurrent_proposals_on_one_instance_conflict (tests/instance_resolution.rs:2053) asserts both write footprints equal the record key, both admissible at base, the second StaleProperty{SCIN-1, \"\"} after the first is accepted, rebase admits it, and instance 2 is unaffected; reverting to field keys fails the first equality (lane red proof: 5 tests failed with footprint + uniqueness + container-layer mutations).",
+    "V4-07: DESCRIPTOR footprints and the OverrideProposal doc cite concurrent_proposals_on_one_instance_conflict and override_write_keys_are_scoped_to_the_instance."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Implements the lead's PLR-046 choice exactly; the remaining note is the documented host contract."
+  },
+  {
+   "lane": "SMB-FOLIO-UNIQUENESS",
+   "crate": "hsk-studio-folio + hsk-studio-components",
+   "commit_scope": "bd4e811 (folio, step 1) + 3b6e9a9 (components, step 2); the last commits of both crates at f6e5a49",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "same_class_residual",
+     "file_line": "crates/hsk-studio-components/src/design.rs:252 (unique(&mut names, &d.property_name, ...) in the property-definition check)",
+     "evidence": "Property-name uniqueness inside one definition is still a components copy of a Folio rule (Folio checks it inside validate_component and exposes no standalone pass). The lane lists it as left in place. Same CX-CAP-001 class as PLR-049, but outside the register finding's Design::new scope; no drift found now.",
+     "remediation": "Optional: export a property-name pass from folio identity.rs on the next folio touch"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-20_format",
+     "file_line": "kernel builders/lanes/hsk-studio-folio-uniqueness.json notes.v4_06_sweep",
+     "evidence": "Regex given (unique\\(|\\.is_some\\(\\)\\s*\\{|E::Duplicate) but sites are prose, under v4_06_sweep rather than notes.v4_06_sites, with no count. Reviewer recount over components src at f6e5a49: 3 hits (design.rs:252, instance_resolution.rs:52 inside the unique() helper, :473 override double source); the prose names all three areas but also cites :387 (VariantAssignmentDuplicate), which the regex does not hit.",
+     "remediation": "Emit notes.v4_06_sites = [{file_line, verdict}] x3"
+    }
+   ],
+   "verified_fixes": [
+    "Folio identity.rs (bd4e811): one Namespaces type (identity.rs:35-73) used by the document validator (lib.rs validate: ids.node for artboards, page spreads, layers at the same points as the old map inserts) and by validate_design_records (records.rs: ids.definition/instance/collection/variable/style, ids.entry inside check_nodes), so both validators keep their refusal order and diagnostics; public check_identity_uniqueness (:100-131) and check_variable_identity_uniqueness (:136-141) claim the same namespaces in the documented order.",
+    "Components (3b6e9a9): Design::new calls check_identity_uniqueness first (design.rs:96) and maps DuplicateIdentity to Duplicate(target) (lib.rs:114); the deleted local rules are a subset of Folio's namespaces in the same order; plain inserts afterwards cannot replace a record (design.rs:106-120, VariableTable::index :128-142); public VariableTable::new keeps its refusal (:119-125). Lead-accepted behaviour change (11:06:34Z): repeated instance and paint-style ids are now Duplicate.",
+    "Tests: folio identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators (tests/design_records_contract.rs:1201: 9 record cases, 3 document cases, cross-kind sharing, documented precedence, validator order unchanged); components design_refuses_repeated_ids (:1826) per namespace incl. the new instance case, set_members_must_have_distinct_ids (:1520).",
+    "V4-14: folio last commit bd4e811, components last commit 3b6e9a9; both listed in the claim."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Single owner of the id namespaces established with unchanged validator behaviour; components deletes its copy. Notes: property-name residual and V4-20 format."
+  }
+ ],
+ "pending_lanes": [],
+ "summary": {
+  "SMB-REEL-AV1-ROUTE": {
+   "recheck": "SAFE_TO_JUDGE",
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-REEL-NATIVE-AV1-WORKER": {
+   "recheck": "SAFE_TO_JUDGE",
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-COMPONENTS": {
+   "recheck": "SAFE_TO_JUDGE",
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-REEL": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-REEL-ENG-3": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-INTEROP-PSD-ADJ": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-SCORE-GUARDS": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-SCORE": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-COMPONENTS-FOOTPRINT": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-FOLIO-UNIQUENESS": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  }
+ },
+ "completed_at": "2026-10-11T12:31:30Z",
+ "cross_lane_notes": [
+  {
+   "severity": "PLAUSIBLE",
+   "lane": "SMB-SCORE-PLUGIN (not in this review's lane list)",
+   "file_line": "crates/hsk-studio-score-plugin/src/types.rs:117-118, src/backend.rs:209-210, src/clap_backend.rs:184-185 (cfg.sample_rate_hz == 0 || > MAX_SAMPLE_RATE_HZ)",
+   "evidence": "score's single rate gate (ticks_per_sample) is not used by score-plugin's three config checks, so a 44101 Hz plugin config is admitted and fails at the first block as InvalidBlock(InvalidRate) -- the 'admitted, fails later' pattern SMB-SCORE-GUARDS removed inside score. score-device already uses ticks_per_sample (config.rs:60). The guards lane notes record this and left the other crate alone.",
+   "remediation": "Route to the score-plugin owner: replace the three 0/MAX checks with hsk_studio_score::ticks_per_sample (CX-CAP-001)"
+  }
+ ]
+}

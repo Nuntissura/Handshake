@@ -2,7 +2,7 @@
  "file_id": "WP-STUDIO-MODULE-WORK-PLAUSIBLE-REGISTER",
  "file_kind": "reviewer_plausible_decision_register",
  "schema": "hsk.studio_plausible_register@1",
- "updated_at": "2026-10-11T11:58:11Z",
+ "updated_at": "2026-10-11T12:33:34Z",
  "author": "workflow-2 (tick 4)",
  "authority_note": "Context for the lead, not a verdict. Packet/MT JSON, ledger.json and independent validator verdicts stay authoritative. Each entry was re-read at the product SHA named in verified_at (git show/grep of origin/codex/handshake-studio-assets in wt-studio-assets); no cargo was run.",
  "scope": "Every PLAUSIBLE finding in validation/R5-review-{a,b,c}.json, R6-review-{a,b,c}.json, R7-prereview-{a,b}.json (122 raw entries, deduplicated across rounds and lanes). No R7 review files exist: R7 was stopped at 2026-10-11T08:06:27Z before any reviewer or the validator wrote output (no validation/R7-review-*.json, no studio-round/results/R7).",
@@ -955,6 +955,66 @@
    "verified_at": "9b66924",
    "disposition": "FIX_LANE",
    "disposition_note": "lane notes remediation_r6 list it as open"
+  },
+  {
+   "id": "PLR-053",
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:1716 (comment) + folio default node budget",
+   "finding": "a valid PSD with ~4096 effect instances (e.g. 6 layers x 700) exhausts folio's default node budget; the whole import fails as raster_records_rejected (documented as a mapping defect) instead of per-layer typed losses or an input-sized budget",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "route after R8 verdict; new lane id SMB-INTEROP-PSD-BUDGET (V4-15)"
+  },
+  {
+   "id": "PLR-054",
+   "lane": "SMB-SCORE-PLUGIN",
+   "file_line": "crates/hsk-studio-score-plugin/src/types.rs:117, backend.rs:209, clap_backend.rs:184",
+   "finding": "three copies of the old 0/MAX sample-rate check; a 44101 Hz plugin config is accepted and then fails at the first block (score's SMB-SCORE-GUARDS rate rule not adopted)",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b (cross-lane)"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "new lane id SMB-SCORE-PLUGIN-RATE: one rate validator (score-owned rule), three call sites"
+  },
+  {
+   "id": "PLR-055",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (reply handling) + reel video.rs:331-354",
+   "finding": "a worker picture larger than the declared size but under the reply cap surfaces as Av1Error::Reel, not a worker Protocol fault, and is not counted in protocol_faults",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "new lane id SMB-REEL-NATIVE-FAULTS (lane has 2 FAILs; V4-15)"
+  },
+  {
+   "id": "PLR-056",
+   "lane": "SMB-REEL-ENG-3",
+   "file_line": "crates/hsk-studio-reel tests (in-process av1 path)",
+   "finding": "no in-process test for the new oversize-picture refusal on the trusted rav1d path (cheap: patch the 16x16 fixture's sample entry)",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "test-only; bundle with SMB-REEL-NATIVE-FAULTS or the next reel lane"
   }
  ],
  "process_items": [
@@ -981,6 +1041,12 @@
    "finding": "site list 26 vs 24 (develop); stale site list (prism-eng-6)",
    "status": "fixes pushed (60b0e47; 3312f72, efda89a, 9b66924); counts not re-run here",
    "disposition": "REVIEW (mechanical count, see tick-4 proposal 3)"
+  },
+  {
+   "at": "2026-10-11T12:33:34Z",
+   "source": "R8-review-b",
+   "item": "SMB-SCORE-GUARDS and SMB-FOLIO-UNIQUENESS lane notes do not use the V4-20 notes.v4_06_sites format; SCORE-GUARDS self-reported a V4-11 breach (red proof in the shared tree)",
+   "action": "next agent on those crates converts the list; V4-11 reminder in its dispatch"
   }
  ],
  "closed_since_review": [
