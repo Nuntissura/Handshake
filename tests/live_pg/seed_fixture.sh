@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# WP-KERNEL-012 — live-PG seed fixture for the `requires_pg` batch
+# WP-KERNEL-012 — HTTP seed fixture for the native editor batch
 # -----------------------------------------------------------------------------
-# Seeds a live handshake_core + PostgreSQL backend with the entities the
-# `#[ignore = "requires_pg"]` proofs need, then prints an `export HSK_TEST_*=...`
+# Seeds the live handshake_core HTTP routes with the entities the
+# native editor proofs need, then prints an `export HSK_TEST_*=...`
 # block the KERNEL_BUILDER can `eval`/source before running the batch.
 #
 # VERIFIED against a live backend on 2026-07-09 (handshake_core 0.1.0, migration
@@ -26,10 +26,6 @@
 #   MT-045  test_perf_large_knowledge.rs (LK-01..LK-05)
 #   MT-045  test_perf_large_code.rs
 #   MT-046  test_interconnect_*.rs       (IC-*)
-# The backend suite tests/wp_kernel_012_native_editor_routes_pg_tests.rs is
-# SELF-SEEDING (its own knowledge_pg() fixture + pg.create_workspace()); it reads
-# NO HSK_TEST_* vars and needs nothing from this script — only a live PG + the env
-# its knowledge_pg fixture resolves (DATABASE_URL / TEST_DATABASE_URL).
 #
 # Route/body evidence (file:line, worktree src/):
 #   POST  /workspaces                                api/workspaces.rs:569  {name}            -> {"id":..}
@@ -100,14 +96,14 @@ req() { _HDRS=(); _do "$1" "$2" "${3:-}"; }
 # reqi METHOD PATH [BODY]        — WITH identity headers (knowledge-document routes).
 reqi() { _HDRS=("${IDENT[@]}"); _do "$1" "$2" "${3:-}"; }
 
-echo "=== WP-KERNEL-012 live-PG seed fixture ===" >&2
+echo "=== WP-KERNEL-012 HTTP seed fixture ===" >&2
 echo "BASE=$BASE" >&2
 
 # ---- 0. reachability gate --------------------------------------------------
 HEALTH=$(curl -sS -o /dev/null -w '%{http_code}' "${BASE}/health" 2>/dev/null || echo 000)
 if [ "${HEALTH:0:1}" != "2" ]; then
   echo "FATAL: handshake_core is not reachable at ${BASE}/health (HTTP ${HEALTH})." >&2
-  echo "       Start the managed backend + PostgreSQL, then re-run. Nothing seeded." >&2
+  echo "       Start the embedded SurrealDB backend, then re-run. Nothing seeded." >&2
   exit 1
 fi
 echo "  ok  GET /health -> HTTP $HEALTH" >&2
@@ -215,43 +211,13 @@ ASSET=$(req POST "/workspaces/$WS/loom/import" \
   "{\"bytes_b64\":\"$PNG_B64\",\"mime\":\"image/png\",\"original_filename\":\"seed.png\"}" | json_str asset_id)
 echo "  asset     = ${ASSET:-<none>}" >&2
 
-# ---- 13. locus work-packet (HSK_TEST_LOCUS_WP_ID) via psql ------------------
-# The Locus reverse-lookup proof (MT-074 OP-03: other_pillar_op03_locus_resolve_
-# reverse_live) resolves a REAL row in product `public.work_packets`. That table
-# is kernel/gov state with NO create-route, so it is seeded directly via psql on
-# the managed cluster (default 127.0.0.1:5544, superuser postgres, db handshake).
-# The Locus route itself is also proven by route1_locus_work_packet_resolve, which
-# self-seeds its own work_packet; this step makes the OP-03 interop scenario
-# reproducible instead of a 404 SEED-GAP. Override conn via HSK_PGHOST/PGPORT/
-# PGUSER/PGDB/HSK_PSQL_BIN. Idempotent (ON CONFLICT DO NOTHING).
-LOCUS_WP="${HSK_TEST_LOCUS_WP_ID:-WP-KERNEL-012}"
-PSQL_BIN="${HSK_PSQL_BIN:-}"
-if [ -z "$PSQL_BIN" ]; then
-  for c in "/c/Program Files/PostgreSQL/16/bin/psql" "psql"; do
-    if command -v "$c" >/dev/null 2>&1 || [ -x "$c" ]; then PSQL_BIN="$c"; break; fi
-  done
-fi
-WP_SEEDED=""
-if [ -n "$PSQL_BIN" ]; then
-  if "$PSQL_BIN" -h "${HSK_PGHOST:-127.0.0.1}" -p "${HSK_PGPORT:-5544}" \
-       -U "${HSK_PGUSER:-postgres}" -d "${HSK_PGDB:-handshake}" -v ON_ERROR_STOP=1 -tAc \
-       "INSERT INTO public.work_packets (wp_id,version,title,status,priority,task_board_status,reporter,created_at,updated_at,vector_clock,metadata) VALUES ('$LOCUS_WP',1,'Handshake Native Editor Parity (Obsidian + VS Code)','in_progress',1,'in_progress','operator','2026-07-08T00:00:00Z','2026-07-08T00:00:00Z','{\"operator\":1}','{}') ON CONFLICT (wp_id) DO NOTHING;" >/dev/null 2>&1; then
-    WP_SEEDED="$LOCUS_WP"
-    echo "  locus wp  = $LOCUS_WP (seeded into public.work_packets)" >&2
-  else
-    echo "  SEED-WARN: work_packet insert failed (psql/PG auth?); OP-03 stays gated." >&2
-  fi
-else
-  echo "  SEED-WARN: no psql found; HSK_TEST_LOCUS_WP_ID left for external seed." >&2
-fi
-
 # =============================================================================
 # EXPORT BLOCK  (source/eval this before the cargo batch)
 # =============================================================================
 QS="${BLOCK_A}"   # HSK_TEST_QS_BLOCK_ID falls back to HSK_TEST_BLOCK_ID anyway.
 
 echo
-echo "# ---- 8< ---- copy/eval from here (WP-KERNEL-012 live-PG seed) ---- 8< ----"
+echo "# ---- 8< ---- copy/eval from here (WP-KERNEL-012 HTTP seed) ---- 8< ----"
 echo "export HSK_TEST_BASE=$BASE"
 echo "export HSK_TEST_WORKSPACE_ID=$WS"
 echo "export HSK_TEST_QUERY=$TOKEN"
@@ -265,11 +231,10 @@ echo "export HSK_TEST_CONTENT_TYPE=note"
 [ -n "$VIEW_CAL" ]    && echo "export HSK_TEST_VIEW_ID_CALENDAR=$VIEW_CAL"
 [ -n "$WIKI_ID" ]     && echo "export HSK_TEST_WIKI_PROJECTION_ID=$WIKI_ID" || echo "# SEED-GAP HSK_TEST_WIKI_PROJECTION_ID"
 [ -n "$ASSET" ]       && echo "export HSK_TEST_ASSET_ID=$ASSET"             || echo "# SEED-GAP HSK_TEST_ASSET_ID"
-[ -n "$WP_SEEDED" ]   && echo "export HSK_TEST_LOCUS_WP_ID=$WP_SEEDED"      || echo "# SEED-GAP HSK_TEST_LOCUS_WP_ID (psql work_packet seed unavailable)"
 echo "# ---- 8< ---- end export block ---- 8< ----"
 
 # =============================================================================
-# HONEST SEED-GAPS / NOTES  (these sub-proofs stay requires_pg-gated by design)
+# HONEST SEED-GAPS / NOTES  (unseeded sub-proofs remain unproven)
 # =============================================================================
 echo
 echo "# SEED-GAP HSK_TEST_TRANSCLUSION_HEAD (MT-045 LR-05): a 50-hop transclusion chain whose"
@@ -278,8 +243,6 @@ echo "#   dedicated chain-builder. Left UNSET -> perf_lr05_transclusion_chain_li
 echo "# SEED-GAP HSK_TEST_FIND_STRING (MT-044 E4-42): asserts >=3 DISTINCT file paths from a"
 echo "#   file-faceted search. Needs a code-nav-indexed corpus / file-type blocks with distinct"
 echo "#   paths (POST /workspaces/:ws/code-nav/index), not plain notes. Left at default -> gated."
-echo "# SEED-GAP semantic search (MT-044 E4-39): needs pgvector + a configured embedding model +"
-echo "#   the mt250 fixture. No env can seed the model -> parity_semantic_search stays gated."
 echo "# SEED-NOTE E2-16 transclusion read-through (parity_transclusion_read_through): the seeded"
 echo "#   HSK_TEST_BLOCK_ID has NO source rich document (loom-block create rejects document_id with"
 echo "#   HSK-500-LOOM), so /loom/blocks/{id}/transclusion returns resolved=false. That ONE sub-proof"

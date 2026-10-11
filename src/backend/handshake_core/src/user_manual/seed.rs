@@ -6338,8 +6338,6 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-010 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
@@ -6348,11 +6346,6 @@ fn page_model_lane_navigation() -> NewUserManualPage {
             page_link("model-lane-diagnostics"),
             page_link("model-lane-recovery"),
             page_link("model-lane-validation-harness"),
-            NewManualAnchor {
-                anchor_kind: "test",
-                anchor_value: "model_lane_navigation_api_tests".into(),
-                http_method: "",
-            },
         ],
         vec![
             "4.3.9.2.5".into(),
@@ -8438,127 +8431,6 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
-    let model_lane_navigation_tool_hash = sha256_hex(
-        &serde_json::to_string(&json!({
-            "id": "model_lane_navigation_api_tests",
-            "name": "Dexterity ModelLane navigation runtime proof",
-            "status": "wired",
-            "http_routes": [
-                "GET /swarm/model-lanes/navigation/runs/{run_id}",
-                "GET /swarm/model-lanes/navigation/lanes/{lane_id}",
-                "GET /swarm/model-lanes/navigation/messages/{message_id}",
-                "GET /swarm/model-lanes/navigation/artifacts",
-                "GET /swarm/model-lanes/navigation/traces/{trace_id}",
-                "GET /swarm/model-lanes/navigation/diagnostics/{run_id}",
-                "GET /swarm/model-lanes/navigation/recovery/{run_id}",
-                "GET /swarm/model-lanes/navigation/lookup"
-            ],
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests",
-            "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
-            ],
-            "manual_version": USER_MANUAL_VERSION,
-        }))
-        .expect("model-lane navigation tool serializes"),
-    );
-    tools.push(UserManualToolEntry {
-        tool_id: "model_lane_navigation_api_tests".into(),
-        page_id: None,
-        name: "Dexterity ModelLane navigation runtime proof".into(),
-        status: "wired".into(),
-        ipc_channel: None,
-        tauri_command: None,
-        cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests".into(),
-        ),
-        http_route: Some("/swarm/model-lanes/navigation/runs/{run_id}".into()),
-        http_method: "GET".into(),
-        description:
-            "Exact Rust proof targets for no-context Dexterity ModelLane navigation routes and UserManual registry parity. \
-             Routes: GET /swarm/model-lanes/navigation/runs/{run_id}, \
-             GET /swarm/model-lanes/navigation/lanes/{lane_id}, \
-             GET /swarm/model-lanes/navigation/messages/{message_id}, \
-             GET /swarm/model-lanes/navigation/artifacts, \
-             GET /swarm/model-lanes/navigation/traces/{trace_id}, \
-             GET /swarm/model-lanes/navigation/diagnostics/{run_id}, \
-             GET /swarm/model-lanes/navigation/recovery/{run_id}, \
-             GET /swarm/model-lanes/navigation/lookup. \
-             Selectors that are not natural route path parameters resolve through the \
-             `model_lane.navigation.lookup` lookup_kind (ModelLaneNavigationLookup) with exactly one \
-             query selector, served by ModelLaneStore::navigation_by_lookup. Every returned row carries \
-             trace_id, span_id, event_ledger_event_id, event_ledger_seq, and error_code, plus EventLedger \
-             authority refs and Flight Recorder refs, the HBR-INT-009 internal_diagnostics and Palmistry \
-             posture, and Locus, Loom, FEMS, ContextBundle, and MemoryPack refs."
-                .into(),
-        expected_input:
-            "Real embedded SurrealDB/EventLedger test schema; ModelLaneRun, lane, message, artifact binding, recovery, lease, diagnostic tier, and MT status rows with trace/span, Locus, Loom, FEMS, ContextBundle, MemoryPack, Flight Recorder, and Palmistry refs."
-                .into(),
-        expected_output:
-            "ModelLaneNavigationProjection rows from every navigation route with hsk.model_lane_navigation@1 schema, route_id, lookup_kind, run/lane/message/artifact/context/recovery/diagnostic/MT rows, EventLedger refs, Flight Recorder refs, error codes, recovery routes, UserManual page links, runtime router rows, WP-009 registry rows, and tool/manual parity."
-                .into(),
-        schema_fields: vec![
-            "ModelLaneNavigationProjection".into(),
-            "ModelLaneStore::navigation_by_run".into(),
-            "ModelLaneStore::navigation_by_lane".into(),
-            "ModelLaneStore::navigation_by_message".into(),
-            "ModelLaneStore::navigation_by_artifact_or_context".into(),
-            "ModelLaneStore::navigation_by_trace".into(),
-            "ModelLaneStore::navigation_by_diagnostics".into(),
-            "ModelLaneStore::navigation_by_recovery".into(),
-            "ModelLaneStore::navigation_by_lookup".into(),
-            "ModelLaneNavigationLookup".into(),
-            "hsk.model_lane_navigation@1".into(),
-            "model_lane.navigation.run".into(),
-            "model_lane.navigation.lane".into(),
-            "model_lane.navigation.message".into(),
-            "model_lane.navigation.artifact_context".into(),
-            "model_lane.navigation.trace_span".into(),
-            "model_lane.navigation.diagnostic_tier".into(),
-            "model_lane.navigation.recovery".into(),
-            "model_lane.navigation.lookup".into(),
-            "kernel_event_ledger".into(),
-            "Flight Recorder".into(),
-            "EventLedger".into(),
-            "internal_diagnostics".into(),
-            "Palmistry".into(),
-            "Locus".into(),
-            "Loom".into(),
-            "FEMS".into(),
-            "ContextBundle".into(),
-            "MemoryPack".into(),
-            "model_session_id".into(),
-            "session_id".into(),
-            "wp_id".into(),
-            "mt_id".into(),
-            "task_board_id".into(),
-            "event_ledger_event_id".into(),
-            "event_ledger_seq".into(),
-            "trace_id".into(),
-            "span_id".into(),
-            "error_code".into(),
-        ],
-        common_errors: vec![
-            "missing artifact_ref or context_bundle_id".into(),
-            "unknown run_id/lane_id/message_id/trace_id".into(),
-            "missing EventLedger refs".into(),
-            "missing Flight Recorder refs".into(),
-            "missing UserManual registry row".into(),
-            "router 404/405 for documented route".into(),
-            "diagnostics projection row drift".into(),
-        ],
-        recovery_steps: vec![
-            "Start with /swarm/model-lanes/navigation/runs/{run_id}, then narrow to lane/message/artifact/trace/diagnostics/recovery routes.".into(),
-            "Use event_ledger_refs to inspect kernel_event_ledger before trusting UI rows, provider traces, or chat history.".into(),
-            "For artifact recovery, query artifact_ref, artifact_binding_id, artifact_manifest_ref, artifact_payload_ref, artifact_sha256, content_hash, or context_bundle_id through /swarm/model-lanes/navigation/artifacts.".into(),
-            "For HBR-INT-009 gaps, compare diagnostic tier rows with model-lane-diagnostics and keep Palmistry as observation-only evidence unless the separate watcher is wired.".into(),
-            "If the registry/manual route tests fail, add the route, registry row, page anchor, and tool entry in the same implementation unit.".into(),
-        ],
-        origin: "wp1_model_lane".into(),
-        content_hash: model_lane_navigation_tool_hash,
-        manual_version: USER_MANUAL_VERSION.into(),
-    });
 
     let mixed_model_lane_validation_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
@@ -9164,7 +9036,6 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "mt014_selection_post_rejects_embedding_role_before_swap".to_string(),
         "mt014_selection_post_integrity_failure_occurs_before_swap".to_string(),
         "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
-        "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection".to_string(),
         "mt014_embedding_role_row_has_no_default_switch_action".to_string(),
         "model_runtime_registry_behaviors_have_canonical_manual_coverage".to_string(),
         "user_manual_names_only_surfaces_that_exist_in_compiled_product_code".to_string(),
@@ -9189,6 +9060,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "DECLARED PROOF TARGETS are not executed by UserManual coverage validation; the tool_ids ",
         "below are exact targets to run separately, and an executed verdict requires the Cargo ",
         "test result or its durable proof receipt. ",
+        "PostgreSQL proof retired; replacement runtime proof pending. ",
         "production boot verifies the registry schema and recovers the configured immutable ",
         "artifact-to-adapter/capability/runtime-role selection before reading model weights. It loads through ",
         "the existing in-process Candle/llama.cpp ModelRuntime, atomically persists and reads ",

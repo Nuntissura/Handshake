@@ -881,6 +881,10 @@ fn model_runtime_selection_failure_recovery_rows_match_compiled_api_contract() {
         .find(|row| row.behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve")
         .expect("re-observation row exists");
     assert_eq!(
+        reobserve.proof_execution_status,
+        ModelRuntimeProofExecutionStatus::RetiredPendingReplacement,
+    );
+    assert_eq!(
         reobserve.schema_id,
         Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID),
         "GET re-observation returns the canonical typed registry projection"
@@ -950,7 +954,16 @@ async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
         .description
         .contains(MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE));
     assert!(matrix.iter().all(|row| {
-        row.proof_execution_status == ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
+        row.proof_execution_status
+            == if row.behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve" {
+                ModelRuntimeProofExecutionStatus::RetiredPendingReplacement
+            } else {
+                ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
+            }
+    }));
+    assert!(feature.description.contains("PostgreSQL proof retired; replacement runtime proof pending."));
+    assert!(!feature.tool_ids.iter().any(|tool| {
+        tool == "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection"
     }));
     let persistent = matrix
         .iter()

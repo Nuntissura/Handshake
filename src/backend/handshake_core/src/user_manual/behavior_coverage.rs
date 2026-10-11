@@ -2668,6 +2668,7 @@ pub const MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE: &str =
 #[serde(rename_all = "snake_case")]
 pub enum ModelRuntimeProofExecutionStatus {
     DeclaredNotExecuted,
+    RetiredPendingReplacement,
 }
 
 /// Machine-readable MT-014 contract joining each ModelRuntime registry behavior
@@ -2721,7 +2722,11 @@ pub fn model_runtime_registry_behavior_coverage_matrix(
             manual_evidence_marker,
             recovery_instruction_marker: RECOVERY,
             proof_tool_id,
-            proof_execution_status: ModelRuntimeProofExecutionStatus::DeclaredNotExecuted,
+            proof_execution_status: if behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve" {
+                ModelRuntimeProofExecutionStatus::RetiredPendingReplacement
+            } else {
+                ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
+            },
             manual_version: USER_MANUAL_VERSION,
             internal_diagnostics_posture: DiagnosticTierPosture::Wired,
             palmistry_posture: DiagnosticTierPosture::Wired,
@@ -3132,25 +3137,31 @@ pub fn verify_model_runtime_registry_behavior_coverage(
                     .to_owned(),
             });
         }
-        if !feature
-            .tool_ids
-            .iter()
-            .any(|tool| tool == row.proof_tool_id)
-        {
-            errors.push(BehaviorCoverageError {
-                behavior_id: row.behavior_id,
-                reason: format!(
-                    "UserManual feature does not declare proof target {}",
-                    row.proof_tool_id
-                ),
-            });
-        }
-        if row.proof_execution_status != ModelRuntimeProofExecutionStatus::DeclaredNotExecuted {
-            errors.push(BehaviorCoverageError {
-                behavior_id: row.behavior_id,
-                reason: "UserManual coverage must not claim that runtime proof targets executed"
-                    .to_owned(),
-            });
+        let active_proof_target = feature.tool_ids.iter().any(|tool| tool == row.proof_tool_id);
+        if row.behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve" {
+            if row.proof_tool_id != "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection"
+                || row.proof_execution_status != ModelRuntimeProofExecutionStatus::RetiredPendingReplacement
+                || active_proof_target
+                || !feature.description.contains("PostgreSQL proof retired; replacement runtime proof pending.")
+            {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: "retired PostgreSQL proof requires its historical target, pending replacement status, explicit notice, and absence from active proof targets".to_owned(),
+                });
+            }
+        } else {
+            if !active_proof_target {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: format!("UserManual feature does not declare proof target {}", row.proof_tool_id),
+                });
+            }
+            if row.proof_execution_status != ModelRuntimeProofExecutionStatus::DeclaredNotExecuted {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: "UserManual coverage must not claim that runtime proof targets executed".to_owned(),
+                });
+            }
         }
         for marker in [row.manual_evidence_marker, row.recovery_instruction_marker] {
             if !feature.description.contains(marker) {

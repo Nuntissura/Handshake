@@ -1,9 +1,7 @@
 //! WP-1 MT-014: Argus + pixel proof for the Rust-native ModelRuntime panel.
 //!
 //! Artifact and pixel proofs read producer-attested JSON emitted by
-//! `model_runtime_registry_api_tests`. The selection proof independently boots
-//! the real Handshake route over an isolated managed-PostgreSQL schema and
-//! drives it through the production native transport.
+//! `model_runtime_registry_api_tests`.
 
 use std::{
     collections::VecDeque,
@@ -16,7 +14,6 @@ use egui_kittest::{
     kittest::{NodeT, Queryable},
     Harness,
 };
-use handshake_core::test_harness::model_runtime_selection::Mt014NativeCompositeProof;
 use handshake_native::{
     app::{HandshakeApp, HealthDisplayState},
     backend_client::{HealthInfo, ModelRuntimeRegistryClient},
@@ -627,129 +624,6 @@ fn mt014_argus_operator_menu_fetches_real_pg_projection_through_production_trans
     );
 }
 
-#[test]
-fn mt014_stable_switch_author_id_posts_then_reobserves_backend_projection() {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .enable_all()
-        .build()
-        .expect("build MT-014 production-composite runtime");
-    let proof = runtime
-        .block_on(Mt014NativeCompositeProof::start())
-        .expect("start real MT-014 managed-PostgreSQL composite proof");
-    assert!(proof.managed_postgres_is_proven());
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
-        status: "ok".to_owned(),
-        db_status: "ok".to_owned(),
-        migration_version: Some(356),
-    }));
-    app.set_backend_base_url_for_test(proof.base_url(), runtime.handle().clone());
-    let mut harness = Harness::builder()
-        .with_size(egui::Vec2::new(1440.0, 940.0))
-        .build_state(|context, app: &mut HandshakeApp| app.ui(context), app);
-
-    harness.run();
-    harness.get_by_label("MODELS").click();
-    harness.run();
-    harness.get_by_label("Open Model Runtime").click();
-    let switch_id =
-        row_switch_author_id(PRIMARY_MODEL_RUNTIME_PANE_ID, &proof.target_artifact_sha256);
-    wait_for_author_id(&mut harness, &switch_id);
-    assert_author_id(
-        &harness,
-        &row_role_author_id(
-            PRIMARY_MODEL_RUNTIME_PANE_ID,
-            &proof.embedding_artifact_sha256,
-        ),
-    );
-    assert_author_id(
-        &harness,
-        &row_default_ineligible_author_id(
-            PRIMARY_MODEL_RUNTIME_PANE_ID,
-            &proof.embedding_artifact_sha256,
-        ),
-    );
-    assert!(
-        !live_author_ids(&harness).iter().any(|author_id| author_id
-            == &row_switch_author_id(
-                PRIMARY_MODEL_RUNTIME_PANE_ID,
-                &proof.embedding_artifact_sha256,
-            )),
-        "the real embedding-role row must not expose an AccessKit Switch action"
-    );
-
-    click_author_id(&mut harness, &switch_id);
-    let active_id = row_active_selection_author_id(
-        PRIMARY_MODEL_RUNTIME_PANE_ID,
-        &proof.target_artifact_sha256,
-    );
-    wait_for_author_id(&mut harness, &active_id);
-    assert_author_id(&harness, &active_id);
-    assert_eq!(proof.selected_model_id(), proof.target_model_id);
-    assert_eq!(proof.selection_event_count(), 1);
-    assert!(proof.has_native_selection_event(&proof.target_model_id));
-
-    let client = ModelRuntimeRegistryClient::new(proof.base_url(), runtime.handle().clone());
-    let reobserved = fetch_through_production_transport(&client)
-        .expect("GET active durable projection through the production native transport");
-    assert!(reobserved.rows.iter().any(|row| {
-        row.artifact_sha256 == proof.target_artifact_sha256
-            && row.live_model_id.as_deref() == Some(proof.target_model_id.as_str())
-            && row.selected
-            && row.default_selectable
-    }));
-    assert!(reobserved.rows.iter().any(|row| {
-        row.artifact_sha256 == proof.current_artifact_sha256
-            && row.live_model_id.as_deref() == Some(proof.current_model_id.as_str())
-            && !row.selected
-    }));
-
-    let stale_error = select_through_production_transport(&client, &proof.stale_model_id)
-        .expect_err("stale target must fail through the production POST route");
-    assert!(stale_error.contains("not a current READY registry row"));
-    assert_eq!(proof.selected_model_id(), proof.target_model_id);
-
-    let embedding_error = select_through_production_transport(&client, &proof.embedding_model_id)
-        .expect_err("embedding-role target must fail through the production POST route");
-    assert!(
-        embedding_error.contains("Embedding") && embedding_error.contains("not eligible"),
-        "unexpected embedding-role rejection: {embedding_error}"
-    );
-    assert_eq!(proof.selected_model_id(), proof.target_model_id);
-
-    proof.drift_current_catalog_role_to_embedding();
-    let integrity_error = select_through_production_transport(&client, &proof.current_model_id)
-        .expect_err("role-integrity drift must fail before the production runtime swap");
-    assert!(
-        integrity_error.contains("runtime role") && integrity_error.contains("disagrees"),
-        "unexpected role-integrity rejection: {integrity_error}"
-    );
-    assert_eq!(proof.selected_model_id(), proof.target_model_id);
-    proof.restore_current_catalog_role_to_completion();
-
-    proof.set_audit_failure(true);
-    let audit_error = select_through_production_transport(&client, &proof.current_model_id)
-        .expect_err("Flight Recorder failure must fail before the production runtime swap");
-    assert!(
-        audit_error.contains("model selection audit failed before switch"),
-        "unexpected audit-failure rejection: {audit_error}"
-    );
-    assert_eq!(proof.selected_model_id(), proof.target_model_id);
-    assert_eq!(proof.selection_event_count(), 1);
-    proof.set_audit_failure(false);
-
-    let final_projection = fetch_through_production_transport(&client)
-        .expect("re-observe active projection after every fail-closed boundary");
-    assert_eq!(
-        final_projection
-            .rows
-            .iter()
-            .find(|row| row.selected)
-            .and_then(|row| row.live_model_id.as_deref()),
-        Some(proof.target_model_id.as_str()),
-        "stale, embedding-role, integrity, and audit failures must preserve the active model"
-    );
-}
 
 #[test]
 fn mt014_argus_renders_real_pg_live_and_dormant_registry_rows() {

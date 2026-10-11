@@ -1,15 +1,8 @@
 //! WP-1 live orchestration debug console — HEADLESS SSE proof.
 //!
-//! Connects to `GET /wp1/diagnostics/console/stream` over the REAL full product
-//! router (`api::routes`) on a loopback listener (quiet; no foreground window),
-//! then triggers real WP-1 orchestration `SwarmEvent`s through a
-//! `ConsoleSwarmSink` bound to the SAME process-wide hub the route reads
-//! (`ConsoleBroadcast::shared()`). It asserts the structured console entries
-//! stream through IN ORDER with the right categories/severities — proving the
-//! SwarmEvent -> ConsoleEntry mapping, the broadcast tee, and the SSE
-//! serialization end to end, headlessly, with managed PostgreSQL.
+//! Proves account-scoped replay/live SSE ordering through the real console router
+//! on a quiet loopback listener with isolated in-memory broadcast hubs.
 
-mod knowledge_pg_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
@@ -19,17 +12,12 @@ use handshake_core::api;
 use handshake_core::api::account_scope::ProductLocalResourceScope;
 use handshake_core::console_stream::{
     ConsoleBroadcast, ConsoleCategory, ConsoleEntry, ConsoleEntryDraft, ConsoleSeverity,
-    ConsoleSwarmSink,
 };
-use handshake_core::model_runtime::ModelId;
-use handshake_core::swarm_orchestration::events::{SwarmEvent, SwarmEventSink};
-use handshake_core::swarm_orchestration::ids::ModelInstanceId;
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
     OwnerAccountId, WorkspaceScopeRef,
 };
-use handshake_core::swarm_orchestration::state::ModelSessionState;
-use user_manual_support::{app_state_for, start_server};
+use user_manual_support::start_server;
 
 /// Read SSE `data:` lines from the response, deserialize each into a
 /// [`ConsoleEntry`], keep those whose subject carries `marker`, and return once
@@ -173,250 +161,6 @@ async fn connect_isolated_console(
         .expect("connect isolated console SSE reader");
     assert_eq!(response.status(), reqwest::StatusCode::OK);
     response
-}
-
-#[tokio::test]
-async fn wp1_console_stream_uses_server_scope_without_optional_assertion_headers() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "wp1_console_stream_missing_scope"
-    );
-    let state = app_state_for(&kpg.schema_url).await;
-    let server_scope = ProductLocalResourceScope::from_exact(exact_scope(
-        OwnerAccountId::mint(),
-        "console-missing-header",
-    ))
-    .expect("valid server scope");
-    let (base, _server) =
-        start_server(api::routes_with_product_local_scope(state, server_scope)).await;
-
-    let response = reqwest::Client::new()
-        .get(format!("{base}/wp1/diagnostics/console/stream"))
-        .header("accept", "text/event-stream")
-        .send()
-        .await
-        .expect("request console SSE endpoint without a resource scope");
-
-    assert_eq!(
-        response.status(),
-        reqwest::StatusCode::OK,
-        "server-owned exact scope authorizes the stream without caller-selected headers"
-    );
-}
-
-#[tokio::test]
-async fn wp1_console_stream_streams_swarm_events_in_order_over_the_real_router() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "wp1_console_stream_sse"
-    );
-    let state = app_state_for(&kpg.schema_url).await;
-    let owner = OwnerAccountId::mint();
-    let workspace = format!("console-owner-{}", uuid::Uuid::now_v7());
-    let projection_scope = exact_scope(owner, &workspace);
-    let server_scope = ProductLocalResourceScope::from_exact(projection_scope.clone())
-        .expect("valid server scope");
-    let (base, _server) =
-        start_server(api::routes_with_product_local_scope(state, server_scope)).await;
-    let http = reqwest::Client::new();
-
-    // Connect. `send()` resolves once the response headers arrive; the handler
-    // subscribes to the shared console hub BEFORE returning the SSE response, so
-    // the subscription is live by the time we publish below.
-    let resp = http
-        .get(format!("{base}/wp1/diagnostics/console/stream"))
-        .header("accept", "text/event-stream")
-        .header("x-handshake-owner-account", owner.to_string())
-        .header("x-handshake-workspace", &workspace)
-        .send()
-        .await
-        .expect("connect to console SSE endpoint");
-    assert_eq!(resp.status(), reqwest::StatusCode::OK, "SSE returns 200");
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
-    assert!(
-        content_type.starts_with("text/event-stream"),
-        "SSE content-type, got {content_type}"
-    );
-
-    // Let the streaming body task start polling the subscriber before publishing.
-    tokio::time::sleep(Duration::from_millis(250)).await;
-
-    // Trigger REAL WP-1 orchestration events through a ConsoleSwarmSink bound to
-    // the SAME process-wide hub the route reads. Every event uses one instance id
-    // whose Display carries a per-run-unique model UUID; that UUID is the marker
-    // isolating this test's entries from any replayed/concurrent hub traffic.
-    let sink = ConsoleSwarmSink::new_scoped(ConsoleBroadcast::shared(), projection_scope.clone());
-    let model_id = ModelId::new_v7();
-    let marker = model_id.to_string();
-    let iid = ModelInstanceId::new(model_id, 0);
-
-    // Ordered batch spanning the teed WP-1 categories.
-    sink.emit(SwarmEvent::SessionSpawned {
-        instance_id: iid,
-        parent_session_id: "owner-session".to_string(),
-        process_uuid: uuid::Uuid::now_v7(),
-        swarm_id: Some("swarm-alpha".to_string()),
-        worktree_id: None,
-    })
-    .expect("console tee never errors");
-    sink.emit(SwarmEvent::SessionStateChanged {
-        instance_id: iid,
-        from: ModelSessionState::Loading,
-        to: ModelSessionState::Ready,
-    })
-    .expect("console tee never errors");
-    sink.emit(SwarmEvent::ModelInvocationStarted {
-        instance_id: iid,
-        trace_id: uuid::Uuid::now_v7(),
-        run_id: "run-1".to_string(),
-        session_id: "session-1".to_string(),
-        max_tokens: 256,
-    })
-    .expect("console tee never errors");
-    sink.emit(SwarmEvent::ModelInvocationFinished {
-        instance_id: iid,
-        trace_id: uuid::Uuid::now_v7(),
-        run_id: "run-1".to_string(),
-        session_id: "session-1".to_string(),
-        outcome: "failed".to_string(),
-        generated_tokens: 3,
-        error: Some("provider failed".to_string()),
-    })
-    .expect("console tee never errors");
-    sink.emit(SwarmEvent::SessionCompleted {
-        instance_id: iid,
-        event_id: None,
-    })
-    .expect("console tee never errors");
-
-    let collected = collect_marked_entries(resp, &marker, 5, Duration::from_secs(20)).await;
-
-    assert!(
-        collected.len() >= 5,
-        "expected at least 5 teed console entries to stream through, got {}: {collected:?}",
-        collected.len()
-    );
-
-    // Categories arrive in the exact emission order.
-    let categories: Vec<ConsoleCategory> = collected
-        .iter()
-        .take(5)
-        .map(|entry| entry.category)
-        .collect();
-    assert_eq!(
-        categories,
-        vec![
-            ConsoleCategory::ModelLaneLaunch,
-            ConsoleCategory::ModelLaneStatus,
-            ConsoleCategory::ModelInvocation,
-            ConsoleCategory::ModelInvocation,
-            ConsoleCategory::ModelLaneStatus,
-        ],
-        "streamed console entries preserve emission order + category mapping"
-    );
-
-    // The monotonic seq is strictly increasing across the ordered tail.
-    for pair in collected.windows(2) {
-        assert!(
-            pair[1].seq > pair[0].seq,
-            "console seq must be strictly increasing: {} then {}",
-            pair[0].seq,
-            pair[1].seq
-        );
-    }
-
-    // The failed invocation is surfaced at error severity with its detail.
-    let failed = &collected[3];
-    assert_eq!(failed.severity, ConsoleSeverity::Error);
-    assert!(
-        failed.detail.contains("provider failed"),
-        "failed invocation detail carries the error: {}",
-        failed.detail
-    );
-
-    // The invocation entries carry the trace id (correlation for headless triage).
-    assert!(
-        collected[2].trace_id.is_some(),
-        "model invocation entry carries a trace id"
-    );
-    assert!(
-        collected
-            .iter()
-            .all(|entry| entry.resource_scope.as_ref() == Some(&projection_scope)),
-        "every identifier-bearing console entry carries the exact five-field durable scope"
-    );
-}
-
-#[tokio::test]
-async fn wp1_console_stream_hides_cross_account_and_wrong_workspace_identifiers() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "wp1_console_stream_scope_isolation"
-    );
-    let state = app_state_for(&kpg.schema_url).await;
-    let owner = OwnerAccountId::mint();
-    let other_owner = OwnerAccountId::mint();
-    let workspace = format!("console-private-{}", uuid::Uuid::now_v7());
-    let projection_scope = exact_scope(owner, &workspace);
-    let server_scope = ProductLocalResourceScope::from_exact(projection_scope.clone())
-        .expect("valid server scope");
-    let (base, _server) =
-        start_server(api::routes_with_product_local_scope(state, server_scope)).await;
-    let http = reqwest::Client::new();
-
-    let cross_account = http
-        .get(format!("{base}/wp1/diagnostics/console/stream"))
-        .header("accept", "text/event-stream")
-        .header("x-handshake-owner-account", other_owner.to_string())
-        .header("x-handshake-workspace", &workspace)
-        .send()
-        .await
-        .expect("connect cross-account SSE reader");
-    let wrong_workspace = http
-        .get(format!("{base}/wp1/diagnostics/console/stream"))
-        .header("accept", "text/event-stream")
-        .header("x-handshake-owner-account", owner.to_string())
-        .header("x-handshake-workspace", format!("{workspace}-other"))
-        .send()
-        .await
-        .expect("connect wrong-workspace SSE reader");
-    assert_eq!(cross_account.status(), reqwest::StatusCode::FORBIDDEN);
-    assert_eq!(wrong_workspace.status(), reqwest::StatusCode::FORBIDDEN);
-
-    let model_id = ModelId::new_v7();
-    let marker = model_id.to_string();
-    let process_uuid = uuid::Uuid::now_v7();
-    let worktree_id = format!("private-worktree-{}", uuid::Uuid::now_v7());
-    ConsoleSwarmSink::new_scoped(ConsoleBroadcast::shared(), projection_scope)
-        .emit(SwarmEvent::SessionSpawned {
-            instance_id: ModelInstanceId::new(model_id, 0),
-            parent_session_id: "private-parent-session".to_owned(),
-            process_uuid,
-            swarm_id: Some("private-swarm".to_owned()),
-            worktree_id: Some(worktree_id.clone()),
-        })
-        .expect("console tee never errors");
-
-    let (cross_body, workspace_body) = tokio::join!(
-        collect_stream_text(cross_account, Duration::from_secs(2)),
-        collect_stream_text(wrong_workspace, Duration::from_secs(2)),
-    );
-    for denied_body in [&cross_body, &workspace_body] {
-        assert!(!denied_body.contains(&marker), "model identifier leaked");
-        assert!(
-            !denied_body.contains(&process_uuid.to_string()),
-            "process identifier leaked"
-        );
-        assert!(
-            !denied_body.contains(&worktree_id),
-            "worktree identifier leaked"
-        );
-    }
 }
 
 #[tokio::test]
