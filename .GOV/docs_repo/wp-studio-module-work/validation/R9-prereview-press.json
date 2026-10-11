@@ -1,0 +1,194 @@
+{
+ "kind": "pre-review",
+ "group": "R9 pre-review press (V4-13)",
+ "rule_refs": ["V4-13", "V4-14", "V4-06", "V4-07", "V4-15"],
+ "head": "49731a51c42c1f62fa1a8088dac2326f9fd0369a",
+ "branch": "origin/codex/handshake-studio-assets",
+ "base": "607d47cc4c26c94dc76921856a6f616dacfd181a (R8 pre-review press head)",
+ "reviewer": "R9 pre-reviewer press (Opus, read-only)",
+ "method": "git archive of committed blobs at 49731a5 and 607d47c into scratchpad; git diff 607d47c..49731a5 -- crates/hsk-studio-press (e8b464b a85b85f 49731a5); reading only; no cargo, no sub-agents; V4-06 regex recount with git grep at 49731a5; pdf.js src/core/string_utils.js (stringToPDFString) read for viewer text-string behaviour; pdfminer.six bundled CMap data read for the predefined CMap V. All file:line are crates/hsk-studio-press at 49731a5 unless stated.",
+ "status": "complete",
+ "started_at": "2026-10-11T12:48:58Z",
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "last_fail": "STUDIO-R6 FAIL_V2 at bd8533f (2 FAILs: R5 FAIL_V1, R6 FAIL_V2); R8 pre-review FIX_FIRST F1-F5, P1 at 607d47c",
+   "claim": "R8 pre-review remediation e8b464b, a85b85f, 49731a5 (lane status READY_FOR_VALIDATION, 57/57 tests on 49731a5; lead decision 2026-10-11T11:58:11Z: the proof fails closed)",
+   "reviewed_at": "2026-10-11T13:07:18Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R8 F1 (pages outside the page tree never walked)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "Object-table walk: tree pages Kept (src/sanitized_save.rs:782-786), every indirect dict with a /Contents stream outside the tree walked Stray with inherited resources (src/sanitized_save.rs:787-791, src/show_text.rs:690-718), every other decoded non-raster stream passing looks_like_content walked Stray with no resources (src/sanitized_save.rs:804-816, src/show_text.rs:356-361), unresolved font in Stray = opaque (src/show_text.rs:542-543). Test partial_tounicode_and_unreachable_pages_are_read_or_opaque (tests/pdf_delivery.rs:3053) asserts OpaqueText with opaque_text_streams == [31] / [32] and DecodedText hits on the template page and the /Dest-only page; a revert to the page-tree-only walk fails it (lane red run on 607d47c). Residual: R9-P1 (dict-key gate of the catch-all)."
+    },
+    {
+     "finding": "R8 F2 / D2 (kerned TJ never matched as one run)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "Per-operator joined readings (encoding, ligatures, ToUnicode) and joined bytes for TJ with >1 non-empty strings (src/show_text.rs:476-558), matched for Appearance/Stray records in every non-hex byte spelling (src/sanitized_save.rs:830, :847-864); text-field scan uses Shown.joined (src/show_text.rs:617-635, src/text_fields.rs:834-835); selector records adjacent removed TJ elements joined (src/redaction.rs:447-453, :719-748). Test kerned_tj_runs_are_read_whole (tests/pdf_delivery.rs:3098) covers Helvetica, ToUnicode and /Differences appearances, stray form, text-field drop, removal side (text_strings_removed 3, removed_text.last() == SECRET-ALPHA) and controls; asserts are specific (decoded_text_hit on the object). Residual: R9-F3 (runs split across show operators; kerning used as the word space)."
+    },
+    {
+     "finding": "R8 F3 / D3 (unreadable removed text searched only as codes; .ok() dropped the encoding on InputLimit)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "reading_of returns (text, complete) (src/redaction.rs:371-393; composite via decode_checked :378-384; simple incomplete when the encoding reading is opaque :392; unresolved font :374-376); RedactionReport.removed_unreadable -> RedactedOutput.unreadable_removed (src/sanitized_save.rs:1081-1086) -> NotProven::UnreadableRemovedText in not_proven_reasons only (:1009-1011); SimpleEncoding::of_font and /ToUnicode budget errors propagate (src/redaction.rs:309, :321-333). Test unreadable_removed_text_is_never_proven (tests/pdf_delivery.rs:3164): exact reasons [UnreadableRemovedText], region_cleared true, /g1 and empty-stem names, partial ToUnicode, readable control = [Leak], budget case unwrap_err == InputLimit(decoded_total) (a revert of :309 to .ok() returns Ok and fails the unwrap_err). Residual: R9-F3 (iii) (unreadable text drawn glyph by glyph in separate operators is never distinctive)."
+    },
+    {
+     "finding": "R8 F4 / D4 (Type3 FontMatrix and vertical writing: region reads cleared; PLR-039 re-opened)",
+     "verdict": "FIXED_WITH_RESIDUAL (not complete within the lead decision's own letter)",
+     "evidence": "RedactionClass::Type3Text / VerticalText (src/error.rs:74-81, as_str :92-93) marked by show() for any non-empty string drawn with a font the selector resolves as Type3 or vertical (src/redaction.rs:404-414; detection :288-292, :310, :339-363); Refuse/RemoveImages -> UnsupportedRedactionClass (src/redaction.rs:986-990), ReportAndContinue -> unredacted, complete false -> RegionIncomplete (:1116-1129, src/sanitized_save.rs:1017-1019). Test type3_and_vertical_text_never_read_as_cleared (tests/pdf_delivery.rs:3215) with an independent oracle (the run is still in the content), Identity-V and an embedded CMap with /WMode 1 in its data, Identity-H and listed-only Type3 controls. Residuals that read cleared AND proven with Type3/vertical text drawn in the region: R9-F1 (predefined CMap /V), R9-F2 (font set by gs or inherited into a form is never resolved, so never marked)."
+    },
+    {
+     "finding": "R8 F5 / D5 (V4-06 count and verdicts)",
+     "verdict": "FIXED",
+     "evidence": "git grep -n -E <notes.v4_06_regex> 49731a5 -- crates/hsk-studio-press/src gives 211 lines; the 211 listed notes.v4_06_sites are the identical file:line set (mechanical diff, 0 differences). R7pre count corrected to 52 (notes.remediation_R7pre.class_sites_count); :799 verdict corrected; D5 verdicts updated (redaction.rs:309, show_text.rs:504/529/531). Spot-check results under v4_06_spot_check."
+    },
+    {
+     "finding": "R8 P1 (kept-text exemption by bytes the font does not draw)",
+     "verdict": "FIXED",
+     "evidence": "ShowRec.raw_drawn = complete simple-font encoding reading with the same letters/digits as the bytes (src/show_text.rs:517, :548); KeptOp merges readings and raw_drawn per kept operator (src/sanitized_save.rs:831-846); shown_needles exempts only drawn bytes or drawn readings (:463-484); operand collisions use the same per-operator set (:915-929). Test kept_text_needs_a_drawn_reading (tests/pdf_delivery.rs:3145) asserts Leak and no collisions for /Differences /X, collisions for A..Z names and Helvetica."
+    },
+    {
+     "finding": "R5/R6/R7-pre N1-N7 and PLR-040 (still intact at 49731a5)",
+     "verdict": "FIXED (intact)",
+     "evidence": "R5 fully_decoded in structural_reasons (src/sanitized_save.rs:224-226; test :1170 untouched). R6 exemption only when every role is Kept (:879-899; tests :2274 made stricter by R8, :2678 untouched). R6 opaque blocks (:206-208, :230-232). N1 raw backstop + consumed (:746-748, :955-963; test :2489). N2 inline images decoded (:515-572, called :948; test :2532). N3 content_role_streams + catch-all (:799-816; test :2639). N4 gstate q/Q/gs/Tf (src/show_text.rs:444-470; test :2600). N5 parse failure -> unreadable (src/show_text.rs:336-340, :370-372). N6 Do with own or caller resources and caller font (:576-577, :596). N7 Kept only via Do (roles). PLR-040 codec_signature (src/sanitized_save.rs:559-562, :763-766; test :2720). filters.rs, raster.rs, reader.rs, writer.rs, content.rs untouched by the R8 commits (diff stat). The R8 diff changes three existing tests: stray_streams... (stricter: OpaqueText and !region_cleared, plus a with-resources sub-case keeping the old assertion), hostile_decoder... (the valid u32-edge map also names drawn code 0001; edge range unchanged), unmappable_glyph... (Type3 cases run with ReportAndContinue; reading assertions unchanged). None weakens a prior regression assertion."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "R9-F1",
+     "severity": "CONFIRMED",
+     "kind": "fail_closed_gap within lead decision (4) (vertical writing reads cleared)",
+     "file_line": "src/redaction.rs:342 (Object::Name(n) => Ok(n.ends_with(b\"-V\"))), also reached through /UseCMap at :347-349; DESCRIPTOR geometry and independence (src/lib.rs:78) and module docs src/redaction.rs:135-140",
+     "evidence": "ISO 32000 predefined CMap names include H and V (JIS X 0208, Adobe-Japan1); V is vertical (pdfminer.six bundled CMap data: V.json.gz IS_VERTICAL true, EUC-V true, H false). 'V' does not end with '-V', so a Type0 font with /Encoding /V (or an embedded CMap with /UseCMap /V) is vertical=false. Example: page content 'BT /V1 12 Tf 100 700 Td <2422242424262428> Tj ET' with V1 = Type0 /Encoding /V over an Adobe-Japan1 CIDFont; a viewer advances the glyphs down from y 700; region [90 600 130 650] (below the first glyph, as in type3_and_vertical_text_never_read_as_cleared) selects nothing because show() advances along x (src/redaction.rs:416-431), nothing is marked, the residual pass repeats the miss: region_cleared() and is_proven() are true while glyphs are drawn inside the region. This is the Identity-H control of the R8 test, reached with a vertical CMap. The DESCRIPTOR claim 'vertical writing (/WMode 1, -V CMaps): text of either kind anywhere on the page makes the region ... VerticalText' is false for /V (V4-07). The V4-06 regex does not match :342, so the site list (which marks :344/:348/:358 FIXED) never reached it.",
+     "remediation": "Treat the name V (and any name whose CMap is not known horizontal) as vertical: e.g. n == b\"V\" || n.ends_with(b\"-V\"), or fail closed for every predefined CMap name other than Identity-H / H / names ending -H. Add /V and an embedded CMap with /UseCMap /V to type3_and_vertical_text_never_read_as_cleared."
+    },
+    {
+     "id": "R9-F2",
+     "severity": "CONFIRMED",
+     "kind": "PLR-039_counterexample (selector font model narrower than the walker; region reads cleared and proven)",
+     "file_line": "src/redaction.rs:656-659 (g.font/g.fs set only by Tf), :638-835 (Interp::run has no gs arm; no ExtGState handling anywhere in redaction.rs), :258-317 (font() resolves the NAME in the current resources), :576-593 (run_form empties the font cache and switches to the form's own /Resources, so an inherited font name is re-resolved there), :404-414 (Type3Text/VerticalText marked only for a resolved font); walker by contrast: src/show_text.rs:463-470 (gs /Font), :596 (form inherits the caller's font object)",
+     "evidence": "(a) Font set by an ExtGState (ISO 32000 8.4.5 /Font [font size]; the crate's own walker follows it since R7 N4): page 'BT /GS1 gs 100 700 Td (SECRET-ALPHA) Tj ET', /ExtGState << /GS1 << /Font [6 0 R 12] >> >> (6 = Helvetica). The selector has g.font = empty and g.fs = 0, so show() computes a zero-size box at (100, 700); region [120 690 180 715] lies inside the drawn run (x 100..192) but is not touched; nothing removed, needles_searched 0, residual 0: region_cleared() and is_proven() true while SECRET-ALPHA is drawn across the region. With a Type 3 font in the ExtGState the Type3Text rule is also skipped. (b) Font inherited into a form with its own /Resources (ISO 32000 8.10.1; walker N6): page '/T3 10 Tf /Fm1 Do', Fm1 /BBox [0 0 612 792] /Resources << /Font << /F2 6 0 R >> >>, content 'BT 100 700 Td (SECRET) Tj ET', T3 = Type 3 with /FontMatrix [2 0 0 2 0 0] /Widths [1 ...]. The selector looks up /T3 in Fm1's resources, finds nothing (resolved=false, type3=false): no Type3Text mark, advance 10 pt per byte (SECRET at 100..160) while a viewer draws 20 pt per glyph (100..220); region [170 690 215 715] selects nothing: region_cleared() and is_proven() true with R, E, T drawn in the region. (b) is inside the letter of lead decision (4) ('region clearing with Type3 text ... on the page reads RegionIncomplete, never cleared'); (a) is the same PLR-039 class (geometry not computed, backstop never sees unselected text). Neither site is matched by the V4-06 regex although the [R8] class text names 'selector geometry not computed'.",
+     "remediation": "Make the selector's font graphics state like the walker's: resolve Tf to a FontInfo carried in Gfx (saved by q/Q, inherited by value into forms), set font and size from gs /Font; or fail closed: a gs whose ExtGState has /Font, or a non-empty show with an unresolved font (resolved=false) or fs that came from no Tf, marks a typed RedactionClass (RegionIncomplete under ReportAndContinue, refusal otherwise). Tests: gs-set Helvetica with no Tf; Type 3 font inherited into a form with own resources."
+    },
+    {
+     "id": "R9-F3",
+     "severity": "CONFIRMED",
+     "kind": "decoding_disagreement / proof_gap, same class as R8 F2/F3 at the next granularity (needs lead decision on the scope of decision (3))",
+     "file_line": "src/show_text.rs:471-561 (one ShowRec per operator; joined/bytes only for one TJ with >1 strings, :477, :491-493), :527 and :554 (readings equal to the bytes are dropped, so no spaced raw reading exists), :617-635 (text-field view separates records with ' '); src/sanitized_save.rs:847-856 (matching per record), :1077-1086 (needles and unreadable count per removed string >= 6 bytes); src/redaction.rs:447-453, :719-748 (flush_run joins only elements of one TJ; separate Tj/'/\" operands are never joined)",
+     "evidence": "(i) Proof side, split across operators of one BT: the FreeText appearance of kerned_tj_runs_are_read_whole written as 'BT /F1 12 Tf 2 5 Td (SECRET-) Tj (ALPHA) Tj ET' (Helvetica; producers such as Skia split runs into Tj+Td when positions deviate). A viewer draws and extracts SECRET-ALPHA; the proof sees mapped empty, joined empty, raw_joined empty (single-string records), contiguous bytes 'SECRET-) Tj (ALPHA', operands 'SECRET-' and 'ALPHA': no hit; the text-field scan reads 'SECRET- ALPHA ' (no match) and keeps the appearance: is_proven() true. Same with /ToUnicode or /Differences codes split over two Tj (readings per operator). (ii) Kerning as the word space (pdfTeX writes no space glyphs): removed needle 'SECRET ALPHA' from '(SECRET ALPHA) Tj'; an appearance '[(SECRET) -250 (ALPHA)] TJ' in Helvetica yields mapped empty and joined 'SECRETALPHA' (no space) only, because the per-string spaced reading is kept only when it differs from the bytes (:527): no hit, while the same TJ in a /Differences or /ToUnicode font does match through rec.mapped 'SECRET ALPHA '. Decision (3) asks for 'the joined per-operator TJ reading as well as the spaced one'; for byte-equal fonts the spaced one does not exist. (iii) Removal side: region text '(SECRE) Tj (T-ALPHA) Tj' gives needles 'T-ALPHA' and short 'SECRE'; the outline twin '(SECRET-ALPHA plan)' is not a hit (token rule: 'T-ALPHA' is preceded by the letter E, src/sanitized_save.rs:339-347): is_proven() true with the title intact. The F3 example drawn glyph by glyph ('<0101> Tj <0102> Tj ...', font 23 Identity-H without /ToUnicode) gives only 2-byte strings: unreadable_removed stays 0 (:1084 filters >= 6 bytes), needles_searched is 0 so OpaqueText/UnreadableContent cannot block (:206-208, :233): is_proven() true with SECRET-ALPHA in the outline title. The DESCRIPTOR (src/lib.rs:78 proof.scope, short_needles, removed_text) states the per-TJ scope accurately, but proof.not_covered does not disclose cross-operator runs or kerning spaces.",
+     "remediation": "Lead decision: extend (3) to the run of consecutive show operators of one BT..ET (raw and font readings joined, and spaced with ' ' between strings/operators, also for byte-equal fonts), and on the removal side join consecutive removed show strings of one BT and judge readability per joined run (so a distinctive run of short unreadable strings yields UnreadableRemovedText); or record the limits in DESCRIPTOR proof.not_covered (V4-07). Tests: two-Tj appearance (Helvetica, ToUnicode, /Differences), kerning-space TJ with a spaced needle, '(SECRE) Tj (T-ALPHA) Tj' with the outline twin, per-glyph Identity-H region text."
+    },
+    {
+     "id": "R9-P1",
+     "severity": "PLAUSIBLE",
+     "kind": "catch-all gate by dictionary keys a viewer ignores; doc overclaim (V4-07)",
+     "file_line": "src/sanitized_save.rs:439-446 (looks_like_content: /Subtype other than Form, /Type XRef|ObjStm|Metadata|EmbeddedFile excluded), :811-814 (gate on the catch-all), :882-884 (comment 'Every stream that tokenizes as content was walked above'); src/show_text.rs:769-777 (Type 3 CharProcs only for INDIRECT Type 3 font dicts); DESCRIPTOR content_walk (src/lib.rs:78: 'every other stream that tokenizes as content is read as stray content with none')",
+     "evidence": "A glyph procedure of a Type 3 font written as a direct dictionary inside a /Font resource dict is not a content_role_stream; it reaches the catch-all, which skips it when its stream dict carries e.g. /Type /Metadata or /Subtype /XML (viewers ignore those keys on a CharProc). Such a stream gets no walk, no decoded-value operand check (ops None, :884) and no font-code spellings (no resources_used); only byte spellings are scanned, so text it draws through a nested composite/Differences font or an escaped literal ('(SEC\\122ET-ALPHA) Tj') is not found. Contrived (direct Type 3 font + misleading CharProc keys + text inside a glyph procedure). Byte-scan coverage for any stream that is not walked (also non-tokenizing unreached streams, lane residual): raw bytes, PDFDocEncoding, UTF-8 (whole-token rule), UTF-16BE/LE (strict) and upper/lower hex of each (src/sanitized_save.rs:267-292); NOT covered there: literal-string escapes and hex strings with white space, mixed-case hex, font-code spellings, XML/HTML character references, case and white-space variants. The DESCRIPTOR/doc sentence 'every other stream that tokenizes as content' is broader than the code. V4-06 verdicts for sanitized_save.rs:439 and show_text.rs:769 omit the gate and the direct-dict case.",
+     "remediation": "Walk Type 3 CharProcs of direct font dicts too (scan resource /Font dicts for direct Type 3 fonts), and drop the dictionary-key gate for streams that tokenize (or limit the exclusion to streams whose keys prove another role, e.g. /Length1 font programs, /N ICC profiles, /Type /CMap, which the lane residual names); correct the DESCRIPTOR content_walk wording."
+    },
+    {
+     "id": "R9-P2",
+     "severity": "PLAUSIBLE",
+     "kind": "proof narrower than viewer display and than the crate's own text-field Matcher (pre-existing, not R8 code)",
+     "file_line": "src/text_codec.rs:51-63 (decode_text keeps U+001B language escapes); src/sanitized_save.rs:686-691 (string objects matched by exact spellings via contains/scan_one :421-435), :350-365 (text_found exact characters)",
+     "evidence": "pdf.js stringToPDFString (src/core/string_utils.js, keepEscapeSequence default false) removes every ESC..ESC segment from UTF-16/UTF-8 text strings and skips ESC..ESC in the PDFDocEncoding branch, so an outline /Title '(SEC\\033en\\033RET-ALPHA plan)' or <FEFF 0053 0045 0043 001B 656E 001B 0052 ...> displays 'SECRET-ALPHA plan'. The proof's spellings never match it and decode_text keeps the escape, so the text-field Matcher misses it too: redact_and_save_with(.., Some(policy)) reads proven with the title shown in the bookmark panel. Zero-width characters inside a title or a /ToUnicode reading ('SEC\\u200BRET-ALPHA') are matched by the Matcher (text-field side, DESCRIPTOR text_fields.matching) but not by the proof, so plain redact_and_save reads proven. Hostile constructions; outside the R8 remediation spec; DESCRIPTOR proof.not_covered does not list them.",
+     "remediation": "Strip ESC..ESC language escapes in decode_text (both families) and normalize zero-width/soft-hyphen characters in proof matching of decoded text strings and walker readings (or add both to DESCRIPTOR proof.not_covered)."
+    },
+    {
+     "id": "R9-V1",
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-06 (regex under-covers its own class; two verdicts imprecise)",
+     "file_line": "builders/lanes/hsk-studio-press.json notes.v4_06_regex / notes.v4_06_sites",
+     "evidence": "Count is exact (211 = 211). The [R8] class names 'selector geometry not computed for Type3/vertical text', but the regex does not match the sites that decide it outside the listed lines: src/redaction.rs:342 (R9-F1), :656-659 Tf arm and :576-593 run_form font re-resolution (R9-F2). Verdict pdf_edit.rs:218 says the text of pages outside the tree 'blocks the proof'; readable text there is read (hit or nothing; F1 test control at tests/pdf_delivery.rs:3063-3064 is proven), only opaque text blocks. sanitized_save.rs:439 and show_text.rs:769 see R9-P1.",
+     "remediation": "Add the selector font-state terms (e.g. b\"Tf\", run_form, ends_with) to the regex with the R9-F1/F2 fixes and re-count; reword the two verdicts."
+    }
+   ],
+   "adversarial_core_claim": {
+    "covered_and_sound_at_head": "object table incl. object streams (members parsed, step 1), xref streams (decoded and scanned), incremental tails and free/unreferenced objects (xref_sections/unreachable_objects/unlisted endobj -> NotProven::Structure, raw backstop over every output byte), forms via Do, patterns (PatternType 1), annotation /AP (appearance_roots walks nested direct dicts, src/text_fields.rs:571-595), AcroForm forms (Subtype Form -> content_role_streams), inline images (decoded, :515-572), marked-content properties and ActualText operands (operand dicts recursed, :915-946; never exempt: exemption only for show operators), outline titles, /Info, XMP and embedded files (string objects and decoded streams), optional content (walked like all content, no exemption), kerned TJ within one operator.",
+    "gaps": "R9-F1, R9-F2 (selector), R9-F3 (cross-operator runs, kerning spaces, per-glyph unreadable removal), R9-P1 (dict-key gate), R9-P2 (language escapes / zero-width)."
+   },
+   "fail_closed_consistency": "New paths are typed and reported: NotProven::UnreadableRemovedText (code unreadable_removed_text, src/sanitized_save.rs:153, in RedactedOutput::not_proven_reasons :1009-1011, withholds is_proven only, per decision (2)); RedactionClass::Type3Text/VerticalText (src/error.rs:74-93) -> refusal under Refuse/RemoveImages (src/redaction.rs:986-990), unredacted + RegionIncomplete under ReportAndContinue (per decision (4)); Stray unresolved font -> opaque -> OpaqueText (src/show_text.rs:542-543); partial /ToUnicode -> opaque (:499-500); budget overruns in the selector propagate as InputLimit (src/redaction.rs:309, :329, :357). No silent downgrade found in the R8 diff; the remaining non-budget decode failures map to fail-closed values (no map -> unreadable/opaque; undecodable CMap -> vertical). Caveat: OpaqueText/UnreadableContent stay gated by needles_searched > 0 (src/sanitized_save.rs:206-208, :233), which R9-F3 (iii) exploits.",
+   "v4_06_spot_check": {
+    "regex_count_at_head": 211,
+    "listed": 211,
+    "set_diff": "none (git grep -n -E at 49731a5 vs notes.v4_06_sites, sorted and compared)",
+    "checked": ["cmap.rs:243", "cmap.rs:250", "encoding.rs:155", "encoding.rs:300", "encoding.rs:318", "encoding.rs:341", "pdf_edit.rs:218", "redaction.rs:262", "redaction.rs:289", "redaction.rs:309", "redaction.rs:331", "redaction.rs:344", "redaction.rs:348", "redaction.rs:358", "redaction.rs:380", "redaction.rs:392", "redaction.rs:404", "redaction.rs:447", "redaction.rs:735", "sanitized_save.rs:439", "sanitized_save.rs:788", "sanitized_save.rs:799", "sanitized_save.rs:812", "sanitized_save.rs:837", "show_text.rs:499", "show_text.rs:542", "show_text.rs:546", "show_text.rs:769", "text_fields.rs:571"],
+    "accurate": 26,
+    "imprecise": ["pdf_edit.rs:218 (readable text outside the tree is read, not blocking)", "sanitized_save.rs:439 (omits the dictionary-key gate, R9-P1)", "show_text.rs:769 (only indirect Type 3 dicts, R9-P1)"],
+    "not_reached_by_regex": ["redaction.rs:342 (R9-F1)", "redaction.rs:656-659, :576-593 (R9-F2)"]
+   },
+   "v4_07_doc_check": "Every test name cited in src docs and DESCRIPTOR exists at head (checked mechanically). False or overbroad claims: DESCRIPTOR geometry/independence 'vertical writing (/WMode 1, -V CMaps) ... makes the region VerticalText ... never read as cleared' (R9-F1, R9-F2); content_walk 'every other stream that tokenizes as content' (R9-P1).",
+   "wip_after_ready": false,
+   "wip_note": "READY commit 49731a5 (2026-10-11T12:41:13Z) is an ancestor of origin/codex/handshake-studio-assets (2ddff00 at review time, 7 later commits); git log 49731a5..origin -- crates/hsk-studio-press is empty, no other ref carries a later crate commit, and the shared tree has no uncommitted crate changes. The three R8 commits (e8b464b, a85b85f, 49731a5) are listed in the lane file commits.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Every R8 item (F1-F5, P1) is fixed with a test that fails on revert, and R5/R6/R7-pre/PLR-040 stay intact, but decision (4) is not met: Type 3 or vertical text drawn in a region still reads cleared and proven through /Encoding /V (R9-F1) and through fonts set by gs or inherited into a form (R9-F2, also a gs/Helvetica zero-box miss). Either would be a third FAIL in the PLR-039/F4 class. R9-F3 is the F2/F3 class one granularity up and needs a lead decision on the scope of decision (3) (fix or disclose) before judging."
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "last_fail": "none (V4-15 lane; R8 pre-review FIX_FIRST D1-D5 at 607d47c)",
+   "claim": "D1-D5 remediated in the same commits (READY 49731a5, judged together with SMB-PRESS)",
+   "reviewed_at": "2026-10-11T13:07:18Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R8 D1 (empty-stem glyph names read as blank, not opaque)",
+     "verdict": "FIXED",
+     "evidence": "glyph_text: Blank only for the exact name .notdef (src/encoding.rs:340-342), empty stem -> Unknown (:351) -> Slot::Unknown -> opaque unless /ToUnicode has the code (:155-158). Unit test glyph_names_follow_the_agl_specification (src/encoding.rs:423) asserts .s1, .A, _, __, .notdef.alt, ._ are Unknown; empty_stem_glyph_names_are_opaque (tests/pdf_delivery.rs:3263) asserts [OpaqueText] with opaque_text_streams [13] for Type1 and Type 3 cases and a /.notdef control. Revert of :351 fails both."
+    },
+    {
+     "finding": "R8 D2 (= F2 on /Differences readings)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "enc_join/map_join joined readings (src/show_text.rs:510-533, :550-558); kerned_tj_runs_are_read_whole /Differences case (tests/pdf_delivery.rs:3107-3110). Residual: R9-F3 (i) applies to /Differences codes split over two Tj operators."
+    },
+    {
+     "finding": "R8 D3 (= F3: InputLimit read as 'no encoding'; opaque reading not unreadable)",
+     "verdict": "FIXED",
+     "evidence": "src/redaction.rs:309 propagates the budget error; :386-392 completeness; tests/pdf_delivery.rs:3184-3191 (/g1 and empty-stem names -> [UnreadableRemovedText]) and :3199-3206 (budget -> InputLimit)."
+    },
+    {
+     "finding": "R8 D4 (= F4: Type 3 placed with Widths/1000)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "Type 3 marked Type3Text (src/redaction.rs:310, :407-410; exact advance excludes Type 3 :432); test :3215. Residual: R9-F2 (a Type 3 font set by gs or inherited into a form with own resources is never resolved, so never marked)."
+    },
+    {
+     "finding": "R8 D5 (two V4-06 verdicts incomplete)",
+     "verdict": "FIXED",
+     "evidence": "notes.v4_06_sites redaction.rs:309 (budget error returned), show_text.rs:504/529/531 (spaced kept, joined added); single list, count exact (see SMB-PRESS)."
+    }
+   ],
+   "differences_decoding_check": "encoding_data.rs (AGL table, base tables) untouched since 607d47c (not in the R8 diff stat), so the R8 programmatic comparison with pdfminer.six (0 differences in 4089 names) still holds. glyph_text after D1: exact .notdef -> blank; suffix after the first period dropped; underscore components; each component via AGL, uniXXXX groups (either hex case, surrogates rejected) or uXXXX..uXXXXXX; any PUA or unmappable component -> Unknown; empty stem -> Unknown (src/encoding.rs:335-375). finish() reads fixed spaces as ' ' and zero-width/soft hyphen as nothing (:307-322). Base Empty for Type 3 and non-embedded ZapfDingbats, BuiltIn (unknown) for embedded/symbolic fonts without /Encoding (:224-249).",
+   "new_findings": [
+    {
+     "id": "R9-D1",
+     "severity": "PLAUSIBLE",
+     "kind": "doc_citation (V4-07)",
+     "file_line": "src/encoding.rs:331-334",
+     "evidence": "The D1 doc comment cites test unmappable_glyph_names_and_encodingless_fonts_are_opaque (tests/pdf_delivery.rs:2867-2935), which has no empty-stem case; the integration test that proves the claim is empty_stem_glyph_names_are_opaque (:3263). The unit test cited beside it does prove it, so the claim is supported; the second citation is wrong.",
+     "remediation": "Cite empty_stem_glyph_names_are_opaque."
+    },
+    {
+     "id": "R9-D2 (= SMB-PRESS R9-F3 on /Differences text)",
+     "severity": "CONFIRMED",
+     "kind": "decoding_disagreement",
+     "file_line": "src/show_text.rs:471-561; src/sanitized_save.rs:847-856",
+     "evidence": "'BT /F1 12 Tf <0102030402> Tj <05060708090A07> Tj ET' (the DIFF_NAMES font) in an appearance reads 'SECRE ' and 'T-ALPHA ' in two records; no reading carries SECRET-ALPHA: no hit, appearance kept by the text-field scan.",
+     "remediation": "As SMB-PRESS R9-F3."
+    },
+    {
+     "id": "R9-D3 (= SMB-PRESS R9-F2 for Type 3)",
+     "severity": "CONFIRMED",
+     "kind": "PLR-039_counterexample",
+     "file_line": "src/redaction.rs:576-593, :258-317, :656-659",
+     "evidence": "The D4 fail-closed rule depends on the selector resolving the Type 3 font by name in the current resources; a Type 3 font inherited into a form with own resources or set by gs is never marked (worked example in SMB-PRESS R9-F2 (b)).",
+     "remediation": "As SMB-PRESS R9-F2."
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "Same READY commit 49731a5 as SMB-PRESS; nothing later touches the crate.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The lane's own D1/D3/D5 fixes are correct and tested and the glyph-name reading matches the AGL rules, but D4 shares the R9-F2 bypass (Type 3 text drawn in a region reads cleared) and D2 shares R9-F3; judge with SMB-PRESS after those are fixed or decided."
+  }
+ ],
+ "completed_at": "2026-10-11T13:07:18Z",
+ "summary": "SMB-PRESS FIX_FIRST: R8 F1-F5 and P1 fixed with revert-sensitive tests, R5/R6/R7-pre/PLR-040 intact, V4-06 count exact (211 = 211), no WIP after READY; but decision (4) is not met: vertical text via the predefined CMap /V (redaction.rs:342) and Type 3 or any text whose font comes from gs or is inherited into a form (redaction.rs:576-593, :656-659; no gs arm) still read region_cleared and is_proven while drawn in the region (R9-F1, R9-F2). R9-F3: text split across show operators, kerning used as the word space, and per-glyph unreadable removal escape the per-TJ fix (lead decision on the scope of (3)). PLAUSIBLE: catch-all dict-key gate and direct Type 3 CharProcs (R9-P1), language escapes/zero-width in text strings (R9-P2, pdf.js strips ESC..ESC), V4-06 regex under-covers its class (R9-V1). SMB-PRESS-DIFFERENCES FIX_FIRST: D1/D3/D5 fixed, AGL unchanged; D2/D4 share R9-F3/R9-F2; D1 doc cites the wrong integration test."
+}

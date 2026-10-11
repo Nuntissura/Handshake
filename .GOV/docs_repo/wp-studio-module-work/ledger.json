@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:09:37Z",
+ "updated_at": "2026-10-11T13:11:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -690,8 +690,8 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "validation (V4-13 pre-review R9 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation (positive determination, rem-press-r9)",
+   "status": null,
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -727,7 +727,22 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R9-prereview-press.json",
+     "items": [
+      "R9-F1",
+      "R9-F2",
+      "R9-F3",
+      "R9-P1",
+      "R9-P2",
+      "R9-V1"
+     ],
+     "recorded_at": "2026-10-11T13:10:26Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-WEB",
@@ -941,12 +956,19 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-eng-1",
-   "commits": [],
+   "commits": [
+    "6d232da",
+    "2ddff00",
+    "bd5bd60"
+   ],
    "verdicts": [],
-   "brief": "builders/briefs/lane-reel-eng-1.md"
+   "brief": "builders/briefs/lane-reel-eng-1.md",
+   "candidate": "bd5bd60",
+   "note": "export exact-or-error: ReelError::NotExact{requested,nearest} (MEDIA_NOT_EXACT) before first payload read at 5 provider sites; video shortfall under Export -> ReelError::Incomplete (MEDIA_INCOMPLETE); zero-duration elst handled (fragmented last edit open-ended, other non-empty zero-duration Unsupported elst-zero-duration); fiel/clap raw advisory API; ffmpeg MOV oracle fixture 4197 B with provenance; PLR-056 in-process oversize test; nextest 56 default / 61 av1, doctests, clippy, fmt clean; 17 mutation red proofs on scratch; residual R1: NotExact guard fires after external decoder session open (worker may spawn); R2 mxf no Incomplete branch",
+   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json"
   },
   {
    "lane_id": "SMB-REEL-ENG-2",
@@ -2356,8 +2378,8 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "validation (V4-13 pre-review R9 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation (positive determination, rem-press-r9)",
+   "status": null,
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2367,7 +2389,19 @@
    ],
    "verdicts": [],
    "candidate": "49731a5",
-   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing)."
+   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).",
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R9-prereview-press.json",
+     "items": [
+      "D2 (=R9-F3)",
+      "D4 (=R9-F2)",
+      "D1 doc cite"
+     ],
+     "recorded_at": "2026-10-11T13:10:26Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",
@@ -2605,7 +2639,8 @@
   "SMB-REFUSAL-KEYS",
   "SMB-FX-OPS-ADOPT",
   "SMB-SCORE-PLUGIN-RATE",
-  "SMB-INTEROP-PSD-BUDGET"
+  "SMB-INTEROP-PSD-BUDGET",
+  "SMB-REEL-ENG-1"
  ],
  "round_R6": {
   "candidate": "bd8533f",

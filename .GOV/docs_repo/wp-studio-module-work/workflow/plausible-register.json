@@ -1014,7 +1014,22 @@
    "status": "OPEN",
    "verified_at": "f6e5a49",
    "disposition": "FIX_LANE",
-   "disposition_note": "bundled into SMB-REEL-ENG-1 (one builder per crate)"
+   "disposition_note": "fix claimed bd5bd60 (SMB-REEL-ENG-1); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-057",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel decode_video_track_with (export NotExact guard)",
+   "finding": "for compressed video the export NotExact guard fires after the external decoder session is opened (sink untouched, but a worker may be spawned); a pre-check before opening the session is cheap",
+   "first_seen": "builder self-report bd5bd60",
+   "seen_in": [
+    "lane notes.residuals R1"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "bd5bd60",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
   }
  ],
  "process_items": [

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:02:11Z",
+ "updated_at": "2026-10-11T13:11:01Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1671,7 +1671,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:11:01Z (SMB-REEL-ENG-1 READY at bd5bd60)"
   },
   {
    "name": "builder-psd-budget",
@@ -1718,6 +1718,18 @@
     "validation/R9-prereview-press.json"
    ],
    "launched": "2026-10-11T12:49:07Z",
+   "status": "done 2026-10-11T13:10:26Z (FIX_FIRST both lanes: R9-F1 /V CMap, R9-F2 gs font/inherited font, R9-F3 split Tj)"
+  },
+  {
+   "name": "rem-press-r9",
+   "agent_id": "a46be5b3d6a17bb58",
+   "model": "opus",
+   "role": "SMB-PRESS + DIFFERENCES positive-determination remediation",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T13:11:01Z",
    "status": "running"
   }
  ]
