@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:40:44Z",
+ "updated_at": "2026-10-11T05:46:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -103,8 +103,8 @@
    "lane_id": "SMB-COMPONENTS",
    "crate": "hsk-studio-components",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-components",
-   "phase": "build",
-   "status": "FAIL_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-components",
    "brief": null,
    "commits": [
@@ -112,15 +112,16 @@
     "423cb0f",
     "556237d",
     "f8b5328",
-    "0111960"
+    "0111960",
+    "ed9b130"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-components.json",
-   "candidate": "0111960",
-   "note": "slice1+2: + own auto-layout evaluator (taffy not adopted: semantics differ, UNVERIFIED); 9 tests + mutants",
+   "candidate": "ed9b130",
+   "note": "R5 remediation (opus, 2nd FAIL): check_shape always gets variable table (bound var exists + type, alias targets typed); PLAUSIBLE fixed: override write keys scoped per instance (STU-ARC-011); V4-06 site lists 41+31; 16 of 16 green, red-first",
    "review_findings_r3": "R3 findings remediated 0111960",
    "r5_review_routed": {
     "to": "rem-components",
@@ -1334,18 +1335,19 @@
    "crate": "hsk-studio-components",
    "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
    "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-components-migrate",
    "commits": [
     "c6251f0",
-    "992cca1"
+    "992cca1",
+    "ed9b130"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "992cca1",
-   "note": "components evaluate folio StudioDesignRecords via Design index; duplicates deleted; 13 tests; 5 mutants caught",
+   "candidate": "ed9b130",
+   "note": "R5 remediation: Design::new and VariableTable::new return Result (Duplicate ids refused); same-class sites fixed: VariantAssignmentDuplicate, duplicate property; final test form needs new API (red run on earlier form recorded)",
    "r5_review_routed": {
     "to": "rem-components",
     "at": "2026-10-11T05:31:12Z",
@@ -1496,6 +1498,8 @@
   "SMB-RENDER-GPU",
   "SMB-INTEROP-VECTOR",
   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
-  "SMB-INTEROP-LAYOUT"
+  "SMB-INTEROP-LAYOUT",
+  "SMB-COMPONENTS",
+  "SMB-COMPONENTS-FOLIO-MIGRATE"
  ]
 }
