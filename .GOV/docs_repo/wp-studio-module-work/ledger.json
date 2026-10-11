@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T14:41:47Z",
+ "updated_at": "2026-10-11T15:00:20Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -695,8 +695,8 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "validation (V4-13 pre-review R10 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation (canonical rewrite, rem-press-r10; excluded from R10)",
+   "status": null,
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -738,7 +738,23 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R10-prereview-press.json",
+     "items": [
+      "R10-F1",
+      "R10-F2",
+      "R10-F3",
+      "R10-F4",
+      "R10-F5",
+      "R10-F6",
+      "R10-F7"
+     ],
+     "recorded_at": "2026-10-11T15:00:20Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-WEB",
@@ -2454,8 +2470,8 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "validation (V4-13 pre-review R10 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation (canonical rewrite, rem-press-r10; excluded from R10)",
+   "status": null,
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2471,7 +2487,18 @@
    ],
    "verdicts": [],
    "candidate": "cc3eaae",
-   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources."
+   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.",
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R10-prereview-press.json",
+     "items": [
+      "R10-D1",
+      "R10-F7"
+     ],
+     "recorded_at": "2026-10-11T15:00:20Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",

@@ -1845,6 +1845,18 @@
     "validation/R10-prereview-press.json"
    ],
    "launched": "2026-10-11T14:26:28Z",
+   "status": "done 2026-10-11T15:00:20Z (FIX_FIRST: R10-F1..F7 parser differentials + semantics, R10-D1)"
+  },
+  {
+   "name": "rem-press-r10",
+   "agent_id": "a8f723dcc68d58313",
+   "model": "opus",
+   "role": "SMB-PRESS + DIFFERENCES canonical-rewrite remediation",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T15:00:50Z",
    "status": "running"
   }
  ]
