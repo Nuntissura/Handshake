@@ -1811,7 +1811,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T14:14:23Z",
-   "status": "running"
+   "status": "done 2026-10-11T15:02:55Z (62d8983)"
   },
   {
    "name": "rem-psd-budget",
@@ -1857,6 +1857,17 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T15:00:50Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r10-web",
+   "agent_id": "a902a26c7f58c3fcc",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at 62d8983",
+   "owns": [
+    "validation/R10-prereview-web.json"
+   ],
+   "launched": "2026-10-11T15:03:19Z",
    "status": "running"
   }
  ]

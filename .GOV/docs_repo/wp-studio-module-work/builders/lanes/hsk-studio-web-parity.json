@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-PARITY",
   "status": "READY_FOR_VALIDATION",
-  "phase": "D1-D8 fixed per WHATWG in the crate, D9 split per the lead decision (implied elements documented as N1 + skeleton whitespace N2, re-parenting refused typed by a named detection rule); difftest comparator owned and updated; all 56 web tests green on pushed 4d80e50; red proof on a scratch copy of origin head 471b679",
+  "phase": "R9 pre-review remediation (validation/R9-prereview-web.json F1-F4 CONFIRMED, P1-P4 PLAUSIBLE; R9 review B advisory pins) on pushed 62d8983: F1 class fixed at the root (every text consumer reads the parser's text; spans locate), F2-F4 fixed, P1 narrow N2, P2 lint, P3/P4 and review-B pins; 66/66 web tests, doctests, clippy --tests --examples, fmt clean; red proofs on scratch copies (4d80e50 + new tests; mutant of 8298898)",
   "commits": [
     {
       "sha": "1c67557",
@@ -19,6 +19,18 @@
     {
       "sha": "4d80e50",
       "subject": "web (SMB-WEB-PARITY): DESCRIPTOR and docs cite the parity proofs; ignored end tag ends the initial mode; accepted tree-construction group"
+    },
+    {
+      "sha": "77ed037",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r9 R9 pre-review, wip, lane status null): consumers read the text a browser builds"
+    },
+    {
+      "sha": "8298898",
+      "subject": "web (SMB-WEB-DIFFTEST, rem-web-r9, wip, lane status null): oracle correction O1 keeps noscript raw text under scripting"
+    },
+    {
+      "sha": "62d8983",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r9): V4-07 claims about the gate's text and foreign inserts cite their tests"
     }
   ],
   "capabilities_done": [
@@ -31,20 +43,29 @@
     "D9 (i) normalisation N1 (implied html, head, body, tbody around tr in table, colgroup around col in table) and N2 (skeleton whitespace dropped before head / moved into body after </body> and </html>) documented in dom.rs + dom/construction.rs + DESCRIPTOR.tree_construction and implemented only in the difftest comparator (events::drop_implied with per-name budgets, model.rs skeleton); inputs with an authored html/head/body are compared against a whole-document parse",
     "D9 (ii) detection rule in src/dom/construction.rs (module docs table with HTML Standard steps): skeleton modes initial..after after body, in body (p closed by blocks/table/hr/xmp in button scope, nested headings, nested form, li/dd/dt loop, nested button, a since last marker, nobr in scope, select/input/hr/option/optgroup with select in scope, option after option, rb/rtc/rp/rt with ruby in scope, selectedcontent, ignored html/head/body/table-part start tags, DOCTYPE after the first token), in table/table body/row/column group (foster parenting, implied tr, nested table, closing parts), head noscript (scripting disabled); scope and special sets are the intersection of the HTML Standard and html5ever 0.40.1 sets; refusal kinds UnsupportedKind::{ImpliedEndTag, AdoptionAgency, TableContent, IgnoredToken, DocumentStructure, SelectContent}; VOID gained basefont, bgsound, keygen (content after them is never theirs)",
     "difftest (owned now): crate-decoded RCDATA, ignored end tag and preprocessed CDATA in model.rs, N1/N2, whole-document switch, D8 guards removed from generator and character-reference corpus (fuzz filter removed), tree_construction_dispositions_are_pinned (all 60 restructuring inputs), tree_construction_accepted_inputs_read_like_a_browser (32 inputs on the accepting side), whole documents +14 (N1/N2 and refused skeleton cases)",
-    "DESCRIPTOR: void list, image, decoded_values, tree_construction {normalised, refused, proof}, refused_typed kinds, proof lists, patch.values; V4-07: module docs cite the proving tests"
+    "DESCRIPTOR: void list, image, decoded_values, tree_construction {normalised, refused, proof}, refused_typed kinds, proof lists, patch.values; V4-07: module docs cite the proving tests",
+    "R9 F1 (class 'consumers of raw source text where normalised text is required'): CDATA sections in foreign content are DOM text (text_value: preprocessed, U+0000 per the 13.2.6 dispatcher, no references; part of text_content and view); RAWTEXT/script bodies and comment data read through charref::CharData (preprocessing + U+0000 -> U+FFFD, with a bounded map back to source offsets); WebDoc::sheet / WebDoc::stylesheet_text = the one style text the asset gate, the preview and document_media_blocks read; css.rs/responsive.rs scan that text and map spans back; CSS strings end at CR/FF too (CSS preprocessing)",
+    "R9 F2: </image> with an authored colgroup as current node refused typed (TableContent; 13.2.6.4.12 has no end tag entry for it); construction.rs doc table lists the end tags the crate keeps and why each row accepts its own end tag",
+    "R9 F3: `</>` emits no token (13.2.5.7): WebDoc::first_token_after_start_tag drives the first-LF rule on read (text_value) and write (set_text)",
+    "R9 F4: insert_element decides raw-text verbatim and the extra first LF from the destination (WebDoc::child_follows_html_rules: document, HTML element, HTML/MathML-text integration point, annotation-xml for svg); foreign destinations get escaped text and no extra LF",
+    "R9 P1: N2 = whitespace-only text nodes only (code, docs, DESCRIPTOR, comparator agree); a skeleton text run whose leading whitespace tokens the initial/before html/before head modes drop while keeping other characters is refused DocumentStructure (read as tokens, so &#32; counts)",
+    "R9 P2: preview.rs and responsive.rs carry #![deny(clippy::arithmetic_side_effects)] (saturating arithmetic)",
+    "R9 P3: raw U+0000 in URL attributes pinned equal to &#0; (reference, decision, port calls) for relative, //, scheme and javascript spellings",
+    "R9 P4: DESCRIPTOR select_content listed once (pinned), decoding/scanned wording updated, section numbers 13.2.4.2 (stack/scope/special) and 13.2.4.3 (active formatting markers)",
+    "R9 review B: <image srcset> / <IMAGE SRCSET> classified like img srcset (pinned; the f6e5a49 gap closed by 4d80e50 local_name); refusing inputs for the rb/rtc, option-with-select and optgroup-without-select arms plus the colgroup and head-noscript text arms; neighbour LF effect of insert/remove documented on set_text and DESCRIPTOR patch.values"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast (studio-env.sh, shared tree, crate dir byte-identical to 4d80e50); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples; cargo fmt -p hsk-studio-web --check",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree, crate dir byte-identical to 62d8983); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor (valid JSON, 10 refused_typed entries); soak at 8298898 (src identical to 62d8983 except docs): HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential generated",
     "exit": 0,
-    "sha": "4d80e50",
-    "passed": 56,
+    "sha": "62d8983",
+    "passed": 66,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 2,
   "bg_pids": [],
-  "next": "V4-13 pre-review of 1c67557..4d80e50 (SMB-WEB has FAIL_V1/FAIL_V2 in its history); lead acknowledgement of the residuals in notes.residuals (N2 is whitespace text, not an element; conservative refusals of some valid inputs); SMB-WEB-DIFFTEST can leave status null: its 5 red tests are green at 4d80e50 (with this lane's comparator changes)",
-  "updated_at": "2026-10-11T13:43:42Z",
+  "next": "R9 validation of SMB-WEB-PARITY with the claim 1c67557 6d1c591 e849d4c 4d80e50 77ed037 8298898 62d8983 and SMB-WEB-DIFFTEST eefe44d..f4b47cd + 77ed037 8298898 (V4-14); lead acknowledgement of notes.remediation_R9pre.lead_acks",
+  "updated_at": "2026-10-11T15:01:43Z",
   "notes": {
     "lead_decision": "START_LOG 2026-10-11T12:47:22Z (web differential test SMB-WEB-DIFFTEST): D1-D8 fix per WHATWG; D9 (i) implied elements documented normalisation in model.rs and comparator, (ii) re-parenting refused typed",
     "spec_read": "html.spec.whatwg.org/multipage/parsing.html read 2026-10-11 (13.2.3.5 preprocessing; 13.2.5 data/RCDATA/RAWTEXT/script data/tag name/attribute name/attribute value/comment U+0000 entries; 13.2.4.3 special and scope lists; 13.2.6.4.7 in body (every start/end tag group), .9 in table, .10 in table text); html5ever 0.40.1 tree_builder/rules.rs, mod.rs, tag_sets.rs read in the local registry to find where the oracle differs (default scope lacks annotation-xml, special lacks keygen/search and is HTML-only, ignore_lf is consumed by a parse-error token, new customizable-select rules implemented, no 'in select' mode)",
@@ -239,7 +260,7 @@
       ]
     },
     "v4": {
-      "V4-01": "deny(clippy::arithmetic_side_effects) on the new dom/construction.rs and on every touched module (charref, entity, dom, error, source_dom_patch, assets, preview keep it); clippy clean",
+      "V4-01": "deny(clippy::arithmetic_side_effects) on every module that decodes or scans text: assets, charref, css, cssurl, dom, dom/construction, entity, error, preview (added R9 P2), responsive (added R9), source_dom_patch; not on lib.rs (crate root: a #![deny] there would be crate-wide; it holds only module declarations and DESCRIPTOR), refresh.rs and report.rs (not touched, no text decoding), entity_table.rs (data); clippy clean",
       "V4-02": "no allocation sized from declared values; decoded output <= input + input/5 (Text) or 3 x input (U+0000-replacing contexts), checked in charref::tests::table_is_sorted_and_complete",
       "V4-07": "DESCRIPTOR tree_construction.proof / html_subset.proof / patch.values and construction.rs/dom.rs docs cite the tests; 'every' claims weakened or cited",
       "V4-08": "adversarial per class: escape (&#13;, &#10;, &NewLine;, &#10 without semicolon, &#0;), decoy (U+0000 or a comment before the newline, comment/raw text keep bytes, foreign textarea, U+FFFD vs U+0000 duplicate names), case/whitespace (<IMAGE>, </image >, <PRE>, A\\0B, TYPE=Hidden, CR LF/CR/CR CR LF)",
@@ -261,6 +282,136 @@
       "raw-text bodies (script/style/...) cannot carry CR or U+0000 through set_text (no references in RAWTEXT); documented on set_text"
     ],
     "gameplan_route": "RETRY GUARD hit once: the identical test rerun after the 13:23Z run (3 red: two existing expectations, one comparator CDATA rule) was blocked; route (a): fixes committed as 6d1c591 (HEAD changed), rerun green; no gameplan step added. One command was refused by the hook resolving the kernel gameplan because it did not start with cd; rerun with the documented leading cd form (the scratch tree resolves WP-KERNEL-STUDIO/.gameplan-active)",
-    "lock_wait": "no disk-lock waits observed (each cargo call started immediately)"
+    "lock_wait": "no disk-lock waits observed (each cargo call started immediately)",
+    "remediation_R9pre": {
+      "builder": "rem-web-r9",
+      "spec": "validation/R9-prereview-web.json (head 4d80e50) + validation/R9-review-b.json lanes[SMB-WEB-PARITY] advisory_withdrawn + lead root-cause rule START_LOG 2026-10-11T14:14:23Z",
+      "commits": [
+        "77ed037",
+        "8298898",
+        "62d8983"
+      ],
+      "spec_read": "WHATWG parsing.html fetched 2026-10-11 (WebFetch): 13.2.4.2 stack of open elements / 13.2.4.3 list of active formatting elements titles, 13.2.5.7 end tag open state (U+003E: parse error, data state, no token), 13.2.5.69 CDATA section state (no U+0000 entry; handled in tree construction), 13.2.6 dispatcher conditions, 13.2.6.4.1-.3 whitespace ignored, 13.2.6.4.7 U+0000 ignored and pre/listing next-LF rule, 13.2.6.4.12 in column group (all entries; no end tag entry other than colgroup/col/template), 13.2.6.4.16 in template any other end tag ignored, 13.2.6.5 U+0000 -> U+FFFD and any other end tag",
+      "items": {
+        "F1": "FIXED at the class root: WebDoc::sheet joins text_value of text and CDATA children (CDATA via CharData: CR LF / CR -> LF, U+0000 -> U+FFFD under the foreign rules, dropped at integration points); HTML style via raw_text_data; preview and document_media_blocks read the same text; DESCRIPTOR assets.decoding/scanned reworded. Test foreign_style_cdata_is_preprocessed_before_css (the pre-review payload, comment decoy, second CDATA section, CR LF, CR CR LF, upper case + whitespace, HTML style and style attribute with CR CR LF, the escaped-CR LF reading that loads nothing, exact span through the map) + text_consumers_read_the_text_a_browser_builds (view raw/comment/CDATA values, CDATA at an integration point drops U+0000, preview: CR ends a CSS string -> unterminated_css typed, rule spans exact under CR LF, U+0000 selector span maps to its NUL; media blocks: query span through CR LF, CR in a string -> unterminated_css; gate: U+0000 in url() -> U+FFFD)",
+        "F2": "FIXED: tree_ignored_end refuses TableContent when the current node is an HTML colgroup. Test ignored_end_tag_in_colgroup_is_refused (+ upper case/whitespace spelling; accepted contrasts after </colgroup>, in template in colgroup, comment in colgroup, head noscript); difftest tree group + pinned disposition refused:table_content. End-tag sweep over every D9 row: the crate keeps only the current node's own end tag (pops exactly that node in every listed mode), </image> (ignored everywhere except column group = F2, after body = refused), and </> (no token); recorded in construction.rs docs",
+        "F3": "FIXED: first_token_after_start_tag skips preceding </> siblings (nearest first, linear). Test end_tag_open_without_name_emits_no_token (</> LF, </></> CR LF, </> &#10;, upper case, contrasts </ x> and </image> keep the LF, </>a</> LF keeps it; set_text after </> writes the extra LF). Difftest: leading_newlines +6 inputs, generator (Mixed/Noise pre/listing) adds </>, </></>, </ x> before LF/CR LF/&#10;",
+        "F4": "FIXED: insert_element uses WebDoc::child_follows_html_rules for raw-text verbatim and keep_first_lf. Test insert_into_foreign_content_follows_the_foreign_rules (svg textarea reads \\nv, svg style text escaped and read back exactly, foreignObject textarea is HTML with the extra LF)",
+        "P1": "narrow rule: comparator Skeleton trims whitespace-only text nodes only; crate refuses mixed skeleton text with dropped leading whitespace. Test skeleton_text_with_leading_whitespace_is_refused; difftest doc#17 '<html>  x</html>' now refused; comments group gained 8 body-content variants of the inputs this refuses (floor 60 kept, compared 66)",
+        "P2": "lint added to preview.rs (and responsive.rs, touched); lane note V4-01 corrected",
+        "P3": "PINNED: raw_nul_in_url_attributes_reads_like_a_reference_to_it (a\\0b.png, \\0//, //e\\0, ht\\0tp, java\\0script relative to the port; http:\\0// external; equal to &#0; spelling incl. port calls)",
+        "P4": "FIXED + PINNED: descriptor_lists_each_refusal_code_once; decoding wording; section numbers",
+        "review_B_image_srcset": "PINNED: html_image_srcset_is_scanned_like_img (closed f6e5a49 gap of the SMB-WEB R7 PASS, CX-VAL-009 note for the lead's records)",
+        "review_B_rule_rows": "PINNED: tree_construction_that_moves_authored_nodes_is_refused_typed + rb/rtc, option-with-select, optgroup-without-select, colgroup text, head noscript text; difftest dispositions pinned for rb/rtc, option, optgroup, colgroup </image>. Every D9 table row now has a refusing input (table rows 1-20 checked against the list)",
+        "review_B_plausible_neighbour_lf": "documented (set_text docs, DESCRIPTOR patch.values): insert/remove that changes the first node after a pre/listing/textarea start tag changes the next text's leading LF exactly as a browser reads the new source; not rewritten"
+      },
+      "red_proof": {
+        "tree_4d80e50": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-red/src/handshake-studio-assets = git archive 4d80e50 (accord, observe, web, Cargo.lock, rust-toolchain.toml, .config) + minimal 3-member workspace + tests/html_parity.rs from 8298898; all files touched; STUDIO_OWNER=smb-web-r9-red; RED_IDENTITY.json; log red-4d80e50.log",
+        "argv_4d80e50": "cargo nextest run -p hsk-studio-web --test html_parity --no-fail-fast --offline",
+        "result_4d80e50": "exit 100: 7 FAIL / 11 PASS. foreign_style_cdata_is_preprocessed_before_css: the pre-review payload reports [] (URL hidden); text_consumers_read_the_text_a_browser_builds: script view text raw 'a\\r\\nb\\0c'; ignored_end_tag_in_colgroup_is_refused: ok; end_tag_open_without_name_emits_no_token: '\\nx'; insert_into_foreign_content_follows_the_foreign_rules: '\\n\\nv'; skeleton_text_with_leading_whitespace_is_refused: ' x' ok; descriptor_lists_each_refusal_code_once: select_content 2. Pins green there by design (raw_nul..., html_image_srcset..., tree_construction_that_moves...)",
+        "tree_mutant": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-mutant/src/handshake-studio-assets = git archive 8298898 + mutations M1-M8 (scratchpad SMB-WEB-R9/mutate.py; applied together, files touched); STUDIO_OWNER=smb-web-r9-mutant; log mutant-8298898.log",
+        "mutations": "M1 sheet joins CDATA raw (F1 join); M2 first-LF by child index (F3); M3 rb/rtc, option-with-select, optgroup-without-select arms never refuse; M4 URL attributes by source tag name (f6e5a49); M5 raw U+0000 kept in attribute values; M6 </image> in colgroup accepted (F2); M7 mixed skeleton text accepted (P1); M8 insert_element always HTML rules (F4)",
+        "argv_mutant": "cargo nextest run -p hsk-studio-web --test html_parity --test html5ever_differential --no-fail-fast --offline --no-capture",
+        "result_mutant": "exit 100: 16 FAIL / 24 PASS. Parity: foreign_style_cdata (M1), end_tag_open (M2), tree_construction_that_moves (M3: 3 rows 'got ok'), html_image_srcset (M4: []), raw_nul_in_url (M5: Denied(NotGranted) vs Unavailable) + nul_in_names (M5), ignored_end_tag_in_colgroup (M6), skeleton_text (M7), insert_into_foreign (M8). Difftest: null_bytes_and_newline_normalisation RAW-TEXT/style-sheet-text on the 5 F1 inputs (M1) + ATTRIBUTE/value-nul (M5); generated_null_and_cr_noise style-sheet-text on gen:Noise:50351 (the F1 shape found by the generator) + leading-lf (M2); generated_mixed and leading_newlines leading-lf (M2); tree_construction_dispositions_are_pinned + restructuring STRUCTURE on the 4 new rows (M3, M6); whole_documents doc#17 TEXT (M7: the narrowed comparator catches it)",
+        "green": "62d8983 shared tree (8298898 identical apart from docs): 66/66 (unit 2, html_parity 18, source_dom_patch 24, html5ever_differential 22), doctests 0/0 ok, clippy --tests --examples no web warnings, fmt clean"
+      },
+      "difftest_changes": "model.rs compares the crate's own values (view text) for RCDATA, RAWTEXT/script bodies, comments and CDATA (comparator no longer preprocesses what the crate reads); harness.rs gate-level check 'style-sheet-text': per style element (any namespace) html5ever's child text content == WebDoc::stylesheet_text (scripting off, events equal); generator: Noise foreign CDATA with CR/CR LF/U+0000/escaped CR (+ following LF), Mixed/Noise pre/listing with </> before LF; corpus: 9 CDATA/style inputs in nulls_and_newlines, 6 in leading_newlines, 4 rows in tree_construction_restructuring (pinned), 8 comment variants",
+      "oracle_correction_O1": "html5ever 0.40.1 takes the pre/listing/textarea ignore-LF flag on parse-error tokens (tree_builder/mod.rs:481, ignore_lf.take() before the ParseError arm), so '<pre></>\\nx' keeps the LF (before O1: 37 generated Mixed, 18 generated Noise and 3 corpus inputs disagreed, all this one signature). Spec: </> emits no token. harness::oracle_input removes, for the reference only, each </> the crate reads as such after a '>' or at input start (data state, nothing pending), except inside an HTML noscript for the scripting reading (RAWTEXT there). Same root cause as the parity lane's residual '&#10x'. Needs lead acknowledgement (it is an oracle correction, not a crate normalisation)",
+      "soak": "HSK_DIFFTEST_SCALE=10 over the 7 generated tests: 123385 comparable documents, 0 disagreements (scratchpad SMB-WEB-R9/soak-10.log)",
+      "v4_06": {
+        "class": "consumers of raw source text where normalised text is required (lead root-cause rule 14:14:23Z): every place the crate reads source bytes by span (slices, name spellings, CDATA/comment delimiters, skeleton text) - tokenizer delimiter scanning in dom.rs (self.b byte matching) is the producer and stays out of the class",
+        "regex": "\\.slice\\(|\\.source\\(\\)|\\bsrc\\[|\\bsource\\[|\\.get\\(span|\\btag_name\\(|\\battr_name\\(|\\bname_of\\(|strip_prefix\\(|strip_suffix\\(|\\bCDATA",
+        "scope": "git grep -nE \"<regex>\" 62d8983 -- crates/hsk-studio-web/src ':!crates/hsk-studio-web/src/entity_table.rs' | grep -vE '^[^:]+:[^:]+:[0-9]+:\\s*//' (comment-only lines excluded)",
+        "reaches_F1_at_4d80e50": "assets.rs:554 (const OPEN = \"<![CDATA[\"), :560 (doc.slice of the child), :568 (raw.strip_prefix(OPEN) ... inner.to_owned()); 58 sites at 4d80e50 (same regex)",
+        "site_count": 58,
+        "fixed": 16,
+        "ok_raw_span_for_location": 11,
+        "not_applicable": 31,
+        "sites": [
+          "assets.rs:361 .tag_name(id) = NOT_APPLICABLE: has_base_href: name identity; a source spelling equals base ASCII-case-insensitively iff its tokenizer name does (U+0000 cannot spell base); a foreign base is also denied (over-deny, safe)",
+          "assets.rs:459 let raw = self.doc.slice(&value_span); = OK raw-span-for-location: attribute value read through charref::decode(Attribute) (preprocessing, U+0000 -> U+FFFD, references); the raw slice only decides whether reference spans are exact (else the whole value span)",
+          "assets.rs:612 let name = doc.attr_name(attr).to_ascii_lowercase(); = NOT_APPLICABLE: URL-attribute name match on the lowercased source name; a name with U+0000 matches no URL attribute in either reading",
+          "charref.rs:96 text.push_str(&src[run..i]); = NOT_APPLICABLE: inside CharData::new, the preprocessing itself (literal runs between CR/NUL)",
+          "charref.rs:117 text.push_str(&src[run..]); = NOT_APPLICABLE: inside CharData::new, the preprocessing itself (tail run)",
+          "dom.rs:666 self.src[i..] = OK raw-span-for-location: char_end: error span end on a character boundary",
+          "dom.rs:697 fn name_of(&self, id: NodeId) -> &'a str { = NOT_APPLICABLE: name_of: tokenizer-level tag identity for stack matching (ASCII case-insensitive); a U+0000 vs U+FFFD spelling mismatch refuses typed (fail closed)",
+          "dom.rs:702 &self.src[span] = NOT_APPLICABLE: name_of body (same)",
+          "dom.rs:731 return Err(if in_set(OPTIONAL_END, self.name_of(id)) { = NOT_APPLICABLE: OPTIONAL_END membership of an open element's name at EOF (error kind only)",
+          "dom.rs:819 } else if rest.starts_with(b\"<![CDATA[\") { = NOT_APPLICABLE: tokenizer: markup declaration open state, case-sensitive [CDATA[ (spec); not a text consumer",
+          "dom.rs:967 let name = &self.src[name_span.clone()]; = NOT_APPLICABLE: start tag name for the dispatcher, breakout, void, RAWTEXT and construction lists (ASCII names; U+0000 matches none in either reading)",
+          "dom.rs:987 .any(|a| in_set(&[\"color\", \"face\", \"size\"], &self.src[a.name_span.clon = NOT_APPLICABLE: font color/face/size breakout attribute names (ASCII)",
+          "dom.rs:1038 if !seen.insert(name_key(&self.src[a.name_span.clone()])) { = FIXED: duplicate attributes found on tokenizer names (name_key; D3)",
+          "dom.rs:1055 .find(|a| self.src[a.name_span.clone()].eq_ignore_ascii_case(\"encoding = NOT_APPLICABLE: annotation-xml encoding attribute name (ASCII)",
+          "dom.rs:1057 .map(|s| decode(&self.src[s], Context::Attribute).text); = FIXED: encoding value decoded with the attribute rules",
+          "dom.rs:1170 let name = &self.src[name_start..name_end]; = NOT_APPLICABLE: end tag name for stack matching (as name_of)",
+          "dom.rs:1175 top != 0 && frame.ns != Namespace::Html && self.name_of(top).eq_ignore = NOT_APPLICABLE: foreign void-named end tag match (as name_of)",
+          "dom.rs:1185 .any(|f| self.name_of(f.id).eq_ignore_ascii_case(\"image\")) = NOT_APPLICABLE: </image> open-element check (ASCII)",
+          "dom.rs:1199 let top_name = self.name_of(top); = NOT_APPLICABLE: current node name for end tag match (as name_of)",
+          "dom.rs:1203 .any(|f| self.name_of(f.id).eq_ignore_ascii_case(name)); = NOT_APPLICABLE: ancestor name for misnesting kind (as name_of)",
+          "dom.rs:1289 &self.source[span.clone()] = OK raw-span-for-location: WebDoc::slice: the location API (spans locate)",
+          "dom.rs:1293 pub fn tag_name(&self, id: NodeId) -> Option<&str> { = OK raw-span-for-location: WebDoc::tag_name: documented source spelling (location/identity); values use local_name",
+          "dom.rs:1295 node.name_span.as_ref().map(|s| &self.source[s.clone()]) = OK raw-span-for-location: tag_name body",
+          "dom.rs:1306 let raw = self.tag_name(id)?; = FIXED: local_name = name_key(tag_name), image -> img (D1, D2)",
+          "dom.rs:1314 pub fn attr_name(&self, attr: &Attr) -> &str { = OK raw-span-for-location: WebDoc::attr_name: documented source spelling; values use attr_local_name",
+          "dom.rs:1315 &self.source[attr.name_span.clone()] = OK raw-span-for-location: attr_name body",
+          "dom.rs:1321 name_key(self.attr_name(attr)) = FIXED: attr_local_name via name_key (D3)",
+          "dom.rs:1328 .map(|s| decode(&self.source[s.clone()], Context::Attribute).text) = FIXED: attr_value via charref::decode(Attribute) (D4, D5)",
+          "dom.rs:1338 .find(|a| same_name(self.attr_name(a), name)) = FIXED: attribute lookup via same_name (U+0000 == U+FFFD, ASCII case) (D3)",
+          "dom.rs:1355 NodeKind::Element => self.tag_name(id).unwrap_or(\"\").to_ascii_lowercas = NOT_APPLICABLE: NodeKey label: crate identity, not a DOM value",
+          "dom.rs:1381 let path = key.0.strip_prefix('/')?; = NOT_APPLICABLE: NodeKey path parsing (not source text)",
+          "dom.rs:1401 .is_some_and(|n| n.kind == NodeKind::Unsupported && self.slice(&n.span = FIXED: F3: an `</>` node is identified by its exact bytes because it emits no token (13.2.5.7); used by first_token_after_start_tag",
+          "dom.rs:1428 .tag_name(id) = NOT_APPLICABLE: drops_first_lf: ASCII names pre/listing/textarea",
+          "dom.rs:1454 let slice = self.slice(&node.span); = FIXED: text_value decodes the slice; the raw slice is only checked for the LF-token spelling (LF, CR, CR LF or a reference) (D7, D8)",
+          "dom.rs:1475 self.slice(&inner), = FIXED: F1: CDATA section data through CharData (preprocessing, U+0000 per the dispatcher), no references; was the raw inner text joined by the asset gate",
+          "dom.rs:1490 self.slice(&node.span), = FIXED: class: RAWTEXT / script bodies through CharData (preprocessing, U+0000 -> U+FFFD) for the gate, preview, media blocks and view",
+          "dom.rs:1505 let s = self.slice(&node.span); = FIXED: class: comment data through CharData (view)",
+          "dom.rs:1506 let inner = s.strip_prefix(\"<!--\").unwrap_or(s); = FIXED: comment data delimiters (<!--)",
+          "dom.rs:1511 .strip_suffix(\"-->\") = FIXED: comment data delimiters (-->)",
+          "dom.rs:1512 .or_else(|| inner.strip_suffix(\"--!>\")) = FIXED: comment data delimiters (--!>)",
+          "dom.rs:1559 } else if self.slice(&c.span) == piece { = OK raw-span-for-location: sheet: a lone foreign text piece maps one to one only when its decoded value equals its bytes (else the whole content span)",
+          "dom.rs:1561 self.slice(&c.span), = OK raw-span-for-location: sheet: identity map for that piece",
+          "dom.rs:1656 Some(self.slice(&node.span).to_owned()) = NOT_APPLICABLE: view text of opaque nodes (doctype, processing instruction, bogus markup, ignored end tag): source slice by design, documented on ViewRow",
+          "dom/construction.rs:265 f.id != 0 && f.ns == Namespace::Html && in_set(names, self.name_of(f.i = NOT_APPLICABLE: html_is: ASCII element-name sets",
+          "dom/construction.rs:286 let name = self.name_of(f.id); = NOT_APPLICABLE: in_scope: ASCII boundary sets",
+          "dom/construction.rs:407 let bytes = self.b.get(span.clone()).unwrap_or_default(); = OK raw-span-for-location: tree_text raw bytes for whitespace-only checks: a reference spelled whitespace reads as a character here, which only refuses more or advances the skeleton mode (conservative); the value check is :415",
+          "dom/construction.rs:415 self.src.get(span.clone()).unwrap_or_default(), = FIXED: P1: skeleton text read as the tokenizer's tokens (decode ReplaceNul) to find leading whitespace the skeleton modes drop",
+          "dom/construction.rs:515 .find(|a| self.src[a.name_span.clone()].eq_ignore_ascii_case(\"type\")) = NOT_APPLICABLE: input type attribute name (ASCII)",
+          "dom/construction.rs:518 decode(&self.src[v], Context::Attribute) = FIXED: type value decoded with the attribute rules (D9 row)",
+          "lib.rs:43 pub const DESCRIPTOR: &str = r#\"{\"schema\":\"hsk.studio.web.descriptor@1 = NOT_APPLICABLE: DESCRIPTOR string",
+          "preview.rs:148 .strip_prefix('h') = NOT_APPLICABLE: heading level from local_name (h1-h6)",
+          "preview.rs:213 .tag_name(p) = NOT_APPLICABLE: label ancestor by name (ASCII)",
+          "source_dom_patch.rs:83 let src = doc.source(); = NOT_APPLICABLE: apply: copies source bytes outside edits",
+          "source_dom_patch.rs:127 out.push_str(&src[cursor..e.span.start]); = NOT_APPLICABLE: apply: copy",
+          "source_dom_patch.rs:139 out.push_str(&src[cursor..]); = NOT_APPLICABLE: apply: copy",
+          "source_dom_patch.rs:209 if doc.source()[span.clone()] == replacement { = NOT_APPLICABLE: single: no-op detection compares bytes with bytes",
+          "source_dom_patch.rs:337 let name = doc.tag_name(id).unwrap_or(\"\"); = NOT_APPLICABLE: set_text raw-text close check by tag name (tokenizer-level, ASCII)",
+          "source_dom_patch.rs:473 NodeKind::Document => Ok(doc.source().len()), = OK raw-span-for-location: insertion point at the end of the source"
+        ],
+        "tests_side": "tests/html5ever_differential/model.rs no longer preprocesses crate-read text (uses view values); preprocess() remains for nodes the crate keeps opaque (bogus comments, PIs) and the scripting-enabled noscript slice"
+      },
+      "v4": {
+        "V4-01": "see notes.v4.V4-01 (corrected)",
+        "V4-02": "CharData text <= 3 x input; map marks <= one per CR LF / U+0000, capped at limits.max_nodes then dropped (spans fall back to the whole slice); unit test char_data_maps_text_back_to_source covers the cap",
+        "V4-06": "58 sites listed (FIXED/OK location/NOT_APPLICABLE)",
+        "V4-07": "dom.rs docs, construction.rs docs and DESCRIPTOR cite the new tests (decoded_values, html_subset.proof, assets.proof, patch.values_proof); 'never' wording weakened to 'not' where only the listed consumers are proven",
+        "V4-08": "F1: escape (payload), decoys (comment, second CDATA, escaped CR LF that loads nothing), case/whitespace (SVG/STYLE/URL( spaces )); F3: </>, </></>, &#10;, case, decoys </ x> and </image>; P1: reference-spelled whitespace (&#32;, &#10;), U+0000 first",
+        "V4-09": "commits via git commit -F <file> with pathspec crates/hsk-studio-web; two early code edits (css.rs span rewrite, charref/error dead-code cleanup) used inline python heredocs in the shell (V4-09 deviation, no gate hit; the resulting files were checked by clippy, fmt and the full suite); later edits via Edit tool and scripts under scratchpad/SMB-WEB-R9",
+        "V4-11/12": "red trees outside the shared tree with own STUDIO_OWNER (smb-web-r9-red, smb-web-r9-mutant), every file touched; helper scripts only under scratchpad/SMB-WEB-R9 (make_tree.sh, mutate.py, lane_wip.py, lane_ready.py)"
+      },
+      "gameplan_route": "reruns after failed runs followed commits (77ed037, 8298898); the RETRY GUARD blocked once (a final check command whose html_parity argv equalled the by-design red run of the scratch tree at 14:51:18Z); route (a): the pending docs commit 62d8983 changed HEAD, then the full validation ran green; one mutant-tree command was refused by the hook resolving the WP-KERNEL-012 kernel gameplan because it did not start with cd (documented cargo-tooling rule); rerun in the cd-first form. No gameplan step added",
+      "lead_acks": [
+        "P1 narrow N2 refuses documents whose first text run starts with whitespace and has other characters at the skeleton level (e.g. '<!-- c --> text' or ' Hello' at the start, '<html>\\n  x'): browser-correct for documents, but snippet-like inputs starting that way are refused (fail closed)",
+        "oracle correction O1 in the differential harness (html5ever ignore-LF parse-error deviation)",
+        "ViewRow.text semantics widened: raw bodies, comments and foreign CDATA now give the parser's character data (opaque doctype/PI/bogus/ignored-end-tag nodes still give the source slice); text_content now includes foreign CDATA text",
+        "new public API WebDoc::stylesheet_text (DESCRIPTOR api list)",
+        "CX-VAL-009: <image srcset> was unscanned at f6e5a49 (SMB-WEB R7 PASS); closed at 4d80e50, pinned now - for the ledger/validation records (not edited by this builder)"
+      ],
+      "residuals": [
+        "preview CSS is still the documented subset: non-ASCII identifiers (incl. U+FFFD) in selectors are listed unsupported; an unterminated CSS string (now also by CR/FF) makes preview_tree/document_media_blocks fail typed instead of applying CSS bad-string recovery",
+        "foreign (SVG) style sheets are scanned by the asset gate but not applied by the preview (preview reads HTML style only, unchanged)",
+        "html5ever '&#10x' and '</>' ignore-LF deviation: the comparator corrects '</>' after '>' only (O1); '&#10x' still not in corpora",
+        "builders/lanes/hsk-studio-web.json (SMB-WEB) is stale (READY at 08ad0ad) - not edited (not this builder's file)"
+      ]
+    }
   }
 }
