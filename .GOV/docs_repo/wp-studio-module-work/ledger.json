@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T16:29:51Z",
+ "updated_at": "2026-10-11T16:40:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -743,6 +743,11 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
+   },
+   "r11_prereview": {
+    "ref": "validation/R11-prereview-press.json",
+    "recommendation": "NONE (incomplete: reviewer stopped by its own decision)",
+    "at": "2026-10-11T16:40:05Z"
    }
   },
   {
@@ -2492,7 +2497,12 @@
    ],
    "verdicts": [],
    "candidate": "b8ce934",
-   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only."
+   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.",
+   "r11_prereview": {
+    "ref": "validation/R11-prereview-press.json",
+    "recommendation": "NONE (incomplete: reviewer stopped by its own decision)",
+    "at": "2026-10-11T16:40:05Z"
+   }
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",

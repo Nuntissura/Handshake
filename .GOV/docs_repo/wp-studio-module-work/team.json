@@ -1972,6 +1972,17 @@
     "validation/R11-prereview-press.json"
    ],
    "launched": "2026-10-11T16:30:04Z",
+   "status": "stopped 2026-10-11T16:40:05Z by the agent's own decision (declined the project; no verdict; output file is an incomplete skeleton)"
+  },
+  {
+   "name": "prereview-r11-press-2",
+   "agent_id": "a63793126be5eb03b",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at b8ce934 (re-dispatch)",
+   "owns": [
+    "validation/R11-prereview-press.json"
+   ],
+   "launched": "2026-10-11T16:40:30Z",
    "status": "running"
   }
  ]
