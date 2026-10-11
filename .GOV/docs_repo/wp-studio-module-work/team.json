@@ -1891,7 +1891,7 @@
     "validation/R10-review-a.json"
    ],
    "launched": "2026-10-11T15:10:24Z",
-   "status": "running"
+   "status": "done 2026-10-11T15:29:19Z (COMPLETE: PSD-BUDGET 1 CONFIRMED note, ENG-1 2 CONFIRMED FIX_FIRST; sweep no break)"
   },
   {
    "name": "rem-web-r10",
