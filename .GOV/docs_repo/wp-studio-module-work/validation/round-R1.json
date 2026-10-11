@@ -1,0 +1,40 @@
+{
+ "round": "STUDIO-R1",
+ "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094",
+ "candidate_tree": "edb8dd2f48552c5a8cb1ca5660f59771504ee7ec",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "manifest_sha256": "bcd78c8c75191daaa6a342e2abf96a16fe657c1d87d08c29dc882a6f0777cd67",
+ "started_at": "2026-10-11T01:22:08Z",
+ "completed_at": "2026-10-11T01:31:21Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 10/10 @ 96ad0530",
+ "canary": "not run: HBR test_environment_prerequisites.canary_check is REPLACE_ME",
+ "lanes": [
+  {
+   "lane": "SMB-TYPE",
+   "crate": "hsk-studio-type",
+   "mt": "MT-35536",
+   "verdict": "PASS_V4",
+   "verdict_ref": "MT-35536.json#verdicts/MT-35536-SOURCE-COMMON-CONTROL-PASS-V4",
+   "checks": {
+    "MT-35536-ASSET-AC-001": "PASS",
+    "MT-35536-ASSET-AC-002": "PASS",
+    "MT-35536-ASSET-AC-003": "PASS",
+    "MT-35536-ASSET-AC-004": "PASS",
+    "MT-35536-ASSET-AC-005": "PASS"
+   },
+   "tests": {
+    "executed": 2,
+    "passed": 2,
+    "failed": 0,
+    "timeouts": 0,
+    "filtered_out": 0
+   },
+   "failures": []
+  }
+ ],
+ "infrastructure": [
+  "Candidate moved 47f212fe -> 96ad0530 (steward metadata push 01:19Z) before round open; Type inputs unchanged",
+  "HBR test_entrypoint/canary unset; per-test 60 s bound from checked-in bounded_case; HSK_TYPE_* env as V1-V3"
+ ]
+}

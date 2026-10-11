@@ -1,0 +1,26 @@
+{
+  "crate": "hsk-studio-package",
+  "status": null,
+  "phase": "slice implemented; focused tests running",
+  "commits": [
+    {"sha": "8d9f694", "subject": "Package: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true}
+  ],
+  "capabilities_done": [
+    "limits (entries/entry/total/name/manifest bytes), STORE-only ZIP+ZIP64 writer (deterministic, Auto|Always)",
+    "strict canonical-form bounded reader/preflight (CD/local cross-check, tiling layout, no gaps/overlap/prepend/trailing, CRC)",
+    "canonical manifest (strict parse, version gate before decode, sorted, SHA-256 + len per entry)",
+    "write_package/write_package_with (digest-keyed assets, preserved quarantine), AssetSource + MemoryAssetSource",
+    "read_package (folio::inspect_bytes reuse, quarantine + LossNote, asset/doc cross-checks)",
+    "save_atomic/save_atomic_with (injectable AtomicFs, temp+sync_all+readback verify+rename w/ backoff)",
+    "DESCRIPTOR, outcome_for/outcome_for_opened/report, example package-consumer"
+  ],
+  "tests": {"passed": null, "failed": null, "note": "5 tests in tests/foundation_contract.rs pending first run"},
+  "blockers": [],
+  "next": "run focused tests, fix, push, READY_FOR_VALIDATION",
+  "decisions": [
+    "Followed lead decision (in-house STORE-only ZIP64 + crc32fast) over brief's zip crate; Limits has no max_ratio (nothing is inflated; deflate entries are rejected as unsupported_compression)",
+    "No mimetype entry (would invent a MIME name); first physical entry is manifest.json",
+    "Entry names restricted to ASCII [A-Za-z0-9._-] components (removes unicode normalisation/case-fold ambiguity)"
+  ],
+  "updated_at": "2026-10-11T03:50:00Z"
+}

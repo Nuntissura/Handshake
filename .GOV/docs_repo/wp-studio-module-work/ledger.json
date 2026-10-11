@@ -11,15 +11,17 @@
    "lane_id": "SMB-TYPE",
    "crate": "hsk-studio-type",
    "mt_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V4",
    "blocked_on": null,
    "note": "fix round 4 (operator-approved); focused tests green as implementation evidence; awaiting independent validator",
    "owner": null,
    "commits": [
     "e603db86031feb860039f59658273d8fe17d2b30 Type: admit default-ignorable-only Common spans through bounded shaping"
    ],
-   "verdicts": []
+   "verdicts": [
+    "STUDIO-R1 PASS_V4 candidate 96ad0530 (contains e603db86); validation/round-R1.json"
+   ]
   },
   {
    "lane_id": "SMB-STEWARD",
@@ -50,12 +52,13 @@
    "lane_id": "SMB-DEVELOP",
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-develop",
+   "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-develop.json"
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -96,23 +99,25 @@
    "lane_id": "SMB-REEL",
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-reel",
+   "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-reel.json"
   },
   {
    "lane_id": "SMB-MOTION",
    "crate": "hsk-studio-motion",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-motion",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-motion",
+   "brief": "builders/briefs/hsk-studio-motion.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-motion.json"
   },
   {
    "lane_id": "SMB-COMPOSITE",
@@ -466,6 +471,52 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/baseline.md",
    "scope": "fix 3 failing vendored ttf-parser doctests (ttf_parser:: paths) src/provider/ttf/mod.rs:182,205,2080",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "origin": "spec-reader-b report; STU-VID-010; lead decision 02:45Z",
+   "scope": "Folio timeline document types: sequence, track (video/audio), clip (source ref, in/out, timeline position) with time fields as hsk_studio_accord::Ticks (folio may depend only on accord); snapshot/schema integration; neutral contract for interop-media TimelineProposal",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-folio-eng-1",
+   "depends_on_lanes": [],
+   "commits": [],
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "origin": "spec-reader-a report: no shared home for render-plan IR (no composite<->render edge)",
+   "scope": "shared render-plan IR + backend port (candidate owner pigment), additive; migration of composite/render-cpu/render-gpu",
+   "phase": "build",
+   "status": null,
+   "owner": "architect-render-ir",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace",
+   "origin": "validation/round-R1.json infrastructure notes",
+   "scope": "steward: checked-in test entrypoint for Studio rounds (script + per-test runner config with slow-timeout/terminate-after per CX-EXEC-005) + one-test-per-package canary; fill HBR test_entrypoint/canary_check for WP-KERNEL-STUDIO; validator rounds use only that entrypoint (CX-VAL-007)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-TYPE-ENV",
+   "crate": "hsk-studio-type",
+   "origin": "validation/round-R1.json infrastructure notes",
+   "scope": "tests locate fixtures/references via CARGO_MANIFEST_DIR (or checked-in config), removing HSK_TYPE_* runtime env vars needed when run from an export (CX-VAL-007); add test for survivor refusal shape.rs:93-95 if reachable",
    "phase": "brief",
    "status": null,
    "owner": null,

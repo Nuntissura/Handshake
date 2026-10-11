@@ -105,5 +105,53 @@
   ],
   "suggested_wave": 1,
   "notes": "own bounded SQLite page+WAL byte decoder (no SQL engine); LightCraft cache is concept reference only; sha2 dep-request; real LR-produced catalog is validator-time oracle."
+ },
+ {
+  "crate": "hsk-studio-score-device",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-score-device.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-score",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "after score; slice 1 is pure Rust (unsafe-free SPSC ring, callback fn, thread-driven software device) = lifecycle proof only, NOT native proof; cpal 0.18.2 backend feature default-off and blocked on probe-policy exemption (alsa-sys in universal lock); device proof NOT_PROVEN without hardware loopback."
+ },
+ {
+  "crate": "hsk-studio-score-plugin",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-score-plugin.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-score",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "after score; process-isolated worker with framed stdio protocol + pure-Rust reference worker (lifecycle/crash/timeout proof); CLAP via clack-host 0.2.0 in worker only, feature default-off, blocked on probe exemption (clap-sys) and no installed plugin fixture."
+ },
+ {
+  "crate": "hsk-studio-reel-native",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-reel-native.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-reel",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "after reel; reuses reel MediaProvider; worker-process isolation; candidate openh264 0.9.8 (libloading feature, Cisco DLL download needs Operator approval, STU-VID-084 licensing decision); ffmpeg/ffprobe 8.1.1 present on host as validator-only oracle."
+ },
+ {
+  "crate": "hsk-studio-motion-js",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-motion-js.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-motion",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "after motion; pure-Rust first backend boa 0.22.0 (+boa_parser validator) default-off features; rquickjs 0.14.0 native second, blocked on probe exemption (rquickjs-sys); Boa has no heap limit (docs.rs checked) so RSS/deadline needs worker process (next slice)."
  }
 ]

@@ -39,8 +39,9 @@
     "builders/briefs/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
-   "resumed": "2026-10-11T01:02Z"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "builders/briefs/* (14) + INDEX-A.json"
   },
   {
    "name": "spec-reader-b",
@@ -51,8 +52,9 @@
     "builders/briefs/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
-   "resumed": "2026-10-11T01:02Z"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "builders/briefs/* (13) + INDEX-B.json"
   },
   {
    "name": "research-formats",
@@ -165,7 +167,7 @@
     "MT-35536 verdict"
    ],
    "launched": "2026-10-11T02:10Z",
-   "status": "running"
+   "status": "done (PASS_V4 MT-35536)"
   },
   {
    "name": "builder-package",
@@ -237,6 +239,66 @@
     "builders/lanes/hsk-studio-score.json"
    ],
    "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-motion",
+   "agent_id": "ab571fea2de3a4627",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-motion/**",
+    "builders/lanes/hsk-studio-motion.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel",
+   "agent_id": "a4f88dbace82e8e3d",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-develop",
+   "agent_id": "a061d36103dfc1403",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-folio-eng-1",
+   "agent_id": "aa93ad24ec4ae55ca",
+   "model": "sonnet",
+   "role": "Folio timeline document types (SMB-FOLIO-ENG-1)",
+   "owns": [
+    "crates/hsk-studio-folio/** (additive)",
+    "builders/lanes/hsk-studio-folio-eng-1.json"
+   ],
+   "launched": "2026-10-11T02:50Z",
+   "status": "running"
+  },
+  {
+   "name": "architect-render-ir",
+   "agent_id": "ae224deb48bd9f0ef",
+   "model": "opus",
+   "role": "render-plan IR + backend port decision (SMB-PIGMENT-ENG-1)",
+   "owns": [
+    "diagnostics/render-plan-ir.md",
+    "crates/hsk-studio-pigment/** (additive)"
+   ],
+   "launched": "2026-10-11T02:55Z",
    "status": "running"
   }
  ]

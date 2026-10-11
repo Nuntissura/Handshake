@@ -1,0 +1,29 @@
+{
+  "crate": "hsk-studio-score",
+  "mt": "MT-35541",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "foundation slice pushed; continuing with rubato resampler, gain/pan/mix exact tests, effect chain (later commits will supersede this SHA)",
+  "commits": [
+    {"sha": "6e17a6a72883cd88a6282c60d8df4562c1458141", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Score: preallocated block engine, admission, cancel/busy/stale, unity/gain/pan/mix, hard limiter, observe report, consumer"}
+  ],
+  "capabilities_done": [
+    "ChannelLayout (ordered unique labels, stereo [100,101]), BlockSpec, exact sample<->ticks (5_292_000 ticks/sample @48k; non-divisor rates rejected)",
+    "Engine::process: admission order cancel>MissingContext>ResourceMismatch>StaleRevision>Busy(RAII Reservation)>frames/rate/channels/lengths/overflow/non-finite>processor rate+layout>capacity; zero writes on refusal; discard-unpublished on mid-block cancel/stale with processor reset; Copy allocation-free BlockReceipt (labels, per-channel peak, latency, start/end sample+ticks)",
+    "Processors: Unity (bit-exact), Gain, Pan (mono->stereo equal power, exact endpoints), ChannelMix (matrix; stereo_to_mono, mono_to_stereo), HardLimiter (FX-136a ranges, lookahead sliding-min + release + boxcar, clamp backstop, overshoot_events diagnostic, latency=round(ms*rate/1000))",
+    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised",
+    "Observe report(): Success/Canceled/Failure(Validation|Unavailable), exactly one terminal frame",
+    "DESCRIPTOR + examples/score-consumer (--descriptor --frames --capacity --rate --limiter --cancel)"
+  ],
+  "tests": {
+    "foundation_contract": {"passed": 5, "failed": 0, "command": "cargo test -p hsk-studio-score --test foundation_contract --no-fail-fast"},
+    "check_tests_examples": "PASS exit0",
+    "clippy_tests_examples": "PASS: no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe, not this lane)",
+    "passed": 5,
+    "failed": 0
+  },
+  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/reset added; Engine owns resource+live revision (RequestContext has no current_revision) so a revision bump mid-block discards the block; BlockReceipt is Copy with labels()/peak() slices; HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label.",
+  "blockers": [],
+  "dep_requests": [],
+  "next": "rubato 5.0.1 resampler (Async sinc, default-features=false) + dep-requests line; tests/dsp_resample.rs (exact gain/pan/mix values, resampling property); effect Chain",
+  "updated_at": "2026-10-11T03:45:00Z"
+}

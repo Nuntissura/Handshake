@@ -1,7 +1,7 @@
 {
   "lane": "hsk-studio-type",
   "mt": "MT-35536",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V4",
   "commits": [
     {"sha": "e603db86031feb860039f59658273d8fe17d2b30", "tree": "1de50152f22184049941432e0b66870be9e331a3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Admit pinned default-ignorable Common control spans at both Type shape entries"}
   ],
@@ -14,7 +14,10 @@
     "tree": "shared edit tree, not export of pushed SHA"
   },
   "blockers": [],
-  "next": "Independent validator round on export of e603db8 (or later HEAD): mixed_script_bidi_font_runs first, then remaining affected acceptance; workspace-probe closure + consumer/allocation acceptance not run by implementer",
+  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); no further Type source round for MT-35536; lead updates ledger",
+  "verdicts": [
+    {"round": "STUDIO-R1", "verdict": "PASS_V4", "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094", "mt": "MT-35536", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1", "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json", "failures": [], "recorded_at": "2026-10-11T01:31:21Z"}
+  ],
   "diagnostic_ref": ".GOV/docs_repo/wp-studio-module-work/diagnostics/type-lane.md",
-  "updated_at": "2026-10-11T01:16:00Z"
+  "updated_at": "2026-10-11T01:31:21Z"
 }
