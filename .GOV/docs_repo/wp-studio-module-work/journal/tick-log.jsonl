@@ -214,3 +214,4 @@
 {"t": "2026-10-11T22:29:14Z", "event": "R13 COMPLETE on 4b76604: SMB-PRESS PASS_V3 (2-FAIL lane closed) + SMB-PRESS-DIFFERENCES PASS_V1; handoff updated", "lanes_moved": ["SMB-PRESS PASS_V3", "SMB-PRESS-DIFFERENCES PASS_V1"], "progress": "direct: external verdicts advanced (R13)"}
 {"t": "2026-10-11T22:37:22Z", "event": "narrow pre-reviews SAFE for reel AV1 route + reel-native AV1 worker at 4b76604; PLR-078; R14 opened on the same SHA (reuse R13 run)", "progress": "no direct progress (pre-review routing)"}
 {"t": "2026-10-11T22:51:31Z", "event": "R14 COMPLETE on 4b76604 (reuse of R13 run): 8 PASS / 0 FAIL incl. both two-FAIL AV1 lanes; lane counts {\"PASS\": 97, \"IN_WORK\": 1, \"BLOCKED\": 6, \"QUEUED\": 4}", "lanes_moved": ["8 PASS"], "progress": "direct: external verdicts advanced (R14)"}
+{"t": "2026-10-11T22:52:08Z", "event": "dispatched builder-pigment-followups (sonnet; PLR-069/070/072-075); weekly 88%", "progress": "no direct progress (dispatch)"}

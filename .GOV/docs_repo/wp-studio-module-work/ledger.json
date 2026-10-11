@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:51:31Z",
+ "updated_at": "2026-10-11T22:52:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2868,6 +2868,18 @@
    ],
    "candidate": "4b76604",
    "note": "PLR-059..061: FRAME with a tag no PACKET carried -> counted protocol fault (once, worker killed, Av1Error::Worker(Protocol)); oversize/non-frame HELLO -> protocol fault (real spawn failures stay spawn_failed); wire.rs/host.rs/DESCRIPTOR name the accepted replies per request with tests; 3 tests red on origin 7410f29 and b8b276d; mutants M1-M3, M5-M7 red (M4 survives: membership rule, no doc claims more); av1-worker 5/5, +test-faults 19/19; V4-06 43"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-FOLLOWUPS",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "origin": "PLR-069/070/072-075",
+   "scope": "envelope entries reachable-only (pigment + render-cpu), render-cpu caller PlanLimits, depth check for every plan shape, V4-06 regex reach, exact docs, linear clip-base search",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-pigment-followups",
+   "lane_file": "builders/lanes/hsk-studio-pigment-followups.json",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

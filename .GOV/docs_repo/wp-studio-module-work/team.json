@@ -2218,6 +2218,19 @@
    ],
    "launched": "2026-10-11T22:37:37Z",
    "status": "done 2026-10-11T22:51:31Z (R14 COMPLETE: 8 PASS / 0 FAIL)"
+  },
+  {
+   "name": "builder-pigment-followups",
+   "agent_id": "adeae9f522a6b1cbb",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-FOLLOWUPS (PLR-069/070/072-075)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-pigment-followups.json"
+   ],
+   "launched": "2026-10-11T22:52:08Z",
+   "status": "running"
   }
  ]
 }
