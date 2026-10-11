@@ -285,6 +285,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T16:59:34Z (canary C16 exit 72, step 0 machine-path check): two web CSS-escape test inputs (`c:\69mage-set` in crates/hsk-studio-web/src/cssurl/tests.rs, `b:\69mage-set` in tests/html5ever_differential/corpus.rs) read as drive-letter paths; they are test strings, not host paths. Steward adds exactly two count-1 allowed-hit entries in .config/machine-paths.toml with reasons; the check itself is not loosened.
 
+- D27 DECIDED 2026-10-11T17:59:47Z by the Operator: 'Flatten + narrow'. Lead correction (anti-speculation): when recommending it the lead had not checked that press has NO page renderer; flattening needs a PDF rasteriser. Verified after the decision: hayro (pure-Rust CPU PDF rasteriser, Apache-2.0 OR MIT, newest 0.8.0 2026-10-04, ~3.2M downloads, repo github.com/LaurenzV/hayro; documented gaps: encryption, blending/isolation, knockout groups, colour-key masking). Missing rendering in a flattened page only removes content (fails safe). The option text 'one more build cycle' understated the work: it adds a dependency (licence gate + steward) and a raster pipeline. Implementation dispatched to rem-press-flatten.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

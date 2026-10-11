@@ -1150,6 +1150,51 @@
    "verified_at": "85532ad",
    "disposition": "FIX_LANE",
    "disposition_note": "after R11"
+  },
+  {
+   "id": "PLR-066",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/wav.rs:374",
+   "finding": "wav delivered count computed from the request, not the loop (tautological completeness check); none of the four delivery_complete call sites (wav, y4m, PCM, mxf) pinned by a test; V4-06 regex lacks a 'delivered =' token",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-067",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/isobmff.rs:2084-2097, 2151-2155",
+   "finding": "Partial packet receipt over a repeating edit list reports actual.end_pts as the presented range end while delivered chunks cover less; test does not assert it",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-068",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel y4m range check + DESCRIPTOR",
+   "finding": "DESCRIPTOR says a past-end range is MEDIA_OUT_OF_RANGE before the first payload read; y4m has no such check and fails Truncated after frames reached the sink (V4-07)",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
   }
  ],
  "process_items": [

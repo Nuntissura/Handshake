@@ -2008,7 +2008,7 @@
     "verdict fields"
    ],
    "launched": "2026-10-11T17:07:30Z",
-   "status": "running"
+   "status": "done 2026-10-11T17:59:47Z (R11 COMPLETE: 13 PASS / 0 FAIL)"
   },
   {
    "name": "reviewer-r11-a",
@@ -2019,7 +2019,7 @@
     "validation/R11-review-a.json"
    ],
    "launched": "2026-10-11T17:07:30Z",
-   "status": "running"
+   "status": "done 2026-10-11T17:59:47Z (COMPLETE; notes REEL-R11-1..4)"
   }
  ]
 }

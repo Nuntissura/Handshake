@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T17:22:04Z",
+ "updated_at": "2026-10-11T17:59:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -222,7 +222,7 @@
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
@@ -246,7 +246,8 @@
     "STUDIO-R7 PASS_V4 @dff7ef5",
     "STUDIO-R8 PASS_V5 @f6e5a49",
     "STUDIO-R9 PASS_V6 @4d80e50",
-    "STUDIO-R10 PASS_V7 @62d8983"
+    "STUDIO-R10 PASS_V7 @62d8983",
+    "STUDIO-R11 PASS_V8 @6956d3f"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
    "candidate": "3c82784",
@@ -432,7 +433,7 @@
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -452,7 +453,8 @@
     "STUDIO-R7 PASS_V4 @dff7ef5",
     "STUDIO-R8 PASS_V5 @f6e5a49",
     "STUDIO-R9 PASS_V6 @4d80e50",
-    "STUDIO-R10 PASS_V7 @62d8983"
+    "STUDIO-R10 PASS_V7 @62d8983",
+    "STUDIO-R11 PASS_V8 @6956d3f"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
    "candidate": "eb7080d",
@@ -697,8 +699,8 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "paused: Operator decision D27 (redaction assurance level)",
-   "status": "BLOCKED",
+   "phase": "build: Operator D27 = flatten + narrow (rem-press-flatten)",
+   "status": null,
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -751,10 +753,8 @@
    },
    "blockers": [
     {
-     "kind": "operator_decision",
-     "ref": "START_LOG D27",
-     "prereview": "validation/R11-prereview-press.json FIX_FIRST (R11-F1..F6)",
-     "recorded_at": "2026-10-11T17:22:04Z"
+     "kind": "Operator D27 decided: flatten + narrow; implementation in progress",
+     "recorded_at": "2026-10-11T17:59:47Z"
     }
    ]
   },
@@ -990,7 +990,7 @@
    "origin": "research/engine-video.md",
    "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V2",
    "owner": "builder-reel-eng-1",
    "commits": [
     "6d232da",
@@ -1001,7 +1001,8 @@
     "7cdf18e"
    ],
    "verdicts": [
-    "STUDIO-R10 FAIL_V1 @62d8983"
+    "STUDIO-R10 FAIL_V1 @62d8983",
+    "STUDIO-R11 PASS_V2 @6956d3f"
    ],
    "brief": "builders/briefs/lane-reel-eng-1.md",
    "candidate": "7cdf18e",
@@ -1037,7 +1038,7 @@
    "origin": "research/engine-video.md",
    "scope": "AV1 decode via rav1d behind reel adapter; deterministic decode contract (hash-testable normative output)",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-reel-av1",
    "commits": [
     "a2b1947",
@@ -1050,7 +1051,8 @@
     "STUDIO-R7 PASS_V2 @dff7ef5",
     "STUDIO-R8 PASS_V3 @f6e5a49",
     "STUDIO-R9 PASS_V4 @4d80e50",
-    "STUDIO-R10 PASS_V5 @62d8983"
+    "STUDIO-R10 PASS_V5 @62d8983",
+    "STUDIO-R11 PASS_V6 @6956d3f"
    ],
    "candidate": "569023e",
    "note": "R5 remediation: AV1 pixel limit derived from av1C layout + bit depth; 1080p decodes at default limits (new 1080p fixture); red-first; crate changed after R7 (bf3c196 also refuses oversize pictures on the in-process av1 path) -> re-include in R8 (CX-VAL-009).",
@@ -1584,7 +1586,7 @@
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "fresh builder",
    "commits": [
     "213b30a",
@@ -1595,7 +1597,8 @@
     "STUDIO-R7 PASS_V2 @dff7ef5",
     "STUDIO-R8 PASS_V3 @f6e5a49",
     "STUDIO-R9 PASS_V4 @4d80e50",
-    "STUDIO-R10 PASS_V5 @62d8983"
+    "STUDIO-R10 PASS_V5 @62d8983",
+    "STUDIO-R11 PASS_V6 @6956d3f"
    ],
    "candidate": "6e7198a",
    "note": "R5 remediation: BPC routed to prism for every source kind (prism gray BPC fixed upstream); TRC(0) shortcut removed; same class on RGB: legacy path hard-coded relcol no BPC -> wide path, legacy-only converters record not_applied loss; regression red-first",
@@ -1757,7 +1760,7 @@
    "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
    "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-reel-native-av1",
    "commits": [
     "e95163a",
@@ -1769,7 +1772,8 @@
     "STUDIO-R7 FAIL_V2 @dff7ef5",
     "STUDIO-R8 PASS_V3 @f6e5a49",
     "STUDIO-R9 PASS_V4 @4d80e50",
-    "STUDIO-R10 PASS_V5 @62d8983"
+    "STUDIO-R10 PASS_V5 @62d8983",
+    "STUDIO-R11 PASS_V6 @6956d3f"
    ],
    "candidate": "7886369",
    "note": "R5: checked dims math (LimitExceeded before spawn), wire plane-size checked (Malformed), fault hooks under test-faults, host feature av1 no longer links rav1d (av1-worker feature builds worker bin; cargo tree evidence), decoder version via HELLO; supervisor duplicate left (D18); 12 green across feature sets; R7 FAIL fix (PLR-034/035): worker found only beside the running executable; HELLO wait cancellable (5 ms poll, kill+reap, Canceled); StallHello fault under test-faults; tests red on scratch revert; 10 test-faults / 4 default. At 2/3 FAILs -> V4-13 pre-review before R8.",
@@ -1797,7 +1801,7 @@
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-reel-native-av1 (reused)",
    "commits": [
     "bfef27f",
@@ -1811,7 +1815,8 @@
     "STUDIO-R7 FAIL_V2 @dff7ef5",
     "STUDIO-R8 PASS_V3 @f6e5a49",
     "STUDIO-R9 PASS_V4 @4d80e50",
-    "STUDIO-R10 PASS_V5 @62d8983"
+    "STUDIO-R10 PASS_V5 @62d8983",
+    "STUDIO-R11 PASS_V6 @6956d3f"
    ],
    "candidate": "bf3c196",
    "note": "R5 remediation 233f406/569023e: checked plane arithmetic (lying decoder -> DecoderFault::Protocol), Matroska PixelWidth/Height bounded 1<<20; red-first; R7 FAIL fix (PLR-033): ProxySource has its own trust (default Untrusted; with_trust for that proxy only); proxies decode through their own route; untrusted AV1 -> worker or CodecUnavailable; test red on scratch revert; 49 default / 53 av1. At 2/3 FAILs -> V4-13 pre-review before R8.; PLR-032 fix bf3c196 (pre-review FIX_FIRST condition): Forward::accept refuses a picture larger than the container-declared size (<=, declared 0 = unchecked) as DecoderFault::Protocol before any copy; packed size checked vs max_chunk_bytes before extend; 2 new tests red on scratch 589f544; docs nits (pre-review findings 2-3) addressed; 51 default / 55 av1. Claim 8438b1d + 589f544 + bf3c196. Pre-review condition met per builder (independent check = R8 validator). Not done: av1C bit depth/chroma check (lead: out of PLR-032 scope).",
@@ -2006,7 +2011,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "rem-psd (queued after R5 fix)",
    "commits": [
     "eb7080d",
@@ -2017,7 +2022,8 @@
     "STUDIO-R7 FAIL_V1 @dff7ef5",
     "STUDIO-R8 PASS_V2 @f6e5a49",
     "STUDIO-R9 PASS_V3 @4d80e50",
-    "STUDIO-R10 PASS_V4 @62d8983"
+    "STUDIO-R10 PASS_V4 @62d8983",
+    "STUDIO-R11 PASS_V5 @6956d3f"
    ],
    "candidate": "2fa2202",
    "note": "R7 FAIL fix (2fa2202): descriptor numbers only via finite_number() (NaN/inf -> None); CgEd Brgh/Cntr + legacy brit checked finite and STU-RAS-151 soft range; out-of-range -> typed unsupported layer brightness_contrast_range, import continues; effects reads via finite_number(); adjacent fix: duplicate channel ids in blend ranges -> typed loss blend_ranges_duplicate_channel instead of whole-import failure; V4-06 37 sites; 39 green; both new tests red on dff7ef5 scratch copy"
@@ -2286,7 +2292,7 @@
    "origin": "prism R6 plausibles e26f623",
    "scope": "carry prism AbsoluteReport (media_white_rule, divergence) into psd receipts/losses; sweep other dropped receipt fields",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-psd-receipt",
    "commits": [
     "1a088a9"
@@ -2295,7 +2301,8 @@
     "STUDIO-R7 PASS_V1 @dff7ef5",
     "STUDIO-R8 PASS_V2 @f6e5a49",
     "STUDIO-R9 PASS_V3 @4d80e50",
-    "STUDIO-R10 PASS_V4 @62d8983"
+    "STUDIO-R10 PASS_V4 @62d8983",
+    "STUDIO-R11 PASS_V5 @6956d3f"
    ],
    "candidate": "1a088a9",
    "note": "prism absolute report carried to DisplayConversion.converter_absolute; divergence -> Transformed loss DIV-ABS-V2-DISPLAY-WTPT-001; BPC outcome + engine identity/options carried; absolute+BPC requested -> black_point_compensation_ignored_for_absolute_colorimetric; V4-06 22 receipt fields dispositioned; 37 of 37 green"
@@ -2362,7 +2369,7 @@
    "origin": "pigment 0d28c03 Blend-If clip refusals",
    "scope": "typed losses blend_if_clip_base / blend_if_clipped_layer / clbl=0 not modelled",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "candidate": "29501d7",
    "owner": "builder-psd-receipt",
    "commits": [
@@ -2372,7 +2379,8 @@
     "STUDIO-R7 PASS_V1 @dff7ef5",
     "STUDIO-R8 PASS_V2 @f6e5a49",
     "STUDIO-R9 PASS_V3 @4d80e50",
-    "STUDIO-R10 PASS_V4 @62d8983"
+    "STUDIO-R10 PASS_V4 @62d8983",
+    "STUDIO-R11 PASS_V5 @6956d3f"
    ]
   },
   {
@@ -2505,8 +2513,8 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "paused: Operator decision D27 (redaction assurance level)",
-   "status": "BLOCKED",
+   "phase": "build: Operator D27 = flatten + narrow (rem-press-flatten)",
+   "status": null,
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2533,10 +2541,8 @@
    },
    "blockers": [
     {
-     "kind": "operator_decision",
-     "ref": "START_LOG D27",
-     "prereview": "validation/R11-prereview-press.json FIX_FIRST (R11-F1..F6)",
-     "recorded_at": "2026-10-11T17:22:04Z"
+     "kind": "Operator D27 decided: flatten + narrow; implementation in progress",
+     "recorded_at": "2026-10-11T17:59:47Z"
     }
    ]
   },
@@ -2575,7 +2581,7 @@
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "adopt FX-OPS + ADMIT-PARITY keys in one pass (after ADMIT-PARITY lands); fixes render-gpu nesting test regression at HEAD",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-fx-ops-adopt",
    "commits": [
     "f6e5a49"
@@ -2583,7 +2589,8 @@
    "verdicts": [
     "STUDIO-R8 PASS_V1 @f6e5a49",
     "STUDIO-R9 PASS_V2 @4d80e50",
-    "STUDIO-R10 PASS_V3 @62d8983"
+    "STUDIO-R10 PASS_V3 @62d8983",
+    "STUDIO-R11 PASS_V4 @6956d3f"
    ],
    "candidate": "f6e5a49",
    "note": "adoption of pigment FX-OPS + admission parity: render-gpu cdd0644 (EffectsNested supported Approximate, AlphaPremultiplied Unsupported, pigment keys; nesting parity test green again on RTX; 24 default / 27 test-faults), render-cpu e8f5f98 (EffectsNested + AlphaPremultiplied Unsupported, pigment keys; 32), composite 7011298 (ledgers match pigment validate for EffectsWithBlendIf/EffectsNested; mask_on_pass_through Unavailable; 27), interop-psd f6e5a49 (typed losses effects_with_blend_if, mask_on_pass_through with pigment codes; 41); tests compare against pigment answers"
@@ -2643,7 +2650,7 @@
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
    "phase": "validation (pre-review SAFE; crate frozen until R11)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V3",
    "owner": "builder-psd-budget",
    "commits": [
     "a5eff01",
@@ -2653,7 +2660,8 @@
    ],
    "verdicts": [
     "STUDIO-R9 FAIL_V1 @4d80e50",
-    "STUDIO-R10 FAIL_V2 @62d8983"
+    "STUDIO-R10 FAIL_V2 @62d8983",
+    "STUDIO-R11 PASS_V3 @6956d3f"
    ],
    "candidate": "85532ad",
    "note": "R10 FAIL_V2 remediation 85532ad: EffectTally two independent sides (counted: 64/layer + 4096/document cut only stacks with counted instances; uncounted: 4096 cuts only stacks without counted instances), each a prefix of panel order; a visible stack with live instances is never refused for the uncounted cap (its switched-off instances past the cap are dropped with Transformed loss effects_unrendered_dropped_over_document_budget \u2014 lead accepts); reverse direction fixed too (hidden stacks no longer lost under the counted code); memory bound max_layers + 8192 kept; docs/DESCRIPTOR agree; 2 new tests + corrected test, 3/9 red on scratch 62d8983; 50/50; V4-06 79 = 79",
@@ -2679,7 +2687,7 @@
    "origin": "PLR-055 (R8-review-b)",
    "scope": "worker picture larger than the declared size but under the reply cap -> worker Protocol fault counted in protocol_faults (not Av1Error::Reel)",
    "phase": "validation",
-   "status": "PASS_V2",
+   "status": "PASS_V3",
    "owner": "builder-reel-native-faults",
    "commits": [
     "471b679",
@@ -2687,7 +2695,8 @@
    ],
    "verdicts": [
     "STUDIO-R9 PASS_V1 @4d80e50",
-    "STUDIO-R10 PASS_V2 @62d8983"
+    "STUDIO-R10 PASS_V2 @62d8983",
+    "STUDIO-R11 PASS_V3 @6956d3f"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel-native-faults.json",
    "note": "PLR-055 + same-class extension: Pool::exchange compares reply picture with declared size before reel (oversize under cap -> Failure::Protocol, counted, worker terminated, Av1Error::Worker(Protocol)); FRAME reply accepted only for a batch request, so FRAME answering OPEN -> Failure::Protocol; test-faults hooks OversizePicture/UndersizePicture/FrameOnOpen; tests red on scratch origin, green: av1-worker 5/5, +test-faults 14/14, doctests, clippy (5 feature sets), fmt; V4-06 43/43",
@@ -3154,6 +3163,24 @@
    "SMB-INTEROP-PSD-BUDGET": "R11-prereview-psd-budget SAFE at 85532ad",
    "SMB-PRESS": "R11-prereview-press (re-dispatched, pending)"
   },
-  "team": "1 validator (opus) + 1 reviewer (sonnet: reel ENG-1 remediation + PSD budget advisory); press judged on its pre-review"
+  "team": "1 validator (opus) + 1 reviewer (sonnet: reel ENG-1 remediation + PSD budget advisory); press judged on its pre-review",
+  "completed_at": "2026-10-11T17:59:47Z",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R11.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R11",
+  "union_exit": 0,
+  "not_proven": [],
+  "verdicts": {
+   "PASS": 13,
+   "FAIL": 0
+  },
+  "fails": [],
+  "deferred_fix_first": [
+   "SMB-PRESS",
+   "SMB-PRESS-DIFFERENCES"
+  ],
+  "fix_budget_events": [],
+  "notes": "REEL-R11-1..3 CONFIRMED kept as notes by the validator (PLR-066..068); PSD PLR-063..065 notes",
+  "infra_notes": "idle sccache pid 342380 left running"
  }
 }
