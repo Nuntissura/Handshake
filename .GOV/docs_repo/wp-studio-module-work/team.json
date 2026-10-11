@@ -1175,7 +1175,7 @@
   },
   {
    "name": "builder-vector-records",
-   "agent_id": "PENDING-1",
+   "agent_id": "a5bb570aa1618a199",
    "model": "sonnet",
    "role": "interop-vector maps SVG pattern/clip/mask to folio StudioVectorRecords + export round trip",
    "owns": [
@@ -1186,7 +1186,7 @@
   },
   {
    "name": "builder-render-cpu-window",
-   "agent_id": "PENDING-2",
+   "agent_id": "a8660daf20fbfff29",
    "model": "sonnet",
    "role": "render-cpu adopts pigment windowed matte; lifts 24 px margin refusal",
    "owns": [
