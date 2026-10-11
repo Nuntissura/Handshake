@@ -2,7 +2,7 @@
   "crate": "hsk-studio-render-gpu",
   "lane": "MT-35546",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 pushed (159cf9c, 167dc28): non-separable hue/saturation/colour/luminosity, 8 Approximate separable modes and whole-pixel darker/lighter colour generated from pigment MODES facts (26 modes executed on device, only dissolve refused among layer modes); R3 remediation b7d90dc and slice 1-2 contracts unchanged",
+  "phase": "R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
   "commits": [
     {
       "sha": "a813cf3",
@@ -31,6 +31,22 @@
     {
       "sha": "167dc28",
       "subject": "slice 3b: whole-pixel darker_colour and lighter_colour (Approximate in pigment, channel-sum compare, tie keeps backdrop); only dissolve stays refused among layer modes; lattice ties bit-exact vs blend_math"
+    },
+    {
+      "sha": "479e1c7",
+      "subject": "R5 (no-adapter-early-return-green, V4-03): GPU proofs follow the checked-in tests/gpu-proof.toml; require_gpu = true makes no adapter a FAIL with a NOT_PROVEN: message, false prints the NOT_PROVEN line the round counts"
+    },
+    {
+      "sha": "c5bd9be",
+      "subject": "slice 4: plan-extension envelope on the GPU (execute_extended, extension_exactness): mask density/invert/feather, Blend-If, adjustment layers (levels, curves LUT, hue_saturation, exposure, invert, threshold, posterize); V4-01 arithmetic deny, V4-04 test-faults feature, V4-07 doc claims"
+    },
+    {
+      "sha": "b58305f",
+      "subject": "consumer example docs: V4-07 wording (comment-only)"
+    },
+    {
+      "sha": "459c5d9",
+      "subject": "R6 review A (V4-04): compile-time proof that a default build has no public fault-injection hook (4 compile_fail,E0599 doctests; gate of the hooks itself is c5bd9be)"
     }
   ],
   "capabilities_done": [
@@ -42,20 +58,25 @@
     "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1",
     "slice 3 blend modes: gpu_blend_qualifies now = layer-applicable, pigment class != Unsupported, Normal or family Separable|NonSeparable|WholePixel; FORMULAS (per-channel bodies) gained linear_burn linear_dodge_add vivid_light linear_light pin_light hard_mix subtract divide; new FORMULAS_RGB (whole-colour bodies) holds hue saturation colour luminosity (WGSL helpers hsk_lum/hsk_clip_color/hsk_set_lum/hsk_sat/hsk_set_sat in kernel.wgsl, operation order of blend_math; set_sat uses a stable-rank formulation = pigment's stable sort, no dynamic indexing) and darker_colour lighter_colour (channel sums left to right, tie keeps backdrop)",
     "class discipline: pigment's class travels (Approximate modes stay Approximate in ledger and receipt, the backend only lowers; a Fitted or Exact floor refuses them as Unsupported{mode, approximate}); Exact non-separable modes are Fitted on the GPU like the slice-2 modes",
-    "refusal discipline: REFUSED_MODES (pass_through, dissolve, behind, clear, average, negation, reflect, glow, erase) pinned in tests independently of the predicate; every other pigment mode must be generated AND executed on the device (tested == MODES.len() - REFUSED_MODES.len() = 26); never replaced by Normal"
+    "refusal discipline: REFUSED_MODES (pass_through, dissolve, behind, clear, average, negation, reflect, glow, erase) pinned in tests independently of the predicate; every other pigment mode must be generated AND executed on the device (tested == MODES.len() - REFUSED_MODES.len() = 26); never replaced by Normal",
+    "R5: tests/gpu-proof.toml (schema-checked, include_str!, no path): require_gpu = true (committed) fails every GPU proof without an adapter with 'NOT_PROVEN: no adapter; ...'; false = opt-out that prints the line the round counts (exit 73); env var only strengthens; regression test no_adapter_is_not_a_green_gpu_proof_when_the_gpu_is_required",
+    "slice 4 envelope: GpuBackend::execute_extended / execute_extended_detailed / extension_exactness (all implemented operators Fitted, pigment intrinsic class kept in the ledger); admit_extended first; empty envelope without mask density < 1 = the v1 plan byte for byte (pixels, digest, ledger, peak bytes compared)",
+    "mask density (shader step over host-converted/inverted/feathered coverage), mask feather (host separable Gaussian over pigment feather_kernel, windowed to the layer region, replicate clamp, scratch charged to max_working_bytes, cost bound 2^31 tap operations), Blend-If (<= 4 entries in plan order, identity dropped; weight multiplies the opacity), adjustment layers on the running backdrop incl. clip-run unit and pass-through parent: levels, curves (4096-entry table per channel from PreparedCurve), hue_saturation master + colorize, exposure, invert, threshold, posterize",
+    "new module ext.rs (host side, deny(arithmetic_side_effects)), kernel_pixel.wgsl template instantiated as composite and composite_ext, entry point adjust; v1 pipeline layout (bindings 0-3) and v1 bytes unchanged; envelope buffers (288 B params + curve table 64 KiB / 16 B) only when a layer uses Blend-If or an adjustment",
+    "V4-04: with_shader_source, with_injected_loss and both simulate_device_loss compiled only with the non-default test-faults feature; the 3 tests using them are gated; default-features guard test fault_hooks_exist_only_under_the_test_faults_feature"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan|none)",
+    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (default features: 15 tests) and the same with --features test-faults (18 tests); HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan",
     "exit": 0,
-    "sha": "167dc28",
-    "passed": 12,
+    "sha": "c5bd9be",
+    "passed": 18,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 4 candidates (not started): dissolve needs a plan-level seed + a WGSL u64-equivalent of pigment site_unit (pigment/plan owner decision); vector coverage; content-addressed tile cache (ResidentKey::Tile); Metal/other-vendor qualification; knife-edge policy for colour_burn/dodge and non-separable gray ties on GPU-derived backdrops",
-  "updated_at": "2026-10-11T05:26:35Z",
+  "next": "queued by the coordinator: effects execution (pigment effect_math / LayerExtension.effects / ExtOperator::Effect): WGSL generated from or parity-checked against effect_math, blur as separable passes with the margin from effect_support_px, parity vs render_layer_reference. Other candidates: dissolve (needs plan seed + u64 hash), brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+  "updated_at": "2026-10-11T06:39:38Z",
   "notes": {
     "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
     "runs": {
@@ -227,6 +248,95 @@
       "clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps: clean. Without --no-deps clippy stops in hsk-studio-prism (another lane): approx_constant deny errors at crates/hsk-studio-prism/src/icc_eval.rs:31-32 (LOG2E, SQRT2 literals) plus 8 warnings; not touched. check --tests --examples clean.",
       "retry_guard_route": "no gameplan block hit; no step added; no flag/filter changes to dodge a guard (each distinct command ran once per HEAD or succeeded)",
       "pigment_dependency": "pigment blend_math.rs last committed at 4c3ac91; the architect's uncommitted additive edits seen in the shared tree (BlendError::Adjustment, StackNode::Adjustment) do not touch MODES, Family, Exactness, blend_rgb or composite_over, and render-gpu matches neither enum; WGSL bodies are transcriptions checked by parity, not a second definition of the math; if pigment adds a Layer-applicable Separable/NonSeparable/WholePixel mode without a FORMULAS body the drift test (supported == qualifies) and the pinned REFUSED_MODES test fail until a body with a parity case exists"
+    },
+    "r5_no_adapter_sweep_v4_06": {
+      "class": "no-adapter-early-return-green",
+      "regex": "gpu_gate\\(|Ok\\(None\\)|Reason::NoAdapter|NOT_PROVEN",
+      "sites": {
+        "tests/gpu_plan.rs gpu_gate call sites (11, all through the committed policy; fixed)": [
+          "leaf_root_reports_the_blend_kernel_class",
+          "device_destroy_is_detected_by_the_lost_callback",
+          "pipeline_failure_is_typed_and_fails_the_gpu_gate (2 calls)",
+          "gpu_blend_parity_vs_pigment_blend_math",
+          "gpu_modes_masks_groups_clip_parity",
+          "slice3_hand_oracles_and_lattice_parity",
+          "slice3_modes_in_groups_masks_clip_parity",
+          "ext_mask_density_invert_feather_parity",
+          "ext_blend_if_parity",
+          "ext_adjustment_layer_parity"
+        ],
+        "tests/gpu_plan.rs regression probe (1 call, the regression test itself)": "fixed/not-applicable",
+        "examples/render-gpu-consumer.rs": "prints NOT_PROVEN and exits 3 (non-zero), fixed/not-applicable",
+        "src/*.rs Reason::NoAdapter": "the production typed outcome, not-applicable"
+      },
+      "counterfactual": "none backend + committed require_gpu = true: 6 pass, 7 GPU proofs FAIL with 'NOT_PROVEN: no adapter; ... requires a GPU'; local false: 13 pass with NOT_PROVEN lines (logs in the lane scratch folder and Handshake_Artifacts studio-team-dev/tmp/rendergpu-r5-*.log)"
+    },
+    "slice4": {
+      "pigment_inputs": "PlanExtensions d576ec5/2587930/c2bbb9b/2f705f1, adjust_math/coverage_math bd480f9, effects e007703 (refused)",
+      "runs": {
+        "dx12_default_features": "15 passed, 0 failed (RTX 3090 discrete)",
+        "dx12_test_faults": "18 passed, 0 failed",
+        "vulkan_test_faults": "18 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter)",
+        "no_adapter": "r5 runs only (before slice 4); the hardware-independent slice-4 test ext_refusals_and_capabilities_run_without_adapter ran on the none backend inside every GPU-host run"
+      },
+      "observed_max_error_vs_pigment_scalar_functions": {
+        "mask_density_invert_17x17_grid": "6e-8 (tolerance 2e-6)",
+        "mask_feather_r2_r10_density_invert": "1.8e-7 (tolerance 5e-6)",
+        "blend_if_flat_and_group_clip": "3.0e-7 flat, 2.4e-7 group/clip (tolerance 5e-6 per layer)",
+        "adjustment_17cubed_lattice": "invert 0, invert multiply 3e-8, levels 1.2e-7, posterize 0, threshold 0 (exact decisions), exposure 0 / 1.2e-7, curves 6e-8, hue_saturation master 6e-7, colorize 6e-8 (declared 2e-6..5e-6)",
+        "adjustment_translucent_backdrop_mask_blend_if": "3.7e-7, alpha untouched (asserted equal to the backdrop alpha)",
+        "adjustment_clipped": "1.2e-7"
+      },
+      "counterfactual": "WGSL mutated locally and reverted (crate clean afterwards): density formula, range_weight up-ramp, posterize constant -> ext_mask_density..., ext_blend_if_parity (0.35), ext_adjustment_layer_parity (posterize 0.33) FAILED; feather skipped alone -> feather parity 0.9 FAILED",
+      "reference": "Reference in tests/gpu_plan.rs evaluates the envelope from pigment composite_adjustment / blend_if_weight / mask_coverage / feather_kernel only (naive double-sum blur for feather); render-cpu not used",
+      "semantics_chosen_unverified": [
+        "Blend-If on an adjustment layer: source colour = f(backdrop) (the layer's content), destination = backdrop; k = opacity * fill * mask * weight",
+        "Blend-If on a clip base is applied at the final composite of the run unit G (not while initialising G); on a clipped layer at its composite onto G",
+        "a clipped adjustment acts on G with its mask ignored (like every clipped layer) and k without the base alpha; alpha of G unchanged",
+        "feather blurs the stored coverage before inversion and density (blur commutes with inversion for a normalised kernel)",
+        "hue_saturation is evaluated in binary32 on the GPU (pigment: binary64): 6e-7 worst on the lattice"
+      ],
+      "refused_typed": "knockout, brightness_contrast (modern by pigment, legacy no GPU body), effects (extension_exactness(Effect) Unsupported + defence in depth in prepare), feather without mask (pigment), feather scratch over max_working_bytes (BudgetExceeded), feather cost over 2^31 taps (Unsupported mask_feather_cost)"
+    },
+    "v4_audit": {
+      "V4-01": "deny(clippy::arithmetic_side_effects) on plan_sink, kernel, ext (new), device, error, residency; all former sites converted to checked/saturating; clippy --lib/--tests --examples --no-deps clean on default features and --features test-faults",
+      "V4-02": "aggregate_over_budget-style test for the feather scratch + cost bound (ext_refusals_and_capabilities_run_without_adapter); dims_u32_max-style test NOT added: feather regions are bounded by the verified mask plane (SourceMismatch otherwise), every size is checked_* and Overflow is typed",
+      "V4-03": "tests/gpu-proof.toml, see r5_no_adapter_sweep_v4_06",
+      "V4-04": "test-faults feature; NEEDS STEWARD: .config/round-features.toml entry hsk-studio-render-gpu = [[\"test-faults\"]] so the round runs the 3 fault tests (injected loss latch, device destroy detection, pipeline failure typing); until declared the default round omits them (15 of 18 tests)",
+      "V4-05": "not-applicable (no new duplicate of ZIP/deflate/CRC, worker supervision or timecode)",
+      "V4-06": "no-adapter class swept, see r5_no_adapter_sweep_v4_06",
+      "V4-07": "DESCRIPTOR rewritten (valid JSON, checked with json.loads): every never/always claim cites its test or is weakened; doc comments in device, error, kernel, ext, plan_sink, residency, lib and the consumer example reworded; plain code comments (// ... never ...) in plan_sink.rs, kernel.wgsl and kernel_pixel.wgsl explain code and are not API claims",
+      "V4-08": "not-applicable (no hostile text format)",
+      "V4-09": "commits via git commit -F",
+      "V4-12": "lane helper files moved to <scratchpad>/hsk-studio-render-gpu/; no other agent's script was run"
+    },
+    "decisions_for_lead_slice4": [
+      "tests/gpu-proof.toml ships require_gpu = true: a host without a GPU fails the GPU proofs until a reviewed edit sets false (then the round exits 73 with NOT_PROVEN lines)",
+      "round-features.toml needs the test-faults unit for this crate (V4-04); the steward owns it",
+      "Blend-If and clipped-adjustment semantics above are UNVERIFIED against render-cpu/composite (render-cpu had no envelope yet): agree one reading before the validator compares backends"
+    ],
+    "remediation_R6": {
+      "finding": "R6 review A CONFIRMED v4-04-public-fault-hooks: plan_sink.rs:447-452 with_shader_source, :477-488 with_injected_loss, :565-572 simulate_device_loss, device.rs:298 simulate_device_loss public in the default build; Cargo.toml:7-8 no test-faults feature",
+      "class": "fault-injection hook compiled into a default build",
+      "regex": "pub fn (with_shader_source|with_injected_loss|simulate_device_loss)|doc\\(hidden\\)",
+      "fix_commit": "c5bd9be (landed before the finding arrived, inside the slice-4 commit); proof commit 459c5d9 (separate, -F)",
+      "sites": {
+        "src/plan_sink.rs with_shader_source": "fixed: #[cfg(feature = \"test-faults\")], doc(hidden) removed",
+        "src/plan_sink.rs with_injected_loss": "fixed: same",
+        "src/plan_sink.rs GpuBackend::simulate_device_loss": "fixed: same",
+        "src/device.rs GpuContext::simulate_device_loss": "fixed: same",
+        "Cargo.toml": "fixed: test-faults = [] (not in default = [])",
+        "tests/gpu_plan.rs (3 tests using the hooks)": "fixed: #[cfg(feature = \"test-faults\")], imports gated; they run only in a test-faults unit",
+        "private plumbing (acquire_into shader override, State::Lost construction, Kernel::new source)": "not-applicable: not reachable from the public API without a gated constructor"
+      },
+      "count": "4 public hooks + 3 gated tests, matches the regex sweep (4 lines under 'pub fn ...' all preceded by the cfg attribute)",
+      "proof": [
+        "tests/gpu_plan.rs fault_hooks_exist_only_under_the_test_faults_feature (default features): scans plan_sink.rs and device.rs, requires 4 hooks each directly after #[cfg(feature = \"test-faults\")], and 'default = []' / 'test-faults = []' in Cargo.toml",
+        "src/lib.rs 4 compile_fail,E0599 doctests (cargo test --doc, default features): one per hook; compiled out with --features test-faults",
+        "counterfactual: the gate removed from with_injected_loss -> the doctest (line 30) FAILED, 3 passed; restored, tree clean (log r6-doc-mutated.log in the lane scratch folder)"
+      ],
+      "tests_after": "default features: 15 integration tests + 4 doctests pass; --features test-faults: 18 pass (dx12 and vulkan), 0 doctests",
+      "steward_request": "appended to builders/dep-requests.jsonl: hsk-studio-render-gpu = [[\"test-faults\"]] (round-features); until declared the default round omits the 3 fault tests"
     }
   }
 }

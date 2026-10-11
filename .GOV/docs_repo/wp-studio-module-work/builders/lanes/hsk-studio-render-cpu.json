@@ -2,8 +2,24 @@
   "crate": "hsk-studio-render-cpu",
   "lane": "SMB-RENDER-CPU-CLIP",
   "status": "READY_FOR_VALIDATION",
-  "phase": "clip-to-base (pigment BaseAlpha) implemented and pushed d470e2f + 9819e52; base port migration, nib OwnedPath payload and parallel chunks pushed earlier",
+  "phase": "ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c) pushed; execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke). Earlier phases unchanged (clip-to-base, R3 remediation 9468d33).",
   "commits": [
+    {
+      "sha": "5674e9c",
+      "subject": "render-cpu: extension_exactness reports Exact only for the wave 1 effect kinds"
+    },
+    {
+      "sha": "9b2f3af",
+      "subject": "render-cpu effects test: the reference plane of the stack case holds the layer plus its effect margin"
+    },
+    {
+      "sha": "c4bdaef",
+      "subject": "render-cpu: layer effects wave 1 (drop shadow, colour overlay, solid stroke) through execute_extended (SMB-RENDER-CPU-EFFECTS-1)"
+    },
+    {
+      "sha": "49afca1",
+      "subject": "render-cpu: execute_extended - adjustment layers, Blend-If, mask density and mask feather (SMB-RENDER-CPU-ADJ-1)"
+    },
     {
       "sha": "9468d33",
       "subject": "Render-cpu R3: pass-through layer with fill_opacity < 1 is refused typed (group_pass_through_fill_opacity, before the first sink call) instead of rendering at full strength; parallel run no longer hangs when a worker or the sink panics (catch_unwind in workers and sink delivery, StopWorkers unwind guard) and returns Unavailable worker_panic|sink_panic on every thread count; clip_base_pass_through test follows pigment validate refusal; regression tests (fill, panicking sink at 1/2/4 threads, injected panicking worker)"
@@ -42,7 +58,9 @@
     "parallel chunks: Renderer::with_threads(chunk, n), byte-identical output and sink order",
     "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, c1..cn] (base = nearest earlier unclipped layer of the group) evaluated per chunk into one scratch buffer G = base content with its own mask (no opacity/fill/mode); each ci composited onto G with own mode/opacity/fill and source alpha * base alpha, G alpha held at base alpha (read from G itself, no extra plane); G composited onto the running backdrop with the BASE layer's mode/opacity/fill; group extent ignores clipped layers (never beyond base); isolated and pass-through parent groups work (pass-through parent: run lands on the running backdrop); per-pixel, so chunk and thread determinism is unchanged; scratch need = 1 level per run + deepest member (accounted in need/peak_working_bytes); isolated-group base evaluates straight into G; exactness Approximate (Photoshop rule UNVERIFIED)",
     "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants",
-    "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang"
+    "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang",
+    "ADJ-1 (49afca1): RenderBackend::extension_exactness (AdjustmentLayer, Adjustment(_), BlendIf, MaskDensity, MaskFeather = Exact so the receipt class is pigment's intrinsic Approximate; Knockout and unknown operators Unsupported) and execute_extended (Renderer::execute_extended_detailed): admit_extended first, ExtPrep::build (adjustments prepared once, identical feather radii share a kernel, resident tables charged as a running aggregate to max_working_bytes before allocation), then the existing chunked compositor. Adjustment layer: per pixel of the placeholder rect k = opacity*fill*mask*blend_if and adjust_math::composite_adjustment on the group running buffer (inside a clip run on the run buffer G only); Blend-If: coverage_math::blend_if_weight multiplies the source alpha (also the clip-run composite with the base layer's ranges; the source colour of an adjustment layer is its content f(backdrop), Studio rule); mask density/invert via coverage_math::mask_coverage (density 1 keeps the v1 inversion so v1 bytes are unchanged); mask feather: per-chunk separable blur with coverage_math::feather_kernel, feather_support margin, clamped at the mask plane border, before invert/density; per-worker feather scratch (chunk plane + horizontal pass with margin rows) is part of the reserved scratch (peak_working_bytes). Empty envelope without a density mask takes the v1 path (bytes and receipt identical); a density mask with an empty envelope takes the envelope admission (mask_density Approximate). V4-01: plan_sink.rs, plan_sink/extended.rs, px.rs deny clippy::arithmetic_side_effects.",
+    "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects."
   ],
   "tests": {
     "argv": [
@@ -50,21 +68,18 @@
       "test",
       "-p",
       "hsk-studio-render-cpu",
-      "--lib",
-      "--test",
-      "cpu_plan",
-      "--examples"
+      "--tests"
     ],
     "exit": 0,
-    "sha": "9468d33",
-    "passed": 11,
+    "sha": "5674e9c",
+    "passed": 21,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 9468d33. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE coverage.rs per-pixel cost not charged at prepare. Pigment/composite/render-gpu could map pass-through fill < 1 to Operator::PassThroughOpacity at validate so every backend refuses it at admit; render-cpu refuses it in prepare, still before any sink call.",
-  "updated_at": "2026-10-11T03:19:12Z",
+  "next": "Independent validator round on 5674e9c (ADJ-1 + EFFECTS-1, 21 tests). Open pigment API request: windowed matte API (see notes.effects1.api_changes_needed_in_pigment).",
+  "updated_at": "2026-10-11T06:39:12Z",
   "notes": {
     "clip_lane": {
       "lane": "SMB-RENDER-CPU-CLIP",
@@ -178,6 +193,94 @@
         "fixed_in": "9468d33 (render-cpu); the test failed on the shared tree only between pigment 276e2a3 and render-cpu 9468d33 (pigment is committed first by assignment order)",
         "verified": "render-cpu --lib --test cpu_plan --examples 11/11 and clip_to_base filter 3/3 on the pushed state"
       }
+    },
+    "adj1": {
+      "lane": "SMB-RENDER-CPU-ADJ-1",
+      "pigment_api": "2f705f1 (adjust_math, coverage_math, render_plan::PlanExtensions, admit_extended); not edited",
+      "files": [
+        "src/plan_sink.rs (prepare + Eval wiring, run(), execute_extended_detailed, extension_exactness)",
+        "src/plan_sink/extended.rs (new: ExtPrep, Fx scratch, feather blur, Eval::adjust)",
+        "src/px.rs (new: checked geometry helpers)",
+        "src/lib.rs (mod px, DESCRIPTOR extensions)",
+        "tests/cpu_extended.rs (new, 5 tests)",
+        "tests/cpu_plan.rs (rustfmt only)"
+      ],
+      "tests_added": [
+        "adjustment_layer_hand_values_pigment_parity_and_clip_run",
+        "mask_density_and_invert_hand_values",
+        "blend_if_ramps_hand_values",
+        "mask_feather_hand_values_budget_and_aggregate",
+        "refusals_stay_typed_and_the_v1_path_is_unchanged"
+      ],
+      "parity": "8 adjustment kinds (levels, curves, hue_saturation, brightness_contrast legacy, exposure, invert, threshold, posterize) x opaque and half-transparent backdrops (16 pixels, modes Normal/Multiply, opacities .5/.75/1) are bit-identical (f32 to_bits equal, max diff 0) to pigment evaluate_stack Adjustment nodes; Photoshop parity NOT_PROVEN (D5 cases 1, 9, 10; V4-03).",
+      "hand_values": {
+        "invert_opacity_half": "(0.2,0.4,0.6,1.0) -> (0.5,0.5,0.5,1.0); alpha .5 backdrop keeps alpha .5",
+        "clip_run": "invert clipped to red base A over gray .2: left (0,1,1,1), right stays (.2,.2,.2,1)",
+        "mask_density": "u16 16384/65535 coverage, density .5 -> .62500191; density 0 -> 1; inverted .5 -> .87499809",
+        "blend_if": "gray ramp [.2,.4,.6,1] weights 0,0,.5,1,1,.5,0 for values .1 .2 .3 .4 .5 .8 1.0; source .5 x underlying red .5 -> .25; adjustment content f(backdrop) weight .25 -> .35",
+        "feather_2px": "taps .39905028 .24203623 .05400558 .00443305; edge coverage 0, w3, w2+w3, w1+w2+w3, 1-(w1+w2+w3), 1-(w2+w3), 1-w3, 1; chunk 4/5/12 and threads 1-3 bit-identical",
+        "budget": "peak_working_bytes 1756 = 1152 scratch + 28 kernel + 576 feather scratch; limit 1755 -> BudgetExceeded{1756,1755}; two distinct radii: running aggregate 28 then 72 > 50 refused before the second kernel; feather 10000 px refused"
+      },
+      "decisions_for_lead": [
+        "Empty envelope + density mask: execute_extended takes the envelope admission (pigment admit_extended admits density as ExtOperator::MaskDensity with an empty envelope); the v1 execute() keeps the mask_density refusal. An empty envelope without density takes the unchanged v1 path.",
+        "Blend-If source colour for an adjustment layer = its content f(backdrop) (pigment says the layer content is f(backdrop)); Photoshop behaviour UNVERIFIED (D5 case 9). On a clip run the base layer's Blend-If applies to the run composite (G vs running backdrop). Backdrop weight reads the stored backdrop rgb, transparent pixels read black (pigment blend_if_weight has no alpha input).",
+        "Density 1 keeps the v1 inline inversion (1 - c) instead of mask_coverage so v1 bytes cannot change; density < 1 and every feathered layer's effective coverage go through mask_coverage."
+      ],
+      "api_changes_needed_in_pigment": [],
+      "plausible_not_addressed": [
+        "feather compute cost is O(support) per pixel and only the scratch/kernel memory is charged to max_working_bytes (same class as the open R5 PLAUSIBLE item for coverage.rs winding cost); cancel and deadline are observed between chunks only.",
+        "coverage.rs (untouched) still has 2 unchecked arithmetic sites (hits += ..., n * n) under the V4-01 lint."
+      ],
+      "v4_01_sweep": "regex: clippy::arithmetic_side_effects over src/**. plan_sink.rs 62 sites -> 0 (checked helpers in px.rs, saturating/checked in Geometry, scratch_bytes, reserve, run_parallel), extended.rs 0, px.rs 0; coverage.rs 2 sites not applicable (module not touched).",
+      "retry_guard": "no hook block; cargo test run twice on different HEADs (first on the working tree before the commit, then on pushed 49afca1). No gameplan step added.",
+      "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean (warnings only in hsk-studio-observe/prism/pigment, pre-existing)",
+      "tests_note_5674e9c": "cpu_extended.rs fixtures moved to tests/common/mod.rs (shared with cpu_effects.rs); no assertion changed."
+    },
+    "effects1": {
+      "lane": "SMB-RENDER-CPU-EFFECTS-1",
+      "pigment_api": "e007703 (effect_math wave 1, effect_support_px, render_layer_reference); pigment HEAD also had d982b5c (wave 2 kinds) by the time of the tests; not edited",
+      "files": [
+        "src/plan_sink/effects.rs (new: effect_layer, effect_tiles, effect_tile, frame_content)",
+        "src/plan_sink/extended.rs (EffectLayer table, ExtPrep effects, FrameShape, Frame/Fx frame scratch, effect_error)",
+        "src/plan_sink.rs (prepare: margin bounds, effects_nested / effects_with_blend_if refusals, PLayer layer_opacity + fill_opacity, run(): frame charge, extension_exactness)",
+        "src/px.rs (grow_rect)",
+        "src/lib.rs (DESCRIPTOR effects)",
+        "tests/cpu_effects.rs (new, 5 tests), tests/common/mod.rs (shared fixtures)"
+      ],
+      "tests_added": [
+        "drop_shadow_hand_values_and_reference_parity",
+        "colour_overlay_hand_values_clip_and_full_strength",
+        "stroke_rings_hand_values_and_reference_parity",
+        "effect_stack_matches_reference_for_every_chunking",
+        "effect_refusals_and_scratch_charge_stay_typed"
+      ],
+      "parity": "vs pigment render_layer_reference, bit-identical (f32 to_bits, max diff 0): drop shadow 225 + 225 px (bar blur taps, block with spread/size/offset/knockout, chunk 8 and 5, 1-2 workers), colour overlay 2 x 2 px (fill 1 and 0), stroke outside/inside/centre/wide 196 px, 4-effect stack (multiply shadow, overlay, outside + inside strokes, opacity .8 fill .5) 3 x 1440 px at chunks 40/13/9 with 1/1/3 workers, equal to each other. Photoshop parity NOT_PROVEN (D5 12-14).",
+      "hand_values": {
+        "shadow_fill0": "1 px opaque red, shadow black .5: fill 1 -> red; fill 0 -> (0,0,0,.5); layer opacity .5 -> alpha .25; knockout -> clear",
+        "shadow_offset": "angle 180 distance 2: matte at x = 4 for a pixel at x = 2 (pigment convention (-cos a, sin a) * d)",
+        "shadow_blur_2px": "row 7 of a full-height bar: [w3, w2, w1, w0, w1, w2, w3] = .00443305 .05400558 .24203623 .39905028 ...",
+        "overlay": "red 50% over blue opaque -> (.5, 0, .5, 1); over alpha 0 stays clear; fill 0 -> (1, 0, 0, .5)",
+        "stroke_1px": "orthogonal ring 1.0, diagonal 1.5 - hypot(.5,.5) = .79289322, 2 px away 0; inside: 8 border pixels 1, centre 0 (the brief's 'ring coverage 1 on the 8-neighbour ring' holds for orthogonal neighbours only; pigment's ramp gives .7929 on diagonals)",
+        "budget": "1x1 chunk, shadow size 4 (margin 6, frame 13x13 = 169 px): 32 + 64 + 169 * 116 = 19700; limit 19699 -> BudgetExceeded{19700, 19699}"
+      },
+      "decisions_for_lead": [
+        "Pigment's reference reads zero beyond its plane (shift_zero, blur, dilate), so render_layer_reference equals the backend only when the plane holds the layer plus its margin; the backend evaluates frames beyond the target and yields the uncut shadow (first stack attempt: 21 px off by 8e-7 .. 3e-4 near the plane edge because the test plane was smaller; the test plane was fixed, not the backend).",
+        "Effects together with Blend-If on one layer are refused (effects_with_blend_if): the Blend-If weight depends on the backdrop of the content composite and Photoshop behaviour with effects is UNVERIFIED; pigment admits the combination, so this is a backend-side refusal that happens after shared admission (still before the first sink call).",
+        "Effects nested inside the content of an effect layer are refused (effects_nested), same reason: one frame scratch per worker.",
+        "Mask on an effect layer multiplies the content alpha (the shape alpha the matte is derived from, pigment module doc); without effects the v1 path multiplies the mask into opacity, so a masked effect layer can differ from the same layer without effects by f32 rounding.",
+        "Effect kinds pigment added after wave 1 (d982b5c inner shadow, outer glow, inner glow) are Unsupported here until implemented and tested (kind-by-kind allow list in extension_exactness)."
+      ],
+      "api_changes_needed_in_pigment": [
+        "Windowed matte API: effect_math::reference_matte / render_layer_reference work on planes of at most 64 x 64 and recompute the margin of every tile, so this backend refuses effect margins above 24 px (effect_margin) and a layer pays (64 / tile side)^2 recompute. A production path needs a matte function over a window with an explicit halo contract (window rect + halo from effect_support_px, no 64 px plane limit, work budget per window) and a streaming dilate/blur; then margins up to MAX_EFFECT_SIZE_PX (1000) become possible."
+      ],
+      "plausible_not_addressed": [
+        "EffectPlane / render_layer_reference allocate inside pigment per tile (several 16 KB-class vectors); the scratch charge is an estimate of those allocations (4 bytes per pixel x (effects + 12) + 3 planes of 16 bytes), not a measured bound.",
+        "Pixels of an effect region where nothing is drawn are rewritten with the reference's composite_over(a_s = 0) result, which equals the backdrop for opaque backdrops and can differ by an ulp for translucent ones.",
+        "Effect compute cost per tile is not charged to a deadline-aware budget; cancel and deadline are observed between chunks only."
+      ],
+      "incident_stale_artifact": "Between the first green effects run (c4bdaef) and the run after 9b2f3af, all five cpu_effects tests failed with Unsupported{colour_overlay|drop_shadow}: the shared-target test binary of hsk-studio-render-cpu had been built from an older plan_sink.rs (extension_exactness answered Unsupported for Effect kinds, probe test showed Adjustment/BlendIf Exact but Effect Unsupported) although the source and HEAD were correct. Cause: stale artifact in the shared target dir (UNVERIFIED which build wrote it; the shared worktree is edited by other lanes). Fix: touch crates/hsk-studio-render-cpu/src/plan_sink.rs and lib.rs, rebuild, 21/21. The hook did not block the rerun; no gameplan step added because there is no machine check for it; lead may want a freshness check of target artifacts vs source mtimes (infrastructure, affects every lane).",
+      "retry_guard": "route (a) product failure (stack test reference plane too small) fixed by commit 9b2f3af then rerun; route none for the stale artifact (hook did not block). Two temporary debug tests (tests/rcpu_debug.rs, rcpu_debug2.rs) were never committed and were moved to the scratchpad subfolder rcpu/.",
+      "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean on 5674e9c; plan_sink.rs, plan_sink/extended.rs, plan_sink/effects.rs, px.rs and the new test files carry deny(clippy::arithmetic_side_effects)"
     }
   }
 }

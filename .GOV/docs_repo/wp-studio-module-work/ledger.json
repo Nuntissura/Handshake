@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:38:16Z",
+ "updated_at": "2026-10-11T06:40:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -314,15 +314,16 @@
     "7e7579f",
     "0551b8d",
     "b7d90dc",
-    "167dc28"
+    "167dc28",
+    "459c5d9"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8 (newer submission 167dc28 pending)"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
-   "candidate": "167dc28",
-   "note": "slice 3: +14 modes, 26 executed on device; WGSL generated from pigment mode table; max err 3.6e-7 random, non-separable lattice 1.61e-6 (lead accepts 2e-6 for that family); dissolve refused (no plan seed); commits 159cf9c,167dc28; 12 of 12 green",
+   "candidate": "459c5d9",
+   "note": "R5 479e1c7: checked-in tests/gpu-proof.toml require_gpu=true (no adapter fails; false prints NOT_PROVEN) + R6 459c5d9: fault hooks behind non-default test-faults, source-scan + 4 compile-fail doctests prove default build has none; V4-01 on 6 modules",
    "review_findings_r3": "R3 findings remediated b7d90dc (regression tests fail on old code)",
    "r5_review_routed": {
     "to": "steward-2 (NOT_PROVEN accounting)",
@@ -1570,22 +1571,30 @@
    "crate": "hsk-studio-render-cpu",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-render-cpu-adjustments.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu-adj",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "5674e9c"
+   ],
+   "verdicts": [],
+   "candidate": "5674e9c",
+   "note": "ADJ-1 49afca1: adjustment layers, Blend-If, mask density + feather via pigment adjust_math/coverage_math (no copy), knockout refused, 16-px parity bit-identical to evaluate_stack, budgets charged before allocation, V4-01 plan_sink 62 sites; EFFECTS-1 c4bdaef/9b2f3af/5674e9c: wave-1 effects via render_layer_reference per tile+margin, bit-identical parity, margin >24 px refused pending pigment windowed matte; 21 of 21 green; exactness label vs pigment Approximate under check"
   },
   {
    "lane_id": "SMB-RENDER-GPU-ADJ",
    "crate": "hsk-studio-render-gpu",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-render-gpu-adjustments.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu-3",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "c5bd9be"
+   ],
+   "verdicts": [],
+   "candidate": "c5bd9be",
+   "note": "slice 4: execute_extended (mask density/invert/feather, Blend-If, adjustments levels/curves LUT/hue-sat/exposure/invert/threshold/posterize) WGSL transcribed + checked vs pigment; max err 6e-7; empty envelope byte-identical v1; knockout/effects/brightness_contrast refused; 15 default + 18 test-faults green dx12+vulkan RTX 3090; open: Blend-If on adjustment layer / clip base reading to agree with render-cpu via pigment oracle"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-ADJ",
@@ -1640,7 +1649,8 @@
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
  "steward_next_sync": [
-  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)"
+  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)",
+  "round-features: hsk-studio-render-gpu = [[\"test-faults\"]] (R6 V4-04 fix; 3 fault tests)"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1709,7 +1719,9 @@
   "SMB-REEL-AV1-ROUTE",
   "SMB-REEL-ENG-3",
   "SMB-REEL",
-  "SMB-SESSION"
+  "SMB-SESSION",
+  "SMB-RENDER-CPU-ADJ",
+  "SMB-RENDER-GPU-ADJ"
  ],
  "round_R6": {
   "candidate": "bd8533f",
