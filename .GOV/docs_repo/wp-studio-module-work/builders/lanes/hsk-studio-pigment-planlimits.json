@@ -336,6 +336,25 @@
   "plausible_not_addressed": [
    "PLAUSIBLE: RenderPlan::validate allocates a depth table of nodes.len() usize before the layer budget is enforced; bounded by max_nodes (checked first, at most 65536 entries), so not a hostile-size risk, but a caller-tightened max_nodes would shrink it further"
   ],
-  "date": "2026-10-11"
+  "date": "2026-10-11",
+  "verdicts": [
+   {
+    "round": "STUDIO-R12",
+    "lane": "SMB-PIGMENT-PLANLIMITS",
+    "candidate": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+    "tree": "3b956a1761e370638f8fadc1f3067d16873190a1",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R12-review-a.json (lane recommendation PASS_WITH_NOTES)",
+    "round_ref": "validation/round-R12.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+    "idempotency_key": "STUDIO-R12:SMB-PIGMENT-PLANLIMITS:3d795a590acd:PASS_V1",
+    "recorded_at": "2026-10-11T21:49:57Z",
+    "by": "wp_validator STUDIO-R12"
+   }
+  ]
  }
 }

@@ -2136,7 +2136,7 @@
     "verdict fields"
    ],
    "launched": "2026-10-11T21:20:01Z",
-   "status": "running"
+   "status": "done 2026-10-11T21:52:34Z (R12 COMPLETE: 45 PASS / 0 FAIL)"
   },
   {
    "name": "reviewer-r12-a",

@@ -323,6 +323,25 @@
       "reason_listed": "V4-14: commit 3d795a5 touched the crate the differential judges (src/assets.rs, carriers.rs, datauri.rs, lib.rs and the gate tests) and one difftest file for the AssetPort signature",
       "soak": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --offline --no-fail-fast -E 'test(generated) | test(css_url)' --no-capture at 3d795a5: 9 passed; 153445 comparable documents, 0 disagreements (css_urls 60, generated_css 30000, char_refs 21460, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R13/soak_scale10.txt",
       "see": "hsk-studio-web-parity.json notes.remediation_R13pre (one remediation for both lanes)"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R12",
+        "lane": "SMB-WEB-DIFFTEST",
+        "candidate": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+        "tree": "3b956a1761e370638f8fadc1f3067d16873190a1",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R13-prereview-web.json (full, e409030) + validation/R14-prereview-web-narrow.json (3d795a5, SAFE_TO_JUDGE)",
+        "round_ref": "validation/round-R12.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+        "idempotency_key": "STUDIO-R12:SMB-WEB-DIFFTEST:3d795a590acd:PASS_V1",
+        "recorded_at": "2026-10-11T21:49:57Z",
+        "by": "wp_validator STUDIO-R12"
+      }
+    ]
   }
 }

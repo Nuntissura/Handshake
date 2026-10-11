@@ -1,0 +1,1271 @@
+{
+ "round": "STUDIO-R12",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+ "tree": "3b956a1761e370638f8fadc1f3067d16873190a1",
+ "candidate_note": "named by lead (ledger round_R12, opened 21:19:45Z); steward-5 in sync since 9ffe946; fetch 21:21:25Z: origin 0668d35 (press-only after the candidate), re-fetch 21:41Z: origin 7410f29, 0668d35..7410f29 touch only crates/hsk-studio-press (12 files); later commits are not judged",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 884,
+  "manifest_sha256": "9ff323a6ddc7b880e660d67f052d5d3c4d9c0ed2ce27bd31b76e94297004fb4a",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-11T21:24:57Z: 10 added, 28 changed, 846 unchanged, 0 deleted, blob_mismatch 0 (from 6956d3f); manifest equals steward canary C18 export (9ff323a6..fb4a)"
+ },
+ "started_at": "2026-10-11T21:27:39Z",
+ "completed_at": "2026-10-11T21:49:57Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+ "results_ref_supplementary": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R12.jsonl (opened, running, process_identity pid 938975 @21:28:03Z, completed; running/process_identity pid 942592 @21:42:15Z/completed for the supplementary invocation; verdicts_accepted, verdicts_recorded)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 12/12 @edit HEAD 88e0c28 (first invocation) and again @7410f29 (supplementary); GP-001 origin == HEAD both times (press-only commits after the candidate); GP-003 lock audits 21:26:00Z / 21:41:19Z held none, queue 0, no cargo.exe/rustc.exe, only an idle sccache server (pid 360784) not started by this session; GP-005 LongPathsEnabled=1; GP-013 cites canary C18-3d795a5 exit 73 = NOT_PROVEN only, 59/59 units green; GP-004/GP-012 machine checks passed",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C18-3d795a5",
+  "round_json_sha256_prefix": "57582212...bc35 (steward lane file notes.C18_3d795a5)",
+  "sha": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+  "export_manifest_sha256": "9ff323a6ddc7b880e660d67f052d5d3c4d9c0ed2ce27bd31b76e94297004fb4a",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean (13 files with pinned hits, pins_dropped none; D16/D18/TIMECODE new_sites none)",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10/R11 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-composite",
+   "hsk-studio-develop",
+   "hsk-studio-interop-psd",
+   "hsk-studio-pigment",
+   "hsk-studio-render-cpu",
+   "hsk-studio-render-gpu",
+   "hsk-studio-web"
+  ],
+  "selection_rule": "crates changed 6956d3f..3d795a5 (pigment 5ed1ead/71be1aa, web 4462f7c..3d795a5; press excluded) + crates whose workspace-dep closure changed (composite, develop, interop-psd, render-cpu, render-gpu via pigment; no workspace member depends on web or press); root inputs changed only by steward sync 9ffe946 (Cargo.toml: [workspace.metadata.studio.registry] only; tools/workspace-probe.rs: press APPROVED row only; Cargo.lock: see supplementary); .config/ and rust-toolchain.toml unchanged",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R12 --target-dir <studio-round>/target <7 crates> (cwd export; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R11; workspace sources re-touched by the entrypoint)",
+  "started_at": "2026-10-11T21:28:06Z",
+  "ended_at": "2026-10-11T21:32:58Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 73,
+  "summary": "default 367 pass, 1 skipped (develop real_dng #[ignore] with reason) over composite 28, develop 28, interop-psd 50, pigment 69, render-cpu 33, render-gpu 24, web 135; render-gpu+test-faults 27/27; 8 doctest units exit 0 (render-gpu 4 doctests); 10 units; absent [] timed_out []; 2 NOT_PROVEN (render-gpu gate self-probe) -> exit 73",
+  "units": 10,
+  "not_proven_count": 2,
+  "hashes": {
+   "round.json": "b15e8787262e4594b5733730cba7835b4aa536f012fdd606f1d3936a9194d10f",
+   "tests.json": "3cfa87941723e2b9da7186ef8a4cfc0d8fadcc283a02b5e45f369eaa85510063",
+   "junit.xml": "98f317fe3e1fb30e203c9dd9b15329f665de8c0f503c8cb6c6fec479b95444ea",
+   "run.stderr.txt": "1e0a67452fff2d9620898f2bb4a27aaa66964863fad1f97633cfe3912b492c1a",
+   "build.stderr.txt": "750b0e8afa6738c7d2e639ac1ce6430e7821f404872ec6fa1c0f10518837eaa3",
+   "units.tsv": "cf8c7be47684a097eca2c3958fe47bdfbb2a8dc9775d02caa5e22f47de8b0d10",
+   "oracle-corpus.manifest.txt": "e8e8d6f193ecb8ad5bd08c5eb7f4f69187c50b2c99669c39fed9e459140fb361",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b",
+   "features/hsk-studio-render-gpu+test-faults/junit.xml": "53c069b205bd3447fc1e92e60dedf034b7cf371db6039d0a6e40d393b354617b"
+  },
+  "per_crate_default": {
+   "composite": 28,
+   "develop": "28 + 1 skipped",
+   "interop-psd": 50,
+   "pigment": 69,
+   "render-cpu": 33,
+   "render-gpu": 24,
+   "web": 135
+  },
+  "test_set_check": "no test missing vs R9 (pigment, composite, render-cpu, render-gpu, develop, web) or R11 (interop-psd) in tests.json; added: pigment 6 (plan_limits 3, plan_reachability 3), web 79 (R10-R13 remediation tests); every reported test passed except the reasoned develop ignore",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean (manifest_changed false, probe_changed false); policy: machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none (D16 4, D18 3, TIMECODE 2 allowed files)",
+  "oracle_corpus": {
+   "root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus",
+   "file_count": 27,
+   "manifest_sha256": "e8e8d6f193ecb8ad5bd08c5eb7f4f69187c50b2c99669c39fed9e459140fb361",
+   "note": "27 files (R11: 25); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 0 s, broke_stale none, 21:28:11Z..21:32:58Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007; caller env had no CARGO_/RUST/HSK_/SCCACHE_/STUDIO_/NEXT/GAMEPLAN variables; the harness shell TEMP/TMP are overwritten by the entrypoint)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "union_supplementary": {
+  "selection": [
+   "hsk-studio-interop-fig",
+   "hsk-studio-interop-layout",
+   "hsk-studio-interop-vector",
+   "hsk-studio-reel",
+   "hsk-studio-reel-native"
+  ],
+  "selection_rule": "lead correction (scope of CX-VAL-009, received after the first invocation): reopen set from the parsed Cargo.lock as the R9 validator did. Validator lock-closure comparison 6956d3f vs 3d795a5 (tomllib, per workspace member, packages + version + checksum + dependency list): closure differs only for press (53 packages, excluded) and for interop-fig, interop-layout, interop-psd, interop-vector, reel, reel-native (each: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10, simd-adler32 added); every other member identical; workspace dependants: reel-native via reel only. interop-psd was already in the first invocation; the five others get one build + one test invocation each here, same frozen candidate and export (CX-VAL-001: one invocation per crate)",
+  "feature_graph_check": "cargo tree --offline --locked in the export: --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 -> 'did not match any packages'; --workspace --exclude hsk-studio-press --all-features -e features -i miniz_oxide -> feature with-alloc only; -p hsk-studio-press -i simd-adler32 -> miniz_oxide feature default via flate2 (hayro-syntax). The compiled closure of every non-press member is therefore unchanged; the re-run is the proof the lead asked for, not a suspected break",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R12b --target-dir <studio-round>/target <5 crates> (cwd export; no caller env)",
+  "started_at": "2026-10-11T21:42:18Z",
+  "ended_at": "2026-10-11T21:44:11Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 73,
+  "summary": "default 103/103 (interop-fig 5, interop-layout 11, interop-vector 23, reel 64); reel+av1 71/71; reel-native+av1-worker 5/5, +av1-worker+test-faults 14/14; 8 doctest units exit 0 (reel 2, reel+av1 2); 12 units; absent [] timed_out []; 1 NOT_PROVEN (interop-fig D17) -> exit 73",
+  "hashes": {
+   "round.json": "b11e6aaac15ba008e80724708d7b041c571e8bee03660fe920a2983bf2b4249a",
+   "tests.json": "67b4be195c026a8144815b322a4bccb77a7dacd489017f6ae3463f5d9a389364",
+   "junit.xml": "628b6f80af38831eed2298434ba91af98f5dee70f5f5b331869efe35a4dc7912",
+   "run.stderr.txt": "51b0abb5347074e1f9c891cd502919d8a4ddf1594751bebf6da0d9d174800005",
+   "build.stderr.txt": "6ad8be67927566b443a733f88a7b01106df0a37919749c289ba79effd8382742",
+   "units.tsv": "69cf0a96799c4a37ba866b2a1f4e2595e100c5e5446ee2cdd4cb12d94fcb4dd3",
+   "features/hsk-studio-reel+av1/junit.xml": "dcf34b046998769f37d780f5b5a9bb9c977c1efe930cd2196609e819e70b07a6",
+   "features/hsk-studio-reel-native+av1-worker/junit.xml": "fe7027272b00db0410178e00673243a9b66eca950ecdf928f8a545a344f9d0f5",
+   "features/hsk-studio-reel-native+av1-worker+test-faults/junit.xml": "e351f9fd810f73b94128fe275a2cc8a474a7c6e2b15611198102f3f9652988dc"
+  },
+  "test_set_check": "no test missing vs R11 (reel 139 incl. av1 unit, reel-native 19), R8 (interop-vector 23, interop-layout 11), R7 (interop-fig 5); every reported test passed",
+  "step0": "same as the first invocation (registry-sync clean, policy clean, step0.policy.json byte-identical 885a9bd8)",
+  "disk_lock": "schema @2 class round: holds 1, yields 0, waited 1 s, broke_stale none, 21:42:24Z..21:44:11Z",
+  "env": "same entrypoint env; env_added_by_caller none; rustc_wrapper empty"
+ },
+ "junit_success_output_checks": [
+  "render-gpu GPU proofs (slice 2/3, envelope Blend-If/adjustments/masks, effects wave 1/2, effects composition, blend parity) print BACKEND: dx12:discrete:NVIDIA GeForce RTX 3090 in junit system-out (default unit)",
+  "web r13_* gate tests and assets::tests animated_loads_walks_each_shared_id_once_per_attribute_name ran (default unit)",
+  "pigment plan_limits (3) and plan_reachability (3) ran (default unit)",
+  "reel+av1: tests/av1_decode.rs ran in the R12b feature unit; reel-native av1_worker suite green under av1-worker+test-faults"
+ ],
+ "not_proven": [
+  {
+   "lane": "SMB-RENDER-GPU (excluded, D20)",
+   "capability": "none: regression probe of the NOT_PROVEN gate itself",
+   "tests": 2,
+   "reason": "gpu_plan::no_adapter_is_not_a_green_gpu_proof_when_the_gpu_is_required (default and test-faults units) calls gate(forced none backend, strict=false), which prints the counted line (tests/gpu_plan.rs:461-463, :526-529)",
+   "gates": "no judged lane: every GPU proof of RENDER-GPU-ADJ, BLENDIF-CLIP-ADOPT, FX-OPS-ADOPT ran on dx12 RTX 3090; REFUSAL-KEYS gpu tests need no adapter (R9 precedent)"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "capability": "real Figma-authored .fig census / editable decode",
+   "tests": 1,
+   "reason": "fig_import::actual_fig_instance_variable_prototype_edit_reopen: no_figma_authored_fixture (Operator D17), results/R12b",
+   "gates": "nothing claimed (R7 PASS_V2 basis: brief test 3 expects NOT_PROVEN without fixture; VersionPolicy admits no version)"
+  }
+ ],
+ "not_proven_note": "V4-03: no judged lane's acceptance depends on a NOT_PROVEN test",
+ "adversarial_review": {
+  "refs": {
+   "validation/R12-review-a.json": "sha256 86572f65",
+   "validation/R13-prereview-web.json": "sha256 d25c8680",
+   "validation/R14-prereview-web-narrow.json": "sha256 898467b1"
+  },
+  "coverage": "A (single Sonnet reviewer, COMPLETE 21:37:16Z): SMB-PIGMENT-PLANLIMITS PASS_WITH_NOTES (PLAN-R12-1/-3/-5/-6 CONFIRMED notes, -2/-4 PLAUSIBLE; PLR-058 and PLR-005 verified fixes), CX-VAL-009 sweep pigment/composite/render-cpu/render-gpu/develop/interop-psd NO_BREAK_FOUND. Web lanes: R13-prereview-web (full, e409030; FIX_FIRST on R13-F1 only, no URL-hiding finding) + R14-prereview-web-narrow (3d795a5 SAFE_TO_JUDGE; R14-N1 CONFIRMED doc-only, R14-O1..O3 INFO)",
+  "fold_rule": "every CONFIRMED finding re-read by the validator at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it by blame and claim (one owner per defect); CONFIRMED process/doc-only items and CONFIRMED behaviour that predates the claim without breaking a resource bound or a receipt are notes; PLAUSIBLE/INFO items are notes",
+  "not_reviewed": [
+   "closure-only CX-VAL-009 lanes of pigment dependants are covered by sweep A, not as lanes",
+   "parsed-lock reopens (interop-fig, interop-layout, interop-vector, reel, reel-native lanes): NOT_REVIEWED (dependency-only change, crate sources unchanged; validator lock-closure and feature-graph check instead)"
+  ],
+  "validator_disagreements": [],
+  "validator_reads": [
+   "R14-N1 re-read datauri.rs:609-613: 'The collector produces an empty set for no carrier' (intent: no empty set) and cites link_keywords_choose_the_load_contexts only; doc-only -> note",
+   "R13-F1 fix re-read assets.rs:639-706: id map built once (cancel check every 1024 ids), memo IdEntry.loads per attribute name written only after a completed walk, entry.nodes iterated by reference with cancel check every 1024; target_loads shared by parent and id paths",
+   "PLAN-R12-1 re-read render_plan.rs:527-544: depth[i] compared only for a group's layers (blame 4c3ac91c, predates the lane); plan_limits.rs:212 comment and DESCRIPTOR plan_limits wider than the code for max_depth = 0 and layerless/leaf plans; no plan with a group deeper than the limit is admitted -> note with remediation",
+   "PLR-058 split re-read render_plan.rs:480-628: within_maximum first, every structural rule before the reachable filter; reachable_nodes :664-677 (root + group layer inputs; masks reference SourceKey, not nodes)",
+   "composite lower_render_plan.rs:921-926: lowering ledger from validate(&PlanLimits::default()); consistent with reachable-only collection (review A traced lowering emits only referenced nodes)",
+   "lock closure: tomllib comparison 6956d3f vs 3d795a5 removed [], changed packages hsk-studio-press (+hayro-interpret, kurbo) and miniz_oxide (+simd-adler32); Cargo.toml diff only [workspace.metadata.studio.registry] (locked sets + press direct); tools/workspace-probe.rs only the press APPROVED row"
+  ],
+  "lead_decisions_applied": [
+   "2026-10-11T20:26:55Z START_LOG Operator decision 'Small fix + narrow check' for web (R13-F1, R13-P1/P2/P3, R13-N1; narrow pre-review, then judge)",
+   "2026-10-11T12:47:22Z START_LOG: SMB-WEB-DIFFTEST judged once SMB-WEB-PARITY lands; its red tests must be green (24/24 green)",
+   "ledger round_R12.excluded and two_fail_rechecks; lead correction (message after the first invocation): CX-VAL-009 reopen set from the parsed lock files"
+  ]
+ },
+ "proof_reuse": {
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)"
+  ],
+  "basis": "CX-VAL-002: crate source + workspace-dep closure (all dep kinds, manifests at 3d795a5) unchanged from each proof commit to 3d795a5 (R11 basis to 6956d3f plus git diff 6956d3f 3d795a5 touching only crates/hsk-studio-{pigment,press,web}, Cargo.toml, Cargo.lock, tools/workspace-probe.rs); parsed-lock closure identical 6956d3f..3d795a5 for every reused lane's crate (validator lockclosure comparison; the members whose lock closure changed were reopened and re-proved above); Cargo.toml changes are [workspace.metadata.studio.registry] only (not read by cargo builds); tools/workspace-probe.rs is read only by step 0, which ran clean; .config/ and rust-toolchain.toml unchanged; reused verdicts name both commits (proof @<sha> listed, candidate 3d795a5); no new verdict; supplementary: canary C18 on 3d795a5 ran one test per package green"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-PRESS, SMB-PRESS-DIFFERENCES",
+   "reason": "not_judged: R13 remediation running (ledger round_R12.excluded); press WIP commits in the candidate are not judged; press not selected (no workspace member depends on it)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu ran for the dependent lanes only)"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-RENDER-GPU-PROBE, SMB-PRESS-GEOMETRY, SMB-REEL-NATIVE, SMB-REEL-ENG-2, SMB-REEL-NATIVE-ENG-1, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in 3d795a5 (REEL-ENG-2/REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [],
+ "deferred_note": "none: SMB-WEB judged on R13 full + R14 narrow pre-reviews (SAFE_TO_JUDGE at 3d795a5); SMB-DEVELOP rides V4-18 on R7-review-a SAFE_TO_JUDGE (develop unchanged dff7ef5..3d795a5); SMB-INTEROP-PSD-BUDGET on R11-prereview-psd-budget SAFE_TO_JUDGE (interop-psd unchanged 85532ad..3d795a5); SMB-REEL-AV1-ROUTE on R11-prereview-reel-route SAFE_TO_JUDGE (reel unchanged 7cdf18e..3d795a5); SMB-REEL-NATIVE-AV1-WORKER on R9-prereview-reel SAFE_TO_JUDGE (reel-native unchanged a024461..3d795a5); two-FAIL SMB-COMPONENTS/CONTROLS/MOTION-JS/PRISM-ENG-5 not reopened (crate, closure and lock closure unchanged)",
+ "scope_rule": "READY_FOR_VALIDATION lanes of ledger round_R12.ready (ledger snapshot sha256 8e1ca5ff @21:27:39Z) whose claimed content is in 3d795a5, the SMB-WEB two-FAIL recheck, plus PASS lanes returned to READY by CX-VAL-009 (crate, workspace-dep closure or parsed-lock closure changed 6956d3f..3d795a5; lead correction applied)",
+ "included_count": 45,
+ "verdict_counts": {
+  "PASS_V1": 3,
+  "PASS_V2": 1,
+  "PASS_V3": 6,
+  "PASS_V4": 15,
+  "PASS_V5": 4,
+  "PASS_V6": 4,
+  "PASS_V7": 10,
+  "PASS_V9": 2
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count)",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R12: the 3 NOT_PROVEN lines gate no judged lane",
+ "counters": [
+  {
+   "lane": "SMB-WEB",
+   "counter": "fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS; no counter acts"
+  },
+  {
+   "lane": "SMB-DEVELOP, SMB-INTEROP-PSD-BUDGET, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER",
+   "counter": "fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS; no counter acts"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "counter": "fix budget (failed verdicts 2, limit 3)",
+   "outcome": "excluded (remediation running), no verdict, no charge"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "lanes": [
+  {
+   "lane": "SMB-WEB-PARITY",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "web 135/135 (unit 41, css_url_gate 28, html5ever_differential 24, html_parity 18, source_dom_patch 24; no R9 test missing; r13_f1 bounded gate test 2.45 s)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Claim 1c67557..3d795a5 (lane commits; V4-14 ok: nothing pushed to the crate after 3d795a5; later origin commits press-only). Review basis: R13-prereview-web (full, e409030): R12-F1/F2/F3 and P1-P4 fixed, no CONFIRMED URL-hiding hole, one CONFIRMED hostile-size item R13-F1; R14-prereview-web-narrow (3d795a5): R13-F1 FIXED, R13-P1/P2/P3/N1 implemented as specified, no regression of earlier rules, V4-06 recount 423 exact, step 0 clean, SAFE_TO_JUDGE. Validator re-read at the export: assets.rs:639-706 (id map built once, per (id, attribute name) memo, node list by reference, cancel check every 1024 in both loops); this run: r13_* gate tests and the assets::tests operation-count test green, r13_f1 20000 x 20000 case 2.45 s. Notes (not FAIL): R14-N1 CONFIRMED doc-only, re-read datauri.rs:609-613 ('The collector produces an empty set for no carrier' states the opposite of the intent; the cited test covers link_loads only; no code path; reword per R14 remediation); R14-O1 INFO (URL-only refresh reading is over-reporting only for current Gecko), R14-O2 INFO (cancellation stride read from code; 20 s wall-clock assertion), R14-O3 INFO (file-system aliases of the document are port-level). Lead acks pending in lane notes.remediation_R13pre.lead_acks_needed (AssetPort::resolve(reference, loads), document_url, public Load/Loads, decide_all empty = Deny, blank pieces and URL-only refresh reported); the API change implements Operator decision 2026-10-11T20:26:55Z item R13-P2. Residuals carried: notes.remediation_R13pre.residuals (directory spellings, document_url unknown by default, path-only comparison, scale-50 soak not run).",
+   "review": "validation/R13-prereview-web.json (full, e409030) + validation/R14-prereview-web-narrow.json (3d795a5, SAFE_TO_JUDGE)",
+   "included_by": "READY (lane file 2026-10-11T20:57:05Z, claim through 3d795a5; ledger round_R12.ready)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-WEB-PARITY:3d795a590acd:PASS_V1",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-WEB-DIFFTEST",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "web 135/135 (unit 41, css_url_gate 28, html5ever_differential 24, html_parity 18, source_dom_patch 24; no R9 test missing; r13_f1 bounded gate test 2.45 s)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Claim eefe44d..fc0763e plus ledger claim_includes_later 4462f7c 12c632d d465b88 e409030 3d795a5 (owning lane SMB-WEB-PARITY, recorded 20:57:59Z; V4-14 ok). html5ever_differential 24/24 green at 3d795a5 in this run, including the D1-D8 checks that were red before SMB-WEB-PARITY (lead decision 12:47:22Z); 3d795a5 changed harness.rs only in the GrantAll::resolve signature (R14). Notes (R13 advisory): css-urls covers CSS carriers only, HTML load contexts are proven by the datauri/tests.rs table and the r12_/r13_ gate tests; no generator theme produces many animations sharing an id (R13-F1 class invisible to the soak by construction); the reference reader is a second reading by the same remediation agent (independent evidence: CC0 corpus, R10 scratch cssparser run).",
+   "review": "validation/R13-prereview-web.json (full, e409030) + validation/R14-prereview-web-narrow.json (3d795a5, SAFE_TO_JUDGE)",
+   "included_by": "READY (claim incl. later commits through 3d795a5, ledger claim_includes_later; ledger round_R12.ready)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-WEB-DIFFTEST:3d795a590acd:PASS_V1",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Claim 5ed1ead + 71be1aa (V4-14 ok: nothing pushed to pigment after 71be1aa; V4-15 new lane id). PLR-058 and PLR-005 implemented as claimed (R12-review-a verified_fixes; validator re-read render_plan.rs:480-628 structure on every node then reachable filter, :976-1005 admit == admit_with_limits(default), extensions.rs admit_extended_with_limits). New tests green: plan_limits 3, plan_reachability 3. Notes (not FAIL): PLAN-R12-1 CONFIRMED edge/doc, validator re-read render_plan.rs:527-544: max_depth is compared only inside the per-layer loop (blame 4c3ac91c, predates the lane), so max_depth = 0 admits a lone-leaf or layerless-group plan while plan_limits.rs:212 and DESCRIPTOR plan_limits read wider; no group with layers deeper than the limit is admitted and no resource bound is exceeded (cheapest fix: compare once per node or reword, pin plan(vec![group(vec![])]) at max_depth 0); PLAN-R12-3 CONFIRMED V4-06 regexes miss render_plan.rs:943 and extensions.rs:280 (= PLR-069/070, registered); PLAN-R12-5 CONFIRMED doc scope ('an unreachable node ... admits' holds for v1 operators; envelope entries still collected from every entry, PLR-069); PLAN-R12-6 CONFIRMED V4-07 residue (reachable_nodes 'never panics' sentence uncited; no DESCRIPTOR parse test); PLAN-R12-2 PLAUSIBLE structure-on-unreachable coverage narrower than the claim; PLAN-R12-4 PLAUSIBLE pre-existing quadratic clip-base scan render_plan.rs:592-594. Behaviour change recorded: the ExactnessLedger no longer lists operators of unreachable nodes. Follow-ups: decisions_for_lead 1-2 (PLR-069, PLR-070).",
+   "review": "validation/R12-review-a.json (lane recommendation PASS_WITH_NOTES)",
+   "included_by": "READY (5ed1ead, 71be1aa; ledger round_R12.ready)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-PLANLIMITS:3d795a590acd:PASS_V1",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "web 135/135 (unit 41, css_url_gate 28, html5ever_differential 24, html_parity 18, source_dom_patch 24; no R9 test missing; r13_f1 bounded gate test 2.45 s)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Two-FAIL lane (R5 FAIL_V1, R6 FAIL_V2, R7 PASS_V3; R9-R12 deferred_fix_first). Recheck basis (V4-13/V4-18): R13-prereview-web (full review at e409030: no CONFIRMED URL-hiding finding) + R14-prereview-web-narrow (the only later crate commit 3d795a5: SAFE_TO_JUDGE). The crate changed since dff7ef5 only by the SMB-WEB-PARITY and SMB-WEB-DIFFTEST claim commits, judged PASS_V1 this round. Slice 1/2 capabilities (span-preserving parser, DOM view, source-patch edits, granted-asset collection, preview tree) re-proved by the 135 crate tests incl. html_parity 18 and source_dom_patch 24. Recorded: the <image srcset> gap at the R7 PASS commit (lead 15:02:55Z), fixed 4d80e50, pinned by html_image_srcset_is_scanned_like_img (green). Judged strictly on CONFIRMED evidence: no CONFIRMED product defect in R13/R14 or in this run; R14-N1 doc-only -> note (see SMB-WEB-PARITY).",
+   "review": "validation/R13-prereview-web.json (full, e409030) + validation/R14-prereview-web-narrow.json (3d795a5, SAFE_TO_JUDGE)",
+   "included_by": "two-FAIL recheck (ledger round_R12.two_fail_rechecks) + CX-VAL-009 (crate web changed since the R7 PASS)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-WEB:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-ENG-1:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing); folio unchanged (proof R8 reused for the folio part)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-ENG-2:3d795a590acd:PASS_V5",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-EFFECTS-WAVE-1:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-2",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-EFFECTS-WAVE-2:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-WINDOW",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-WINDOW:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-BLENDIF-CLIP:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-FX-OPS:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep); the 'every admission predicate reads reachable nodes only' claim is extended to validate's operator collection, not weakened",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PIGMENT-ADMIT-PARITY:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "pigment 69/69 (plan_limits 3 + plan_reachability 3 new, all green; no R9 test missing); render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment changed only by 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS, PASS_V1 this round): reachable plans keep operator list, order, ledger and refusal keys (diff + review A); behaviour differs only for plans with nodes the root does not reach (operators no longer collected/ledgered, as the backends skip them) and for limits above MAXIMUM (typed LimitAboveMaximum); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-PARITY-FOLLOWUP:3d795a590acd:PASS_V2",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "composite 28/28 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); lowering ledger (lower_render_plan.rs:921-926) reads validate's list, lowered plans hold only reachable nodes",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-COMPOSITE:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "composite 28/28 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-COMPOSITE-CLIP-ALIGN:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "composite 28/28 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-COMPOSITE-ADJ:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-CPU:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-CPU-CLIP:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-CPU-ADJ:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-CPU-WINDOW:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "render-cpu 33/33 (no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-CPU-FX2:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "crate": "hsk-studio-render-gpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "render-gpu 24/24 default + 27/27 test-faults, doctests 4; every GPU proof on dx12 RTX 3090 (BACKEND lines in junit); the 2 NOT_PROVEN lines are the no-adapter regression probe of the gate itself (forced none backend)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); render-gpu judged only for this lane and the REFUSAL-KEYS/BLENDIF-CLIP-ADOPT/FX-OPS-ADOPT parts (SMB-RENDER-GPU excluded D20)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-RENDER-GPU-ADJ:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + render-cpu + render-gpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "composite 28/28 (no R9 test missing); render-cpu 33/33 (no R9 test missing); render-gpu 24/24 default + 27/27 test-faults, doctests 4; every GPU proof on dx12 RTX 3090 (BACKEND lines in junit); the 2 NOT_PROVEN lines are the no-adapter regression probe of the gate itself (forced none backend)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); GPU proofs ran on dx12 RTX 3090",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-BLENDIF-CLIP-ADOPT:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REFUSAL-KEYS",
+   "crate": "composite + render-cpu + render-gpu",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "composite 28/28 (no R9 test missing); render-cpu 33/33 (no R9 test missing); render-gpu 24/24 default + 27/27 test-faults, doctests 4; every GPU proof on dx12 RTX 3090 (BACKEND lines in junit); the 2 NOT_PROVEN lines are the no-adapter regression probe of the gate itself (forced none backend)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); refusal_keys suites green in all three crates (refusal codes untouched)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-REFUSAL-KEYS:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "composite + render-cpu + render-gpu + interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "composite 28/28 (no R9 test missing); render-cpu 33/33 (no R9 test missing); render-gpu 24/24 default + 27/27 test-faults, doctests 4; every GPU proof on dx12 RTX 3090 (BACKEND lines in junit); the 2 NOT_PROVEN lines are the no-adapter regression probe of the gate itself (forced none backend); interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); all four parts re-proved at 3d795a5",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-FX-OPS-ADOPT:3d795a590acd:PASS_V5",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "develop 28/28 + 1 skipped (real_dng #[ignore] with reason, as R9; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); two-FAIL lane rides V4-18 on R7-review-a recheck SAFE_TO_JUDGE at dff7ef5 (develop crate unchanged dff7ef5..3d795a5); develop uses no render_plan item (review A)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged); two-FAIL lane: V4-18 on R7-review-a SAFE_TO_JUDGE (crate unchanged dff7ef5..3d795a5)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-DEVELOP:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "develop 28/28 + 1 skipped (real_dng #[ignore] with reason, as R9; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-DEVELOP-WIDE:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "develop 28/28 + 1 skipped (real_dng #[ignore] with reason, as R9; no R9 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-DEVELOP-JOBS:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); parsed-lock closure also changed (miniz_oxide edge; see lock note), re-proved green",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD:3d795a590acd:PASS_V9",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD-WIDE:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD-RECEIPT:3d795a590acd:PASS_V6",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD-CLIP-ROLES:3d795a590acd:PASS_V6",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "interop-psd 50/50 (no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD-ADJ:3d795a590acd:PASS_V6",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "interop-psd 50/50 (no R11 test missing) (effects_budget 9)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged 6956d3f..3d795a5; closure change = pigment 5ed1ead/71be1aa (reachable-plan behaviour identical; dependants never call the new *_with_limits entry points); no claim broken (sweep); two-FAIL lane: R11-prereview-psd-budget SAFE_TO_JUDGE at 85532ad, crate unchanged 85532ad..3d795a5 (V4-18); counting rests on PlanExtensions::validate counting every entry, unchanged (review A)",
+   "review": "NOT_REVIEWED as a lane (R12-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed 6956d3f..3d795a5 by 5ed1ead, 71be1aa; crate unchanged) and parsed-lock closure (9ffe946); two-FAIL lane: V4-18 on R11-prereview-psd-budget SAFE_TO_JUDGE at 85532ad (crate unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-PSD-BUDGET:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-fig 5/5; 1 NOT_PROVEN actual_fig_instance_variable_prototype_edit_reopen (D17, not claimed; R7 precedent)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green; the D17 NOT_PROVEN gates nothing claimed (R7 PASS_V2 basis: real-file census/editability not in slice acceptance)",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-FIG:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "interop-layout 11/11 (results/R12b; no R8 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-LAYOUT:3d795a590acd:PASS_V5",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "interop-vector 23/23 (results/R12b; no R8 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-VECTOR:3d795a590acd:PASS_V6",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "interop-vector 23/23 (results/R12b; no R8 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:3d795a590acd:PASS_V5",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-RECORDS",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-vector 23/23 (results/R12b; no R8 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-INTEROP-VECTOR-RECORDS:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "reel 64/64 default, reel+av1 71/71, doctests 2+2 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL:3d795a590acd:PASS_V9",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "reel 64/64 default, reel+av1 71/71, doctests 2+2 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL-ENG-1:3d795a590acd:PASS_V3",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel 64/64 default, reel+av1 71/71, doctests 2+2 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL-ENG-3:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel 64/64 default, reel+av1 71/71, doctests 2+2 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green; two-FAIL lane: R11-prereview-reel-route SAFE_TO_JUDGE at 47f1588, reel crate unchanged 7cdf18e..3d795a5 (V4-18); reel+av1 unit ran tests/av1_decode.rs",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope); two-FAIL lane: V4-18 on R11-prereview-reel-route SAFE_TO_JUDGE (reel unchanged since 7cdf18e)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL-AV1-ROUTE:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel-native +av1-worker 5/5, +av1-worker+test-faults 14/14 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green (via reel); two-FAIL lane rides V4-18 on R9-prereview-reel SAFE_TO_JUDGE at a024461 (crate unchanged a024461..3d795a5)",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope) (via reel); two-FAIL lane: V4-18 on R9-prereview-reel SAFE_TO_JUDGE (crate unchanged since a024461)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL-NATIVE-AV1-WORKER:3d795a590acd:PASS_V7",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "reel-native +av1-worker 5/5, +av1-worker+test-faults 14/14 (results/R12b; no R11 test missing)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate source unchanged 6956d3f..3d795a5; the parsed-lock closure change is one dependency edge (miniz_oxide -> simd-adler32, optional, enabled only by flate2 in press's hayro closure): cargo tree --workspace --exclude hsk-studio-press --all-features -e all -i simd-adler32 matches no package and miniz_oxide resolves to feature with-alloc only, so the compiled closure is unchanged; re-proved green (via reel); av1_worker suite green under av1-worker+test-faults",
+   "review": "NOT_REVIEWED as a lane (dependency-only reopen; R12-review-a sweep did not cover it; validator lock and feature-graph check)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: parsed Cargo.lock closure changed 6956d3f..3d795a5 by steward sync 9ffe946: miniz_oxide 0.9.1 entry gains simd-adler32 0.3.10; crate source unchanged; lead correction of the reopen scope) (via reel)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12b",
+   "idempotency_key": "STUDIO-R12:SMB-REEL-NATIVE-FAULTS:3d795a590acd:PASS_V4",
+   "recorded_at": "2026-10-11T21:49:57Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean in both invocations, all 22 units built and ran, no fixture selected, disk lock @2 without stale breaks",
+  "Scope correction mid-round (lead message): the parsed-lock reopen set added five crates; run as a supplementary invocation on the same frozen candidate and export (one build + one test invocation per added crate); gameplan re-confirmed at the new edit HEAD 7410f29 (press-only) before it",
+  "Gameplan hook gated one confirm call whose note text contained a gate word (runner config file name); reworded the notes (no bypass); one confirm note above 120 chars was refused by the tool and shortened",
+  "A running-record line first carried a typed time (21:42:30Z) instead of a date -u reading; corrected in place to the 21:42:06Z reading with a note",
+  "An idle sccache server (pid 360784) was present and not started by this session (left running)",
+  "State-write incident (validator script, 2026-10-11T21:51:39Z repair): the first state write stopped at hsk-studio-develop.json (notes is a list there); the idempotent rerun recomputed Vn from the already-updated ledger and appended a second, one-higher R12 verdict to the ledger lanes and lane files. Repaired from the verdicts_accepted event (RUNNING-R12.jsonl): exactly one STUDIO-R12 line per judged lane in ledger.json (status = accepted verdict) and one R12 entry per lane per lane file; verified semantically against git HEAD (no other ledger or lane-file content changed). Accepted verdicts unchanged.",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB) reported by the lock audit, not written by this round",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)"
+ ],
+ "by": "wp_validator STUDIO-R12 (Opus, fresh context, not implementer)"
+}

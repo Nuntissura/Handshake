@@ -1960,6 +1960,25 @@
       "gameplan_route": "no hook block and no retry-guard hit; no gameplan step added; the shared gameplan check passed (PASS 2/2) before the first build; every cargo command used the documented cd + source studio-env.sh form; red and mutant runs on scratch trees with their own STUDIO_OWNER; the mutant driver runs cargo inside scratchpad/mutate.py (as in R12), so its repeated red runs are one script command",
       "lock_wait": "0 s (no build waited on the disk lock)",
       "finished_at": "2026-10-11T20:57:05Z"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R12",
+        "lane": "SMB-WEB-PARITY",
+        "candidate": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+        "tree": "3b956a1761e370638f8fadc1f3067d16873190a1",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R13-prereview-web.json (full, e409030) + validation/R14-prereview-web-narrow.json (3d795a5, SAFE_TO_JUDGE)",
+        "round_ref": "validation/round-R12.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R12",
+        "idempotency_key": "STUDIO-R12:SMB-WEB-PARITY:3d795a590acd:PASS_V1",
+        "recorded_at": "2026-10-11T21:49:57Z",
+        "by": "wp_validator STUDIO-R12"
+      }
+    ]
   }
 }

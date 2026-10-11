@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-11T21:45:00Z
+updated_at: 2026-10-11T21:52:34Z
 wp: WP-KERNEL-STUDIO
 latest_snapshot: snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
@@ -40,7 +40,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 - 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake), ~108k lines incl. tests; every crate builds and tests green on each canary (59/59 units).
 - 106 work lanes: 89 PASS by an independent validator, 5 READY, 2 in work, 6 blocked on the Operator, 4 queued (see snapshot `lanes`).
-- 12 validation rounds run (R4 abandoned): R5 ... R11 complete; latest complete R11 = 13 PASS / 0 FAIL on 6956d3f.
+- Validation rounds R5-R12 complete (R4 abandoned); latest R12 = 45 PASS / 0 FAIL on 3d795a5 (web lanes passed: SMB-WEB PASS_V4, parity V1, difftest V1; pigment plan limits V1).
 - Fully passed crates (27 of 35, every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, prism, pulse, render-cpu, score, score-device, score-plugin, session, type. Not fully passed: interop-media, observe (no lane yet), pigment (plan-limits lane in R12), press, reel, reel-native, render-gpu, web (snapshot `crates`).
 - Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; video indexing/AV1 worker/exact export; audio engine.
 
@@ -50,7 +50,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Round R12 validator on candidate 3d795a5 (web lanes + pigment plan limits; review A complete). Output: `validation/round-R12.json`.
+- Builders: SMB-REEL-RECEIPTS (PLR-066..068) and SMB-REEL-NATIVE-FAULTS-2 (PLR-059..061), Sonnet.
 - Press pre-review R14 on 7410f29 (D27 flatten + narrow remediation). Output: `validation/R14-prereview-press.json`.
 - If either is missing on takeover: re-dispatch from `builders/DISPATCH_TEMPLATES.md` (validator / pre-review) with the candidate in `ledger.json` `round_R12` and lane `SMB-PRESS` `candidate`.
 
@@ -61,7 +61,6 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 ## Not done
 
 - press (PDF redaction proof): 4 earlier designs failed pre-review; Operator chose D27 "Flatten + narrow" (redacted pages become a raster via hayro-interpret 0.7.0; other pages canonically rewritten; claim narrowed and limitations documented). READY at 7410f29, pre-review R14 running.
-- web (HTML/CSS/SVG asset gate): spec-exact CSS tokenizer, 61-row URL carrier inventory, data: policy, load-context-first decisions; SMB-WEB has 2 FAILs (one more exhausts it); R13/R14 pre-reviews cleared it; judged in R12.
 - Blocked on Operator: render-gpu + round entrypoint (D20), interop-media (D9), ProRes/DNx/H.264 and Windows hardware decode (D22-D26).
 - Follow-ups registered (75 open items in `workflow/plausible-register.json`): notably PLR-069/070 (envelope reachability + backend adoption of caller plan limits), PLR-072..075 (pigment), PLR-063..068 (psd/reel), PLR-071 (web doc), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP (rustfmt pass after verdicts).
 - No app UI yet and no Handshake integration (kernel_bindings is an in-memory adapter only). Spec-catalogue coverage is not measured.
@@ -74,7 +73,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 ## Next steps
 
 Follow `ledger.json` `resume_plan` (authoritative). Short form:
-1. Record R12 verdicts (validator writes `round-R12.json`, ledger verdicts); route any FAIL to remediation on the same lane.
+1. R12 is recorded (45 PASS). Narrow pre-reviews needed before the next round for SMB-REEL-AV1-ROUTE / SMB-REEL-NATIVE-AV1-WORKER once the reel/reel-native follow-up lanes land (both 2-FAIL lanes).
 2. Press: if R14 pre-review is SAFE_TO_JUDGE, steward sync + canary, then a round for press; if FIX_FIRST, fix within D27 or bring the Operator a decision.
 3. Then the queued follow-ups (pigment PLR-069/070/072-075; reel PLR-066-068; psd PLR-063-065; reel-native PLR-059-061), fmt sweep, module-map status refresh.
 4. Keep pushing `gov_kernel` after every commit while weekly usage is high.
