@@ -180,3 +180,4 @@
 {"t": "2026-10-11T15:43:54Z", "event": "SMB-INTEROP-PSD-BUDGET READY_FOR_VALIDATION 85532ad (rem-psd-budget-r10)", "lanes_moved": ["SMB-INTEROP-PSD-BUDGET READY"], "commits": ["85532ad"], "progress": "direct: product commit"}
 {"t": "2026-10-11T16:02:32Z", "event": "PSD budget pre-review R11 SAFE_TO_JUDGE at 85532ad; PLR-063..065 registered for after R11", "progress": "no direct progress (pre-review routing)"}
 {"t": "2026-10-11T16:04:09Z", "event": "SMB-REEL-ENG-1 READY_FOR_VALIDATION 7cdf18e (rem-reel-eng-1-r10)", "lanes_moved": ["SMB-REEL-ENG-1 READY"], "commits": ["7cdf18e"], "progress": "direct: product commit"}
+{"t": "2026-10-11T16:13:13Z", "event": "reel AV1 route pre-review R11 SAFE_TO_JUDGE (routing untouched by e424f46/7cdf18e); reel crate frozen until R11", "progress": "no direct progress (pre-review routing)"}

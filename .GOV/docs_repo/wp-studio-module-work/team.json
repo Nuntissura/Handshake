@@ -1916,7 +1916,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T15:30:02Z",
-   "status": "done 2026-10-11T16:04:09Z (SMB-REEL-ENG-1 READY at 7cdf18e)"
+   "status": "done (7cdf18e)"
   },
   {
    "name": "rem-psd-budget-r10",
@@ -1950,7 +1950,7 @@
     "validation/R11-prereview-reel-route.json"
    ],
    "launched": "2026-10-11T16:04:19Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:13:13Z (SAFE_TO_JUDGE)"
   }
  ]
 }

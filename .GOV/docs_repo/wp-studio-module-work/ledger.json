@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T16:04:09Z",
+ "updated_at": "2026-10-11T16:13:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1014,7 +1014,8 @@
     ],
     "summary": "true delivered count everywhere; Export Incomplete/OutOfRange before session open; refused track Unsupported for every use incl. timecode; PLR-062 closed",
     "recorded_at": "2026-10-11T16:04:09Z"
-   }
+   },
+   "r11_info": "R11-prereview-reel-route INFO: adjacent edits cut inside a sample are now refused on Export as Incomplete (reasoned from build_presentation, no test)"
   },
   {
    "lane_id": "SMB-REEL-ENG-2",
@@ -1834,6 +1835,12 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "cc3eaae",
     "at": "2026-10-11T14:34:04Z"
+   },
+   "r11_prereview": {
+    "ref": "validation/R11-prereview-reel-route.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "47f1588",
+    "at": "2026-10-11T16:13:13Z"
    }
   },
   {
