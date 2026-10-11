@@ -1,0 +1,197 @@
+{
+ "kind": "pre-review",
+ "group": "R13 pre-review press (V4-13), D27 flatten + narrow",
+ "rule_refs": [
+  "V4-13",
+  "V4-14",
+  "V4-06",
+  "V4-07",
+  "V4-01",
+  "V4-02",
+  "V4-21"
+ ],
+ "head": "9ffe9461d0cbda0c463325b50c640925347b849e",
+ "branch": "origin/codex/handshake-studio-assets",
+ "base": "b8ce934aa7b636dc004690a2aa05634f0e914e8f (R11 pre-review press head)",
+ "reviewer": "R13 pre-reviewer press (Opus, read-only, fresh context; wrote none of this code)",
+ "design_spec": "START_LOG D27 (17:22:04Z), D27 DECIDED 17:59:47Z 'Flatten + narrow', acknowledgement 19:08:49Z (press D27 flatten d079292), lead decision 19:18:40Z (CX-CAP-001 review, steward sync 9ffe946); lane notes.d27_flatten",
+ "method": "git fetch; git archive 9ffe946 and b8ce934 (crate only) into the session scratchpad; git diff b8ce934..9ffe946 -- handshake-studio-assets/crates/hsk-studio-press (d23fca4 818ec3e 6b611f5 76707ce e053ebc d5562c6 4f04c29 d079292; 9ffe946 steward lock pin); git log 9ffe946..origin empty. Reading only; no cargo, no sub-agents. Renderer behaviour read from the local cargo registry sources hayro-interpret 0.7.0, hayro-syntax 0.7.2, hayro-postscript 0.1.0, zune-jpeg 0.5.15, zune-core 0.5.3 (the pinned versions). Viewer behaviour from pdf.js da95557 src/core/document.js, src/core/core_utils.js and web/app_options.js fetched with curl and the generic User-Agent 'hsk-studio-research' (no personal data, V4-21), plus the R11 reviewer's local copies. V4-06 recount with git grep -n -E -f notes.v4_06_regex at d079292 and 9ffe946. All file:line are handshake-studio-assets/crates/hsk-studio-press at 9ffe946 unless stated. Counterexamples are constructed by reading code paths, not executed.",
+ "status": "complete",
+ "started_at": "2026-10-11T19:18:52Z",
+ "completed_at": "2026-10-11T19:47:04Z",
+ "checks": {
+  "a_flatten_invariant": "Page dictionary rebuilt with exactly Type, Parent, MediaBox = CropBox, Rotate, UserUnit, Resources (HskFl0 only), Contents (flatten.rs:479-498): page /Annots, /AA, /Thumb, /Metadata, /StructParents, /Group, /B, /PieceInfo, /AF and the old resources and content leave the page and the file when nothing else reaches them; annotations touching a region are removed with a reachability proof (redaction.rs:1069-1171). Survives: annotations a viewer inherits from /Pages nodes (R13-F1), XFA rendering (R13-F2), painted sources reachable through inherited or shared resources (R13-F6), structure elements and untouched widgets pointing at the page (R13-P1). Optional content: the raster page itself has none, but the renderer drew /OFF content into it (R13-F3). region_flattened() re-reads the saved page dictionary, content and raster pixels (check_flattened) but not the /Parent chain, the catalog or the image dictionary's other keys (R13-F1, R13-V1).",
+  "b_raster_geometry": "Sound: device transform (sx, 0, 0, -sy, -x0 sx, y1 sy) over the visible box (CropBox within MediaBox, refusal when empty), hayro passes it as the initial CTM unchanged (hayro-interpret context.rs:66-98), region_pixels rounds outwards in the same mapping (flatten.rs:189-210), check_flattened reuses it on the saved /MediaBox; /Rotate and /UserUnit are kept on the page, not applied to the raster, so user-space regions stay aligned; images map rows top-down (hayro x_object.rs:203-211, paint.rs:507-539). Text the selector missed that the renderer draws in the region is painted. Residual (documented, accepted): text the selector keeps that a viewer draws inside the region and the renderer outside it (DESCRIPTOR redaction.flatten.renderer_differential); hayro uses /Widths + /MissingWidth (font/type1.rs:228-231 etc.), not pdf.js's per-alias defaults.",
+  "c_renderer_boundary": "Typed refusals never fall back to the original page (flatten.rs:370-374, document restored sanitized_save.rs:1457-1459); panics caught. Gaps: unbounded recursion in hayro-syntax aborts the process (R13-F4); image budget misses inline images and /W /H and hayro allocates w x h x components regardless of data (R13-F5); renderer CPU (fonts, codecs) uncancellable and stated only in lane notes (R13-V1).",
+  "d_second_check": "verify_internal still runs on the saved bytes with every distinctive removed string (sanitized_save.rs:1431), covering raw bytes, every decoded stream (the raster included), strings, metadata, outlines, annotations and other pages; DESCRIPTOR proof.claim/supported_profile/limitations state the narrowed claim (tested by descriptor_states_the_narrowed_claim_and_its_limitations). Inaccurate: redaction.flatten.region_clearing and fails_safe (R13-F1, F2, F3), missing CX-CAP-001 limitation (R13-F7), stale wording and missing cited tests (R13-V1).",
+  "f_bounds_and_v4_06": "flatten.rs:36 and paint.rs:18 carry deny(clippy::arithmetic_side_effects); raster size checked before allocation (dims_u32_max case in raster_size_is_checked_before_allocation, ImageBudget 100000 x 100000 in flatten_pixel_budget_is_a_typed_refusal); no aggregate_over_budget test of isolate() (R13-V1). V4-06: git grep -n -E notes.v4_06_regex at d079292 and 9ffe946 = 38 = notes.v4_06_count, identical to notes.v4_06_sites (canon.rs:16,219,223,229,273,398; cmap.rs:397,417,425; content.rs:22,68,119,521; determination.rs:209; error.rs:112,155; flatten.rs:73,318,538; font.rs:12,241,494,495; lib.rs:93; pdf_edit.rs:238,280,572; redaction.rs:630,632,942,956; show_text.rs:482,605,1011,1076,1078; text_fields.rs:1191,1480). The D27 failure classes found here (inherited keys, catalog-level renderers, isolation state, renderer recursion and allocation) are outside that regex.",
+  "g_wip": "Claim d23fca4 818ec3e 6b611f5 76707ce e053ebc d5562c6 4f04c29 d079292 (all in the lane commits list); 9ffe946 changes only Cargo.lock, the root Cargo.toml registry metadata and tools/workspace-probe.rs; git log 9ffe946..origin/codex/handshake-studio-assets is empty after git fetch; the shared tree has no uncommitted crate change."
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "last_fail": "STUDIO-R6 FAIL_V2 at bd8533f (2 FAILs: R5, R6; a third exhausts the fix budget); pre-reviews FIX_FIRST at R8, R9, R10, R11 (b8ce934); D27 decided after R11",
+   "claim": "d23fca4..d079292 (READY for pre-review after steward pin 9ffe946; lane: 114/114 nextest, clippy clean, 9 new tests + 2 sub-cases red on b8ce934)",
+   "reviewed_at": "2026-10-11T19:47:04Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R11-F1 (ExtGState /SMask /G not followed)",
+     "verdict": "FIXED",
+     "evidence": "show_text.rs:1076-1083 content_role_streams adds the /G stream of every dictionary /SMask (own /Resources, else none: names unresolved, opaque), so canonicalize rewrites it and the proof walks and canonical-checks it; on a region page the content is gone with the flattened page. Tests soft_mask_groups_are_content (page without a region) and prereview_region_pages_are_flattened sub-cases R11-F1 (a)/(b). Mask effect on later painting listed as a limitation (DESCRIPTOR proof.limitations R11-F1)."
+    },
+    {
+     "finding": "R11-F2 (inline keys override /Subtype /Image)",
+     "verdict": "FIXED",
+     "evidence": "canon.rs:219-246 INLINE_IMAGE_KEYS whitelist (Tables 91/92), any other key leaves the stream unconverted (NotProven), /Type /Subtype set after copying. Test inline_image_keys_never_change_the_xobject + flatten sub-case."
+    },
+    {
+     "finding": "R11-F3 (no-descriptor Courier widths)",
+     "verdict": "FIXED",
+     "evidence": "font.rs:241-248: without a /FontDescriptor codes outside /Widths are bounded [0, STD_MAX_WIDTH]. Test widths_without_a_descriptor_are_bounded (region over the advanced glyphs selects the string) + flatten sub-case."
+    },
+    {
+     "finding": "R11-F4 (/Type /Page with /Kids; /Count)",
+     "verdict": "FIXED",
+     "evidence": "pdf_edit.rs:239-242 refuses a /Kids node typed /Page, :259-268 + leaf_count :272-286 refuse any /Count other than the leaf count, duplicates already refused (:234). Test ambiguous_page_trees_are_refused."
+    },
+    {
+     "finding": "R11-F5 (ambiguous inline data ignored by selector/canonicalize)",
+     "verdict": "FIXED",
+     "evidence": "redaction.rs:630-633 marks RedactionClass::AmbiguousInlineImage (refused under Refuse/RemoveImages, not proven under ReportAndContinue: it is not a painted class, :1037); canon.rs:272-273 leaves such a stream unconverted (NotProven::NonCanonicalContent). Tests prereview_region_pages_are_flattened (R11-F5 both policies), inline_image_keys_never_change_the_xobject."
+    },
+    {
+     "finding": "R11-F6 ('/WMode 1def')",
+     "verdict": "FIXED",
+     "evidence": "cmap.rs:397-406 leading_int + :426-431 (a leading integer as pdf.js getNumber reads it; any other number-like word is Other = unresolved, fail closed). Checked '1def', '1e', '1-', '--1', '1..', '1e-5': each reads vertical/unresolved where pdf.js reads vertical or ignores. Test wmode_spellings_and_identity_names_are_read_as_viewers_do (2 new sub-cases)."
+    },
+    {
+     "finding": "R11-V1 (V4-06 reach, verdicts, doc claims)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "Regex extended with the R11 terms; recount at d079292 and 9ffe946 = 38 = notes.v4_06_count, identical file:line set to notes.v4_06_sites; claims narrowed (DESCRIPTOR proof.claim/supported_profile/limitations). Residual: R13-V1 (two cited tests missing, stale 'fresh pass' and region_undetermined wording)."
+    },
+    {
+     "finding": "R11-P1, R11-P2, R11-P3, R11-P4, R10-P3, R10-P5",
+     "verdict": "OPEN (listed)",
+     "evidence": "Listed in DESCRIPTOR proof.limitations with ids (asserted by descriptor_states_the_narrowed_claim_and_its_limitations); R11-P4 is moot on flattened pages."
+    },
+    {
+     "finding": "R8-R10 / R5-R7 regression tests",
+     "verdict": "FIXED (intact; 26 bodies adapted, none removed)",
+     "evidence": "Integration 70 -> 79 (pdf_delivery.rs 70 test functions, same names; flatten_redaction.rs 9 new), unit 29 -> 35 (paint 2, flatten 4): 114 total = lane claim. Adapted bodies (pdf_delivery.rs diff b8ce934..9ffe946): proof subjects moved to page two via split_region_page / with_page_two / raster_doc2, selector subjects read through selector_save / PdfDoc::redact_region, proof-side determination checked on the INPUT with verify_secret (unknown_cmap_names_are_unresolved_writing_modes, undetermined_fonts_never_read_as_cleared), region-page oracles flipped to 'gone from the file'. Checked that split_region_page keeps the region text on page one for every user (first content line; r7/r8/r9 fixtures). Semantics changed by D27, not weakened: raster_class_is_listed_and_region_images_are_removed and indirect_subtypes_are_resolved now assert painted_over + proven for an image under the region (selector alone still refuses); region_undetermined assertions flipped to is_empty() (pdf_delivery.rs:3555, :3660, :3686) because a flattened page holds no text: the field is now vacuous for redaction outputs (R13-V1); kept_text_collisions == 1 dropped from form_xobject_text_redaction_copy_on_write (both uses were on the flattened page; the collision rule stays covered by listed_but_undrawn_forms_are_not_kept_text and proof_context_rule_kept_text_collision_is_not_a_leak)."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "R13-F1",
+     "severity": "CONFIRMED",
+     "kind": "flatten invariant: content survives on a flattened page (pdf.js inherits /Annots through /Parent)",
+     "file_line": "src/flatten.rs:479-498 (flattened page rebuilt WITHOUT an /Annots key while /Parent is kept, :481-483); src/flatten.rs:451 (only the page's own /Annots is noted); src/redaction.rs:1069 (selector reads only the page's own /Annots); src/flatten.rs:515 and :64 (check_flattened whitelists the page dictionary's own keys and never reads the /Parent chain); src/pdf_edit.rs:218-262 (walk_pages accepts /Annots on /Pages nodes)",
+     "evidence": "pdf.js da95557 src/core/document.js:808-810 `get annotations() { const annots = this.#getInheritableProperty(\"Annots\"); ... }` and core_utils.js:154-177 (getInheritableProperty walks /Parent; with no /Annots on the page the first value found is the parent's). Counterexample: 2 = << /Type /Pages /Kids [3 0 R] /Count 1 /Annots [20 0 R] >>; 3 = page drawing 'BT /F1 12 Tf 72 300 Td (Public) Tj ET'; 20 = << /Type /Annot /Subtype /FreeText /Rect [90 690 200 715] /AP << /N 21 0 R >> >>, 21 = form /BBox [0 0 110 25] /Resources << /Font << /F1 Helvetica >> >> drawing 'BT /F1 12 Tf 2 8 Td (SECRET-ALPHA) Tj ET'. redact_and_save(page 0, [90 690 200 715], Refuse): the selector sees no annotation (nothing removed, no needle), flatten rebuilds object 3 with /Parent 2 0 R and no /Annots, save_full keeps node 2 and its /Annots (reachable), check_flattened passes (keys within PAGE_KEYS, raster region black): region_flattened() true (and region_cleared()/is_proven() true: SECRET-ALPHA is not a needle), while pdf.js draws annotation 20 over the raster, SECRET-ALPHA inside the region. Contradicts DESCRIPTOR redaction.flatten.region_clearing ('whatever any reader draws on the page ... the page holds nothing else') and flatten.rs:3-11.",
+     "remediation": "Write /Annots [] on every flattened page (pdf.js then stops at the page's own empty array; allow the key in PAGE_KEYS only with an empty array value) or remove /Annots from every /Pages node on the path; have check_flattened walk the /Parent chain and fail on any inherited /Annots (and any key a viewer inherits that is not overridden); have the selector treat inherited /Annots as the page's annotations; add the counterexample as a test (pdf.js-style inheritance read with hayro-syntax plus an explicit parent-chain check)."
+    },
+    {
+     "id": "R13-F2",
+     "severity": "CONFIRMED",
+     "kind": "flatten invariant: a pure-XFA document is drawn from its XFA packets, not from the flattened page",
+     "file_line": "src/sanitized_save.rs:1376-1458 (redact_and_save_with flattens and saves, keeping catalog /NeedsRendering and /AcroForm /XFA verbatim); no press source reads NeedsRendering or XFA (only DESCRIPTOR proof.limitations R11-P3 mentions XFA)",
+     "evidence": "pdf.js da95557 src/core/document.js:1305-1320 (xfaFactory when enableXfa && catalog.needsRendering && formInfo.hasXfa && !formInfo.hasAcroForm; isPureXfa then renders the XFA template/datasets as the pages, the PDF page content is not drawn), :1493-1530 (hasXfa = non-empty /XFA array or stream; hasAcroForm needs a non-empty /Fields), web/app_options.js:818-821 (enableXfa default true). Counterexample: catalog << /NeedsRendering true /AcroForm << /XFA 40 0 R /Fields [] >> >>, XFA template drawing a text element 'SECRET-ALPHA' on page 1 at the region, page 0 content a placeholder. redact_and_save(page 0, region): page 0 flattened, region painted, region_flattened() true, no needle (the placeholder had none), is_proven() true; pdf.js (default viewer options) renders the XFA form and shows SECRET-ALPHA in the region.",
+     "remediation": "In redact_and_save drop /NeedsRendering and /AcroForm /XFA (XFA is deprecated in ISO 32000-2) or refuse documents with XFA (typed UnsupportedRedactionClass), and list the case; test with a pure-XFA document."
+    },
+    {
+     "id": "R13-F3",
+     "severity": "CONFIRMED",
+     "kind": "renderer differential that ADDS content: optional content hidden by the document's default configuration is drawn into the raster",
+     "file_line": "src/flatten.rs:313-315 (isolated catalog holds only /Type /Catalog /Pages, no /OCProperties); src/flatten.rs:22-23 ('it can never add content'); src/paint.rs:9-10 ('absent content can only remove information, never add it'); src/lib.rs:93 DESCRIPTOR redaction.flatten.fails_safe ('absent content only removes information')",
+     "evidence": "hayro-interpret 0.7.0 src/context.rs:87-92 builds OcgState from the catalog of the document it renders (the isolated one), src/ocg.rs:18-24 returns the dummy state (no inactive group) when the catalog has no /OCProperties, so every /OC BDC, form /OC and image /OC is visible; pdf.js, MuPDF and Acrobat honour /OCProperties /D /OFF (and /BaseState /OFF). Counterexample: source catalog /OCProperties << /OCGs [50 0 R] /D << /OFF [50 0 R] >> >>, page content '/OC /L1 BDC BT /F1 12 Tf 72 100 Td (SALARY 95000) Tj ET EMC' with /Properties << /L1 50 0 R >>, a region elsewhere on the page: every viewer hides SALARY 95000 in the source; the flattened raster draws it visibly outside the region (not a needle, nothing reports it). The same class: an occluder the rasteriser skips (pattern or shading paint, a soft-masked group, content past the clip-depth or work caps; FlattenNote) uncovers what it covered, so 'absent content only removes information' is false for occluded content.",
+     "remediation": "Copy the source catalog's /OCProperties (and what it reaches; object numbers are kept by isolate) into the isolated catalog, or refuse/mark when the page uses /OC and the document has /OCProperties; weaken the three doc claims (absent content can uncover what it occluded) or treat any FlattenNote on a page as NotProven/report it; test with an /OFF group outside the region."
+    },
+    {
+     "id": "R13-F4",
+     "severity": "CONFIRMED",
+     "kind": "renderer boundary (V4-01): unbounded recursion inside hayro-syntax aborts the process (stack overflow is not a panic; catch_unwind does not catch it)",
+     "file_line": "src/redaction.rs:854-876 (the selector parses a form only when its box touches the region: other forms never reach content::parse_strict); src/flatten.rs:228-268 and :272-339 (isolate copies every reachable stream decoded, without parsing content); src/flatten.rs:349-374 (catch_unwind is the only guard)",
+     "evidence": "hayro-syntax 0.7.2 src/object/array.rs:72-86 (Array::skip loops r.skip::<Object>), src/object/mod.rs:163-180 (Object::skip calls Array::skip / Dict::skip again for '[' / '<<'), src/object/dict.rs:160-184, src/content/mod.rs:142 (every content operand read through Object::read -> Array::read -> skip, :97 of array.rs); grep finds no depth limit in hayro-syntax 0.7.2 (only MAX_XREF_CHAIN_DEPTH). hayro-interpret 0.7.0 src/x_object.rs:103-176 draw_form_xobject interprets every drawn form without culling. Counterexample: page content 'q /Fm1 Do Q BT /F1 12 Tf 100 700 Td (SECRET-ALPHA) Tj ET', /Fm1 = form /BBox [0 0 10 10] at the origin (outside region [90 690 200 715], so the selector never parses it) whose content is 1,000,000 '[' bytes (1 MB, within max_decoded_bytes): redact_and_save under the default Refuse policy reaches render(); hayro recurses about 1e6 levels and overflows the thread stack: the process aborts (Rust 'has overflowed its stack', not unwinding), losing the host application. Same for Type 3 glyph procedures and forms past depth 8 under ReportAndContinue. Not executed (no cargo in this review); constructed from the code paths above.",
+     "remediation": "Before rendering, strict-parse (content::parse_strict, depth-capped) every content stream the isolated page can reach (forms at any depth, Type 3 procedures, tiling patterns, soft-mask groups) and give the renderer an EMPTY stream (FlattenNote::UndecodableStream) or refuse when it fails; or pre-scan every decoded stream of the isolated document for '[' / '<<' nesting deeper than HARD_MAX_DEPTH; add a test with a deeply nested form outside the region; list the renderer's recursion as a residual if any path stays unscanned."
+    },
+    {
+     "id": "R13-F5",
+     "severity": "CONFIRMED",
+     "kind": "renderer boundary (V4-02): the image budget misses inline images and abbreviated /W /H, and hayro allocates width x height x components regardless of the data length",
+     "file_line": "src/flatten.rs:294-302 (ImageBudget: only stream OBJECTS whose resolved /Subtype is /Image, only the keys /Width and /Height, pixels compared with max_decoded_bytes); src/content.rs:353-378 (exact_end: an inline image's /W /H are bounded only for unfiltered data, raw_length :254; for a raster codec (:358-374) and for Flate and the other filters (:376, first stage only) they are not); DESCRIPTOR redaction.flatten.refusals 'image_budget (an image of the page declares more pixels than Limits::max_decoded_bytes)'",
+     "evidence": "hayro-interpret 0.7.0 src/x_object.rs:320-321 reads /W or /Width and /H or /Height for XObjects AND inline images; src/interpret/mod.rs:668-681 draws inline images; src/x_object.rs:514-591 decode_raster: for any /BitsPerComponent other than 8 (or a non-default /Decode or a transfer function) get_components (:902-922) loops height x width x components pushing one u16 each (missing data read as 0) BEFORE fix_image_length; zune-jpeg 0.5.15 decoder.rs:215-218 allocates width x height x components for DCT data whose SOF dims hayro accepts up to 65535 (hayro-syntax 0.7.2 filter/dct.rs:16-30). Counterexamples (not executed): (a) inline image 'BI /W 65535 /H 65535 /BPC 1 /CS /DeviceCMYK /F /Fl ID <small zlib stream> EI' anywhere on a region's page (a painted class in the region, untouched outside it): the crate's parse bounds only the Flate first stage; hayro pushes 65535 x 65535 x 4 = 1.7e10 u16 (about 34 GB) and the allocation fails (abort) after tens of seconds of uncancellable CPU; (b) an image XObject spelled << /Subtype /Image /W 65535 /H 65535 /BPC 1 /CS /DeviceCMYK >> with one data byte: flatten.rs:297 reads /Width and /Height as 0 and passes it; (c) inside the budget, a 64 Mi-pixel CMYK image at /BPC 4 still costs about 0.5 GB of u16 plus 1 GB of f32 in hayro. Lane notes.d27_flatten.research_basis risks list only 'CPU time inside hayro' as residual; the DESCRIPTOR lists none.",
+     "remediation": "Apply the image budget to every image hayro can decode (inline images of every content stream the isolated page reaches, /W /H abbreviations, /SMask and /Mask images whatever their /Subtype) and size it as hayro allocates (pixels x components x (2 + 4 + 3) bytes against a renderer memory cap), refuse (ImageBudget) otherwise; add dims_u32_max tests for an inline image and an abbreviated XObject; list the remaining renderer CPU/memory residual in DESCRIPTOR."
+    },
+    {
+     "id": "R13-F6",
+     "severity": "CONFIRMED",
+     "kind": "painted_over sources survive in the file: an image or vector form drawn in the region stays verbatim when it is reachable through an inherited (or shared) resource dictionary, while the result is proven",
+     "file_line": "src/redaction.rs:1036-1041 (with flattening, Image/Vector/Shading/InlineImage are moved to painted_over and no longer refused; nothing is removed under Refuse/ReportAndContinue); src/flatten.rs:479-498 (only the page dictionary is rebuilt; the /Pages node holding the inherited /Resources is untouched); src/flatten.rs:4-7 ('none of its own resources are carried'); DESCRIPTOR proof.not_covered 'pixels of raster images (region removal of the image is the remedy)'",
+     "evidence": "Counterexample (code paths read, not executed): 2 = << /Type /Pages /Kids [3 0 R] /Count 1 /Resources << /XObject << /Im1 10 0 R >> >> >>; 3 = page without /Resources drawing 'q 612 0 0 792 0 0 cm /Im1 Do Q'; 10 = full-page scan (DCT or Flate) whose pixels show SECRET-ALPHA inside region [90 690 200 715]. redact_and_save(page 0, region, Refuse): the selector resolves /Im1 through the inherited resources (redaction.rs:1024 inherited 'Resources', :549-552), marks Image, flattening moves it to painted_over (not refused, report complete); flatten rebuilds page 3 with its own /Resources (HskFl0) but node 2 still lists /Im1, so save_full keeps object 10 byte for byte; no needle exists, a DCT image is a raster_stream that does not block, Flate pixels are not text: region_flattened(), region_cleared() and is_proven() are true while any image extractor (pdfimages, Acrobat 'export images') recovers the unredacted scan. The same holds for a vector form (a drawn signature) listed in an inherited /Resources. Before D27 an image under a region was refused under Refuse (UnsupportedRedactionClass Image) or left the region not proven; D27 made the painted classes 'complete' without removing their sources.",
+     "remediation": "On every flattened page, remove from the file every XObject/shading/pattern the selector marked as painted in a region (or simply every resource the old page could reach) unless a page that is not flattened draws it: copy inherited /Resources down to the sibling pages and drop the entries from the /Pages nodes, or refuse (or add a NotProven reason) when such an object stays reachable; test with an inherited-resource scan and with a shared form."
+    },
+    {
+     "id": "R13-F7",
+     "severity": "CONFIRMED",
+     "kind": "decision gap (CX-CAP-001): the DESCRIPTOR does not list the colour limitation the lead decision requires",
+     "file_line": "src/lib.rs:93 (DESCRIPTOR proof.limitations and redaction.flatten hold no 'colour'/'color'/'prism' entry)",
+     "evidence": "START_LOG lead decision 2026-10-11T19:18:40Z (CX-CAP-001 review, steward sync 9ffe946): moxcms 0.8.1 enters through hayro-interpret; accepted as renderer-internal only on condition that 'the DESCRIPTOR lists \"flattened page colour is renderer-internal, not prism-managed\" as a limitation' and that press does not expose or reuse the conversion. At 9ffe946 no such entry exists (pretty-printed DESCRIPTOR searched for colour, color, prism, moxcms: none); test descriptor_states_the_narrowed_claim_and_its_limitations (tests/flatten_redaction.rs:484-493) does not assert it. The decision post-dates d079292 (19:00:05Z), so this is pending work, not a defect of the builder's claim; no public API exposes the conversion (lib.rs:36-52 re-exports none of hayro's colour types).",
+     "remediation": "Add the limitation to DESCRIPTOR redaction.flatten (and proof.limitations) and assert it in descriptor_states_the_narrowed_claim_and_its_limitations."
+    },
+    {
+     "id": "R13-V1",
+     "severity": "CONFIRMED",
+     "kind": "V4-07 / doc accuracy: cited tests that do not exist and claims the code no longer backs",
+     "file_line": "src/flatten.rs:10 and src/sanitized_save.rs:1279 (cite `flattened_pages_hold_only_the_raster`: no such test); src/flatten.rs:29 (cites `renderer_failure_is_a_typed_refusal`: the unit test is `renderer_refusal_is_typed`, flatten.rs:593); src/sanitized_save.rs:1292-1294 (is_proven: 'a fresh pass over the saved bytes finds nothing left in the regions') and :1344-1345 (region_cleared: 'a fresh pass over the saved bytes selects nothing'): no selector pass runs on the saved bytes any more (replaced by check_flattened, :1440-1446); DESCRIPTOR proof.independence ('residual_in_region repeats the same selector') and redaction.geometry ('the proof's determination pass repeats the check on the SAVED file (RedactedOutput.region_undetermined)'): for redact_and_save outputs region_undetermined can no longer be non-empty (a flattened page holds no text; tests now assert is_empty(), tests/pdf_delivery.rs:3555, :3660, :3686); DESCRIPTOR redaction.flatten.bounds cites raster_size_is_checked_before_allocation for 'dims_u32_max and aggregate cases' but its 'aggregate' case is the 3-bytes-per-pixel bound (flatten.rs:587-589), not an aggregate_over_budget test of isolate()'s max_decoded_total budget over the page's streams (flatten.rs:283, :303); src/flatten.rs:31-35 calls check_flattened an independent check that 'the XObject is an 8-bit /DeviceRGB /FlateDecode image' but it does not whitelist the image dictionary (a /Decode, /OC, /Alternates or /ImageMask key would pass, flatten.rs:530-538); the renderer CPU/memory residual is stated only in the lane notes (notes.d27_flatten.research_basis.risks_and_mitigations), not in DESCRIPTOR or flatten.rs",
+     "evidence": "Function names collected from src/*.rs and tests/*.rs at 9ffe946: the two cited names are absent; every other test name cited in DESCRIPTOR and the D27 docs exists (checked: prereview_region_pages_are_flattened, flattened_region_pixels_are_opaque_and_the_rest_is_rendered, flatten_pixel_budget_is_a_typed_refusal, pages_without_regions_stay_canonical_text, descriptor_states_the_narrowed_claim_and_its_limitations, inline_image_keys_never_change_the_xobject, soft_mask_groups_are_content, ambiguous_page_trees_are_refused, widths_without_a_descriptor_are_bounded, wmode_spellings_and_identity_names_are_read_as_viewers_do, renderer_refusal_is_typed, raster_size_is_checked_before_allocation).",
+     "remediation": "Cite existing tests (or add flattened_pages_hold_only_the_raster as a test that also walks the /Parent chain, R13-F1), reword is_proven/region_cleared/proof.independence/redaction.geometry for the flattened design, add an aggregate_over_budget test for isolate() (or drop 'aggregate' from the citation), whitelist the raster image dictionary in check_flattened, and state the renderer CPU/memory residual in DESCRIPTOR."
+    },
+    {
+     "id": "R13-P1",
+     "severity": "PLAUSIBLE",
+     "kind": "document-level text that describes a flattened page survives: structure elements and form-field widgets that point at it",
+     "file_line": "src/flatten.rs:479-498 (page rebuilt; /StructParents dropped, but /StructTreeRoot elements whose /Pg is the page and AcroForm widgets with /P = the page are untouched); DESCRIPTOR text_fields.slots 'structure element /Alt /ActualText /E /T (structure_text)' applies only with an explicit TextFieldPolicy and only to the needles",
+     "evidence": "A /Figure or /Span element with /Pg = the flattened page keeps its /Alt, /ActualText or /E (accessibility text of the region content, often not byte-equal to a removed string, e.g. alt text describing a redacted photo); widgets of the page that do not touch the region (redaction.rs:1069-1083) stay in /AcroForm /Fields with their /V and /AP although the page no longer lists them. pdf.js does not show either for the flattened page (no /StructParents, document.js:808-810 reads only /Annots), so this is file content, not drawn content; whether Acrobat or screen readers expose /Alt of elements whose MCIDs no longer exist is UNVERIFIED.",
+     "remediation": "Lead decision: prune (or blank) structure elements and widgets whose /Pg or /P is a flattened page, or list the class in proof.limitations."
+    }
+   ],
+   "accepted_residuals_not_findings": [
+    "D27 renderer differential (DESCRIPTOR redaction.flatten.renderer_differential): a string the selector keeps that a viewer draws inside a region and the renderer outside it; documented, accepted by the 19:08:49Z acknowledgement; no concrete three-way case found beyond the listed classes.",
+    "Viewer-differential classes on pages without a region listed in proof.limitations (R11-P1..P4, R10-P3, R10-P5, R11-F1 mask effect)."
+   ],
+   "wip_after_ready": false,
+   "wip_note": "Claim d23fca4 818ec3e 6b611f5 76707ce e053ebc d5562c6 4f04c29 d079292 (all in the lane commits list); 9ffe946 changes only Cargo.lock, the root Cargo.toml registry metadata and tools/workspace-probe.rs; git log 9ffe946..origin/codex/handshake-studio-assets is empty after git fetch; the shared tree has no uncommitted crate change.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "R11-F1..F6 are fixed with tests, no regression test was removed and the adapted bodies keep their subjects; the flatten core (isolation, raster geometry, outward pixel rounding, typed refusals, saved-file pixel check) is sound. But the D27 by-construction claim fails at its boundary in reachable files: pdf.js draws /Pages-node /Annots over the flattened page (R13-F1) and renders pure-XFA documents instead of the page (R13-F2), so region_flattened()/is_proven() read true while the region text is visible; the region's image or vector source survives through inherited resources while proven (R13-F6); the renderer draws /OFF optional content (R13-F3); hostile input aborts the process through renderer recursion (R13-F4) or image allocation (R13-F5); the CX-CAP-001 limitation is missing (R13-F7). Each fix is local (empty /Annots on the page plus a parent-chain check, strip or refuse XFA, purge painted sources, copy /OCProperties, pre-parse or depth-scan streams before rendering, extend the image budget, add the limitation). With one verdict left in the fix budget, judging now risks a third FAIL."
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "last_fail": "none (V4-15 lane); pre-reviews FIX_FIRST at R8, R9, R10, R11 (R11-D1)",
+   "claim": "same commits as SMB-PRESS (d23fca4..d079292), judged together",
+   "reviewed_at": "2026-10-11T19:47:04Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R11-D1 (= SMB-PRESS R11-F1, R11-F2, R11-F5)",
+     "verdict": "FIXED",
+     "evidence": "Closed by the same fixes (see SMB-PRESS); the /Differences sub-case R11-F1 (b) is in prereview_region_pages_are_flattened and soft_mask_groups_are_content. encoding.rs unchanged b8ce934..9ffe946; every DIFF test (remapped_punctuation_is_searched_as_drawn, differences_encoded_text_is_found_proven_and_redacted, empty_stem_glyph_names_are_opaque, glyph_names_follow_the_agl_specification, ascii_streams_are_matched_as_text) present; differences_encoded_text_is_found_proven_and_redacted only gains split_region_page (subject unchanged)."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "R13-D1 (= SMB-PRESS R13-F1..F7)",
+     "severity": "CONFIRMED",
+     "kind": "shared redaction-output gaps apply to /Differences-drawn text as to any text",
+     "file_line": "see SMB-PRESS R13-F1..F7",
+     "evidence": "No DIFF-class decoding change in this diff (encoding.rs untouched; font.rs only R11-F3). The flatten gaps are independent of how the text is encoded: R13-F1/F2/F6 keep region content visible or in the file whatever its font.",
+     "remediation": "As SMB-PRESS R13-F1..F7."
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "Same claim as SMB-PRESS; nothing later touches the crate.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Own items (R11-D1) fixed with tests and every DIFF test intact; the lane shares the READY commit and the SMB-PRESS R13 gaps, so judge it together with SMB-PRESS after those fixes (judged alone, its own items are fixed)."
+  }
+ ],
+ "summary": "SMB-PRESS FIX_FIRST: R11-F1..F6 fixed with tests, 114 tests (no test removed, 26 bodies adapted without losing their subjects), V4-06 38 = 38 identical, no WIP after READY. New CONFIRMED: R13-F1 pdf.js inherits /Annots from /Pages nodes onto the flattened page (selector, flatten and check_flattened read only the page's own keys); R13-F2 pure-XFA documents are rendered from /XFA by pdf.js (enableXfa default true), press neither strips nor refuses XFA; R13-F3 the isolated catalog lacks /OCProperties so hayro draws /OFF optional content into the raster ('can never add content' is false; skipped occluders also uncover content); R13-F4 hayro-syntax recursion on nested arrays in forms the selector never parses overflows the stack (abort, not caught); R13-F5 ImageBudget misses inline images and /W /H spellings while hayro allocates w x h x components regardless of data; R13-F6 images/vector forms painted over in a region survive verbatim through inherited /Resources while proven; R13-F7 CX-CAP-001 colour limitation missing from DESCRIPTOR; R13-V1 two cited tests missing and stale claims. PLAUSIBLE: R13-P1 structure /Alt and untouched widgets of a flattened page. SMB-PRESS-DIFFERENCES FIX_FIRST: own items fixed; shares the R13 gaps."
+}

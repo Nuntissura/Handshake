@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T19:18:40Z (pin sync 9ffe946; C17 exit 73 59/59)"
+   "status": "idle 2026-10-11T20:26:55Z"
   },
   {
    "name": "research-reel-eng",
@@ -2078,7 +2078,7 @@
     "validation/R13-prereview-web.json"
    ],
    "launched": "2026-10-11T19:16:56Z",
-   "status": "running"
+   "status": "done 2026-10-11T20:26:55Z (FIX_FIRST narrow: R13-F1 slow path)"
   },
   {
    "name": "prereview-r13-press",
@@ -2089,7 +2089,7 @@
     "validation/R13-prereview-press.json"
    ],
    "launched": "2026-10-11T19:18:55Z",
-   "status": "running"
+   "status": "done 2026-10-11T20:26:55Z (FIX_FIRST: flatten F1-F7)"
   }
  ]
 }
