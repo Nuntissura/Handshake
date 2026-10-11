@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:58:46Z",
+ "updated_at": "2026-10-11T12:09:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2562,5 +2562,38 @@
   ],
   "team": "1 validator + 2 reviewers (V4-10)",
   "known_noise": "render-gpu no-adapter probe prints NOT_PROVEN -> round exit 73 (SMB-RENDER-GPU-PROBE held for D20: test change in a fix-budget-exhausted crate)"
+ },
+ "round_R8": {
+  "candidate": "f6e5a49",
+  "candidate_full": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+  "opened_at": "2026-10-11T12:09:12Z",
+  "sync": "steward-5: already in sync (no lock input changed since dff7ef5; probe 46/46, licence gate OK, 0 unprocessed dep requests)",
+  "canary": "C13 exit 73, 59/59 units built+ran, step 0 clean; NOT_PROVEN only interop-fig D17 (render-gpu probe not in canary subset)",
+  "excluded": [
+   "SMB-RENDER-GPU (D20)",
+   "SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)",
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (R8 pre-review FIX_FIRST; rem-press-r8 running)"
+  ],
+  "two_fail_lanes_need_recheck_first": [
+   "SMB-REEL-AV1-ROUTE (pre-review FIX_FIRST on PLR-032; fix bf3c196)",
+   "SMB-REEL-NATIVE-AV1-WORKER (pre-review SAFE at 7886369; reel dep changed by bf3c196)",
+   "SMB-COMPONENTS (crate changed by 3b6e9a9)"
+  ],
+  "ready": [
+   "SMB-REEL-NATIVE-AV1-WORKER",
+   "SMB-REEL-AV1-ROUTE",
+   "SMB-INTEROP-PSD-ADJ",
+   "SMB-EFFECTS-WAVE-1",
+   "SMB-REFUSAL-KEYS",
+   "SMB-SCORE-GUARDS",
+   "SMB-COMPONENTS-FOOTPRINT",
+   "SMB-FOLIO-UNIQUENESS",
+   "SMB-PIGMENT-FX-OPS",
+   "SMB-PIGMENT-ADMIT-PARITY",
+   "SMB-FX-OPS-ADOPT"
+  ],
+  "cx_val_009": "crates changed dff7ef5..f6e5a49: components, composite, folio, interop-psd, pigment, press(excluded), reel, reel-native, render-cpu, render-gpu(lane excluded; FX-OPS-ADOPT part judged), score",
+  "team": "1 validator + reviewers A (pigment/render/composite) and B (reel/psd/score/components/folio)"
  }
 }

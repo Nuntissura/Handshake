@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:58:46Z",
+ "updated_at": "2026-10-11T12:10:13Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running"
+   "status": "idle 2026-10-11T12:10:13Z (R8 sync no-op = f6e5a49; C13 exit 73 59/59; lock audit clean; repo-local target unchanged)"
   },
   {
    "name": "research-reel-eng",
@@ -1598,6 +1598,40 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r8",
+   "agent_id": "a5a5571c256230c74",
+   "model": "opus",
+   "role": "WP validator STUDIO-R8 on f6e5a49",
+   "owns": [
+    "validation/round-R8.json",
+    "verdict fields in lane files + ledger lanes"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r8-a",
+   "agent_id": "ac4570bf90ceb448b",
+   "model": "opus",
+   "role": "R8 reviewer A (pigment/composite/render/psd adoption)",
+   "owns": [
+    "validation/R8-review-a.json"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r8-b",
+   "agent_id": "a5b2202895c800b97",
+   "model": "opus",
+   "role": "R8 reviewer B (reel/reel-native/psd/score/components/folio) + two-FAIL rechecks",
+   "owns": [
+    "validation/R8-review-b.json"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
    "status": "running"
   }
  ]
