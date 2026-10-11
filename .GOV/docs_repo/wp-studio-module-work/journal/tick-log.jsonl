@@ -154,3 +154,4 @@
 {"t": "2026-10-11T13:09:37Z", "event": "reel-native oversize-under-cap protocol fault landed 471b679 (PLR-055); same agent extending to FRAME-to-OPEN (same class)", "commits": ["471b679"], "progress": "direct: product commit"}
 {"t": "2026-10-11T13:10:26Z", "event": "press R9 pre-review FIX_FIRST (R9-F1..F3 CONFIRMED); lead decision: positive-determination proof (approach change); press excluded from R9", "progress": "no direct progress (verdict routing)"}
 {"t": "2026-10-11T13:11:01Z", "event": "SMB-REEL-ENG-1 READY_FOR_VALIDATION bd5bd60 (builder-reel-eng-1)", "lanes_moved": ["SMB-REEL-ENG-1 READY"], "commits": ["bd5bd60"], "progress": "direct: product commit"}
+{"t": "2026-10-11T13:14:07Z", "event": "SMB-PARITY-FOLLOWUP READY_FOR_VALIDATION 1c80811 (rem-composite-adj)", "lanes_moved": ["SMB-PARITY-FOLLOWUP READY"], "commits": ["1c80811"], "progress": "direct: product commit"}

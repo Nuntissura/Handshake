@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:11:01Z",
+ "updated_at": "2026-10-11T13:14:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2480,15 +2480,18 @@
    "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
    "origin": "R8-review-a CONFIRMED on SMB-PIGMENT-ADMIT-PARITY (validator: routed fixes, not product FAIL)",
    "scope": "pigment uses_premultiplied_alpha/has_pass_through_mask read reachable nodes only (exact backend parity); render-cpu names Mask(CoverageU8|CoverageU16Le) Exact explicitly, other formats Unsupported; MaskFormat added to the parity tripwire; reclassify render-cpu plan_sink.rs:623 site",
-   "phase": "build (extension: 3 more predicates reachable-only, lead decision 2026-10-11T13:09:17Z)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "rem-composite-adj",
    "commits": [
     "a873234",
-    "8ca30dd"
+    "8ca30dd",
+    "1c80811"
    ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-parity-followup.json"
+   "lane_file": "builders/lanes/hsk-studio-parity-followup.json",
+   "candidate": "1c80811",
+   "note": "reachable-only rule for every pigment admission predicate (uses_premultiplied_alpha, has_pass_through_mask, has_pass_through_fill, has_solid_outside_unit, has_mask_density) via one reachable_nodes helper; render-cpu Mask(CoverageU8|CoverageU16Le) Exact by name, other formats Unsupported; MaskFormat in tripwire; commits a873234 (pigment), 8ca30dd (render-cpu), 1c80811 (pigment extension); tests red on scratch (2 + 3 failures, E0004 tripwire); 220 passed across pigment/render-cpu/composite/render-gpu/interop-psd/develop; V4-06 pigment 5 FIXED 2 n/a; open: RenderPlan::validate collects operators from unreachable nodes (PLR-058)"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-BUDGET",
@@ -2640,7 +2643,8 @@
   "SMB-FX-OPS-ADOPT",
   "SMB-SCORE-PLUGIN-RATE",
   "SMB-INTEROP-PSD-BUDGET",
-  "SMB-REEL-ENG-1"
+  "SMB-REEL-ENG-1",
+  "SMB-PARITY-FOLLOWUP"
  ],
  "round_R6": {
   "candidate": "bd8533f",

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:11:01Z",
+ "updated_at": "2026-10-11T13:14:07Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1659,7 +1659,7 @@
     "builders/lanes/hsk-studio-parity-followup.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:14:07Z (SMB-PARITY-FOLLOWUP READY at 1c80811)"
   },
   {
    "name": "builder-reel-eng-1",

@@ -2,7 +2,7 @@
  "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
  "lane": "SMB-PARITY-FOLLOWUP",
  "status": "READY_FOR_VALIDATION",
- "phase": "pigment reachable-only predicates + MaskFormat tripwire (a873234); render-cpu names the mask formats it reads (8ca30dd); compiled, clippy clean, tests green on the pushed tree",
+ "phase": "pigment reachable-only predicates (a873234) + render-cpu names the mask formats it reads (8ca30dd) + the three older predicates made reachable-only on the lead's decision (1c80811); compiled, clippy clean, tests green on the pushed tree",
  "commits": [
   {
    "sha": "a873234",
@@ -11,13 +11,18 @@
   {
    "sha": "8ca30dd",
    "subject": "render-cpu (SMB-PARITY-FOLLOWUP): exactness names Mask(CoverageU8 | CoverageU16Le) Exact and answers Unsupported for any other mask format"
+  },
+  {
+   "sha": "1c80811",
+   "subject": "pigment (SMB-PARITY-FOLLOWUP): has_pass_through_fill, has_solid_outside_unit and has_mask_density decide on the nodes reachable from the root too; every admission predicate now matches the backends"
   }
  ],
  "capabilities_done": [
   "pigment: RenderPlan::reachable_nodes (private, iterative, ignores out-of-range indexes); has_pass_through_mask counts only pass-through layers of reachable groups; uses_premultiplied_alpha counts the target always and tile inputs only when reachable (exact backend parity: both backends skip unreachable nodes before verify_tile and before any layer check); docs and DESCRIPTOR admission_parity say reachable and cite the test",
   "pigment: the in-crate tripwire every_enum_a_backend_refuses_on_has_an_admission_decision matches MaskFormat exhaustively (CoverageU8 | CoverageU16Le, BaseAlpha), so a new variant fails the pigment build until its admission decision is written",
   "pigment tests: premultiplied_alpha_is_a_declared_capability asserted the all-nodes behaviour on purpose and now asserts reachable-only (unreachable tile admits); new unreachable_nodes_are_not_counted_like_the_backends (unreachable masked pass-through layer and unreachable premultiplied tile admit on v1, extended and execute; reached directly and through a chain of groups they are refused; premultiplied target and chained tile refused; out-of-range root and input do not panic)",
-  "render-cpu: exactness names Operator::Mask(CoverageU8 | CoverageU16Le) Exact next to Tile/Solid/groups, BaseAlpha stays Approximate, any other mask format falls to Unsupported (shared admission refuses before the local mask-format check, which stays as defence in depth); test plan_sink::refusal_keys::mask_formats_are_declared_by_name"
+  "render-cpu: exactness names Operator::Mask(CoverageU8 | CoverageU16Le) Exact next to Tile/Solid/groups, BaseAlpha stays Approximate, any other mask format falls to Unsupported (shared admission refuses before the local mask-format check, which stays as defence in depth); test plan_sink::refusal_keys::mask_formats_are_declared_by_name",
+  "pigment (lead decision 2026-10-11, one rule no exceptions): has_pass_through_fill, has_solid_outside_unit and has_mask_density also count reachable nodes only (the same reachable_nodes helper); has_mask_density feeds the envelope operator MaskDensity and the backends' execute_extended routing, which follow the same set; tests unreachable_pass_through_fill_is_not_counted_like_the_backends, unreachable_solid_outside_unit_is_not_counted_like_the_backends, unreachable_mask_density_is_not_counted_like_the_backends (unreachable admits on v1, extended and execute; reached directly and through a chain of groups, the Solid also as the leaf root, refused with the same key as before); docs and DESCRIPTOR (pass_through_fill, mask_density, sample_range) say reachable and cite the tests"
  ],
  "tests": {
   "argv": [
@@ -39,24 +44,24 @@
    "--no-fail-fast"
   ],
   "exit": 0,
-  "sha": "471b679",
-  "passed": 217,
+  "sha": "1c80811",
+  "passed": 220,
   "failed": 0,
   "per_crate_passed": {
-   "hsk-studio-pigment": 60,
+   "hsk-studio-pigment": 63,
    "hsk-studio-render-cpu": 33,
    "hsk-studio-composite": 28,
    "hsk-studio-render-gpu": 24,
    "hsk-studio-interop-psd": 44,
    "hsk-studio-develop": 28
   },
-  "note": "one invocation at pushed tree 471b679 (contains a873234, 8ca30dd, 07f6abd; 217 passed, 1 skipped by nextest, none of the tests added here); the render-gpu, interop-psd and develop crates depend on pigment and are run only to show the pigment change breaks none of them; no NOT_PROVEN line printed. Doctests: cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite exit 0 (0 doctests in each). Round feature sets (.config/round-features.toml): none declared for these three crates."
+  "note": "one invocation (same argv) after the extension: 220 passed, 1 skipped by nextest, none of the tests added here; the working tree of the three composite/render-cpu/pigment crates equals the pushed commits a873234, 8ca30dd, 1c80811 (pigment content of 1c80811 tested before the commit, nothing changed after); composite, render-gpu, interop-psd and develop only depend on pigment and were run to show the extension breaks none of them (composite's has_mask_density call and render-cpu/render-gpu execute_extended routing included). Doctests: cargo test --doc -p hsk-studio-pigment exit 0 (0 doctests). clippy --tests --examples --no-deps for pigment, render-cpu, composite exit 0, no warning; fmt: render-cpu clean, no rustfmt diff in a hunk added here (pigment's remaining diffs are in untouched lines)."
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Independent validator round on a873234 and 8ca30dd (this lane id is new, V4-15; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20 and was not touched). Decision for the lead (notes.decisions_for_lead): the older all-node pigment rules (fill, Solid range, mask density, operators collected by validate) were left as they are.",
- "updated_at": "2026-10-11T13:08:24Z",
+ "next": "Independent validator round on a873234, 8ca30dd and 1c80811 (this lane id is new, V4-15; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20 and was not touched; SMB-COMPOSITE-ADJ is not touched by this extension). Open for the lead: notes.decisions_for_lead item 2 only (validate's operator collection over unreachable nodes).",
+ "updated_at": "2026-10-11T13:13:35Z",
  "notes": {
   "origin": "R8-review-a CONFIRMED on SMB-PIGMENT-ADMIT-PARITY (validator routed them as fixes, not a product FAIL; validation/round-R8.json lane SMB-PIGMENT-ADMIT-PARITY PASS_V1 note); ledger lane SMB-PARITY-FOLLOWUP; lead decision: exact parity",
   "scope_as_assigned": "(a) pigment uses_premultiplied_alpha / has_pass_through_mask consider only nodes reachable from the root, like both backends; update tests/admit_parity.rs; (b) render-cpu exactness names Mask(CoverageU8 | CoverageU16Le) Exact and lets other formats fall to Unsupported; MaskFormat added to the parity tripwire; reclassify the render-cpu mask-format site. render-gpu not touched (fix-budget BLOCKED, Operator D20).",
@@ -65,14 +70,17 @@
    "target": "the target alpha convention is checked before the node loop in both backends (render-cpu plan_sink.rs:450-451; render-gpu :384 target and :318 tile, loop at :415), so uses_premultiplied_alpha counts it unconditionally; a Tile's own alpha is checked in verify_tile (render-cpu :395-398), reached only for reachable nodes"
   },
   "files": [
-   "crates/hsk-studio-pigment/src/render_plan.rs (reachable_nodes, the two predicates, admit_plan_rules doc, DESCRIPTOR admission_parity, tripwire)",
+   "crates/hsk-studio-pigment/src/render_plan.rs (reachable_nodes, the five predicates, admit_plan_rules doc, DESCRIPTOR admission_parity / pass_through_fill / mask_density / sample_range, tripwire)",
    "crates/hsk-studio-pigment/tests/admit_parity.rs",
    "crates/hsk-studio-render-cpu/src/plan_sink.rs (RenderBackend::exactness, a comment at the local mask-format check)",
    "crates/hsk-studio-render-cpu/src/plan_sink/refusal_keys.rs (cfg(test))"
   ],
   "tests_added": [
    "pigment tests/admit_parity.rs unreachable_nodes_are_not_counted_like_the_backends",
-   "render-cpu plan_sink::refusal_keys::mask_formats_are_declared_by_name"
+   "render-cpu plan_sink::refusal_keys::mask_formats_are_declared_by_name",
+   "pigment tests/admit_parity.rs unreachable_pass_through_fill_is_not_counted_like_the_backends",
+   "pigment tests/admit_parity.rs unreachable_solid_outside_unit_is_not_counted_like_the_backends",
+   "pigment tests/admit_parity.rs unreachable_mask_density_is_not_counted_like_the_backends"
   ],
   "tests_changed": {
    "pigment tests/admit_parity.rs premultiplied_alpha_is_a_declared_capability": "the unreachable-tile case asserted a refusal ('shared admission reads every node'); it now asserts uses_premultiplied_alpha() == false and that v1 admission admits it"
@@ -116,36 +124,50 @@
     "old": "origin plan_sink.rs (Operator::Mask(_) => Exact): exit 100, 'left: Exact, right: Unsupported' (refusal_keys.rs:464)",
     "new": "8ca30dd plan_sink.rs: exit 0, 1 passed",
     "honest_limit": "with today's three MaskFormat variants the named arms and the old wildcard answer identically, so the permanent test mask_formats_are_declared_by_name cannot be red on the old code; the fall-through is proven by the scratch fourth variant above and, at compile time, by the pigment tripwire. The scratch Probe code and test are not in any commit."
+   },
+   {
+    "what": "the three older predicates made reachable-only (lead extension)",
+    "tree": "fresh scratch copy of origin bd5bd60 (contains a873234 and 8ca30dd): Handshake_Artifacts/WP-KERNEL-STUDIO/rem-parity-followup-redproof/src/handshake-studio-assets, STUDIO_OWNER=rem-parity-followup-redproof (own target dir), only tests/admit_parity.rs copied in, src unchanged",
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "--no-fail-fast"
+    ],
+    "exit": 100,
+    "result": "63 run: 60 passed, 3 failed: unreachable_pass_through_fill_is_not_counted_like_the_backends (admit_parity.rs:675 'assertion failed: !unreachable.has_pass_through_fill()'), unreachable_solid_outside_unit_is_not_counted_like_the_backends (:727 '!unreachable.has_solid_outside_unit()'), unreachable_mask_density_is_not_counted_like_the_backends (:786 '!unreachable.has_mask_density()'); GREEN at 1c80811 (pigment 63/63)"
    }
   ],
   "v4_06": {
    "class_a": "pigment admission predicate that reads every node of the plan although both backends read only the nodes reachable from the root (render-cpu/render-gpu `if !reach[i]`)",
    "regex_a": "nodes\\.iter\\(\\)",
-   "scope_a": "crates/hsk-studio-pigment/src/*.rs and src/*/*.rs at a873234 (non-test)",
+   "scope_a": "crates/hsk-studio-pigment/src/*.rs and src/*/*.rs at 1c80811 (non-test)",
    "sites_a": [
     {
      "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:408",
-     "verdict": "NOT_APPLICABLE: RenderPlan::validate, a structural check of every node (hostile indexes, budgets); backends receive the whole plan and validate's operators feed admission (see decisions_for_lead item 2)"
+     "verdict": "NOT_APPLICABLE: RenderPlan::validate, a structural check of every node (hostile indexes, budgets); it is not an admission predicate (see decisions_for_lead item 2 for the operators it collects)"
     },
     {
-     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:540",
-     "verdict": "NOT_CHANGED (outside the lead decision): has_pass_through_fill reads every node; render-cpu :563 and render-gpu :473 check it inside their reachable loops (decisions_for_lead item 1)"
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:544",
+     "verdict": "FIXED (1c80811, lead decision): has_pass_through_fill reads reachable groups only"
     },
     {
-     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:584",
-     "verdict": "FIXED: has_pass_through_mask reads reachable groups only"
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:588",
+     "verdict": "FIXED (a873234): has_pass_through_mask reads reachable groups only"
     },
     {
-     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:604",
-     "verdict": "FIXED: uses_premultiplied_alpha reads the target and reachable tiles only"
-    },
-    {
-     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:936",
-     "verdict": "NOT_CHANGED (outside the lead decision): has_solid_outside_unit reads every node; render-cpu :500 (unit_rgb) and render-gpu :445 check it inside their reachable loops (decisions_for_lead item 1)"
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:608",
+     "verdict": "FIXED (a873234): uses_premultiplied_alpha reads the target and reachable tiles only"
     },
     {
      "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:943",
-     "verdict": "NOT_CHANGED (outside the lead decision): has_mask_density reads every node; render-cpu :608 and render-gpu :526 check it inside their reachable loops (decisions_for_lead item 1)"
+     "verdict": "FIXED (1c80811, lead decision): has_solid_outside_unit reads reachable Solids only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:955",
+     "verdict": "FIXED (1c80811, lead decision): has_mask_density reads reachable groups only"
     },
     {
      "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:254",
@@ -154,9 +176,9 @@
    ],
    "counts_a": {
     "matched": 7,
-    "FIXED": 2,
+    "FIXED": 5,
     "NOT_APPLICABLE": 2,
-    "NOT_CHANGED": 3,
+    "NOT_CHANGED": 0,
     "UNCLASSIFIED": 0
    },
    "class_b": "backend exactness arm that answers for a #[non_exhaustive] family through a wildcard or a (_) while prepare matches the members by name, so a member added later is admitted and then refused locally",
@@ -191,8 +213,8 @@
    "render_gpu": "render-gpu's own exactness already ends in `_ => Unsupported` (R8-review-a), so its mask-format site was already covered"
   },
   "decisions_for_lead": [
-   "1. The three older pigment predicates has_pass_through_fill (render_plan.rs:540), has_solid_outside_unit (:936) and has_mask_density (:943) read every node while the backends check the same rules inside their reachable loops: the same asymmetry as the two fixed here, stricter direction (no wrong pixels), older than b2f5f81 and outside the lead's two-predicate decision, so unchanged. Extending exact parity to them is the same private helper (reachable_nodes) plus one test each.",
-   "2. validate (render_plan.rs:408) collects the operators of every node, so a blend mode a backend refuses on an unreachable layer is also refused at admission although the backend would skip it; same direction, not changed, no test asserts it."
+   "1. DONE (1c80811, lead decision 2026-10-11): has_pass_through_fill, has_solid_outside_unit and has_mask_density are reachable-only too; every pigment admission predicate now reads the set the backends execute.",
+   "2. Open: RenderPlan::validate (render_plan.rs:408) collects the operators of every node, so a blend mode a backend refuses on an unreachable layer is still refused at admission although the backend would skip it; it is a structural validation, not a predicate, so it was not changed; no test asserts it either way."
   ],
   "plausible_not_addressed": [
    "R8-review-a PLAUSIBLE: pigment test widest_admitted_effect_blur_kernel_fits_the_gpu_tap_bound copies render-gpu's MAX_TAPS as a literal (one-directional pin); render-gpu is not touched",
@@ -207,6 +229,7 @@
    "V4-12": "scratch under <scratchpad>/SMB-COMPOSITE-ADJ-R8/ and Handshake_Artifacts/WP-KERNEL-STUDIO/rem-composite-adj-redproof (own STUDIO_OWNER)"
   },
   "doc_correction": "the kernel diagnostics topic admission-parity row alpha_premultiplied already carries the correction (lead, 2026-10-11T12:44:14Z); this lane makes the pigment predicates match it",
-  "date": "2026-10-11T13:08:24Z"
+  "date": "2026-10-11T13:08:24Z",
+  "extension_date": "2026-10-11T13:13:35Z"
  }
 }

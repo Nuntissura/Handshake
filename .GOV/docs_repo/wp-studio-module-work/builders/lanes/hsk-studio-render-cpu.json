@@ -413,8 +413,8 @@
     "verdict": "NOT_APPLICABLE: backend-owned key 'mask_on_pass_through' (pigment admission does not report this rule under it)"
    },
    {
-    "file_line": "src/plan_sink.rs:614",
-    "verdict": "FIXED: Operator::Mask(format).key()"
+    "file_line": "src/plan_sink.rs:625",
+    "verdict": "RECLASSIFIED (SMB-PARITY-FOLLOWUP, commit 8ca30dd): (u) defence in depth. RenderBackend::exactness now names Operator::Mask(CoverageU8 | CoverageU16Le) Exact and answers Unsupported for any other mask format, so shared admission refuses a format this backend cannot read before this check; the check keeps pigment's key Operator::Mask(other).key(). Was: 'FIXED: Operator::Mask(format).key()' (the site was not covered: exactness answered Exact for every format through Operator::Mask(_); R8-review-a). The line moved from :614 when SMB-FX-OPS-ADOPT and this lane edited plan_sink.rs. Detail: builders/lanes/hsk-studio-parity-followup.json notes.reclassification_of_the_mask_format_site."
    },
    {
     "file_line": "src/plan_sink.rs:728",

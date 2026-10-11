@@ -1030,6 +1030,21 @@
    "verified_at": "bd5bd60",
    "disposition": "FIX_LANE",
    "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-058",
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:408 (RenderPlan::validate operator collection)",
+   "finding": "validate collects operators (capability check) from unreachable nodes too, while admission predicates and both backends consider reachable nodes only; structural well-formedness must stay all-nodes, capability collection should be reachable-only",
+   "first_seen": "builder report 1c80811",
+   "seen_in": [
+    "parity lane decisions_for_lead item 2"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1c80811",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lead: split structural (all nodes) vs capability (reachable) in the next pigment lane"
   }
  ],
  "process_items": [
