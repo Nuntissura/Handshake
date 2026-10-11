@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:25:34Z",
+ "updated_at": "2026-10-11T10:27:15Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1376,6 +1376,75 @@
    ],
    "launched": "2026-10-11T10:12:35Z",
    "status": "idle 2026-10-11T10:25:34Z (sync dff7ef5 = R7 candidate; C12 green)"
+  },
+  {
+   "name": "validator-r7b",
+   "agent_id": "aa63869aeef0a3d05",
+   "model": "opus",
+   "role": "round R7 rerun on dff7ef5",
+   "owns": [
+    "validation/round-R7.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r7b-a",
+   "agent_id": "aa3b2acda9258b57b",
+   "model": "opus",
+   "role": "R7 rerun review A (render/colour/develop + two-FAIL rechecks)",
+   "owns": [
+    "validation/R7-review-a.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r7b-b",
+   "agent_id": "a82a58cffce488866",
+   "model": "opus",
+   "role": "R7 rerun review B (formats/runtime/security + two-FAIL rechecks)",
+   "owns": [
+    "validation/R7-review-b.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-refusal-keys",
+   "agent_id": "a9d6a9db317615620",
+   "model": "sonnet",
+   "role": "SMB-REFUSAL-KEYS (PLR-006)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-render-cpu/**",
+    "crates/hsk-studio-render-gpu/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-score-guards",
+   "agent_id": "ace26feb3045a3268",
+   "model": "sonnet",
+   "role": "SMB-SCORE-GUARDS (PLR-015)",
+   "owns": [
+    "crates/hsk-studio-score/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-folio-uniq",
+   "agent_id": "a7e61876a208f8ddc",
+   "model": "sonnet",
+   "role": "SMB-FOLIO-UNIQUENESS (PLR-049) + SMB-COMPONENTS-FOOTPRINT (PLR-046)",
+   "owns": [
+    "crates/hsk-studio-folio/**",
+    "crates/hsk-studio-components/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
   }
  ]
 }
