@@ -69,6 +69,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "SANDBOX-2: native-abort worker test accepts the two typed outcomes (engine_crashed, or deadline kill with a NOT_PROVEN line when the platform crash reporter holds the process past 10 s)"
+    },
+    {
+      "sha": "288b018",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "SANDBOX-2 follow-up: worker calls SetErrorMode + _set_abort_behavior at start so abort() ends it at once (exit code 3); native-abort test strict again (engine_crashed, exit 3, < 5 s), NOT_PROVEN branch removed; windows-sys feature Win32_System_Diagnostics_Debug (dep request amended)"
     }
   ],
   "capabilities_done": [
@@ -84,24 +90,29 @@
     "R3 fix 1 (interrupt armed / no unmetered user code): the interrupt stays armed from the first user instruction through result extraction and error description; thrown values are described by a trusted bootstrap function that never reads user-reachable accessors (captured uncurried String.prototype.indexOf/slice, Object.getPrototypeOf/getOwnPropertyDescriptor, native Error.prototype.stack getter; error kind from captured intrinsic prototype identity; only string primitives accepted); the extractor defines result elements through a null-prototype descriptor so Object.prototype get/set/value accessors cannot run",
     "R3 fix 2 (classification by engine signal): interrupts are classified from our own handler state (Tripped Fuel/Cancel/Deadline), adapter failures from the rquickjs error type, never from error names; a user-thrown InternalError (any name/message/prototype trick) is plain data -> Unsupported and the provider is NOT poisoned",
     "SANDBOX-2 profile validator (src/profile.rs): iterative lexical validator, bounded bracket stack, no dependency; refuses class/extends/super/import/export/async/await/yield/with/debugger/new/this/enum, DENIED_NAMES (eval, Function, constructor, __proto__, Proxy, Reflect, Promise, globalThis, timers, SharedArrayBuffer, Atomics, WebAssembly, ...) as identifiers and as exact string values after escape decoding, template and regex literals, getters/setters, generators, optional chaining and post-ES2018 operators, private names, identifier escapes, non-ASCII identifiers, numeric separators, BigInt, legacy octal, HTML-like comments; exact 1-based line:column; hostile sizes are typed Budget; MotionJsProvider::new applies it to JavaScript engines before a permit or the engine (without_validator/with_validator); ProviderStats::validation_rejected",
-    "SANDBOX-2 OS caps (src/os_caps.rs, src/job_object.rs): one Job Object per worker; completion-port notices -> Budget(Memory) even if the script swallowed the engine OOM; CPU allowance re-armed per request, enforced by a 5 ms host poll of the job's user+kernel time (kernel limit kept as backstop); OsCapConfig/OsCapPolicy/OsCapStatus/OsLimits; QuickJsBackend::os_caps/os_limits; WorkerStats::killed_os_memory/killed_os_cpu; Linux/macOS: OsCapStatus::Unavailable(PlatformNotSupported), Required -> os_caps_unavailable"
+    "SANDBOX-2 OS caps (src/os_caps.rs, src/job_object.rs): one Job Object per worker; completion-port notices -> Budget(Memory) even if the script swallowed the engine OOM; CPU allowance re-armed per request, enforced by a 5 ms host poll of the job's user+kernel time (kernel limit kept as backstop); OsCapConfig/OsCapPolicy/OsCapStatus/OsLimits; QuickJsBackend::os_caps/os_limits; WorkerStats::killed_os_memory/killed_os_cpu; Linux/macOS: OsCapStatus::Unavailable(PlatformNotSupported), Required -> os_caps_unavailable",
+    "SANDBOX-2 follow-up: motion-js-worker hardens itself against the platform crash reporter (SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX) and UCRT _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT), APIs checked on Microsoft Learn, flag values from the SDK ucrt/stdlib.h); abort() now ends the worker in about 2 s total test time with exit code 3: crash test 10 of 10 strict, 0 deadline kills (before: 2-10 s per run)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-motion-js --tests --no-fail-fast with (a) default, (b) --features quickjs, (c) --features quickjs,test-faults (studio-env.sh cargo form, shared edit tree)",
     "exit": 0,
-    "sha": "34a1713",
+    "sha": "288b018",
     "passed": 44,
     "failed": 0,
     "breakdown": {
       "default": "foundation_contract 4/4, profile_contract 2/2",
       "quickjs": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (worker), worker_fault_env 1/1, os_caps 3/3 (quickjs_worker skipped: required-features)",
-      "quickjs,test-faults": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (in-process), quickjs_worker 3/3 (one prints NOT_PROVEN: native abort held past the deadline by the crash reporter), os_caps 3/3"
+      "quickjs,test-faults": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (in-process), quickjs_worker 3/3 (native abort asserted strictly: engine_crashed, exit code 3, under 5 s), os_caps 3/3"
     },
     "red_on_mutations": "job_object.rs mutated in place (restored from a copy and touched, V4-11): memory notices ignored -> job_memory_cap_gives_typed_budget_even_when_the_script_swallows_the_error FAILED (swallowed bomb = Unsupported, expected Budget); CPU deadline not re-armed -> job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request FAILED (healthy request run 3 killed)",
-    "not_proven_lines": [
-      "NOT_PROVEN: engine_crashed for a native abort (quickjs_worker, only when the crash reporter holds the aborted worker past the 10 s deadline)"
-    ],
-    "check_clippy": "clippy --all-targets clean for hsk-studio-motion-js with default, quickjs, quickjs+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)"
+    "not_proven_lines": [],
+    "check_clippy": "clippy --all-targets clean for hsk-studio-motion-js with default, quickjs, quickjs+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)",
+    "crash_test_x10": {
+      "method": "test binary built once per variant and run 10 times directly (cargo test --no-run, then the exe; the per-run line is in the scratchpad)",
+      "before_hardening_head_0cc4251": "10 runs: 0 deadline kills, test duration 2, 6, 6, 7, 7, 7, 7, 7, 9, 10 s (hold varies); earlier on a loaded host 3 of 4 runs passed the 10 s deadline",
+      "after_hardening_tolerant_test": "10 runs: 0 deadline kills, 1-2 s each",
+      "after_hardening_strict_test": "10 runs: 0 deadline kills, 0 failures, 1-2 s each"
+    }
   },
   "blockers": [],
   "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged. Slice 3 adds NO dependency (hand-written codec, std only); Cargo.lock and root Cargo.toml untouched. | SANDBOX-2 (2026-10-11T06:50:32Z): appended windows-sys 0.61.2 (optional, feature quickjs, native-ffi, five Win32 features, already in Cargo.lock, no new package); the crate manifest at 0cc4251 already lists it, Cargo.lock NOT staged by this lane.",
@@ -159,8 +170,8 @@
       "text": "Five consecutive swallowed allocation bombs (cap 96 MiB, engine heap limit 512 MiB) were each reported as Budget(Memory) from JOB_OBJECT_MSG_PROCESS_MEMORY_LIMIT; no lost-notice race was observed. Microsoft documents these completion-port messages as notifications without a delivery guarantee, so a missed notice would leave the earlier classification (Unsupported/engine_crashed), never a false budget."
     },
     {
-      "id": "sandbox2-abort-hold-not-fixed-by-die-on-unhandled-exception",
-      "text": "JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION is set on every worker job, but the AsyncAbort reproducer (MSVC abort() path, exit code 0xC0000409) was still held past the 10 s deadline in 3 of 4 runs on the build host (WerFault.exe observed while it was held). tests/quickjs_worker.rs therefore accepts engine_crashed or the typed deadline kill and prints a NOT_PROVEN line for the second. UNVERIFIED idea for a later slice: clear _CALL_REPORTFAULT with the CRT's _set_abort_behavior inside the worker."
+      "id": "sandbox2-abort-hold-fixed-by-worker-self-hardening",
+      "text": "JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION alone did not shorten the hold of an aborted worker (MSVC abort() path, WerFault.exe observed, 2 s to past 10 s). FIXED by the worker calling SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX) and _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT) at start: abort() then ends the process with exit code 3 (Microsoft Learn: with _CALL_REPORTFAULT clear and no reporter, abort calls _exit, exit code 3), 10 of 10 strict runs in 1-2 s. UNVERIFIED: which of the two calls alone suffices (not isolated); non-abort faults such as an access violation are covered only by SetErrorMode as documented and are not tested; WerSetFlags/WerAddExcludedApplication were not needed and not used."
     },
     {
       "id": "sandbox2-profile-parser-decision",
@@ -239,8 +250,8 @@
       "text": "Interrupt causes come from our handler (Tripped), adapter failures from rquickjs error types, thrown-value kind from captured prototype identity; message text is used only for the three forgeable budget/marker classes documented in r3-internalerror-poison-fixed. [SUPERSEDED by R5 ffe5592: no message text selects a class; QuickJS stack/heap limit errors are Thrown -> Unsupported; Budget only from interrupt state and rquickjs Error::Allocation; see notes.remediation_R5]"
     }
   ],
-  "next": "Validator round on the pushed head (round-features unchanged: [quickjs], [quickjs,test-faults]; steward pins windows-sys from dep-requests.jsonl before the round: the manifest now lists it). Open: D18 shared worker supervisor (not touched); D14 worker packaging; crash-reporter suppression (_set_abort_behavior idea, UNVERIFIED); full AST allowlist if EXPR-PROVIDER-13 needs it.",
-  "updated_at": "2026-10-11T06:50:32Z",
+  "next": "Validator round on the pushed head (round-features unchanged: [quickjs], [quickjs,test-faults]; steward pins windows-sys with six features from dep-requests.jsonl before the round). Open: D18 shared worker supervisor (not touched); D14 worker packaging; full AST allowlist if EXPR-PROVIDER-13 needs it.",
+  "updated_at": "2026-10-11T07:14:57Z",
   "notes": {
     "verdicts": [
       {
@@ -403,7 +414,7 @@
     "sandbox_2": {
       "at": "2026-10-11T06:50:32Z",
       "lane": "SMB-MOTION-JS-SANDBOX-2",
-      "head": "34a1713999b8cbdf3b5e9e6bcee5b9a0d00843c9",
+      "head": "288b018907743a16b10bf67ae99e7aa7d2d9f33e",
       "scope": "(1) admitted-syntax validator before evaluation; (2) Windows Job Object memory/CPU caps with a typed result; Linux/macOS typed Unavailable",
       "research_basis": {
         "sources_checked": [
@@ -427,7 +438,17 @@
         "recursion depth behaviour of boa_parser/oxc_parser on hostile nesting (not tested)",
         "worker baseline commit charge (the 32 MiB minimum cap and 128 MiB slack are not derived from a measurement)"
       ],
-      "scratch_files": "helper scripts and scratch cargo projects live under <scratchpad>/SMB-MOTION-JS-SANDBOX-2/ (V4-12); the empty scratch directory created under the artifact root was removed"
+      "scratch_files": "helper scripts and scratch cargo projects live under <scratchpad>/SMB-MOTION-JS-SANDBOX-2/ (V4-12); the empty scratch directory created under the artifact root was removed",
+      "abort_hardening_followup": {
+        "at": "2026-10-11T07:14:57Z",
+        "commit": "288b018",
+        "apis_verified_on_learn_microsoft_com": [
+          "SetErrorMode (errhandlingapi.h): SEM_FAILCRITICALERRORS 0x0001, SEM_NOGPFAULTERRORBOX 0x0002 (the system does not invoke Windows Error Reporting), SEM_NOOPENFILEERRORBOX 0x8000; best practice is to call it at startup",
+          "WerSetFlags (werapi.h): flags DISABLE_THREAD_SUSPENSION, NOHEAP, QUEUE, QUEUE_UPLOAD, ALWAYS_SHOW_UI listed; the page does not list WER_FAULT_REPORTING_NO_UI that the SetErrorMode page mentions, so it was not used",
+          "_set_abort_behavior (UCRT): _CALL_REPORTFAULT set invokes the WER mechanism on abort(), otherwise abort calls _exit with exit code 3 (flag values 0x1 and 0x2 read from the SDK header ucrt/stdlib.h)"
+        ],
+        "result": "baseline 10 runs on the previous worker: 0 deadline kills but 2-10 s per run; hardened: 10 of 10 typed crashes in 1-2 s, then the same 10 of 10 with the strict assertion"
+      }
     }
   }
 }

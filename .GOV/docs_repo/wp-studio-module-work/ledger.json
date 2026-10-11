@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:07:15Z",
+ "updated_at": "2026-10-11T07:18:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1607,11 +1607,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion-js-sandbox",
    "commits": [
-    "34a1713"
+    "34a1713",
+    "288b018"
    ],
    "verdicts": [],
-   "candidate": "34a1713",
-   "note": "own token-level ProfileValidator (no parser dep: boa 60 / oxc 75 / swc native stacker deps), applied before realm/engine by default, exact line:col refusals, budget refusals; Windows Job Object caps (memory notice -> unforgeable Budget(Memory), per-request CPU via 5 ms job accounting polling, kill-on-close, one process); unsafe only job_object.rs; 44 green across 3 feature sets; native-abort test NOT_PROVEN branch when WER holds worker (2/4 runs) -> WER follow-up requested; windows-sys 0.61.2 pin needed"
+   "candidate": "288b018",
+   "note": "follow-up: worker SetErrorMode(FAILCRITICALERRORS|NOGPFAULTERRORBOX|NOOPENFILEERRORBOX) + _set_abort_behavior before serving; crash test strict again (engine_crashed, exit 3, <5 s): 10/10 in 1-2 s, 0 deadline hits; windows-sys feature Win32_System_Diagnostics_Debug added (steward pin with six features)"
   },
   {
    "lane_id": "SMB-PRISM-ENG-7",

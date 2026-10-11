@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:07:15Z",
+ "updated_at": "2026-10-11T07:18:57Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1004,7 +1004,7 @@
     "builders/lanes/hsk-studio-motion-js.json"
    ],
    "launched": "2026-10-11T06:10:16Z",
-   "status": "done 2026-10-11T06:51:39Z (SMB-MOTION-JS-SANDBOX-2 READY at 34a1713)"
+   "status": "done 2026-10-11T07:18:57Z (SMB-MOTION-JS-SANDBOX-2 READY at 288b018)"
   },
   {
    "name": "builder-session-2",
