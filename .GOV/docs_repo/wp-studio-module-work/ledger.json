@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:27:15Z",
+ "updated_at": "2026-10-11T10:56:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1662,7 +1662,16 @@
     "STUDIO-R6 PASS_V1 @bd8533f"
    ],
    "candidate": "2f705f1",
-   "note": "owners: pigment adjust_math (adjustment maths + layer rule lerp(Cb,B(Cb,f(Cb)),k)), coverage_math (mask density/invert/feather, Blend-If weight), render_plan PlanExtensions envelope (backends opt in, refuse by default; knockout refused); folio StudioRasterRecords; develop Curve != Photoshop curves (decreasing preset). R5 pigment fix: pass-through fill<1 refused at admit for all backends; V4-06 sweep: mask density<1, Solid outside [0,1] refused. 59 tests (13 new). Approximate except invert; modern brightness/contrast refused (no documented formula). Spec gaps: shallow/deep knockout, Global Light sidecar, adjustment id prefix."
+   "note": "owners: pigment adjust_math (adjustment maths + layer rule lerp(Cb,B(Cb,f(Cb)),k)), coverage_math (mask density/invert/feather, Blend-If weight), render_plan PlanExtensions envelope (backends opt in, refuse by default; knockout refused); folio StudioRasterRecords; develop Curve != Photoshop curves (decreasing preset). R5 pigment fix: pass-through fill<1 refused at admit for all backends; V4-06 sweep: mask density<1, Solid outside [0,1] refused. 59 tests (13 new). Approximate except invert; modern brightness/contrast refused (no documented formula). Spec gaps: shallow/deep knockout, Global Light sidecar, adjustment id prefix.",
+   "claim_includes_later": {
+    "at": "2026-10-11T10:56:49Z",
+    "by": "lead (R7 review A V4-14 paperwork)",
+    "commits": [
+     "e007703",
+     "0d28c03"
+    ],
+    "note": "effects wave 1 and Blend-If clip refusals changed this lane's admission functions; claim covers dff7ef5 content"
+   }
   },
   {
    "lane_id": "SMB-MOTION-JS-SANDBOX-2",
@@ -1693,7 +1702,19 @@
    ],
    "verdicts": [],
    "candidate": "8634765",
-   "note": "65a08c9 corpus via .config/oracle-corpus.toml (T1 42/42, wide_profiles 3/3 from export layout, 0 NOT_PROVEN) + 8634765 AdmittedWideJob Send+Sync bands, ledger charged in full at prepare, bit-identical 1/2/8/16 threads; 24 MP linear P3->sRGB 1067 ms -> 103 ms @16; encoded 5634 -> 396 ms; fast path skipped per lead rule (part 2 open); 123 of 123 green; incident: ran another lane's scratch script, reverted (V4-12)"
+   "note": "65a08c9 corpus via .config/oracle-corpus.toml (T1 42/42, wide_profiles 3/3 from export layout, 0 NOT_PROVEN) + 8634765 AdmittedWideJob Send+Sync bands, ledger charged in full at prepare, bit-identical 1/2/8/16 threads; 24 MP linear P3->sRGB 1067 ms -> 103 ms @16; encoded 5634 -> 396 ms; fast path skipped per lead rule (part 2 open); 123 of 123 green; incident: ran another lane's scratch script, reverted (V4-12)",
+   "claim_includes_later": {
+    "at": "2026-10-11T10:56:49Z",
+    "by": "lead (R7 review A V4-14 paperwork)",
+    "commits": [
+     "d7027c3",
+     "efda89a",
+     "3312f72",
+     "9b66924",
+     "8a9ef31"
+    ],
+    "note": "later prism ENG-6 remediation commits rewrote src/wide_job.rs owned by this lane; claim covers dff7ef5 content"
+   }
   },
   {
    "lane_id": "SMB-COMPOSITE-ADJ",
@@ -2049,6 +2070,17 @@
    "phase": "build",
    "status": null,
    "owner": "builder-folio-uniq",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "origin": "R7 review A: effects+Blend-If admitted then refused by backends; nested effects CPU/GPU disagreement",
+   "scope": "pigment-owned Unsupported operator effects_with_blend_if + declarable operator effects_nested; consumers adopt after",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-pigment-fx-ops",
    "commits": [],
    "verdicts": []
   }

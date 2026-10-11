@@ -240,6 +240,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead record 2026-10-11T10:25:34Z (steward-4 audit): the repo-local `handshake-studio-assets/target` grew to ~3.8 GB; ~3.75 GB are render-cpu/render-gpu/composite test builds made 09:54-10:09Z WITHOUT studio-env.sh (outside the disk lock and the external-artifact rule; CX-984-002 not met for those builds); timing matches the SMB-BLENDIF-CLIP-ADOPT builder (writer UNVERIFIED). Those builder-level results are not used as proof; the R7 validator re-proves at dff7ef5. Separately nextest wrote junit under the workspace root even with the env sourced; fixed in builders/studio-env.sh (tool config keeps nextest output under CARGO_TARGET_DIR). Operator item: delete or authorise the lead to move the repo-local target (3.8 GB) to the recycle bin.
 
+- Lead decision 2026-10-11T10:56:49Z (R7 review A): effects + Blend-If on one layer has no defined composition -> pigment emits an intrinsically Unsupported operator `effects_with_blend_if` (admission refuses for every backend); nested effects are defined by pigment's reference -> pigment emits a declarable operator `effects_nested`, backends declare support via extension_exactness so admission refuses uniformly where unsupported (render-cpu today). Lane SMB-PIGMENT-FX-OPS; consumers adopt after.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:27:15Z",
+ "updated_at": "2026-10-11T10:56:49Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1397,7 +1397,7 @@
     "validation/R7-review-a.json"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T10:56:49Z (COMPLETE; rechecks all SAFE)"
   },
   {
    "name": "reviewer-r7b-b",
@@ -1444,6 +1444,17 @@
     "crates/hsk-studio-components/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-pigment-fx-ops",
+   "agent_id": "a657e4b6265264ac0",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-FX-OPS",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T10:56:49Z",
    "status": "running"
   }
  ]
