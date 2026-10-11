@@ -1,0 +1,75 @@
+{
+  "crate": "hsk-studio-score-device",
+  "lane": "hsk-studio-score-device",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "capabilities 1-5 pushed at d992b40 (default build pure Rust; cpal-backend OFF by default, compiles + clippy clean, one silent native smoke run passed); steward pin/probe approval for cpal pending; native-device oracle NOT_PROVEN",
+  "commits": [
+    {
+      "sha": "1d8f1dd5ca26de9119c8f4578e8af157cdd71e35",
+      "subject": "score-device: grant-checked provider port, preallocated SPSC ring (no unsafe), realtime callback bodies, typed loss/overrun/underrun counters, bounded admission, clocked software device with CloseReport, observe report, consumer example, 5 focused tests"
+    },
+    {
+      "sha": "d992b40",
+      "subject": "score-device: optional cpal-backend feature (default OFF): CpalProvider output on an owner thread, f32-only exact-format open, device-loss from cpal error kinds, native test ignored unless STUDIO_NATIVE_AUDIO=1 (NOT_PROVEN panics), --cpal example; shared authorize helper"
+    }
+  ],
+  "capabilities_done": [
+    "1 provider port + negotiation: DeviceProvider (enumerate/open_output/open_input, all take Option<&DeviceGrant> + &CancellationToken), StreamConfig::validate(Limits) -> RingGeometry (rate via score::ticks_per_sample, block frames, ring blocks >= 2, checked ring bytes <= max_ring_bytes), DeviceGrant (explicit, direction + optional device pin; None => Unauthorized), typed DeviceError with outcome() mapping, refusal order cancel > grant > device > config > layout > admission, all before any permit/ring/thread exists",
+    "2 wait-free SPSC ring without unsafe: Vec<AtomicU32> of f32 bits, head/tail cursors in [0, 2*capacity) with Acquire/Release, preallocated at open; Producer::try_push_block (Full keeps block, counts one overrun + one discontinuity; WrongLength; DeviceLost) and push_frames (capture, partial push); Consumer::pop_into; Counters (submitted/consumed frames, underruns, underrun_frames, overruns, dropped_frames, discontinuities, callbacks, device_lost) plus independent local tallies on each end",
+    "3 realtime callback bodies shared by every backend: render_callback (copy, zero-fill remainder = safe underrun output, count) and capture_callback (push what fits, one overrun + one discontinuity + dropped_frames for the rest); proven allocation-free by a per-thread counting global allocator (10_000 iterations x 2 callbacks, plus a deliberate-allocation self-check that the instrument is not blind) and a source scan (no Mutex/RwLock/push/format!/println!/vec!/sleep/.lock( in callback.rs, ring.rs, counters.rs)",
+    "4 ClockedSoftwareDevice + SoftwareProvider (software-clock-out / software-clock-in): one OS thread on a fixed Instant schedule (n*block_frames/rate, catch-up never drift), inject_device_loss (counted once, producer gets DeviceLost), stop + acknowledgement (wait_stopped/stop_acknowledged), close() -> CloseReport{permits_released, thread_joined, device_lost, callbacks, frames_submitted, frames_consumed, residual_frames, underruns, underrun_frames, overruns, dropped_frames, discontinuities, loopback_samples}; reconciles() = submitted == consumed + residual; bounded Admission/Permit (open streams + ring bytes) released only after the thread is joined; Drop joins; loopback recorder preallocated at open is the independent oracle (received samples == submitted ramp in order, zero samples == 2 x underrun_frames)",
+    "report(): Observe terminal frame per outcome (Ok clean -> Success, device lost / dropped capture frames / non-reconciling -> Failure(Loss), not quiescent -> Failure(Unavailable), Err mapped per DeviceError::outcome incl. Canceled); DESCRIPTOR JSON; example score-device-consumer (--descriptor, --software --blocks N --block-frames F --inject-loss, --cpal)",
+    "5 cpal-backend (feature, default OFF, dep cpal =0.18.2 default-features=false features=[] optional in this crate manifest only): CpalProvider output on one owner thread spawned by this crate (cpal Stream Send-ness not relied on); open only after grant; exact rate + channel count + f32 or typed Unavailable (no resampling/conversion/downmix); data callback = render_callback, error callback only flips atomics (DeviceNotAvailable/StreamInvalidated/HostUnavailable => device_lost counted once); owner thread pauses+drops the stream before acknowledging stop and releases the permit on exit; default_output_format(); open_input => Unavailable (output only this slice); tests/native_cpal.rs is #[ignore] and panics NOT_PROVEN unless STUDIO_NATIVE_AUDIO=1 and a usable f32 default device exist; only digital silence is ever pushed"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-score-device --tests",
+    "exit": 0,
+    "sha": "d992b40",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [
+    {
+      "error": "STEWARD ACTION: cpal 0.18.2 needs registry pin + probe approval for owner hsk-studio-score-device (registry.hsk-studio-score-device direct = cpal; locked closure includes alsa-sys 0.4.0 as native-ffi, windows 0.62.2/windows-sys, objc2*, jni*, ndk*); tools/workspace-probe.rs APPROVED has no score-device entry yet. Until then `workspace-probe --package hsk-studio-score-device` is expected to reject (UNVERIFIED: not run by the builder) and the committed manifest lists the optional dep. Default features are pure Rust and never build cpal.",
+      "file_line": "crates/hsk-studio-score-device/Cargo.toml:15; builders/dep-requests.jsonl (last line)",
+      "attempts": 0
+    }
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "steward sync pins cpal; validator round runs default-feature tests + (optional) `STUDIO_NATIVE_AUDIO=1 cargo test -p hsk-studio-score-device --features cpal-backend --test native_cpal -- --ignored` and an independent loopback capture of the exact submitted blocks for the MT-35559 oracle; later slices: native input (capture) via cpal, measured device latency report, non-f32 formats via preallocated scratch",
+  "updated_at": "2026-10-11T05:16:39Z",
+  "notes": {
+    "mt": "MT-35559",
+    "proof_class": "Capabilities 1-4 prove ring/callback/counter/lifecycle semantics with simulated (software clocked) hardware only. NATIVE DEVICE ORACLE IS NOT_PROVEN (MT-35559: simulated rings are insufficient; the external loopback capture of the exact submitted blocks has not been done).",
+    "native_smoke_evidence": {
+      "when": "2026-10-11T05:16Z",
+      "command": "STUDIO_NATIVE_AUDIO=1 cargo test -p hsk-studio-score-device --features cpal-backend --test native_cpal -- --ignored --nocapture (builder ran it once; digital silence only, no audible output, no window)",
+      "result": "ok: default output device 48000 Hz, 2 channels, f32; 16 callbacks; submitted=8192 consumed=8192 residual=0 underruns=1 (64 silent frames) device_lost=false thread_joined=true permits_released=true; also via example `--cpal --blocks 8`: 4096/4096 frames, clean=true",
+      "what_it_does_not_prove": "no independent observation of the samples that reached the hardware (no loopback device assumed or checked), no real device loss, no overrun on a native input stream"
+    },
+    "check_clippy": "cargo check + cargo clippy -p hsk-studio-score-device --tests --examples: PASS for default features and for --features cpal-backend, no findings in score-device (2 pre-existing too_many_arguments warnings in hsk-studio-observe)",
+    "tests_detail": {
+      "foundation_contract": "4 passed (ring_fill_and_overflow_discontinuity incl. capture overrun, empty_ring_underrun_is_safe_silence, software_device_lifecycle_and_loss incl. clean output, loss mid-transfer and undrained input overrun, grant_and_config_rejections incl. admission + report frames)",
+      "callback_alloc": "1 passed (callback_is_allocation_free_and_lock_free)",
+      "native_cpal": "1 test, #[ignore]d by default (0 run in the focused command); ran once with STUDIO_NATIVE_AUDIO=1: passed (see native_smoke_evidence)",
+      "flakiness": "built test binaries run 25x each (50 runs) after the first pushed commit: 0 failures; wall-clock jitter is never asserted"
+    },
+    "api_deviations_from_brief": [
+      "render_callback / capture_callback take no separate &Counters: the ring ends embed the shared Arc<Counters> so a mismatched counter set is impossible; counters are reachable via Consumer::counters/Producer::counters",
+      "Provider methods take grant: Option<&DeviceGrant> (brief: &DeviceGrant) because the brief requires 'missing grant => Unauthorized'; enumerate also needs a grant (no ambient device access)",
+      "Added beyond brief: PushError::DeviceLost, Counters underrun_frames + dropped_frames, CloseReport residual_frames/device_lost/callbacks/loopback_samples/reconciles()/is_clean(), Limits.max_open_streams admission, DeviceError::AdmissionDenied, ring_blocks >= 2",
+      "Full refusal on the output ring counts one overrun + one discontinuity per the brief test, but dropped_frames stays 0 (the caller keeps the block); a healthy backpressured stream therefore shows overruns > 0 with Outcome Success (native smoke above: overruns=30 from retried Full offers). Real loss = dropped_frames > 0 or device_lost.",
+      "cpal stream runs on an owner thread this crate spawns instead of being held by the handle (Stream Send-ness differs per platform); readiness handshake over a bounded channel with 15 s open wait"
+    ],
+    "limitations": [
+      "Sample format is interleaved f32 only; no resampling, conversion, MIDI, record-to-file (brief non-goals). Native open of a device whose shared-mode format differs from the request is refused (Unavailable), never converted.",
+      "cpal backend is output only; open_input returns Unavailable. Native device loss and native underrun/overrun accounting beyond the one smoke run are untested (no way to inject loss on a real device).",
+      "If a native build_output_stream never returns, CpalBackend::drop joins the owner thread and can block (cpal's 5 s build timeout bounds the normal case).",
+      "Software input device ramp is exact only for the first 2^24 samples (f32).",
+      "Windows timer granularity makes the software cadence coarse; the schedule catches up rather than drifts; jitter is not asserted."
+    ],
+    "dep_requests": "builders/dep-requests.jsonl: hsk-studio-score-device cpal 0.18.2 (appended once, pure_rust false, resolved lock delta of 53 new packages listed; resolver also bumped wasm-bindgen family 0.2.128->0.2.129 and js-sys/web-sys 0.3.105->0.3.106 in the working Cargo.lock). Builder did NOT stage Cargo.lock (working-tree edit by cargo only).",
+    "gameplan_route": "no gameplan hook block occurred; no retry-guard route needed (every cargo test rerun followed a HEAD change)"
+  }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:16:39Z",
+ "updated_at": "2026-10-11T05:17:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -516,11 +516,12 @@
     "08080cb",
     "8b24131",
     "d1bb2ff",
-    "1df11b2"
+    "1df11b2",
+    "cb38b86"
    ],
    "verdicts": [],
-   "candidate": "1df11b2",
-   "note": "slices1-2: + form XObject COW redaction, sanitize Thumb/PieceInfo/XMP/JS/embedded, LZW, proof rule (kept_text_collisions vs hits, region_cleared); 9 tests; next: outline/bookmark + annotation text redaction option; slice 3 (outline/annotation redaction) dispatched 2026-10-11T04:56:14Z to builder-press-3; round candidate stays 1df11b2 unless sync includes slice 3"
+   "candidate": "cb38b86",
+   "note": "slice 3: redact_text_fields over outline /Title + annotation /Contents,/T,/Subj,/RC (PDFDocEncoding/UTF-16BE/LE/UTF-8 BOM; encoding preserved), Replace|Remove, widget /V,/DV only with explicit option, matching /AP dropped, per-object outcomes, KeptByPolicy stays a proof hit; proof change: /AP show operands now hits; 14/14; not covered: named dests, action URIs, /Opt,/TU, struct tree, popups outside /Annots, composite-font AP codes; ISO 32000 via secondary sources"
   },
   {
    "lane_id": "SMB-WEB",
@@ -543,12 +544,16 @@
    "lane_id": "SMB-SCORE-DEVICE",
    "crate": "hsk-studio-score-device",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score-device",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-device",
    "brief": "builders/briefs/hsk-studio-score-device.md",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "d992b40"
+   ],
+   "verdicts": [],
+   "candidate": "d992b40",
+   "note": "caps 1-4 pure Rust (grant-checked port, preallocated atomic SPSC ring no unsafe, ClockedSoftwareDevice CloseReport, Observe report, DESCRIPTOR, consumer example) 1d8f1dd + cap 5 cpal-backend (default OFF, f32 output only, exact-format else Unavailable) d992b40; 5 tests + 1 ignored native; native smoke silence 8192/8192 frames reconciled (API-level, not hardware proof); open semantic: Full on try_push counts overrun+discontinuity with dropped_frames 0 under healthy backpressure (review); loopback oracle NOT_PROVEN"
   },
   {
    "lane_id": "SMB-SCORE-PLUGIN",
@@ -1244,7 +1249,8 @@
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16"
  ],
  "steward_next_sync": [
-  "registry pins + probe approvals for hsk-studio-interop-fig dep requests (miniz_oxide, ruzstd, sha2, serde_json; all already locked)"
+  "registry pins + probe approvals for hsk-studio-interop-fig dep requests (miniz_oxide, ruzstd, sha2, serde_json; all already locked)",
+  "registry pin + probe approval for cpal 0.18.2 closure (native-ffi incl alsa-sys, windows/objc2/jni/ndk) owner hsk-studio-score-device feature cpal-backend only (decision 01:40Z); round-features entry hsk-studio-score-device = [[\"cpal-backend\"]] only if native tests stay ignored without STUDIO_NATIVE_AUDIO"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1267,6 +1273,8 @@
  "next_round_after_R5": [
   "SMB-PULSE-ENG-1",
   "SMB-INTEROP-FIG",
-  "SMB-SCORE"
+  "SMB-SCORE",
+  "SMB-PRESS",
+  "SMB-SCORE-DEVICE"
  ]
 }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:16:39Z",
+ "updated_at": "2026-10-11T05:17:48Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -629,7 +629,7 @@
     "builders/lanes/hsk-studio-score-device.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:17:48Z (SMB-SCORE-DEVICE READY at d992b40)"
   },
   {
    "name": "builder-score-plugin",
@@ -665,7 +665,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:17:48Z (SMB-PRESS READY at cb38b86)"
   },
   {
    "name": "validator-r5",

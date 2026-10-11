@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press slice 1",
+  "lane": "MT-35557 press slice 3",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 2 complete: form XObject copy-on-write redaction, LZW, thumb/PieceInfo sanitize + test, context-aware payload proof",
+  "phase": "slice 3 complete: outline-title and annotation-text redaction with per-object outcomes; appearance text counted as annotation text in the payload proof",
   "commits": [
     {
       "sha": "70b4c74",
@@ -27,6 +27,10 @@
     {
       "sha": "1df11b2",
       "subject": "Press slice 2: whole-token proof rule, region_cleared vs is_proven, leak summary in press-consumer, descriptor rules"
+    },
+    {
+      "sha": "cb38b86",
+      "subject": "Press slice 3: outline-title and annotation-text redaction (Contents/T/Subj/RC, widget V/DV option, appearance drop) with per-object outcomes, redact_and_save_with, PDFDocEncoding/UTF-16 codec, annotation appearance text counts as a proof hit, +5 tests"
     }
   ],
   "capabilities_done": [
@@ -39,20 +43,33 @@
     "PdfDoc::redact_region: removes text-showing operators (Tj TJ ' \") whose glyph-run box may touch the region (exact advance from /Widths else 1000/1000 em upper bound; kerning spacer keeps following text in place when widths are exact), annotations touching the region (plus popups/children) and all AcroForm references; page /Contents repointed to a NEW stream; staged commit after a reachability proof; images/vectors/form XObjects/shadings/inline images in the region refuse with UnsupportedRedactionClass (policy ReportAndContinue lists them)",
     "verify_payload_absent: re-opens the OUTPUT and scans raw bytes, every decoded stream (object streams included), string/name objects, content-stream string operands, UTF-16BE spelling; reports xref sections, unreachable objects, unlisted endobj markers, undecodable streams",
     "redact_and_save: redact + full save + payload proof + residual re-pass over the saved bytes (fresh open, region test must select nothing); restores the document on error",
-    "sanitize_full_rewrite: drop Info / XMP / embedded files / JavaScript then full rewrite (implemented, not covered by a dedicated test in this slice)",
+    "sanitize_full_rewrite: drop Info / XMP / embedded files / JavaScript / Thumb / PieceInfo then full rewrite (dedicated test in slice 2)",
     "Observe mapping (outcome_for, report), DESCRIPTOR, example press-consumer (--descriptor, --inspect, --set-title, --redact)",
     "slice 2 (1): redaction recurses into form XObjects (depth 8, Matrix x CTM, own or inherited /Resources); a form with removed text is copied to a NEW object under a fresh /HskRdN name used only by the rewritten Do (original untouched, other uses and other pages keep it; its resource entry is dropped when no other Do at that level uses it); nested forms rewritten bottom-up; images/vectors/shadings/inline images still fail closed",
     "slice 2 (2): sanitize_full_rewrite also drops /Thumb (drop_thumbnails) and /PieceInfo (drop_private_data); dedicated test proves Info, XMP, PieceInfo (catalog, page, deflated), thumbnail, embedded file (deflated) and JavaScript payloads absent from raw bytes, independently inflated streams and verify_payload_absent",
     "slice 2 (3): LZWDecode (+predictor, EarlyChange 0|1), constant-memory dictionary, output capped by max_decoded_bytes; tested with an in-test encoder across 9..11 bit code-width changes and a 4 MiB-of-zeros bomb refused at a 64 KiB cap",
-    "slice 2 (4): payload proof context rule: a needle in a TEXT-SHOWING operand (Tj TJ ' \") of a decoded content stream is a kept_text_collision (reported, not a leak); anywhere else (raw bytes outside decoded streams, string/name objects, non-show operands, inline-image data, comments, decoded non-content streams) is a leak hit; whole-token matching for alphanumeric edges (identifier substrings do not hit); RedactedOutput::region_cleared (structural) vs is_proven (region_cleared and no leak hit); rule documented in DESCRIPTOR"
+    "slice 2 (4): payload proof context rule: a needle in a TEXT-SHOWING operand (Tj TJ ' \") of a decoded content stream is a kept_text_collision (reported, not a leak); anywhere else is a leak hit; whole-token matching for alphanumeric edges; RedactedOutput::region_cleared (structural) vs is_proven (region_cleared and no leak hit); rule documented in DESCRIPTOR",
+    "slice 3 (1): PdfDoc::redact_text_fields(needles, TextFieldPolicy) redacts outline item /Title (every node linked via /First /Last /Next /Prev, cycles tolerated) and annotation /Contents /T /Subj /RC (page /Annots incl. direct dictionaries); replacement is always a DIRECT value (shared string objects never edited in place); atomic staged commit; signed, encrypted and cancelled inputs refuse",
+    "slice 3 (2): matching on decoded text: PDFDocEncoding (ISO 32000 Annex D.2 table), UTF-16BE/LE and UTF-8 with mark; UTF-16BE stays UTF-16BE on rewrite; modes Replace(marker)|Remove; case-insensitive substring by default, whole_token / case_insensitive=false align with the proof; marker must not match a needle; fixpoint passes",
+    "slice 3 (3): /RC (string or XHTML stream) judged raw, tag-stripped and tag-gapped with entities decoded; any match drops the key; unreadable text streams are dropped fail-closed and reported unreadable",
+    "slice 3 (4): widget /V and /DV (string, text stream, array of strings) only with the explicit widget_values option; field/widget /T names never rewritten; every match the policy keeps is reported KeptByPolicy (TextFieldReport.complete == nothing kept)",
+    "slice 3 (5): annotation /AP appearance streams (N/R/D, state dictionaries, nested forms) whose show operands match are dropped; per-object outcomes (object, direct, role, kind Replaced|Removed|Dropped|KeptByPolicy, matches, unreadable) carry no document text",
+    "slice 3 (6): payload proof treats annotation appearance streams as annotation text (show-operand match = hit, not kept_text_collision); UTF-16BE spellings for any PDFDocEncoding-readable needle and Unicode needles by PDFDoc/UTF-8/UTF-16BE; redact_and_save_with(regions, policy, Some(&TextFieldPolicy)) redacts the distinctive removed strings from outlines/annotations before the full save (RedactedOutput.text_fields); redact_text_fields_and_save(needles) = redact + full save + independent proof (TextRedactedOutput::is_proven)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
     "exit": 0,
-    "sha": "1df11b2",
-    "passed": 9,
-    "failed": 0,
-    "names": [
+    "sha": "cb38b86",
+    "passed": 14,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator round on cb38b86 (one test target, 14 tests: 9 earlier + 5 slice 3). Then: Acrobat-saved fixture oracle (outline + annotation text), press-consumer --redact-text, popup/IRT annotations outside /Annots, named destinations / action URIs / field options / tooltips / structure-tree text, prepress facts, Type3/pattern text, rotated pages, Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T05:16:21Z",
+  "notes": {
+    "test_names": [
       "pdf_object_edit_save_independent_reopen",
       "redacted_text_absent_all_reachable_streams",
       "signed_readonly_cancel_stale_save_fault",
@@ -61,25 +78,23 @@
       "form_xobject_text_redaction_copy_on_write",
       "sanitize_removes_thumb_pieceinfo_metadata_from_all_bytes",
       "lzw_filter_decodes_and_is_bomb_bounded",
-      "proof_context_rule_kept_text_collision_is_not_a_leak"
-    ]
-  },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Validator round on 1df11b2 (one test target, 9 tests). Then: prepress facts (separations/overprint/output intents), text in Type3 glyph procs and patterns, rotated-page region mapping, encrypted read, Acrobat-saved fixture oracle, Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T02:59:04Z",
-  "notes": {
-    "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl.",
+      "proof_context_rule_kept_text_collision_is_not_a_leak",
+      "outline_titles_redacted_in_every_encoding",
+      "annotation_text_slots_and_appearance_redacted",
+      "widget_values_are_an_explicit_option_and_kept_text_is_reported",
+      "region_redaction_with_text_fields_closes_outline_and_annotation_leaks",
+      "text_fields_refusals_bounds_and_atomicity"
+    ],
+    "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
     "real_pdf_probe": "press-consumer on two local research PDFs (23 pages 1.3 MB, 20 pages 16.5 MB; xref streams + object streams): inspect OK; region redaction on a text-only region removed 12 strings, residual_in_region 0, layout_shift false (embedded fonts with /Widths); regions touching vector/image content refuse fail-closed (UnsupportedRedactionClass vector / image). Output files under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-probe (no document text printed).",
     "known_gaps": [
       "Byte-scan proof is strict: short removed strings (< 6 bytes, e.g. kerned word pieces, subset glyph codes) are excluded from the scan (RedactedOutput.short_needles) because they legitimately occur elsewhere; for natural-language documents a distinctive removed word that also appears elsewhere (kept text) yields hits and is_proven() == false. The structural proof is residual_in_region == 0 on a fresh pass over the saved bytes (same region test, so not independent of the interpreter).",
       "Whole strings are removed (a string straddling the region edge is removed entirely); standard fonts without /Widths use an upper-bound advance, and layout_shift_possible is reported when following text on the line may move.",
       "Rotated pages: region is in default user space (no /Rotate or /CropBox mapping). Encrypted PDFs are structure-only (no decryption).",
-      "Same-parser reopen is not independent evidence; the tests use raw byte comparison and an independent miniz_oxide inflate scan of every stream body as the oracle. Acrobat-saved fixture oracle still pending (Acrobat DC installed, foreground session needs Operator approval per START_LOG D5).",
-      "Text inside Type3 glyph procs and tiling patterns, outlines and structure ActualText are not edited by redaction; the payload proof flags the removed strings if they survive there (sanitize drops Thumb/PieceInfo/XMP on request).",
-      "is_proven is strict by design: a distinctive removed word that also lives in metadata or outlines is a hit; region_cleared gives the per-instance answer."
+      "Same-parser reopen is not independent evidence; the tests use raw byte comparison, an independent miniz_oxide inflate scan of every stream body, and (slice 3) a test-side PDF string extractor as the oracle. Acrobat-saved fixture oracle still pending (Acrobat DC installed, foreground session needs Operator approval per START_LOG D5).",
+      "Text inside Type3 glyph procs and tiling patterns and structure ActualText is not edited by redaction; the payload proof flags the removed strings if they survive there (sanitize drops Thumb/PieceInfo/XMP on request). Outline titles and annotation text are covered since slice 3.",
+      "is_proven is strict by design: a distinctive removed word that also lives in metadata (Info/XMP) is a hit; with a text policy the same word in outline titles and annotation text is redacted (slice 3). region_cleared gives the per-instance answer."
     ],
     "decisions": [
       "Object numbers are preserved on full save (no renumbering) so unmodified objects can be copied byte-verbatim; free numbers get a linked free list.",
@@ -87,6 +102,23 @@
       "Fail closed on unsupported painted content by default; ReportAndContinue is an explicit caller choice.",
       "Signed documents are refused for every mutation including full save (a full rewrite invalidates byte-range signatures); incremental policy is later scope."
     ],
-    "real_pdf_probe_slice2": "press-consumer on the 23-page research PDF: text-only regions redact with complete=true, residual_in_region=0 (region_cleared); is_proven stays false when removed whole words also appear in outline titles (UTF-16 bookmarks such as 'Online Retrieval'), reported as string-object hits and never hidden; regions touching vector content refuse fail-closed."
+    "real_pdf_probe_slice2": "press-consumer on the 23-page research PDF: text-only regions redact with complete=true, residual_in_region=0 (region_cleared); is_proven stays false when removed whole words also appear in outline titles (UTF-16 bookmarks such as 'Online Retrieval'), reported as string-object hits and never hidden; regions touching vector content refuse fail-closed. Slice 3 closes exactly this case when redact_and_save_with gets a TextFieldPolicy (not re-run on the real PDF in slice 3).",
+    "slice3_spec_basis": "ISO 32000 outline item dictionary (12.3.3), annotation dictionary Contents/T/Subj/RC (12.5.2, 12.5.6.2), appearance dictionary N/R/D (12.5.5), field dictionary V/DV (12.7.4.1), text strings (7.9.2.2: PDFDocEncoding, UTF-16BE FE FF, UTF-8 EF BB BF). PDFDocEncoding 0x18-0x1F/0x80-0x9E/0xA0 table checked against mozilla/pdf.js src/core/string_utils.js. Table numbers differ between ISO 32000-1 (Table 153 outline item, 164/170 annotation, 168 appearance, 220 field) and -2 (151, 168/170, 226); the ISO text itself could not be fetched (10 MB limit), secondary sources agree.",
+    "slice3_decisions": [
+      "Replacement is always a DIRECT value in the holder dictionary (copy-on-write): a shared string object is never edited; it drops out of the save when no other reference remains, else the proof reports it as a hit.",
+      "Defaults fail closed: case-insensitive substring; whole_token (the proof's token rule) and case_insensitive=false are options. The proof stays case-sensitive exact-spelling, so it is never stricter than the redaction.",
+      "Field/widget /T is a NAME (12.7.4.1): never rewritten (would break uniqueness), reported KeptByPolicy and remains a proof hit; widget_values is the explicit option for /V /DV and the widget appearance.",
+      "Annotation appearance streams hold the rendered text: dropped when their show operands match (viewers regenerate); the proof counts a show-operand match in an /AP stream as a hit instead of a kept-text collision (behaviour change vs slice 2 only for annotations whose appearance repeats a removed word).",
+      "An annotation's /AP is also dropped when the annotation was edited and an appearance stream cannot be decoded (cannot show it is free of the text).",
+      "Direct annotation dictionaries inside /Annots are edited in place in their holder (page or array object); outcome has direct=true and the holder as object.",
+      "AcroForm /NeedAppearances is not set after a widget appearance is dropped (catalog untouched); a viewer that does not regenerate shows an empty widget."
+    ],
+    "slice3_known_gaps": [
+      "Not covered (still proof hits, never hidden): named-destination names, action /URI, field /Opt and /TU, structure-tree /ActualText, popup/IRT annotations that are not in a page /Annots array, text inside nested appearance forms that use composite-font codes (the proof reads show operands byte-for-byte).",
+      "Rich text is judged by three spellings (raw, tags removed, tags as gaps) with the common entities decoded; XHTML in a non-UTF-8 stream without a byte-order mark is read as UTF-8.",
+      "The needle is a Unicode string; redact_and_save_with bridges from content-stream bytes by PDFDocEncoding decoding of the distinctive (>= 6 byte) removed strings.",
+      "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
+    ],
+    "slice3_gameplan_route": "No retry-guard block occurred: both cargo test runs passed (the second after a descriptor/oracle edit, before the commit). No gameplan step added."
   }
 }
