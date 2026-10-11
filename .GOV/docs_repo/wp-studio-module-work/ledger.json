@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:37:22Z",
+ "updated_at": "2026-10-11T22:51:31Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -223,7 +223,7 @@
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
@@ -249,7 +249,8 @@
     "STUDIO-R9 PASS_V6 @4d80e50",
     "STUDIO-R10 PASS_V7 @62d8983",
     "STUDIO-R11 PASS_V8 @6956d3f",
-    "STUDIO-R12 PASS_V9 @3d795a5"
+    "STUDIO-R12 PASS_V9 @3d795a5",
+    "STUDIO-R14 PASS_V10 @4b76604"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
    "candidate": "3c82784",
@@ -1008,7 +1009,7 @@
    "origin": "research/engine-video.md",
    "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-reel-eng-1",
    "commits": [
     "6d232da",
@@ -1021,7 +1022,8 @@
    "verdicts": [
     "STUDIO-R10 FAIL_V1 @62d8983",
     "STUDIO-R11 PASS_V2 @6956d3f",
-    "STUDIO-R12 PASS_V3 @3d795a5"
+    "STUDIO-R12 PASS_V3 @3d795a5",
+    "STUDIO-R14 PASS_V4 @4b76604"
    ],
    "brief": "builders/briefs/lane-reel-eng-1.md",
    "candidate": "7cdf18e",
@@ -1057,7 +1059,7 @@
    "origin": "research/engine-video.md",
    "scope": "AV1 decode via rav1d behind reel adapter; deterministic decode contract (hash-testable normative output)",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-reel-av1",
    "commits": [
     "a2b1947",
@@ -1072,7 +1074,8 @@
     "STUDIO-R9 PASS_V4 @4d80e50",
     "STUDIO-R10 PASS_V5 @62d8983",
     "STUDIO-R11 PASS_V6 @6956d3f",
-    "STUDIO-R12 PASS_V7 @3d795a5"
+    "STUDIO-R12 PASS_V7 @3d795a5",
+    "STUDIO-R14 PASS_V8 @4b76604"
    ],
    "candidate": "569023e",
    "note": "R5 remediation: AV1 pixel limit derived from av1C layout + bit depth; 1080p decodes at default limits (new 1080p fixture); red-first; crate changed after R7 (bf3c196 also refuses oversize pictures on the in-process av1 path) -> re-include in R8 (CX-VAL-009).",
@@ -1786,7 +1789,7 @@
    "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
    "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-reel-native-av1",
    "commits": [
     "e95163a",
@@ -1800,7 +1803,8 @@
     "STUDIO-R9 PASS_V4 @4d80e50",
     "STUDIO-R10 PASS_V5 @62d8983",
     "STUDIO-R11 PASS_V6 @6956d3f",
-    "STUDIO-R12 PASS_V7 @3d795a5"
+    "STUDIO-R12 PASS_V7 @3d795a5",
+    "STUDIO-R14 PASS_V8 @4b76604"
    ],
    "candidate": "7886369",
    "note": "R5: checked dims math (LimitExceeded before spawn), wire plane-size checked (Malformed), fault hooks under test-faults, host feature av1 no longer links rav1d (av1-worker feature builds worker bin; cargo tree evidence), decoder version via HELLO; supervisor duplicate left (D18); 12 green across feature sets; R7 FAIL fix (PLR-034/035): worker found only beside the running executable; HELLO wait cancellable (5 ms poll, kill+reap, Canceled); StallHello fault under test-faults; tests red on scratch revert; 10 test-faults / 4 default. At 2/3 FAILs -> V4-13 pre-review before R8.",
@@ -1834,7 +1838,7 @@
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-reel-native-av1 (reused)",
    "commits": [
     "bfef27f",
@@ -1850,7 +1854,8 @@
     "STUDIO-R9 PASS_V4 @4d80e50",
     "STUDIO-R10 PASS_V5 @62d8983",
     "STUDIO-R11 PASS_V6 @6956d3f",
-    "STUDIO-R12 PASS_V7 @3d795a5"
+    "STUDIO-R12 PASS_V7 @3d795a5",
+    "STUDIO-R14 PASS_V8 @4b76604"
    ],
    "candidate": "bf3c196",
    "note": "R5 remediation 233f406/569023e: checked plane arithmetic (lying decoder -> DecoderFault::Protocol), Matroska PixelWidth/Height bounded 1<<20; red-first; R7 FAIL fix (PLR-033): ProxySource has its own trust (default Untrusted; with_trust for that proxy only); proxies decode through their own route; untrusted AV1 -> worker or CodecUnavailable; test red on scratch revert; 49 default / 53 av1. At 2/3 FAILs -> V4-13 pre-review before R8.; PLR-032 fix bf3c196 (pre-review FIX_FIRST condition): Forward::accept refuses a picture larger than the container-declared size (<=, declared 0 = unchecked) as DecoderFault::Protocol before any copy; packed size checked vs max_chunk_bytes before extend; 2 new tests red on scratch 589f544; docs nits (pre-review findings 2-3) addressed; 51 default / 55 av1. Claim 8438b1d + 589f544 + bf3c196. Pre-review condition met per builder (independent check = R8 validator). Not done: av1C bit depth/chroma check (lead: out of PLR-032 scope).",
@@ -2762,7 +2767,7 @@
    "origin": "PLR-055 (R8-review-b)",
    "scope": "worker picture larger than the declared size but under the reply cap -> worker Protocol fault counted in protocol_faults (not Av1Error::Reel)",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-reel-native-faults",
    "commits": [
     "471b679",
@@ -2772,7 +2777,8 @@
     "STUDIO-R9 PASS_V1 @4d80e50",
     "STUDIO-R10 PASS_V2 @62d8983",
     "STUDIO-R11 PASS_V3 @6956d3f",
-    "STUDIO-R12 PASS_V4 @3d795a5"
+    "STUDIO-R12 PASS_V4 @3d795a5",
+    "STUDIO-R14 PASS_V5 @4b76604"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel-native-faults.json",
    "note": "PLR-055 + same-class extension: Pool::exchange compares reply picture with declared size before reel (oversize under cap -> Failure::Protocol, counted, worker terminated, Av1Error::Worker(Protocol)); FRAME reply accepted only for a batch request, so FRAME answering OPEN -> Failure::Protocol; test-faults hooks OversizePicture/UndersizePicture/FrameOnOpen; tests red on scratch origin, green: av1-worker 5/5, +test-faults 14/14, doctests, clippy (5 feature sets), fmt; V4-06 43/43",
@@ -2833,13 +2839,15 @@
    "origin": "plausible register",
    "scope": "PLR-066..068: receipts take delivered counts/ends from what was delivered; y4m past-end pre-check",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V1",
    "owner": "builder-reel-receipts",
    "lane_file": "builders/lanes/hsk-studio-reel-receipts.json",
    "commits": [
     "b8b276d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R14 PASS_V1 @4b76604"
+   ],
    "candidate": "b8b276d",
    "note": "PLR-066..068: receipts (units, complete, actual end) from what the loop delivered at wav/y4m/PCM/mxf (cfg(test) seam model::short_loop; tests per call site in src/delivery_tests.rs); Partial packet receipt actual.end_pts = latest delivered chunk end; y4m Export past the last complete frame -> OutOfRange before first read (Preview keeps Truncated); every-provider past-end test; routing untouched (no registry/video/cache/matroska/av1 diff); nextest 69 default / 76 av1; 15 mutations red; V4-06 60 sites. Residual: video-route Partial receipt keeps packet end_pts (needs Forward in video.rs) -> PLR-077"
   },
@@ -2849,13 +2857,15 @@
    "origin": "plausible register",
    "scope": "PLR-059..061: unknown-tag FRAME and malformed HELLO are protocol faults; wire.rs doc",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V1",
    "owner": "builder-reel-native-faults-2",
    "lane_file": "builders/lanes/hsk-studio-reel-native-faults-2.json",
    "commits": [
     "4b76604"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R14 PASS_V1 @4b76604"
+   ],
    "candidate": "4b76604",
    "note": "PLR-059..061: FRAME with a tag no PACKET carried -> counted protocol fault (once, worker killed, Av1Error::Worker(Protocol)); oversize/non-frame HELLO -> protocol fault (real spawn failures stay spawn_failed); wire.rs/host.rs/DESCRIPTOR name the accepted replies per request with tests; 3 tests red on origin 7410f29 and b8b276d; mutants M1-M3, M5-M7 red (M4 survives: membership rule, no doc claims more); av1-worker 5/5, +test-faults 19/19; V4-06 43"
   }
@@ -3395,6 +3405,21 @@
    "SMB-REEL-NATIVE-AV1-WORKER": "R15-prereview-reel-narrow SAFE"
   },
   "reopen": "reel + reel-native lanes (CX-VAL-009)",
-  "team": "1 validator (opus); review input = R15 narrow pre-review"
+  "team": "1 validator (opus); review input = R15 narrow pre-review",
+  "completed_at": "2026-10-11T22:51:31Z",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R14.json",
+  "reuse": "R13 union results at the same SHA (manifest 0935f052, results hashes match)",
+  "verdicts": {
+   "PASS": 8,
+   "FAIL": 0
+  },
+  "fails": [],
+  "milestones": [
+   "SMB-REEL-AV1-ROUTE PASS_V8 and SMB-REEL-NATIVE-AV1-WORKER PASS_V8 (both two-FAIL lanes)",
+   "SMB-REEL-RECEIPTS PASS_V1",
+   "SMB-REEL-NATIVE-FAULTS-2 PASS_V1"
+  ],
+  "notes": "PLR-077, PLR-078 notes; RECEIPTS V4-06 key shape"
  }
 }

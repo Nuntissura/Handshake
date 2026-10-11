@@ -462,6 +462,26 @@
   },
   "gameplan_route": "no retry-guard hit and no gameplan step added. One Bash call was rejected by the hook because it began with a variable assignment, not a cd to the product or scratch tree, so the hook resolved the kernel's unrelated WP-KERNEL-012 gameplan (launch-form cause, as recorded in hook_cwd_note of the AV1-ROUTE lane); fixed by starting every cargo call with cd and defining variables after it. Red and mutation runs were redirected to logs and ended with echo, so no failed gated run was recorded",
   "trust_routing_untouched": "git diff 7410f29..b8b276d -- crates/hsk-studio-reel lists exactly: src/delivery_tests.rs (new), isobmff.rs, isobmff/pcm.rs, lib.rs, model.rs, mxf/provider.rs, wav.rs, y4m.rs, tests/engine_video.rs; registry.rs, video.rs, cache.rs, matroska.rs, av1/*, av1_config.rs are not in it (choose(), VideoRoute, Chosen, Forward and the declared-size check unchanged)",
-  "dependents": "cargo check -p hsk-studio-reel-native --tests clean at 4b76604 (b8b276d + the FAULTS-2 commit, default features and --features av1-worker,test-faults); no public item of hsk-studio-reel changed (the only additions are pub(crate) and cfg(test)); reel-native reads actual.start_pts only"
+  "dependents": "cargo check -p hsk-studio-reel-native --tests clean at 4b76604 (b8b276d + the FAULTS-2 commit, default features and --features av1-worker,test-faults); no public item of hsk-studio-reel changed (the only additions are pub(crate) and cfg(test)); reel-native reads actual.start_pts only",
+  "verdicts": [
+   {
+    "round": "STUDIO-R14",
+    "lane": "SMB-REEL-RECEIPTS",
+    "candidate": "4b766047fb5c195f60df6f3fa57869042bf91536",
+    "tree": "30e64213ec8e91327473dce3565d575fa194e803",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R15-prereview-reel-narrow.json advisory_notes.SMB-REEL-RECEIPTS (4b76604; PLR-066..068 FIXED by reading; R1 = PLR-077 INFO)",
+    "proof_reuse": "CX-VAL-002: proof = STUDIO-R13 union run @4b76604 (results/R13), candidate 4b76604: diff proof..candidate empty; export manifest 0935f052 and blob identity re-verified",
+    "round_ref": "validation/round-R14.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R13",
+    "idempotency_key": "STUDIO-R14:SMB-REEL-RECEIPTS:4b766047fb5c:PASS_V1",
+    "recorded_at": "2026-10-11T22:50:23Z",
+    "by": "wp_validator STUDIO-R14"
+   }
+  ]
  }
 }

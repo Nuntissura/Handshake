@@ -254,6 +254,26 @@
     "file_line": "src/worker.rs:337",
     "verdict": "NOT_APPLICABLE: the worker reads host requests, not worker output"
    }
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R14",
+    "lane": "SMB-REEL-NATIVE-FAULTS-2",
+    "candidate": "4b766047fb5c195f60df6f3fa57869042bf91536",
+    "tree": "30e64213ec8e91327473dce3565d575fa194e803",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R15-prereview-reel-narrow.json (4b76604; PLR-059/060 FIXED, PLR-061 FIXED with two wording points = PLR-078)",
+    "proof_reuse": "CX-VAL-002: proof = STUDIO-R13 union run @4b76604 (results/R13), candidate 4b76604: diff proof..candidate empty; export manifest 0935f052 and blob identity re-verified",
+    "round_ref": "validation/round-R14.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R13",
+    "idempotency_key": "STUDIO-R14:SMB-REEL-NATIVE-FAULTS-2:4b766047fb5c:PASS_V1",
+    "recorded_at": "2026-10-11T22:50:23Z",
+    "by": "wp_validator STUDIO-R14"
+   }
   ]
  }
 }

@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-11T22:29:14Z
+updated_at: 2026-10-11T22:51:31Z
 wp: WP-KERNEL-STUDIO
 latest_snapshot: snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
@@ -39,8 +39,8 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 ## Done
 
 - 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake), ~108k lines incl. tests; every crate builds and tests green on each canary (59/59 units).
-- 106 work lanes: 89 PASS by an independent validator, 5 READY, 2 in work, 6 blocked on the Operator, 4 queued (see snapshot `lanes`).
-- Validation rounds R5-R13 complete (R4 abandoned): R12 = 45 PASS / 0 FAIL on 3d795a5 (web lanes passed: SMB-WEB PASS_V4, parity V1, difftest V1; pigment plan limits V1); R13 = press PASS on 4b76604 (SMB-PRESS PASS_V3 under Operator D27 flatten + narrow, SMB-PRESS-DIFFERENCES PASS_V1).
+- 108 work lanes: 6 BLOCKED, 1 IN_WORK, 97 PASS, 4 QUEUED (see snapshot `lanes`; snapshot predates R12-R14).
+- Validation rounds R5-R14 complete (R4 abandoned): R12 = 45 PASS (web lanes passed); R13 = press PASS (SMB-PRESS PASS_V3 under D27, DIFFERENCES V1); R14 = 8 PASS reel/reel-native (both two-FAIL AV1 lanes PASS_V8, RECEIPTS V1, NATIVE-FAULTS-2 V1). No lane is at 2 open FAILs any more except the Operator-blocked SMB-RENDER-GPU / SMB-ROUND-ENTRYPOINT (D20).
 - Fully passed crates (27 of 35, every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, prism, pulse, render-cpu, score, score-device, score-plugin, session, type. Not fully passed: interop-media, observe (no lane yet), pigment (plan-limits lane in R12), press, reel, reel-native, render-gpu, web (snapshot `crates`).
 - Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; video indexing/AV1 worker/exact export; audio engine.
 
@@ -50,7 +50,6 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- READY, awaiting a round: SMB-REEL-RECEIPTS (b8b276d, PLR-066..068) and SMB-REEL-NATIVE-FAULTS-2 (4b76604, PLR-059..061); narrow pre-review of the two-FAIL AV1 lanes running (validation/R15-prereview-reel-narrow.json).
 - If either is missing on takeover: re-dispatch from `builders/DISPATCH_TEMPLATES.md` (validator / pre-review) with the candidate in `ledger.json` `round_R12` and lane `SMB-PRESS` `candidate`.
 
 </topic>
