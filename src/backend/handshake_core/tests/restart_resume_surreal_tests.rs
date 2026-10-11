@@ -206,7 +206,12 @@ async fn execute<B: SurrealValue + Send + 'static>(
 ) {
     storage
         .with_data_operation(|database| {
-            Box::pin(async move { database.execute_returning(statement, bindings).await })
+            Box::pin(async move {
+                database
+                    .query_values::<surrealdb::types::Value, _>(statement, bindings)
+                    .await
+                    .map(|rows| rows.len())
+            })
         })
         .await
         .expect("execute static exact-scope restart-resume fixture statement");
@@ -304,7 +309,22 @@ async fn query_first<T: SurrealValue + Send + 'static>(
 ) -> Option<T> {
     storage
         .with_data_operation(|database| {
-            Box::pin(async move { database.query_first::<T, _>(statement, bindings).await })
+            Box::pin(async move {
+                let values = database
+                    .query_values::<surrealdb::types::Value, _>(statement, bindings)
+                    .await?;
+                if matches!(values.as_slice(), [surrealdb::types::Value::None]) {
+                    return Ok(None);
+                }
+                let rows = values
+                    .into_iter()
+                    .map(|value| {
+                        T::from_value(value)
+                            .map_err(|error| surrealdb::Error::internal(error.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(rows.into_iter().next())
+            })
         })
         .await
         .expect("query static exact-scope restart-resume fixture statement")
@@ -327,9 +347,20 @@ async fn latest_checkpoint(
     storage
         .with_data_operation(|database| {
             Box::pin(async move {
-                database
-                    .query_first::<CheckpointProbe, _>(READ_LATEST_CHECKPOINT, bindings)
-                    .await
+                let values = database
+                    .query_values::<surrealdb::types::Value, _>(READ_LATEST_CHECKPOINT, bindings)
+                    .await?;
+                if matches!(values.as_slice(), [surrealdb::types::Value::None]) {
+                    return Ok(None);
+                }
+                let rows = values
+                    .into_iter()
+                    .map(|value| {
+                        CheckpointProbe::from_value(value)
+                            .map_err(|error| surrealdb::Error::internal(error.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(rows.into_iter().next())
             })
         })
         .await
