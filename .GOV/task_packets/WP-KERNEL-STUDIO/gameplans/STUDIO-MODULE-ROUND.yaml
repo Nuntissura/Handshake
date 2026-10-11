@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: batch
 assignment: STUDIO-MODULE-ROUND
 parent: null
-generation: 5
+generation: 7
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -21,10 +21,11 @@ steps:
 - {id: GP-003, role: any, at: before_round, do: confirm heavy build|test processes on target disk == 0, check: {type: confirm}, source: 'preset:build-round', state: active}
 - {id: GP-004, role: any, at: before_round, do: verify free disk(CARGO_TARGET_DIR or repo) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=float(''50'') else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'preset:build-round', state: active}
 - {id: GP-005, role: any, at: before_round, do: confirm deepest generated path < 260 chars or long paths enabled, check: {type: confirm}, source: 'preset:build-round', state: active}
-- {id: GP-006, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-006, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-007, role: any, at: before_round, do: forbid timeout wrapper around test entrypoint, check: {type: confirm}, source: 'preset:build-round', state: active}
 - {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: active}
 - {id: GP-009, role: any, at: before_round, do: confirm env vars|config files read by changed code set for test run, check: {type: confirm}, source: 'preset:build-round', state: active}
 - {id: GP-010, role: any, at: before_round, do: require round on export of pushed SHA refreshed in place; identity record == SHA, check: {type: confirm}, source: 'operator 2026-10-11: parallel builders keep edit tree dirty; KB-CAD-VPX-002; GLOBAL-VALIDATION-023', state: active}
 - {id: GP-011, role: any, at: before_round, do: require per-test slow-timeout runner config in round entrypoint, check: {type: confirm}, source: CX-EXEC-005 per-test timeouts, state: active}
 - {id: GP-012, role: any, at: before_round, do: verify Cargo.lock in sync at candidate export (cargo metadata --locked --offline) == exit 0, check: {type: cmd, argv: [cargo, +1.97.1, metadata, --locked, --offline, --format-version, '1', --manifest-path, ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets/Cargo.toml], expect_exit: 0, timeout_seconds: 15}, source: 'infra: R2 canary @87c1cd95 build_exit 102; Cargo.lock unsynced after layout deps (87c1cd9)', state: active}
+- {id: GP-013, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round OR canary exit 0 on candidate SHA (cite results dir), check: {type: confirm}, source: 'infra: R4 review required entrypoint change (fd24723); steward canary C5-1d404f8 exit 0 44 units', state: active}

@@ -2,37 +2,38 @@
  "crate": "workspace",
  "lane": "SMB-ROUND-ENTRYPOINT",
  "status": "READY_FOR_VALIDATION",
- "phase": "entrypoint v2 + steward sync pushed; round candidate 2abb984 (lock synced, probe 35/35, steward canary C2 exit 0)",
+ "phase": "R4 remediation fd24723 + steward sync 1d404f8 pushed; round candidate 1d404f8 (lock synced, probe 35/35, steward canary C5 exit 0, 44 units)",
  "commits": [
   {"sha": "cd29932", "subject": "Round entrypoint: feature matrix, doctest step, full results, owner-dir guard"},
   {"sha": "1262c05", "subject": "Steward sync: lock, registry pins and probe approvals for 198a8e5"},
   {"sha": "f433989", "subject": "workspace-probe: accept Cargo bin/test/bench target tables"},
-  {"sha": "2abb984", "subject": "run-round: plan rows without CR on Windows (feature/doctest units ran as not-run)"}
+  {"sha": "2abb984", "subject": "run-round: plan rows without CR on Windows (feature/doctest units ran as not-run)"},
+  {"sha": "fd24723", "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"},
+  {"sha": "1d404f8", "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"}
  ],
  "capabilities_done": [
-  "feature matrix .config/round-features.toml (type harfrust, motion-js quickjs, reel av1): one (crate, features) unit each with own build, run, doctests; absent feature -> feature_absent recorded, not run",
-  "doctest step: cargo test --doc per selected crate with a doctested lib, default + each declared set",
-  "full results: round.json@2 units with exits + pass/fail/skip counts + per_crate_default; tests.json with every reported test incl. passing names; junit per unit with success output stored and skipped tests listed",
-  "owner guard: export-mode results dir must be inside the export owner dir (never another owner's export); steward canaries use studio-team-dev/steward-export, validators studio-round/",
-  "step 0 fail-fast unchanged (cargo metadata --locked --offline + registry-sync check, exit 75)",
-  "steward sync 1262c05: lock derived offline from 198a8e5 manifests; 10 approvals added (harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2); license gate OK; D9 edge not added",
-  "probe accepts Cargo [[bin]]/[[test]]/[[bench]] tables (motion-js motion-js-worker bin rejected unsupported_array_table at 1262c05)"
+  "feature matrix .config/round-features.toml@2 (type harfrust, motion-js quickjs, reel av1, reel-native av1): one (crate, features) unit each with own build, run, doctests",
+  "absent declared unit (feature_absent/crate_absent) fails the round: exit 74 after build/test failures in precedence; round.json absent_units",
+  "doctest per-test timeout: serial doctests (--test-threads=1); watchdog kills the unit process tree (Windows taskkill /T) when one 'test NAME ... ' line stays unfinished > [doctest] per-test-timeout-s (120); line gets TIMEOUT, unverdicted doctests of the unit reported NOT_RUN from -- --list; run exit 124; no outer wall-clock wrapper",
+  "round.json always written once the results dir exists: EXIT trap writes complete=false record with exit + reason (refusal, step 0 drift, interruption, aggregation failure)",
+  "full results: round.json@2 units with passed/failed/skipped/timed_out/not_run counts, per_crate_default, timed_out_tests; tests.json every reported test; junit per unit with success output and skipped tests",
+  "owner guard: export-mode results dir inside the export owner dir; step 0 fail-fast (exit 75) unchanged",
+  "steward sync 1d404f8 (base c7be531): Cargo.lock only (reel-native dependency list: accord, reel for av1); no new registry approvals; license gate OK; probe 35/35; D9 edge not added"
  ],
- "tests": {"argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C2-2abb984 --target-dir studio-team-dev/target (export of 2abb984)", "exit": 0, "sha": "2abb984", "passed": 34, "failed": 0},
+ "tests": {"argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C5-1d404f8 --target-dir studio-team-dev/target (export of 1d404f8)", "exit": 0, "sha": "1d404f8", "passed": 35, "failed": 0},
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
  "next": "stay available for lead; next steward sync on request",
- "updated_at": "2026-10-11T03:36:43Z",
+ "updated_at": "2026-10-11T04:59:44Z",
  "notes": {
-  "round_candidate": "2abb984a9a32489bc7886b793d10b06901742c5a (tree 4b8a299d... at f433989 + interop-layout 5e058ae + entrypoint fix); manifests and Cargo.lock identical to sync 1262c05",
-  "canary_C2": "results Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C2-2abb984; 2026-10-11T03:32:21Z..03:35:53Z; step0 clean; default 31 run 31 passed 225 skipped; motion-js+quickjs 1/1; reel+av1 1/1; type+harfrust 1/1 (36 skipped); 38 doctest units exit 0 (workspace has 0 doctests: all doc code blocks are text); 42 units, exit 0; round.json sha256 90ddc1ae..., tests.json 074f528b..., junit.xml 7c09f9c2...",
-  "canary_C1": "f433989: default unit 31/31 passed, then feature/doctest units recorded not-run and aggregation exit 70: Windows python text stdout put CR on plan rows (status 'run\\r'); fixed in 2abb984; no gameplan step (tool fix by commit)",
-  "probe": "2abb984: 35/35 accepted (rustc +1.97.1 of committed probe sha256 22d4fe74...; provenance steward/probe/provenance-2abb984.toml); feature selections type/harfrust, reel/av1, motion-js/quickjs accepted at 1262c05",
-  "dep_requests": "all 41 lines pinned as requested except interop-media sha2 0.10.9 (line 19): not in interop-media's manifest at the candidate, nothing to pin; none refused by license or native policy",
-  "doctest_cost": "per-crate doctest units rebuild some libs (feature sets differ from the union build): ~2.5 min of the 3.5 min canary; acceptable while rounds are serialized",
-  "canary_scope": "canary runs the first listed test per package per unit: feature units prove the feature builds (QuickJS C engine, rav1d, harfrust) but may run a non-feature test; full rounds run all tests per unit",
-  "shared_index": "per WORKSPACE_RULES the shared index keeps stale entries for root Cargo.toml, Cargo.lock, tools/** and .config/** after CAS commits; builders must keep pathspec-only commits",
-  "edit_tree_root_manifest": "shared worktree root Cargo.toml working copy predates 404ff3a (holds the reverted interop-media->pulse metadata edge, lacks newer registry sections); metadata only, cargo builds unaffected; HEAD is authoritative"
+  "canary_C5": "1d404f8 steward export, 2026-10-11T04:56:20Z..04:59:33Z: step 0 clean; default 31 run 31 passed 227 skipped; features motion-js+quickjs 1/1, reel+av1 1/1, reel-native+av1 1/1, type+harfrust 1/1; 39 doctest units exit 0 (0 doctests in the workspace); 44 units, absent [], timed_out [], exit 0; round.json sha256 7c0b4c6f..., tests.json acfa7af5..., junit.xml cda183e7...",
+  "canary_export_choice": "canary ran in studio-team-dev/steward-export, not studio-round: standing lead rule (d) (validators own studio-round; R3 collision), studio-round still holds the R4 export at 2abb984 (R4 union FAIL to triage), and the ROUND gameplan needs confirm GP-006 'entrypoint unchanged since last green round', which is false after fd24723; the entrypoint refuses results outside the export owner dir",
+  "C4_test_commit": "cba6117 unpublished commit object (2abb984 + fd24723 run-round.sh/round-features.toml): exit 74 as designed (reel-native av1 absent at 2abb984), other 42 units green",
+  "C3_fd24723": "published fd24723 before sync: step 0 exit 75 (lock drift), minimal round.json complete=false exit 75 written in 2 s",
+  "watchdog_proof": "scratch crate steward/scratch/wd-probe, doctest_unit/kill_tree extracted verbatim, budget 5 s: a ok, b (infinite loop) TIMEOUT, c/e/d NOT_RUN, exit 124, 12 s, no leftover rustdoc/doctest process",
+  "skip_rerun_rejected": "rerunning the rest with --skip/--exact is impossible: rustdoc splits test args on whitespace (observed: every doctest filtered out); remaining doctests are reported NOT_RUN",
+  "shared_index": "2026-10-11T04:56Z: shared index entries of root Cargo.toml, Cargo.lock, tools/**, .config/** reset to HEAD (index only) and working Cargo.toml rewritten from HEAD (was pre-404ff3a stale copy with the reverted D9 edge); working Cargo.lock left as is (builder-local wasm-bindgen 0.2.129/js-sys/web-sys 0.3.106 resolutions, not in HEAD's lock)",
+  "earlier": "C2 @2abb984 exit 0; C1 @f433989 Windows CR plan bug fixed 2abb984; sync 1262c05 approvals: harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2; interop-media sha2 request unused by its manifest"
  }
 }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T04:56:14Z",
+ "updated_at": "2026-10-11T05:02:18Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -573,7 +573,7 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
-   "status": "running (resumed after rate limit 2026-10-11T04:56:14Z)"
+   "status": "idle (sync 1d404f8 pushed, canary C5 exit 0 44 units; 2026-10-11T05:02:18Z)"
   },
   {
    "name": "builder-components-migrate",
@@ -665,6 +665,51 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r5",
+   "agent_id": "a9e4011f28a0acd1b",
+   "model": "opus",
+   "role": "independent union round R5 on steward sync 1d404f8",
+   "owns": [
+    "validation/round-R5.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r5-a",
+   "agent_id": "a315da0eb43e05294",
+   "model": "opus",
+   "role": "adversarial review R5 group A (render/composite/pigment/controls/nib/score/psd/develop/prism-eng5)",
+   "owns": [
+    "validation/R5-review-a.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r5-b",
+   "agent_id": "a02970d1fd08aa8c3",
+   "model": "opus",
+   "role": "adversarial review R5 group B (reel/av1/media/motion-js/press/web/bindings/harness)",
+   "owns": [
+    "validation/R5-review-b.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r5-c",
+   "agent_id": "ad0534962edafbe56",
+   "model": "opus",
+   "role": "adversarial review R5 group C (lrcat/layout/folio/components/vector/session/package + rest)",
+   "owns": [
+    "validation/R5-review-c.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
    "status": "running"
   }
  ]

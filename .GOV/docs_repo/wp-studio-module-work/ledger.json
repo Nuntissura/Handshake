@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T04:56:14Z",
+ "updated_at": "2026-10-11T05:02:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -848,13 +848,15 @@
     "ce4362e",
     "cd29932",
     "f433989",
-    "2abb984"
+    "2abb984",
+    "fd24723",
+    "1d404f8"
    ],
    "verdicts": [
     "STUDIO-R3 PASS_V1 @404ff3a"
    ],
    "candidate": "2abb984",
-   "note": "feature matrix (.config/round-features.toml), doctest step, full results storage, export dir guard; probe accepts bin/test/bench sections"
+   "note": "feature matrix (.config/round-features.toml), doctest step, full results storage, export dir guard; probe accepts bin/test/bench sections; R4 review remediation fd24723 (doctest per-test 120s timeout, round.json always written, absent matrix units exit 74, reel-native av1 matrix) + sync 1d404f8"
   },
   {
    "lane_id": "SMB-TYPE-ENV",
@@ -1221,7 +1223,23 @@
  "consolidation_candidates": [
   "general bounded ZIP reading: interop-layout (in-crate) vs package (strict canonical container, no deflate) -> consider one owner for general bounded ZIP read (e.g. package exposing a non-canonical bounded reader) later"
  ],
- "steward_next_sync": [
-  "round-features: hsk-studio-reel-native [[\"av1\"]]"
- ]
+ "steward_next_sync": [],
+ "round_R4": {
+  "candidate": "2abb984",
+  "status": "ABANDONED",
+  "reason": "session rate limit 04:50Z killed validator + reviewer; partial union exit 100 (motion-js quickjs worker test) and R4-review PARTIAL; superseded by R5",
+  "results": "studio-round/results/R4"
+ },
+ "round_R5": {
+  "candidate": "1d404f8",
+  "opened_at": "2026-10-11T05:02:18Z",
+  "canary": "studio-team-dev/steward-export/results/C5-1d404f8 exit 0 44 units",
+  "validator": "validator-r5",
+  "reviews": [
+   "validation/R5-review-a.json",
+   "validation/R5-review-b.json",
+   "validation/R5-review-c.json"
+  ],
+  "gameplan_change": "ROUND GP-006 retired -> GP-013 (unchanged entrypoint OR canary exit 0 on candidate)"
+ }
 }
