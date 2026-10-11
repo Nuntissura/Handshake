@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:24:18Z",
+ "updated_at": "2026-10-11T02:28:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -58,8 +58,8 @@
    "lane_id": "SMB-DEVELOP",
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [
@@ -67,13 +67,16 @@
     "e4d2b52",
     "c008daf",
     "2e3fd50",
-    "1cd586c"
+    "1cd586c",
+    "01bfeb3",
+    "a8dd8e8",
+    "12e3043"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
-   "candidate": "1cd586c",
-   "note": "native develop + own DNG reader (LJPEG, linearization, DNG color mapping); 10 tests synthetic; slice3 real CC0 DNG + speed + prism output in progress",
-   "review_findings": "R2-review-a CONFIRMED: u64 overflow panic dng.rs:379, tautological warm-neutral test, min_bayer_side=1 panic, BlackLevelDeltaH/V ignored -> remediation dispatched (not a formal verdict; R2 did not open)"
+   "candidate": "12e3043",
+   "note": "11 tests + 1 ignored real-DNG; prism output route; 24MP full develop 3.3s scalar; real CC0 DNGs await Operator download approval (D10)",
+   "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)"
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -336,12 +339,17 @@
    "lane_id": "SMB-CONTROLS",
    "crate": "hsk-studio-controls",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-controls",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-controls",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "a1d0fbd",
+    "2ea0c1e"
+   ],
+   "verdicts": [],
+   "candidate": "2ea0c1e",
+   "note": "descriptor registry, ValueStore undo events, egui renderer (headless), agent JSON + manual projection, dead-control audit; 5 tests; slice2 spec gestures/panels in progress"
   },
   {
    "lane_id": "SMB-SESSION",
@@ -375,9 +383,9 @@
    "lane_id": "SMB-KERNEL-BINDINGS",
    "crate": "hsk-studio-kernel-bindings",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-kernel-bindings",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-kernel-bindings",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -397,9 +405,9 @@
    "lane_id": "SMB-WEB",
    "crate": "hsk-studio-web",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-web",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-web",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -458,12 +466,13 @@
    "brief": "builders/briefs/hsk-studio-motion-js.md",
    "commits": [
     "1f87cd2",
-    "5882f3c"
+    "5882f3c",
+    "cd2ff81"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
-   "candidate": "5882f3c",
-   "note": "slice1 provider+engine trait+quotas+double; slice2 rquickjs 0.14.0 per prep expression-provider-adoption.json",
+   "candidate": "cd2ff81",
+   "note": "slice2 quickjs feature (off by default) per prep controls; finding: hostile async syntax can abort host -> worker-process lane mandatory",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round"
   },
   {
@@ -484,13 +493,17 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/type-lane.md topic strategy",
    "scope": "spike: harfrust =0.14.0 + read-fonts/skrifa provider behind a feature flag, side-by-side with vendored subset; compare against existing references; bounds at call boundary",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "type-lane",
    "operator_decision": "D7 pending: accept call-boundary metering instead of in-shaper bounds before replacing the vendored path",
-   "commits": [],
+   "commits": [
+    "c65e1a7d",
+    "f6fc17c8"
+   ],
    "verdicts": [],
-   "note": "side-by-side feature-flag spike only; replacement = Operator D7"
+   "note": "harfrust feature spike: 11/11 exact parity; Devanagari+Hebrew shape (no reference); call-boundary metering; CJK peak 10.4->18.7 MB; reference made by upstream rustybuzz 0.20.1",
+   "candidate": "f6fc17c"
   },
   {
    "lane_id": "SMB-REEL-ENG-1",
@@ -599,15 +612,16 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/baseline.md",
    "scope": "fix 3 failing vendored ttf-parser doctests (ttf_parser:: paths) src/provider/ttf/mod.rs:182,205,2080",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "type-lane",
    "commits": [
-    "94331b00b51f2ba6e2e48abc2e9fc7949bf16289"
+    "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+    "ef8beac9"
    ],
    "verdicts": [],
-   "candidate": "94331b0",
-   "review_findings": "R2-review-b CONFIRMED: provenance '0 drift' claim false (CRLF vs committed bytes) -> remediation dispatched"
+   "candidate": "ef8beac",
+   "review_findings": "R2-review-b CONFIRMED provenance CRLF claim fixed ef8beac (150 hashes from committed blobs; tests/provenance.rs guard); earlier claim retracted"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-1",
@@ -798,6 +812,17 @@
    "phase": "build",
    "status": null,
    "owner": "builder-render-cpu-clip",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
+   "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }

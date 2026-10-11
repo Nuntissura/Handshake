@@ -2,40 +2,70 @@
   "crate": "hsk-studio-motion-js",
   "mt": "MT-35563",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1 (pure-Rust adapter part): engine-adapter trait, Motion ExpressionProvider implementation, quota/fuel/deadline accounting, typed error mapping, fresh-realm/permit/retire accounting, scripted test double. NO JavaScript engine linked.",
+  "phase": "slice-2: QuickJS backend behind cargo feature quickjs (default OFF) on top of slice-1 adapter/provider/double. In-process only; worker isolation NOT built.",
   "commits": [
-    {"sha": "1f87cd2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "MotionJS: engine-adapter contract, quota/fuel/deadline provider over Motion ExpressionProvider, scripted test double, descriptor, consumer example"},
-    {"sha": "5882f3c", "tree": "d976f30", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "MotionJS: adapter contract tests (typed mapping, outputs, quotas, fuel, deadline, realms, permits, retire)"}
+    {"sha": "1f87cd2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 1: engine-adapter contract, quota/fuel/deadline provider over Motion ExpressionProvider, scripted test double, descriptor, consumer example"},
+    {"sha": "5882f3c", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 1: adapter contract tests (4)"},
+    {"sha": "9e7d420", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 2: quickjs feature (rquickjs =0.14.0, default-features=false, std), QuickJsEngine, owned clock/deadline handles in EvalJob, HostBridge::fuel_remaining"},
+    {"sha": "ae4137d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 2: Promise intrinsic for sound async teardown, global Promise deleted (found by probe)"},
+    {"sha": "063b590", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 2: tests/quickjs_contract.rs (4)"},
+    {"sha": "cd2ff81", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "slice 2: descriptor + example update, temporary probe files removed (409e19e, 1d886fc add/extend them, cd2ff81 leaves none tracked)"}
   ],
   "capabilities_done": [
-    "Engine adapter contract (src/engine.rs): Engine::run(&EvalJob, &mut dyn HostBridge) -> EngineRun{outcome, RealmReceipt{fresh,dropped}}; neutral JsValue/EngineFailure/BudgetKind/ThrownKind; HostBridge{read, charge, checkpoint, utc_ms}; no engine type in any signature; adapter obligations documented (limits before parse, shared checkpoint charging, uncatchable budget/cancel/host failures, no ambient authority, bounded conversion)",
-    "MotionJsProvider<E: Engine> implements hsk_studio_motion::ExpressionProvider (profile id motion-js-es2018@1): cancel before/at every checkpoint/after run, source-size preflight before any realm, concurrent-realm permits (RAII), one shared Motion Fuel for checkpoints + nested host reads + retries, cooperative monotonic deadline via injectable Clock (SystemClock / ManualClock), host-read quota, injected MOT-256 DateProfile as the only clock, catch_unwind containment of engine panics",
-    "Typed mapping to Motion ExprErrorCode: Parse/Unsupported with exact line:column, thrown reference error -> ReferenceMissing, other thrown -> Unsupported, every budget kind -> Budget (per-kind denial counters), non-numeric/non-finite/wrong-dimension/oversize/too-deep result -> OutputType with no partial output (iterative size check), host errors passed through verbatim, Canceled never disables",
-    "Fail closed: Quotas only via QuotaSpec::try_from_spec (zero or above-ceiling rejected, private fields); leaked/non-fresh realm, engine panic or Internal failure poisons the provider (later evaluations refused, retire reports unclean)",
-    "retire(self) -> RetireReport{realms_started, realms_retired, permits_released, poisoned, owner_thread}; ProviderStats counters",
-    "ScriptedEngine deterministic test double (command words, NOT a JS interpreter), report_eval() through observe::SinkPort, DESCRIPTOR (valid JSON, NOT_PROVEN list), example motion-js-consumer (--descriptor, --eval, --engine scripted, --fuel, --dimension; boa|quickjs -> engine_unavailable)"
+    "Slice 1 (unchanged): Engine adapter trait, MotionJsProvider<E> implementing Motion ExpressionProvider, Quotas fail-closed, shared Fuel/deadline/cancel/permits, typed ExprError mapping with spans, bounded output conversion, retire report, ScriptedEngine double (not a JS interpreter), report_eval, DESCRIPTOR, example",
+    "QuickJsEngine (src/quickjs.rs, feature quickjs): fresh rquickjs Runtime + context per run on a dedicated worker thread with its own sized native stack (limit + 1 MiB), dropped there; heap limit applied before any context with malloc_limit READBACK (mismatch -> fail closed), engine/quota mismatch -> Internal -> provider poisoned; stack limit applied before eval and QuickJsEngine::new rejects stacks above 16 MiB (wrapper maps larger to unlimited) or below 64 KiB; interrupt handler polls shared Fuel (1 unit per engine poll, bounded by HostBridge::fuel_remaining, charged after the run so exhaustion is permanent), cancel and monotonic deadline; strict-mode user source with filename expr so spans come from the stack",
+    "Dynamic-compile denial as far as enumerated: eval and the four js_function_constructor registrations (Function, GeneratorFunction, AsyncFunction, AsyncGeneratorFunction) replaced by non-configurable throwers before user source; direct eval identity check (ctx->eval_obj) cannot match; Math.random throws; no Date/Proxy/JSON/RegExp/typed arrays/loader/console/libc; Promise intrinsic present but global deleted and jobs never run",
+    "Result extractor: trusted bootstrap closure with captured intrinsics and own-data-property descriptors; numbers or flat numeric arrays only; getters, boxed numbers, holes, nesting, cycles, oversize rejected as OutputType without running user code",
+    "Deterministic host-read miss/replay (hostRead(path[,tick]), hostUtcMs()): evaluation-local cache, first miss discards the run, host performs ONE read on the caller thread (shared Fuel, read quota, typed host errors uncatchable), replay; every distinct (path,tick) charged once",
+    "Mapping: SyntaxError->Parse(span), ReferenceError->ReferenceMissing(span), motionjs-unavailable TypeError->Unsupported(span), RangeError Maximum call stack->Budget(Stack), InternalError out of memory->Budget(Memory), other thrown->Unsupported, non-Error throw->Unsupported"
   ],
   "tests": {
-    "check_tests_examples": "PASS exit0 at 5882f3c",
-    "clippy_tests_examples": "PASS at 5882f3c, no findings in hsk-studio-motion-js (observe has 2 pre-existing too_many_arguments warnings, not ours)",
-    "foundation_contract": "PASS 4/4 (provider_evaluates_through_motion_property_and_store, quota_fuel_and_deadline_accounting, typed_errors_and_output_rules, realm_permits_poison_and_retire); package test run, tests only, no-fail-fast, shared edit tree (not an export)",
-    "passed": 4,
+    "check_tests_examples": "PASS exit0 default and --features quickjs at cd2ff81",
+    "clippy_tests_examples": "PASS default and --features quickjs, no findings in hsk-studio-motion-js (observe has 2 pre-existing too_many_arguments warnings, not ours)",
+    "foundation_contract": "PASS 4/4 without the feature (double tests unchanged) and with it",
+    "quickjs_contract": "PASS 4/4 with --features quickjs (quickjs_evaluates_and_reads_host, quickjs_limits_interrupt_and_fuel, quickjs_denies_dynamic_compile_and_ambient_authority, quickjs_realm_retire_and_concurrency); package test run, tests only, no-fail-fast, shared edit tree (not an export)",
+    "passed": 8,
     "failed": 0,
-    "oracle": "hand-computed: host read [960,540] with fuel 2; date epoch 1000 ms + 1 ms of ticks = 1001; x ramp midpoint 5 read through Motion PropertyStore; spin on Fuel 50 charges exactly 50 and the retry on the same Fuel charges 0; recursion limit 5 trips at depth 6 after 6 units; readsum of two reads costs fuel 2, third read denied by the 2-read quota",
-    "engine_evaluation": "NOT_PROVEN: no JavaScript engine exists in this slice; every behaviour above is proven against the scripted double only"
+    "oracle": "hand-computed: 1+2=3, [1,2,3], sum 0..49999 = 1249975000, host reads [960,540] fuel 1, two reads 5 fuel 2, repeated read cached 4 fuel 1, Date epoch 1000 ms + 1 ms = 1001, store x midpoint 5 / y=2x=10 / z=y+x=15 with fuel 2 and 3, 4 concurrent runtimes sum 1..100 = 5050; 17 output-shape rejections and 12 dynamic-compile routes probed on the live engine",
+    "build": "rquickjs-sys C build (cc, MSVC) ran under CARGO_TARGET_DIR on D: only (studio-env.sh), about 36 s first build"
   },
   "blockers": [],
+  "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged.",
+  "findings": [
+    {"id": "async-syntax-leak-abort", "text": "In a context WITHOUT the Promise intrinsic, merely creating an async function or async generator object leaks a GC object; QuickJS then fails assert(list_empty(&rt->gc_obj_list)) in JS_FreeRuntime and the PROCESS ABORTS (STATUS_STACK_BUFFER_OVERRUN in the debug build). Bisected with 7+4 probes (probe commits 409e19e, 1d886fc). Mitigation: Promise intrinsic added (probe shows no leak), global Promise deleted, jobs never executed. Consequence: an in-process native engine can take down the host on hostile source; the worker-process lane is MANDATORY before production use, not optional hardening."},
+    {"id": "interrupt-is-cooperative", "text": "Scripts that never reach an engine poll (about every 10,000 branch/call steps) cost 0 provider units; long C builtins and parsing are not interruptible in-process. Matches EXPR-PROVIDER-04: needs worker deadline."},
+    {"id": "oom-catchable", "text": "QuickJS out-of-memory is a catchable InternalError; heap stays bounded by the limit but script can swallow the error and continue."},
+    {"id": "eval-intrinsic-required", "text": "Without JS_AddIntrinsicEval even the embedder cannot compile source (JS_EvalInternal throws), so no trusted-compile-realm split is possible through the safe wrapper; only the name/constructor hardening above is available. Completeness of denial is NOT_PROVEN."}
+  ],
+  "controls": {
+    "EXPR-PROVIDER-01": "PARTIAL: exact =0.14.0 pin in the crate manifest, checksums recorded in the adoption review pins; resolved lock closure pinning is the steward's registry step; bundled engine 0.16.2 identity from the review",
+    "EXPR-PROVIDER-02": "ENFORCED in-process for heap (readback) and stack (config rejection; no stack readback API, effect proven by recursion test); target stack behaviour beyond this host NOT_PROVEN",
+    "EXPR-PROVIDER-03": "ENFORCED: no allocator/rust-alloc feature",
+    "EXPR-PROVIDER-04": "PARTIAL: cooperative polling with shared Fuel + deadline + cancel; NOT semantic fuel, no worker deadline",
+    "EXPR-PROVIDER-05": "PARTIAL / NOT_PROVEN completeness (see eval-intrinsic-required)",
+    "EXPR-PROVIDER-06": "PARTIAL: intrinsic set and strict mode enforced; AST profile validation absent",
+    "EXPR-PROVIDER-07": "ENFORCED for fresh runtime and retire on the owning worker thread; compiled cache not built",
+    "EXPR-PROVIDER-08": "PARTIAL: separate runtimes behind permit admission (4 concurrent test); no worker process",
+    "EXPR-PROVIDER-09": "PARTIAL: revision-bound host reads through Motion ports with shared allowance and declared read set (PropertyStore); AST rewriting absent",
+    "EXPR-PROVIDER-10": "ENFORCED for the extractor (no getters/proxies/coercion run); bounded nodes/depth",
+    "EXPR-PROVIDER-11": "NOT_PROVEN: only x86_64-pc-windows-msvc built here",
+    "EXPR-PROVIDER-12": "PARTIAL: executable compile/evaluate/cancel/reclaim/diagnostic operations exist",
+    "EXPR-PROVIDER-13": "NOT_PROVEN: no AST owner; engine polls are not semantic fuel",
+    "EXPR-PROVIDER-14": "NOT_PROVEN: no compiled cache or bytecode path"
+  },
   "open_decisions": [
-    {"id": "native-engine-choice", "text": "rquickjs 0.14.0 (bundled QuickJS-NG 0.16.2 C, conditional native candidate) vs boa_engine 0.22.0 (pure Rust, no -sys, ~43 normal deps). Boa RuntimeLimits has loop/recursion/stack/backtrace limits but NO heap limit, so a heap bomb cannot be denied in-process: Boa needs the separate worker-process design (RSS/CPU/wall deadline enforced by the parent, same isolation pattern as score-plugin) before it can claim EXPR-PROVIDER quotas. rquickjs has set_memory_limit/set_max_stack_size plus a cooperative interrupt handler but is C/FFI (rquickjs-sys name rejected by the probe pure_registry_name; needs steward scoped exemption + approved entry; feature graph must pin default features only, never full/loader/dyn-load/futures/chrono/allocator). Neither chosen; no dependency requested yet (builders/dep-requests.jsonl untouched). Needed from steward/lead: (1) probe policy for rquickjs-sys, (2) decision whether the worker-process slice is mandatory for any backend, (3) approval path for boa_parser/boa_ast (validator) pins."},
-    {"id": "profile-validator", "text": "Brief step 1 (AST allowlist validator with boa_parser, source_sha256, span table) NOT started: needs boa_parser/boa_ast dep requests; provider accepts any source and relies on the adapter. A token scan was deliberately not added (denying eval/Function names alone is not a control, STU-MOT-258)."}
+    {"id": "worker-process", "text": "Mandatory next lane for production claims: separate worker process (same isolation pattern as score-plugin) giving RSS/CPU/wall deadline, termination of long C builtins/parsing, and crash containment for the async-syntax-style aborts. Needs lead/steward decision on process protocol and owner."},
+    {"id": "profile-validator", "text": "AST allowlist validator (boa_parser/boa_ast, source_sha256, span table) still not started; waits on dep approval. It would also let the provider refuse async/class/import() syntax up front and is the only route to EXPR-PROVIDER-05/13."},
+    {"id": "boa-alternative", "text": "Boa only if equivalent quota/deadline/reclamation is proven (no heap limit) - not now, per coordinator."}
   ],
   "decisions": [
-    {"id": "scripted-double-not-interpreter", "text": "ScriptedEngine interprets fixed command words only; it must never grow into a JS evaluator (adoption review rejects an own interpreter). It exists so provider policy is provable without a native engine."},
-    {"id": "thrown-error-mapping", "text": "MOT-259 has no runtime-error code. Thrown reference error -> ReferenceMissing, any other thrown error -> Unsupported. UNVERIFIED mapping; revisit when the spec adds a runtime-error outcome."},
-    {"id": "profile-id-working-name", "text": "motion-js-es2018@1 is a working identifier, not taken from the spec."},
-    {"id": "deadline-is-guard-not-budget", "text": "Wall-clock deadline is a cooperative resource guard (machine-speed dependent, EXPR-PROVIDER-04); the deterministic budget is Fuel. Both surface as Budget; the kind is only visible in ProviderStats denial counters."},
-    {"id": "host-budget-mapping", "text": "A Budget error returned by HostRead (fuel exhausted inside a host read) is mapped to BudgetKind::Fuel and cannot be caught by script code."}
+    {"id": "miss-replay-instead-of-borrowed-host", "text": "rquickjs Function::new requires 'js-lifetime closures, so a borrowed &mut HostBridge cannot be captured; avoided unsafe lifetime erasure with deterministic miss/replay (crate keeps forbid(unsafe_code))."},
+    {"id": "scripted-double-not-interpreter", "text": "ScriptedEngine interprets fixed command words only and must never grow into a JS evaluator."},
+    {"id": "thrown-error-mapping", "text": "MOT-259 has no runtime-error code: thrown reference error -> ReferenceMissing, other thrown -> Unsupported (UNVERIFIED mapping)."},
+    {"id": "profile-id-working-name", "text": "motion-js-es2018@1 is a working identifier, not from the spec."},
+    {"id": "deadline-is-guard-not-budget", "text": "Wall-clock deadline is a cooperative resource guard; the deterministic budget is Fuel. Both surface as Budget; kind only visible in ProviderStats denial counters."},
+    {"id": "host-budget-mapping", "text": "A Budget error returned by HostRead is mapped to BudgetKind::Fuel and cannot be caught by script code."}
   ],
-  "next": "Independent validator round on 5882f3c (crates/hsk-studio-motion-js/tests/foundation_contract.rs). After the steward/lead answers the open decisions: boa_parser/boa_ast validator slice, then one engine backend behind a default-OFF feature with the same four-test suite run differentially against ScriptedEngine-compatible expectations, then the worker-process isolation slice.",
-  "updated_at": "2026-10-11T04:20:00Z"
+  "next": "Independent validator round on cd2ff81 (default run of tests/foundation_contract.rs, and the --features quickjs run of tests/quickjs_contract.rs). After lead/steward answers: steward dep sync for the rquickjs closure; then worker-process lane and the AST profile validator.",
+  "updated_at": "2026-10-11T05:10:00Z"
 }

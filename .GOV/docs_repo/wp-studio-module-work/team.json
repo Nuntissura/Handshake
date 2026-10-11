@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:22:36Z",
+ "updated_at": "2026-10-11T02:28:57Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -27,7 +27,7 @@
     "MT-35536.json"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "done (READY_FOR_VALIDATION e603db86)",
+   "status": "retired (refresh rule 600k); type lanes READY; harfrust spike done",
    "resumed": "2026-10-11T01:02Z"
   },
   {
@@ -251,7 +251,7 @@
     "builders/lanes/hsk-studio-motion.json"
    ],
    "launched": "2026-10-11T02:40Z",
-   "status": "running"
+   "status": "retired (refresh rule 575k); motion + motion-js READY"
   },
   {
    "name": "builder-reel",
@@ -275,7 +275,7 @@
     "builders/lanes/hsk-studio-develop.json"
    ],
    "launched": "2026-10-11T02:40Z",
-   "status": "running"
+   "status": "retired (refresh rule 646k); develop READY 12e3043"
   },
   {
    "name": "builder-folio-eng-1",
@@ -429,6 +429,22 @@
    "model": "sonnet",
    "role": "render-cpu clip-to-base",
    "launched": "2026-10-11T02:22:36Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-kernel-bindings",
+   "agent_id": "a71088490ca126e45",
+   "model": "sonnet",
+   "role": "kernel-bindings slice 1",
+   "launched": "2026-10-11T02:28:30Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-web",
+   "agent_id": "a67ffe418c3fb0c3f",
+   "model": "sonnet",
+   "role": "web slice 1",
+   "launched": "2026-10-11T02:28:30Z",
    "status": "running"
   }
  ]

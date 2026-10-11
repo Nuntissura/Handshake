@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-controls",
+  "lane": "SMB-CONTROLS-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed: registry, legality owner, store, egui renderer, projections, audit; 5 focused tests green",
+  "commits": [
+    {"sha": "a1d0fbd", "subject": "Controls slice 1: descriptor registry (number/toggle/choice/color/text), strict legality owner, validated value store with undo-friendly events, descriptor-driven egui renderer, agent JSON + manual projections, dead-control audit"},
+    {"sha": "2ea0c1e", "subject": "Controls slice 1: 5 focused tests (numeric legality + store/undo, headless egui frames, projection round-trip, orphan audit, descriptor refusal) + controls-consumer example"}
+  ],
+  "capabilities_done": [
+    "ControlSpec descriptors (id,label,unit,help,kind,default) for number(field|slider)/toggle/choice/color/text; Registry with duplicate/invalid refusal and ordered specs",
+    "single legality owner on the descriptor: validate_value, strict parse_text (no arithmetic/junk-stripping, exact unit suffix), pointer_value (clamps hard bounds only, crosses soft), step_value (one modifier, rejects at hard bound); four-field bounds always (STU-FX-107); hard violation = OutOfHardBounds naming control, value, both bounds",
+    "ValueStore bound to a Registry: every write validated, ChangeEvent{seq,control_id,old,new,source,actor} per accepted change, no event for unchanged value, undo() with Stale refusal, reset, Interaction apply",
+    "egui_adapter: one renderer driven only by descriptors (scrub label + slider + typed field with Enter/blur commit, Escape discard, arrow steps; checkbox; combo box; colour button; text field), stable egui ids from control id, inline rejection text, soft-range marker, show_panel / show_panel_and_apply; headless (egui 0.33.3, default_fonts only, no eframe/accesskit/wgpu)",
+    "projection: agent_json (deterministic pretty JSON with all four bounds, derived step trio, help, consumers, actions, current value) + registry_from_json (full re-validation) + manual_topics from the same descriptors",
+    "dead-control audit: Registry::audit() -> AuditReport{total,consumed,orphans}; register_consumer refuses unknown controls",
+    "DESCRIPTOR const + examples/controls-consumer (--descriptor | --text <v>)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-controls --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "2ea0c1e",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "steward: Cargo.lock sync + registry pins/probe approval for egui 0.33.3 (+closure), serde 1.0.229, serde_json 1.0.151 (3 lines appended to builders/dep-requests.jsonl); validator round. Next slice candidates: gesture-end coalescing flag on Interaction, accesskit projection (descriptor -> AccessProps), observe report(), integer/enum steppers, panel grouping",
+  "updated_at": "2026-10-11T02:26:48Z",
+  "notes": {
+    "fine_step_vs_precision": "Interpretation recorded for spec enrichment (STU-FX-109/110): precision = declared DISPLAY decimal places only; step=10^-precision, fine_step=step/10 and coarse_step=step*10 are DERIVED, never stored, and fine_step may be finer than the display precision (0.001 at precision 2). Stored/accepted values keep full parsed precision (typed 0.7549 is stored as 0.7549, shown as 0.75); nothing rounds to precision silently. Step arithmetic only strips binary noise (clean(): 1e-9 grid below 1e6).",
+    "step_at_hard_bound": "Keyboard/accessibility step that would leave the hard range is REJECTED with OutOfHardBounds (not clamped, not a silent no-op); pointer route is the only clamping route (hard bounds only).",
+    "modifier_defaults_unverified": "Shift = coarse, Alt = fine, applied once, are lead-chosen defaults; STU-FX-149 closed defaults were not read in this slice (UNVERIFIED).",
+    "slider_track": "Slider track = complete soft pair, else complete hard pair; label drag-scrub (not the slider) is the route that crosses soft bounds up to the hard clamp (STU-FX-110a).",
+    "dep_requests": "builders/dep-requests.jsonl: egui =0.33.3 (default-features=false, features=[default_fonts]; no eframe/accesskit/wgpu; default_fonts needed because Context::run lays out text), serde =1.0.229 (std,derive), serde_json =1.0.151 (std). accord is an allowed path edge (ActorContext on ChangeEvent). observe edge not used yet.",
+    "serde_json_float": "serde_json default float parsing is exact for <=15 significant digits (tests use such values); no float_roundtrip feature enabled.",
+    "known_gaps": [
+      "drag gestures emit one Interaction per frame: no gesture-end/coalescing marker for undo grouping yet",
+      "no AccessKit projection / accesskit feature (descriptor already carries role-relevant fields: label, value, min, max, step)",
+      "no Observe reporting of outcomes (report(&Outcome ...) from brief step 6)",
+      "no integer domain, no panels/docking/gizmos/swatches, no pointer resistance (STU-SHL-192)",
+      "ChangeEvent/Interaction are in-process types (not serde); document commit remains with the host actor",
+      "egui widget rendering is verified headless only via value/interaction outcomes; no pixel/visual proof"
+    ],
+    "craft_lesson": "Dead-control audit implemented as Registry::audit(); every fixture control has a registered consumer and the orphan test proves detection (Craft: 55/141 dead preferences)."
+  }
+}

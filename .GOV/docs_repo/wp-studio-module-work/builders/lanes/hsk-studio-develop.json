@@ -1,32 +1,40 @@
 {
   "crate": "hsk-studio-develop",
   "status": "READY_FOR_VALIDATION",
-  "phase": "r2_review_fixed_slice3_in_progress",
+  "phase": "slice3_profile_transform_done_real_dng_awaiting_download_approval",
   "commits": [
     {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"},
     {"sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"},
     {"sha": "c008daf470614710bd6cabed7c941a2e42f2dd63", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "DNG compression 7 via own lossless JPEG decoder (T.81 SOF3, predictors 1-7, point transform, restart rows)"},
     {"sha": "2e3fd501c4821e40e37d4dd8ff6efa74b0d54a7f", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "develop_to_image helper, DNG unapplied-feature report + strict gate, explicit BaselineExposure policy"},
     {"sha": "1cd586c64a59e337268a57d1b554b06ece061e37", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "cover Observe terminal outcome mapping"},
-    {"sha": "01bfeb38b4ec5a41e68909d880a89883b3936cbc", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "R2 review fixes: checked tile arithmetic + block bounds, Limits::validate, BlackLevelDeltaH/V applied, raw-IFD tag scoping, CM-path Y=1 normalisation, LJPEG bomb guard, independent FM/AB colour invariants; regression tests per finding"}
+    {"sha": "01bfeb38b4ec5a41e68909d880a89883b3936cbc", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "R2 review fixes: checked tile arithmetic + block bounds, Limits::validate, BlackLevelDeltaH/V applied, raw-IFD tag scoping, CM-path Y=1 normalisation, LJPEG bomb guard, independent FM/AB colour invariants; regression tests per finding"},
+    {"sha": "a8dd8e8c34eb68137f1c28b49aaec6ee8c4644c5", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "working->output profile conversion through Prism admitted route (develop_with + PrismConverter, receipt profile_route/profile_calls), CC0 linear ICC fixtures"},
+    {"sha": "12e3043470140aeafd2a364ee5d2d03191efbed5", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "develop-bench release timing example, ignored real-DNG harness (tests/real_dng.rs) + fetch-corpus.sh (not executed)"}
   ],
   "capabilities_done": [
-    "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/profile/contribution",
-    "pipeline: CfaPlane (spec_v1 + large limits, Bayer x4 + X-Trans 6x6, phase/origin), normalised bilinear_reflect_native_v1 demosaic, as-shot WB gains, calibration matrix, exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8), develop_to_image",
+    "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/contribution",
+    "pipeline: CfaPlane (spec_v1 + large limits validated at admission, Bayer x4 + X-Trans 6x6, phase/origin), normalised bilinear_reflect_native_v1 demosaic, as-shot WB gains, calibration matrix, [Prism working->output], exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8), develop_to_image",
     "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt; plane immutable; sha256 in receipt; route recorded (scalar only, sse2 refused)",
-    "observe: report() outcome mapping, DESCRIPTOR, develop-consumer example",
-    "dng: classic TIFF IFD walk (bounded), SubIFD raw selection, strips/tiles, uncompressed 8/16-bit LE/BE, lossless JPEG (compression 7), LinearizationTable, per-site BlackLevel repeat, WhiteLevel, ActiveArea, DefaultCrop, cfa_plane windows (Refuse | ClampReported counted), unapplied-feature report (opcode lists, default scale/user crop, profile maps, orientation)",
-    "colour: DNG camera->XYZ D50 (CM/FM two-profile mired interpolation, iterative white from AsShotNeutral or AsShotWhiteXY, Robertson 1968 CCT, Bradford, ForwardMatrix and ColorMatrix paths), recipe built from DNG tags with BaselineExposure policy"
+    "profile transform: ProfileConverter port + PrismConverter over AdmittedPrism (inspect both linear-light profiles, chunks of 64, relative colorimetric/32-bit/BPC off, range refusal never clipped), identity skip only after inspection; receipt profile_route + profile_calls; independent ICC colorant oracle test (1e-4)",
+    "observe: report() outcome mapping (incl. Prism codes), DESCRIPTOR, develop-consumer example",
+    "dng: classic TIFF IFD walk (bounded), SubIFD raw selection, strips/tiles with checked sizes, uncompressed 8/16-bit LE/BE, lossless JPEG (compression 7), LinearizationTable, per-site BlackLevel repeat + BlackLevelDeltaH/V, WhiteLevel, ActiveArea, DefaultCrop, raw-IFD-scoped tag lookup, cfa_plane windows (Refuse | ClampReported counted), unapplied-feature report (opcode lists, default scale/user crop, profile maps, orientation)",
+    "colour: DNG camera->XYZ D50 (CM/FM two-profile mired interpolation, iterative white from AsShotNeutral or AsShotWhiteXY, Robertson 1968 CCT, Bradford, ForwardMatrix and ColorMatrix paths with the same neutral->D50 Y=1 convention), recipe built from DNG tags with BaselineExposure policy"
   ],
-  "tests": {"passed": 10, "failed": 0, "targets": {"develop_recipe": "5/5", "develop_dng": "5/5"}, "check_tests": "PASS", "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)", "head": "01bfeb38b4ec5a41e68909d880a89883b3936cbc"},
+  "tests": {"passed": 11, "failed": 0, "ignored": 1, "targets": {"develop_recipe": "5/5", "develop_dng": "5/5", "develop_profile": "1/1", "real_dng": "1 ignored (needs corpus download approval)"}, "check_tests": "PASS", "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)", "head": "12e3043470140aeafd2a364ee5d2d03191efbed5"},
+  "speed_release_24mp_synthetic": {"plane_admit_ms": 106, "demosaic_only_ms": 1628, "develop_identity_ms": 3335, "develop_curve_exposure_ms": 5308, "mpix_per_s_identity": 7.2, "route": "scalar", "note": "single thread, 6000x4000 RGGB, Limits::LARGE, 384 tiles of 256"},
   "blockers": [],
+  "pending_operator_decision": {
+    "real_dng_download": "3 CC0 samples from raw.pixls.us (license verified from https://raw.pixls.us/json/getrepository.php?set=all: creativecommons.org/publicdomain/zero/1.0 for ids 2204, 3839, 1988) -> oracle-corpus/dng; run tests/real_dng/fetch-corpus.sh --go after approval; then run the ignored test with STUDIO_EXIFTOOL set",
+    "files": ["id 2204 Canon EOS 5D Mark III 1.47MB sha256 1d77dcc6...b603e (lossless JPEG)", "id 3839 Samsung SM-G973U 1.26MB sha256 6492b7e0...ab1 (uncompressed, OpcodeList2)", "id 1988 Nikon D80 7.90MB sha256 5095ca26...e26bb (tiled lossless JPEG + LinearizationTable, raw in SubIFD)"]
+  },
   "notes": [
-    "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs; EXIF passthrough metadata can add it later",
+    "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs",
     "UNVERIFIED: whether Adobe anchors the CFA pattern at the raw frame origin or the ActiveArea origin; reader refuses ActiveArea origins that are not a multiple of the pattern period",
-    "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; DNG SDK light-source temperatures for non-standard LightSource codes are approximations",
-    "No real camera DNG was available locally (none downloaded per rules); all DNG tests use synthesized bytes",
-    "stale gameplan retry-guard hit once after a failed full test run: cleared by committing (HEAD change), gameplan untouched"
+    "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; LightSource temperatures documented in color.rs (Adobe SDK table UNVERIFIED)",
+    "OpcodeList1-3 are reported as unapplied (require_complete refuses); optional-vs-required opcode parsing not implemented",
+    "Prism admitted route needs working RGB in 0..1 and per-call profile parsing: 64-pixel chunks are slow for full frames (spec STU-CON-044); prism builder may lift limits"
   ],
-  "next": "full-frame performance check on a synthetic large plane (release), then Prism working->output profile transform (admitted route), SIMD sse2 normalization route, X-Trans/DNG 6x6 real-file validation, HSL/detail stages per adobe-behavior order",
-  "updated_at": "2026-10-11T02:17:00Z"
+  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; speed: precomputed channel/reflect tables in demosaic; SIMD sse2 normalization; encoded (non-linear) profiles when Prism admits them",
+  "updated_at": "2026-10-11T02:28:00Z"
 }

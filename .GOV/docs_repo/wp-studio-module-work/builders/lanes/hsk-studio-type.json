@@ -1,31 +1,40 @@
 {
   "crate": "hsk-studio-type",
-  "lane": "SMB-TYPE-PROVENANCE-EOL",
+  "lane": "SMB-TYPE-ENG-1",
   "status": "READY_FOR_VALIDATION",
   "phase": "validation",
   "commits": [
     {
+      "sha": "c65e1a7da0fb4d50ba0302d84bf23456f1603581",
+      "subject": "Type: optional harfrust spike provider behind the provider boundary (SMB-TYPE-ENG-1)"
+    },
+    {
       "sha": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b",
       "subject": "Type: provenance hashes over committed LF blobs, with a check"
+    },
+    {
+      "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+      "subject": "Type spike: harfrust provider accepts any ISO 15924 script at validation"
     }
   ],
   "capabilities_done": [
-    "all 150 vendored derivative hashes (74 rustybuzz, 67 ttf-parser, 9 unicode-bidi) recomputed from committed git blobs; hash_basis recorded",
-    "38 CRLF/mixed working-tree copies normalized to committed LF bytes (git hash-object == index blob for all 196 crate files)",
-    "tests/provenance.rs: vendored hashes (LF-normalized) + fixture hashes (exact bytes)"
+    "feature harfrust (=0.14.0, std, optional) + TextEngine::shaped_runs_harfrust behind the provider boundary",
+    "call-boundary bounds: glyph cap, pre-charged op budget, font-copy and buffer admission reservations, cancellation before/after, output glyph budget, op-exhaustion -> PartialOutput",
+    "tests/harfrust_spike.rs: both providers vs reference 6579f9a9 + Devanagari/Hebrew coverage",
+    "SMB-TYPE-PROVENANCE-EOL: provenance over committed LF blobs + tests/provenance.rs"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-type --no-fail-fast -- --nocapture",
+    "argv": "cargo test -p hsk-studio-type --features harfrust --test harfrust_spike --no-fail-fast -- --nocapture",
     "exit": 0,
-    "sha": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b",
-    "passed": 41,
+    "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+    "passed": 1,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "resume SMB-TYPE-ENG-1 (harfrust spike, commit c65e1a7d): spike test refuses Devanagari UnsupportedProfile on the harfrust path; diagnose, then report parity",
-  "updated_at": "2026-10-11T02:22:46Z",
+  "next": "Operator decision D7 (replace vendored provider or keep); if adopted: new COMPOSITION_VERSION, steward lock sync, independent references for gained scripts, font-copy caching per call",
+  "updated_at": "2026-10-11T02:27:54Z",
   "notes": {
     "correction": "The 94331b00 claim of 0 provenance drift was wrong: it hashed Windows CRLF working-tree bytes, not committed LF blobs (R2-review-b, commit 87c1cd9).",
     "provenance_check_output": "vendored provenance: checked 150, drift 0; fixture provenance: checked 15, drift 0 (tests/provenance.rs at ef8beac9); independent blob check against origin/codex/handshake-studio-assets: checked 150 drift 0",
@@ -35,10 +44,8 @@
       "SMB-TYPE-DOCTEST": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
       "SMB-TYPE-ENV": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
       "SMB-TYPE-FONTS": "947b5e7c2bb4e844311734072e60c645d8bad2db",
-      "SMB-TYPE-FIXTURES": "31ea01e5f5f389d13174de3443067b5bb700396e"
-    },
-    "in_progress": {
-      "SMB-TYPE-ENG-1": "c65e1a7da0fb4d50ba0302d84bf23456f1603581 (feature harfrust; default build unchanged; spike test failing on coverage-gain case)"
+      "SMB-TYPE-FIXTURES": "31ea01e5f5f389d13174de3443067b5bb700396e",
+      "SMB-TYPE-PROVENANCE-EOL": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b"
     },
     "history": {
       "verdicts": [
@@ -96,6 +103,22 @@
           "tests": "unit 37/37, foundation_contract 2/2, doc 0/0, exit 0"
         }
       ]
+    },
+    "default_feature_tests": {
+      "argv": "cargo test -p hsk-studio-type --no-fail-fast -- --nocapture",
+      "exit": 0,
+      "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+      "passed": 41,
+      "failed": 0,
+      "provenance_check_output": "vendored provenance: checked 150, drift 0; fixture provenance: checked 15, drift 0"
+    },
+    "spike_result": {
+      "parity": "11/11 pinned reference cases exact on HarfRust 0.14.0 (glyph ids, cluster ranges, advance/offset point bits): latin_liga_0/1, arabic_rtl_marks, cjk_han, variable_default/changed, mixed_ltr_isolate_and_trailing_space, latin_dlig_0/1, arabic_inter_coverage_fallback_index1, arabic_missing_inter_explicit_substitution; vendored also 11/11",
+      "coverage_gain": "devanagari_hindi 6 scalars -> 5 glyphs, hebrew_shalom_points 7 -> 7 glyphs shaped by HarfRust; vendored refuses UnsupportedProfile at request validation (profile gate validate.rs). No independent reference for these: glyph correctness UNVERIFIED. Thai not tested (no redistributable Thai font on disk; download not authorized)",
+      "metering": "see diagnostics/type-lane.md topic harfrust-spike",
+      "reference_producer": "upstream rustybuzz 0.20.1 (not HarfRust); earlier strategy claim retracted",
+      "default_build": "unchanged: feature off by default; validate() keeps Latn/Arab/Hani/Zyyy for the vendored provider",
+      "dep_request": "builders/dep-requests.jsonl line for harfrust =0.14.0 (std, optional, 18-package closure); steward lock/registry sync pending (Cargo.lock not staged)"
     }
   }
 }

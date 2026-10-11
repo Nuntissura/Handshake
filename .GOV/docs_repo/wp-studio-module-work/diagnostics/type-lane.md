@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
 file_kind: lane_diagnostic
-updated_at: 2026-10-11T02:22:46Z
+updated_at: 2026-10-11T02:27:54Z
 wp: WP-KERNEL-STUDIO
 mt: MT-35536
 crate: hsk-studio-type
@@ -137,5 +137,60 @@ Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/har
   - The 38 CRLF/mixed working-tree copies were normalized to their committed LF bytes. `git hash-object` now equals the index blob for all 196 crate files.
   - `tests/provenance.rs` checks the vendored hashes after normalizing CRLF to LF, and the `-text` fixtures as exact bytes.
 - Check output: `vendored provenance: checked 150, drift 0`; `fixture provenance: checked 15, drift 0`. An independent check against the blobs on `origin/codex/handshake-studio-assets` also found 150 checked, 0 drift. Full default run: 41 passed, exit 0.
+
+</topic>
+
+<topic id="harfrust-spike" status="active" mt="MT-35536" summary="SMB-TYPE-ENG-1: HarfRust 0.14.0 behind the provider boundary; parity, coverage, metering (input to D7)">
+
+## HarfRust spike (commits c65e1a7d, f6fc17c8; feature `harfrust`, default build unchanged)
+
+Implementation: `TextEngine::shaped_runs_harfrust` keeps the same Request/Ports contract, the same font selection (`select_font`, extracted unchanged), axes and bidi. Each run is shaped by `harfrust =0.14.0` (std, read-fonts 0.45). The spike provider accepts any well-formed ISO 15924 script at validation; the vendored provider keeps Latn/Arab/Hani/Zyyy. Dependency closure: 18 packages, all pure Rust and permissively licensed (MIT/Apache/Zlib/Unicode-3.0). `harfrust` and `read-fonts` use `#![forbid(unsafe_code)]`; bytemuck, smallvec, once_cell, yoke, stable_deref_trait and font-types contain internal `unsafe`.
+
+### Parity against reference 6579f9a9
+
+Compared: glyph ids, cluster ranges, and advance/offset point bits.
+
+| Case | Vendored | HarfRust |
+|---|---|---|
+| latin_liga_0/1, latin_dlig_0/1 | exact | exact |
+| arabic_rtl_marks, arabic fallback, arabic explicit substitution | exact | exact |
+| cjk_han | exact | exact |
+| variable_default/changed (opsz,wght) | exact | exact |
+| mixed_ltr_isolate_and_trailing_space (RLI/PDI controls) | exact | exact |
+
+Result: 11/11 exact for both providers, with no differences to explain. Correction: the reference was produced by upstream rustybuzz 0.20.1, not by HarfRust. So HarfRust (HarfBuzz 14.5.1) agrees with rustybuzz (HarfBuzz 10.1.0) on these fixtures. The official bidi golden was not run through HarfRust; bidi is shared code.
+
+### Coverage gained
+
+- Devanagari "हिन्दी": 6 scalars shaped to 5 glyphs (conjunct formed).
+- Hebrew with niqqud: 7 scalars shaped to 7 glyphs.
+- The vendored provider refuses both with UnsupportedProfile at request validation.
+- No independent reference exists for these two, so their glyph correctness is UNVERIFIED.
+- Thai was not tested: no redistributable Thai font is on disk, and downloading one was not authorized.
+- HarfRust ships Indic, Khmer, Myanmar, USE, Hangul, Hebrew and Thai shapers.
+
+### Metering semantics (the D7 question)
+
+| Aspect | Vendored (in-shaper) | HarfRust (call boundary) |
+|---|---|---|
+| Work | exact `ctx.step` per loop and lookup | pre-charged `max(len*4096, 65536)` (HarfRust's own op ceiling) + 1 unit per copied font byte |
+| Cancellation | polled inside shaping loops | before and after the call only; latency is one span's full shaping |
+| Allocation | every ChargedVec reserved before allocating | font-copy reservation + 80 B/scalar estimate; layout cache, plan and buffer growth (up to `max(len*256, 65536)` glyphs) not observable |
+| Font bytes | borrowed caller lease | must be owned (read-fonts Blob is Arc or 'static): full copy per span (could be cached per call) |
+| Exhaustion | typed refusal at the exact step | `allocation_successful()==false` maps to PartialOutput |
+| Glyph budget | checked during shaping | checked after the output exists |
+
+Measured cost (work units / operation peak bytes, vendored vs HarfRust):
+- latin_liga: 296k / 10.44 MB vs 764k / 11.12 MB.
+- cjk_han: 327k / 10.41 MB vs 8.45M / 18.74 MB (the 8.3 MB Noto Sans SC copy dominates).
+- mixed: 1.73M / 10.48 MB vs 11.76M / 18.80 MB.
+
+### Open items before any adoption (D7)
+
+- `COMPOSITION_VERSION` still names rustybuzz-0.20.1, so HarfRust output would carry the wrong composition identity.
+- Feature availability on the HarfRust path is font-level FeatureList presence; the vendored path uses its script/language-selected map.
+- HarfRust exposes no pre-deletion source groups, so they are derived from surviving clusters. Controls merged into neighbouring clusters lose their separate NonrenderingControl coverage. Only standalone-control spans were exercised.
+- The steward lock/registry sync for the dep request is pending.
+- The gained scripts need independent references.
 
 </topic>
