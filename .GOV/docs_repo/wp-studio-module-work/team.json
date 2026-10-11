@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:44:14Z",
+ "updated_at": "2026-10-11T12:46:09Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1644,6 +1644,57 @@
     "builders/lanes/hsk-studio-score-plugin-rate.json"
    ],
    "launched": "2026-10-11T12:34:11Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-composite-adj",
+   "agent_id": "a6ffb96d4c6786c82",
+   "model": "sonnet",
+   "role": "SMB-COMPOSITE-ADJ R8 FAIL remediation + SMB-PARITY-FOLLOWUP (pigment reachable-only predicates, render-cpu explicit mask formats)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-composite.json",
+    "builders/lanes/hsk-studio-parity-followup.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-eng-1",
+   "agent_id": "a74131639d4099cef",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 gaps (export exact-or-error, zero-duration elst, MOV oracle) + PLR-056 test",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-budget",
+   "agent_id": "a19ab0fabd26f363e",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET (PLR-053)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-native-faults",
+   "agent_id": "aae3098bb55fde0eb",
+   "model": "sonnet",
+   "role": "SMB-REEL-NATIVE-FAULTS (PLR-055)",
+   "owns": [
+    "crates/hsk-studio-reel-native/**",
+    "builders/lanes/hsk-studio-reel-native-faults.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
    "status": "running"
   }
  ]
