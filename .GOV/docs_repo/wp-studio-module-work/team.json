@@ -1823,7 +1823,7 @@
     "builders/lanes/hsk-studio-interop-psd-budget.json"
    ],
    "launched": "2026-10-11T14:15:33Z",
-   "status": "done 2026-10-11T14:41:46Z (SMB-INTEROP-PSD-BUDGET READY at ce22fa5)"
+   "status": "done (ce22fa5; retired)"
   },
   {
    "name": "prereview-r10-reel-route",
@@ -1904,6 +1904,30 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T15:25:27Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-reel-eng-1-r10",
+   "agent_id": "a65a2d0969bbacc9b",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 R10 review fixes (edit-list duplicate delivery completeness, refused tmcd, PLR-062)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T15:30:02Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-psd-budget-r10",
+   "agent_id": "a07e5cfff7b916ca2",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET: uncounted cap must not drop visible stacks",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T15:30:02Z",
    "status": "running"
   }
  ]
