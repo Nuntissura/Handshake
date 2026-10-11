@@ -2101,7 +2101,7 @@
     "builders/lanes/hsk-studio-web-parity.json"
    ],
    "launched": "2026-10-11T20:27:46Z",
-   "status": "running"
+   "status": "done 2026-10-11T20:57:59Z (3d795a5)"
   },
   {
    "name": "rem-press-r13",

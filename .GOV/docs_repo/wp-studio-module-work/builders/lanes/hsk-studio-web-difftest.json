@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-DIFFTEST",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R11 pre-review remediation (judged with SMB-WEB-PARITY) on pushed 5cd8c9e: css-urls covers SVG animation values and data: payloads (separately written reference reader); generator and corpus extended",
+  "phase": "R11 pre-review remediation (judged with SMB-WEB-PARITY) on pushed 5cd8c9e: css-urls covers SVG animation values and data: payloads (separately written reference reader); generator and corpus extended | R13 (judged with SMB-WEB-PARITY): claim extended to 3d795a5; tests/html5ever_differential/harness.rs changed only in the GrantAll port signature",
   "commits": [
     {
       "sha": "eefe44d",
@@ -71,6 +71,10 @@
     {
       "sha": "e409030",
       "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): the three R12 pre-review payloads as named gate tests"
+    },
+    {
+      "sha": "3d795a5",
+      "subject": "web (SMB-WEB-PARITY, SMB-WEB-DIFFTEST, rem-web-r13): R13 pre-review fixes (small fix + narrow check)"
     }
   ],
   "capabilities_done": [
@@ -84,17 +88,17 @@
     "rem-web-r11: css-urls carriers include SVG animation from/to/by/values of CSS targets (values split) and data: payload URLs read by a separately written reference data: reader; generator animation carrier and data: fragments; corpus css_urls 60 (floor pinned)"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at e409030); cargo test --doc -p hsk-studio-web --offline; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer --offline -- --descriptor (valid JSON); soak HSK_DIFFTEST_SCALE=10 -E 'test(generated) | test(css_url)' and HSK_DIFFTEST_SCALE=50 -E 'test(css)'",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at 3d795a5); HSK_DIFFTEST_SCALE=10 -E 'test(generated) | test(css_url)'",
     "exit": 0,
-    "sha": "e409030",
-    "passed": 125,
+    "sha": "3d795a5",
+    "passed": 135,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 386,
   "bg_pids": [],
-  "next": "R12 validation with the claim through e409030: no difftest file changed since 5cd8c9e; soak re-run at e409030 (0 disagreements); see hsk-studio-web-parity.json notes.remediation_R12pre",
-  "updated_at": "2026-10-11T19:15:55Z",
+  "next": "R13 validation with the claim through 3d795a5: harness.rs changed only in GrantAll::resolve(reference, loads) (signature + import); soak at 3d795a5 153445 documents, 0 disagreements; see hsk-studio-web-parity.json notes.remediation_R13pre",
+  "updated_at": "2026-10-11T20:57:05Z",
   "notes": {
     "scope_kept": "test code + the crate's Cargo.toml dev-dependency only; src/, examples/, tests/source_dom_patch.rs, other crates, root Cargo.toml/Cargo.lock, ledger/team/other lane files untouched; no product defect fixed in this lane",
     "dep_request": "builders/dep-requests.jsonl line appended 2026-10-11T12:10:21Z (after SYNC DONE f6e5a49): kind dev, html5ever 0.40.1, features [], pure_rust true, license MIT OR Apache-2.0. New lock packages from a local offline resolve (13): html5ever 0.40.1, markup5ever 0.40.0, web_atoms 0.3.0, tendril 0.5.1, string_cache 0.11.0, string_cache_codegen 0.11.2 (MIT OR Apache-2.0); phf 0.14.0, phf_codegen 0.14.0, phf_generator 0.14.0, phf_shared 0.14.0, precomputed-hash 0.1.1, new_debug_unreachable 1.0.6 (MIT); fastrand 2.5.0 (Apache-2.0 OR MIT). The shared Cargo.lock was not touched (no cargo ran in the shared tree).",
@@ -310,6 +314,15 @@
         "difftest_changed": "no: tests/html5ever_differential/* is unchanged since 5cd8c9e; its css-urls check covers CSS carriers (the reference's data: policy 'text/css or (import && inert)' equals the Resource and Stylesheet contexts); the load-context policy (script, track, manifest, self-reference) is proven by the standards-derived unit table and the gate tests, as the R12 pre-review advised"
       },
       "proof_surface_note": "load-context holes (script, track, manifest, self-reference) are invisible to the css-urls differential by construction (it compares CSS carriers); their proof is datauri::tests::load_context_decides_before_the_type and the r12_* gate tests (red on 5cd8c9e, mutant run in notes.remediation_R12pre of the parity lane)"
+    },
+    "remediation_R13pre": {
+      "builder": "rem-web-r13",
+      "difftest_files_changed": [
+        "tests/html5ever_differential/harness.rs (GrantAll::resolve signature and the Loads import; 6 lines; no check, reference or generator changed)"
+      ],
+      "reason_listed": "V4-14: commit 3d795a5 touched the crate the differential judges (src/assets.rs, carriers.rs, datauri.rs, lib.rs and the gate tests) and one difftest file for the AssetPort signature",
+      "soak": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --offline --no-fail-fast -E 'test(generated) | test(css_url)' --no-capture at 3d795a5: 9 passed; 153445 comparable documents, 0 disagreements (css_urls 60, generated_css 30000, char_refs 21460, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R13/soak_scale10.txt",
+      "see": "hsk-studio-web-parity.json notes.remediation_R13pre (one remediation for both lanes)"
     }
   }
 }
