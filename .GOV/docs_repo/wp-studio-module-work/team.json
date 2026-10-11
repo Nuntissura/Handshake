@@ -2125,6 +2125,29 @@
    ],
    "launched": "2026-10-11T20:58:15Z",
    "status": "done 2026-10-11T21:11:03Z (SAFE_TO_JUDGE)"
+  },
+  {
+   "name": "validator-r12",
+   "agent_id": "a3d1ee32f4144a531",
+   "model": "opus",
+   "role": "WP validator STUDIO-R12 on 3d795a5",
+   "owns": [
+    "validation/round-R12.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T21:20:01Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r12-a",
+   "agent_id": "a02de913250214bba",
+   "model": "sonnet",
+   "role": "R12 reviewer (pigment plan limits + dependants sweep)",
+   "owns": [
+    "validation/R12-review-a.json"
+   ],
+   "launched": "2026-10-11T21:20:01Z",
+   "status": "running"
   }
  ]
 }
