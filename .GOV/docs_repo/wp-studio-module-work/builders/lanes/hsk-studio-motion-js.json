@@ -2,7 +2,7 @@
   "crate": "hsk-studio-motion-js",
   "mt": "MT-35563",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-2: QuickJS backend behind cargo feature quickjs (default OFF) on top of slice-1 adapter/provider/double. In-process only; worker isolation NOT built.",
+  "phase": "slice-3: worker-process isolation for the QuickJS engine (motion-js-worker bin, versioned stdin/stdout protocol, wall-clock kill, typed engine_crashed, bounded respawn) plus both STUDIO-R3 FAIL_V1 fixes (unmetered getter hang, user-named InternalError poison). Slice 1-2 content unchanged. In-process engine only behind QuickJsOptions::unsafe_in_process (tests).",
   "commits": [
     {
       "sha": "1f87cd2",
@@ -39,6 +39,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "slice 2: descriptor + example update, temporary probe files removed (409e19e, 1d886fc add/extend them, cd2ff81 leaves none tracked)"
+    },
+    {
+      "sha": "a53c52d",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "slice 3: worker-process isolation (src/quickjs_worker.rs, src/quickjs_wire.rs, src/bin/motion-js-worker.rs), QuickJsBackend/QuickJsOptions (QuickJsEngine crate-private), EngineFault/EngineFailure::Faulted, HostBridge::grant_time, R3 fixes (trusted describe, armed interrupt through extract/describe, null-prototype extractor descriptors, engine-signal interrupt classification), tests/quickjs_worker.rs (3), two R3 regression tests in tests/quickjs_contract.rs, wire unit test, descriptor and example update"
     }
   ],
   "capabilities_done": [
@@ -47,20 +53,27 @@
     "Dynamic-compile denial as far as enumerated: eval and the four js_function_constructor registrations (Function, GeneratorFunction, AsyncFunction, AsyncGeneratorFunction) replaced by non-configurable throwers before user source; direct eval identity check (ctx->eval_obj) cannot match; Math.random throws; no Date/Proxy/JSON/RegExp/typed arrays/loader/console/libc; Promise intrinsic present but global deleted and jobs never run",
     "Result extractor: trusted bootstrap closure with captured intrinsics and own-data-property descriptors; numbers or flat numeric arrays only; getters, boxed numbers, holes, nesting, cycles, oversize rejected as OutputType without running user code",
     "Deterministic host-read miss/replay (hostRead(path[,tick]), hostUtcMs()): evaluation-local cache, first miss discards the run, host performs ONE read on the caller thread (shared Fuel, read quota, typed host errors uncatchable), replay; every distinct (path,tick) charged once",
-    "Mapping: SyntaxError->Parse(span), ReferenceError->ReferenceMissing(span), motionjs-unavailable TypeError->Unsupported(span), RangeError Maximum call stack->Budget(Stack), InternalError out of memory->Budget(Memory), other thrown->Unsupported, non-Error throw->Unsupported"
+    "Mapping: SyntaxError->Parse(span), ReferenceError->ReferenceMissing(span), motionjs-unavailable TypeError->Unsupported(span), RangeError Maximum call stack->Budget(Stack), InternalError out of memory->Budget(Memory), other thrown->Unsupported, non-Error throw->Unsupported",
+    "Slice 3 worker isolation: QuickJsBackend::new(&Quotas, QuickJsOptions) hosts QuickJS in motion-js-worker child processes by default; QuickJsOptions::unsafe_in_process selects the old in-process engine (tests only; QuickJsEngine is now crate-private); bin target motion-js-worker has required-features quickjs; hand-written u32-length-prefixed versioned binary protocol (HELLO with engine identity, EVAL, VERIFY, REPORT, LIMITS; request id echoed; frame caps checked before allocation; no new dependency); per-worker I/O thread so the calling thread only waits on a channel; idle pool sized by max_concurrent_realms; fresh Runtime per request inside the worker; the replay/fuel/host-read loop is one shared function (quickjs::drive) so both backends give identical results",
+    "Supervision: wall-clock kill at injected-clock remainder + kill_grace (default 250 ms) on the real monotonic clock -> Budget(Deadline); cancel -> kill -> Canceled; reply above cap -> kill -> Output; worker death -> typed EngineFailure::Faulted(EngineFault::Crashed) = engine_crashed with the exit code recorded (provider not poisoned, realm counted retired once the child is reaped); protocol violation -> Faulted(Protocol); spawn failure -> Faulted(SpawnFailed); bounded respawn rate (max_spawns per spawn_window, default 16 per 10 s) -> Faulted(RespawnLimited); the provider maps every fault to ExprErrorCode::Unsupported (UNVERIFIED mapping) and counts it in ProviderStats::faulted; only Child handles this engine spawned are ever killed; the worker also exits by itself when its realm thread outlives the request deadline by 2 s or stdin closes; spawn latency is not script time (HostBridge::grant_time extends the host deadline by the measured setup time)",
+    "Quiet spawn: std::os::windows::process::CommandExt::creation_flags(CREATE_NO_WINDOW 0x08000000) on Windows, env_clear (empty worker environment), stderr null, stdin/stdout piped; no WerFault window handle observed during induced aborts",
+    "R3 fix 1 (interrupt armed / no unmetered user code): the interrupt stays armed from the first user instruction through result extraction and error description; thrown values are described by a trusted bootstrap function that never reads user-reachable accessors (captured uncurried String.prototype.indexOf/slice, Object.getPrototypeOf/getOwnPropertyDescriptor, native Error.prototype.stack getter; error kind from captured intrinsic prototype identity; only string primitives accepted); the extractor defines result elements through a null-prototype descriptor so Object.prototype get/set/value accessors cannot run",
+    "R3 fix 2 (classification by engine signal): interrupts are classified from our own handler state (Tripped Fuel/Cancel/Deadline), adapter failures from the rquickjs error type, never from error names; a user-thrown InternalError (any name/message/prototype trick) is plain data -> Unsupported and the provider is NOT poisoned"
   ],
   "tests": {
-    "check_tests_examples": "PASS exit0 default and --features quickjs at cd2ff81",
-    "clippy_tests_examples": "PASS default and --features quickjs, no findings in hsk-studio-motion-js (observe has 2 pre-existing too_many_arguments warnings, not ours)",
-    "foundation_contract": "PASS 4/4 without the feature (double tests unchanged) and with it",
-    "quickjs_contract": "PASS 4/4 with --features quickjs (quickjs_evaluates_and_reads_host, quickjs_limits_interrupt_and_fuel, quickjs_denies_dynamic_compile_and_ambient_authority, quickjs_realm_retire_and_concurrency); package test run, tests only, no-fail-fast, shared edit tree (not an export)",
-    "passed": 8,
+    "check_tests_examples": "PASS default and --features quickjs --all-targets at a53c52d (includes the example and the worker bin)",
+    "clippy_tests_examples": "PASS default and --features quickjs --all-targets, no findings in hsk-studio-motion-js (observe has 2 pre-existing warnings, not ours)",
+    "foundation_contract": "PASS 4/4 without the feature and with it",
+    "quickjs_contract": "PASS 6/6 in-process (4 original + 2 R3 regression: quickjs_user_getters_cannot_run_unmetered, quickjs_user_error_names_cannot_poison_provider) and PASS 6/6 against the worker process (HSK_MOTION_JS_TEST_BACKEND=worker, identical assertions). RED evidence on the unfixed code: the error-name test failed at its first source (provider poisoned); the getter test hung until the 60 s case deadline",
+    "quickjs_worker": "PASS 3/3: worker_results_match_in_process_exactly (34 differential sources, equal values/spans/fuel and equal ProviderStats, hand-computed oracles, one reused worker, heap/stack readback from inside the worker), worker_crash_is_typed_contained_and_respawn_is_bounded (real QuickJS async abort -> engine_crashed with exit code -1073740791 and the test process alive, respawn, 3-per-window spawn bound -> engine_respawn_limited), worker_is_killed_at_wall_deadline_and_on_cancel (deaf-interrupt worker killed at deadline+grace, cancel kill, provider usable after both)",
+    "wire_unit": "PASS 1/1 quickjs_wire::tests::wire_roundtrip_and_bounds (round trips, stale id, every truncation, array above max_nodes, hostile length above cap, hello version mismatch)",
+    "passed": 14,
     "failed": 0,
-    "oracle": "hand-computed: 1+2=3, [1,2,3], sum 0..49999 = 1249975000, host reads [960,540] fuel 1, two reads 5 fuel 2, repeated read cached 4 fuel 1, Date epoch 1000 ms + 1 ms = 1001, store x midpoint 5 / y=2x=10 / z=y+x=15 with fuel 2 and 3, 4 concurrent runtimes sum 1..100 = 5050; 17 output-shape rejections and 12 dynamic-compile routes probed on the live engine",
-    "build": "rquickjs-sys C build (cc, MSVC) ran under CARGO_TARGET_DIR on D: only (studio-env.sh), about 36 s first build"
+    "oracle": "hand-computed: 1+2=3, [1,2,3], sum 0..49999 = 1249975000, sum 1..100 = 5050, host reads [960,540] fuel 1, two reads 5 fuel 2, repeated read cached 4 fuel 1, Date epoch 1000 ms + 1 ms = 1001, hostUtcMs at tick 0 = 1000, store x midpoint 5 / y=2x=10 / z=y+x=15; worker exit code of the real abort -1073740791 = 0xC0000409 STATUS_STACK_BUFFER_OVERRUN; immediate-exit fault exit code 86",
+    "build": "check/clippy/test with studio-env.sh on D: only (CARGO_TARGET_DIR under Handshake_Artifacts); passed counts are with --features quickjs (14) and without (4); package run, no-fail-fast, shared edit tree (not an export)"
   },
   "blockers": [],
-  "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged.",
+  "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged. Slice 3 adds NO dependency (hand-written codec, std only); Cargo.lock and root Cargo.toml untouched.",
   "findings": [
     {
       "id": "async-syntax-leak-abort",
@@ -77,19 +90,47 @@
     {
       "id": "eval-intrinsic-required",
       "text": "Without JS_AddIntrinsicEval even the embedder cannot compile source (JS_EvalInternal throws), so no trusted-compile-realm split is possible through the safe wrapper; only the name/constructor hardening above is available. Completeness of denial is NOT_PROVEN."
+    },
+    {
+      "id": "r3-getter-hang-fixed",
+      "text": "CONFIRMED and fixed: classify read name/message/stack of the thrown value through user accessors after the interrupt had been disarmed (a looping getter = unbounded hang); Object.defineProperty in the extractor also read Object.prototype.get/set through the prototype chain. Both paths now run no user code and the interrupt stays armed to the end of the session. In worker mode the host wall-clock kill additionally bounds any residual hang."
+    },
+    {
+      "id": "r3-internalerror-poison-fixed",
+      "text": "CONFIRMED and fixed: a thrown Error with name 'InternalError' mapped to EngineFailure::Internal and poisoned the provider permanently. Interrupts now come from handler state and adapter failures from rquickjs error types; thrown-value kind comes from captured intrinsic prototype identity. RESIDUAL BY DESIGN: message-derived classes stay forgeable by scripts (new RangeError('Maximum call stack') -> Budget stack, new InternalError('out of memory') -> Budget memory, TypeError with the unavailable marker -> Unsupported); the effect is a typed budget denial for that script only, no poison, hang or state change."
+    },
+    {
+      "id": "wer-holds-aborted-worker",
+      "text": "On Windows an aborted worker (exit code -1073740791) stays alive about 5 s because Windows Error Reporting (WerFault.exe) handles the crash before the process exits. Without unsafe FFI (SetErrorMode) the host cannot suppress this, so a crash is reported as engine_crashed only when the process exits within the evaluation deadline; a worker still alive at deadline+grace is killed and reported as a deadline denial. The real-abort reproducer therefore runs with the 10 s deadline ceiling; respawn bounds use an immediate-exit fault. WerFault showed no window handle on this machine; WER UI behaviour on other systems is NOT_PROVEN."
+    },
+    {
+      "id": "async-abort-needs-test-fault",
+      "text": "The slice-2 Promise-intrinsic mitigation removes the abort from hardened contexts, so the reproducer needs the worker test fault WorkerTestFault::AsyncAbort (worker reads env HSK_MOTION_JS_WORKER_TEST_FAULT): sources containing 'async' then run in the unmitigated context (no Promise, no bootstrap) and trip the real QuickJS gc_obj_list assert at runtime free. ExitMidRequest and DeafInterrupt are likewise worker-env test knobs; the host never sets them in production."
+    },
+    {
+      "id": "quickjs-ng-stack-accessor",
+      "text": "In bundled QuickJS-NG 0.16.2, Error stack is an Error.prototype accessor over [[ErrorData]] and Error.prepareStackTrace is honoured when an error is created; that user hook runs at throw time under the armed interrupt. The describer reads stack only through the captured native getter and accepts string primitives only."
+    },
+    {
+      "id": "spawn-latency-vs-deadline",
+      "text": "Found under CPU load during the crash test: starting a worker inside the 250 ms default deadline produced spurious deadline denials. Fixed by measuring setup time and granting it back to the host deadline (HostBridge::grant_time, default no-op)."
+    },
+    {
+      "id": "os-limits-not-proven",
+      "text": "NOT_PROVEN: operating-system memory/CPU caps for the worker (Windows Job Object) and crash-reporter suppression need unsafe FFI, which the crate forbids and this lane was told not to add. Enforced instead: engine heap limit with readback inside the worker, wall-clock kill, cancel kill, bounded respawn."
     }
   ],
   "controls": {
     "EXPR-PROVIDER-01": "PARTIAL: exact =0.14.0 pin in the crate manifest, checksums recorded in the adoption review pins; resolved lock closure pinning is the steward's registry step; bundled engine 0.16.2 identity from the review",
-    "EXPR-PROVIDER-02": "ENFORCED in-process for heap (readback) and stack (config rejection; no stack readback API, effect proven by recursion test); target stack behaviour beyond this host NOT_PROVEN",
+    "EXPR-PROVIDER-02": "ENFORCED inside the worker for heap (limit applied before any context, malloc_limit read back; verify_limits readback over the protocol tested at 4 MiB / 512 KiB) and stack (config rejection; effect proven by the recursion test, also in worker mode); operating-system cap NOT_PROVEN (Job Object needs unsafe); target stack behaviour beyond this host NOT_PROVEN",
     "EXPR-PROVIDER-03": "ENFORCED: no allocator/rust-alloc feature",
-    "EXPR-PROVIDER-04": "PARTIAL: cooperative polling with shared Fuel + deadline + cancel; NOT semantic fuel, no worker deadline",
+    "EXPR-PROVIDER-04": "ENFORCED for the wall deadline: cooperative polling (shared Fuel, deadline, cancel; armed through extraction and error description) plus worker wall-clock kill at deadline+grace (deaf-interrupt test: a script that never polls is killed and the provider keeps working) and cancel kill; NOT semantic fuel (13 stays NOT_PROVEN)",
     "EXPR-PROVIDER-05": "PARTIAL / NOT_PROVEN completeness (see eval-intrinsic-required)",
     "EXPR-PROVIDER-06": "PARTIAL: intrinsic set and strict mode enforced; AST profile validation absent",
-    "EXPR-PROVIDER-07": "ENFORCED for fresh runtime and retire on the owning worker thread; compiled cache not built",
-    "EXPR-PROVIDER-08": "PARTIAL: separate runtimes behind permit admission (4 concurrent test); no worker process",
+    "EXPR-PROVIDER-07": "ENFORCED: fresh Runtime and context per request inside the worker, dropped on the thread that created them; worker death reclaims the realm and counts it retired only after the child is reaped; compiled cache not built",
+    "EXPR-PROVIDER-08": "ENFORCED for process isolation: separate processes behind permit admission and an idle pool, crash contained as engine_crashed, bounded respawn rate; Send/Sync wrapper features are not relied upon",
     "EXPR-PROVIDER-09": "PARTIAL: revision-bound host reads through Motion ports with shared allowance and declared read set (PropertyStore); AST rewriting absent",
-    "EXPR-PROVIDER-10": "ENFORCED for the extractor (no getters/proxies/coercion run); bounded nodes/depth",
+    "EXPR-PROVIDER-10": "ENFORCED for the extractor and the thrown-value describer (no getters, proxies, prototype accessors or coercion run; null-prototype descriptors; bounded nodes/depth); worker reply capped by max_output_nodes and a frame cap",
     "EXPR-PROVIDER-11": "NOT_PROVEN: only x86_64-pc-windows-msvc built here",
     "EXPR-PROVIDER-12": "PARTIAL: executable compile/evaluate/cancel/reclaim/diagnostic operations exist",
     "EXPR-PROVIDER-13": "NOT_PROVEN: no AST owner; engine polls are not semantic fuel",
@@ -98,7 +139,7 @@
   "open_decisions": [
     {
       "id": "worker-process",
-      "text": "Mandatory next lane for production claims: separate worker process (same isolation pattern as score-plugin) giving RSS/CPU/wall deadline, termination of long C builtins/parsing, and crash containment for the async-syntax-style aborts. Needs lead/steward decision on process protocol and owner."
+      "text": "RESOLVED in slice 3 (see capabilities_done): separate worker process built with a versioned stdin/stdout protocol, wall-clock/cancel kill, typed crash and bounded respawn. Remaining: (a) steward/lead packaging of the motion-js-worker executable next to the host binary (default discovery = next to the running exe or one directory above; or explicit QuickJsOptions::with_worker_program), (b) whether a narrowly scoped unsafe-FFI exception is approved for Job Object limits and SetErrorMode, otherwise the OS limits stay NOT_PROVEN."
     },
     {
       "id": "profile-validator",
@@ -133,10 +174,26 @@
     {
       "id": "host-budget-mapping",
       "text": "A Budget error returned by HostRead is mapped to BudgetKind::Fuel and cannot be caught by script code."
+    },
+    {
+      "id": "fault-mapping-unsupported",
+      "text": "Motion has no engine-fault code: EngineFailure::Faulted maps to ExprErrorCode::Unsupported with the typed cause in ProviderStats::faulted (UNVERIFIED mapping); the provider is not poisoned."
+    },
+    {
+      "id": "in-process-hidden",
+      "text": "QuickJsEngine is crate-private; the in-process path is reachable only as QuickJsOptions::unsafe_in_process(). Existing contract tests run in-process by default and against the worker with HSK_MOTION_JS_TEST_BACKEND=worker."
+    },
+    {
+      "id": "deadline-excludes-spawn",
+      "text": "Worker process start is host setup, not script time: the script keeps the budget left before checkout and the host deadline is extended by the measured setup time."
+    },
+    {
+      "id": "classification-by-engine-signal",
+      "text": "Interrupt causes come from our handler (Tripped), adapter failures from rquickjs error types, thrown-value kind from captured prototype identity; message text is used only for the three forgeable budget/marker classes documented in r3-internalerror-poison-fixed."
     }
   ],
-  "next": "Independent validator round on cd2ff81 (default run of tests/foundation_contract.rs, and the --features quickjs run of tests/quickjs_contract.rs). After lead/steward answers: steward dep sync for the rquickjs closure; then worker-process lane and the AST profile validator.",
-  "updated_at": "2026-10-11T05:10:00Z",
+  "next": "Independent validator round on a53c52d: default run of tests/foundation_contract.rs; --features quickjs run of the lib unit test, tests/quickjs_contract.rs (also with HSK_MOTION_JS_TEST_BACKEND=worker) and tests/quickjs_worker.rs (the real-abort reproducer can take up to about 10 s on Windows because of error reporting). The round entrypoint must run the quickjs feature tests (validator remediation). Then steward: worker executable packaging decision; AST profile validator still not started.",
+  "updated_at": "2026-10-11T03:25:59Z",
   "notes": {
     "verdicts": [
       {
@@ -162,6 +219,14 @@
         "idempotency_key": "STUDIO-R3:SMB-MOTION-JS:404ff3ae8cd7:FAIL_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      }
+    ],
+    "builder": [
+      {
+        "at": "2026-10-11T03:25:59Z",
+        "lane": "SMB-MOTION-JS-WORKER",
+        "commit": "a53c52d",
+        "note": "Pathspec commits only (no amend/rebase/bare commit) per lead rule; no shared-gameplan steps added for crate compile/test mistakes. Retry-guard hit once: an identical test command at the same HEAD was blocked after a product-test failure; handled by running a different filter, not by editing the gameplan. The gate also blocks any command whose text contains the gated test phrase, even inside a script body."
       }
     ]
   }

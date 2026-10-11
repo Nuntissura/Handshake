@@ -47,6 +47,18 @@
     {
       "sha": "dcc1b37",
       "subject": "R3 confirmed findings: checked lace-size sum + checked duration fill (Matroska), one hostile-input regression each"
+    },
+    {
+      "sha": "a2b1947",
+      "subject": "AV1 decode behind optional feature av1 (rav1d 1.1.0, asm off): isobmff av01 + matroska V_AV1, fixtures"
+    },
+    {
+      "sha": "fc5a04a",
+      "subject": "av1 tests: per-container expected pts (muxer rounds mkv to ms)"
+    },
+    {
+      "sha": "f0bc09d",
+      "subject": "av1: document trusted-input-only limit (rav1d panic aborts the process)"
     }
   ],
   "capabilities_done": [
@@ -56,21 +68,22 @@
     "slice3 cued_seek: Cues -> start cluster, bounded partial scan, same SeekResult as the full index plus file offsets and clusters_scanned",
     "slice3 identity/relink: SourceIdentity (len + SHA-256 over head/tail/interior windows), full_digest, relink with Sampled vs Full confidence, ambiguity never resolved silently, optional full verification",
     "R3 fixes (dcc1b37, SMB-REEL-ENG-3): matroska.rs lace-size sum via try_fold/checked_add -> Corrupt lace-sizes-exceed-block; finish_durations checked_sub (falls back, never panics); tests/review_r3_regressions.rs r3_1/r3_2 (RED on 404ff3a code: overflow panics at accum.rs / matroska.rs:1045; GREEN after fix)",
+    "SMB-REEL-ENG-3 av1 (feature av1, default OFF): ISOBMFF av01 + av1C and Matroska V_AV1 + CodecPrivate -> OutputMode::Decoded -> ChunkKind::VideoFrame chunks (planar Y,U,V tight, LE u16 above 8 bit), SegmentReceipt.video (VideoFormat: dims, bit depth, chroma, ColorInfo with origin SequenceHeader|Container|Untagged) and decoder_id rav1d + decoder_version from the linked crate; av1::Av1Decoder/DecodedFrame/parse_av1c/descriptor; bit-exact vs libdav1d oracle on both containers; random access via sync-sample pre-roll; typed refusals (av1C version/profile Unsupported, bitstream Corrupt, frame limit LimitExceeded)",
     "R2 fixes: wav truncation underflow, y4m non-ASCII token, moov largesize overflow, unaligned edit start (trim_start), PCM chunk runs charge the budget, sound version typed, index bound to source_len, original grant verified before proxy probe",
     "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-reel --no-fail-fast (default: 22) / --features av1 (25)",
     "exit": 0,
-    "sha": "dcc1b37",
-    "passed": 22,
+    "sha": "f0bc09d",
+    "passed": 25,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "validator round on fa365cd; candidate follow-ups: Matroska ContentEncodings (header stripping) and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
-  "updated_at": "2026-10-11T03:03:43Z",
+  "next": "validator round on f0bc09d (default and --features av1); steward: probe approved list + registry pins for hsk-studio-reel rav1d/libc (dep-requests, optional); LEAD: to_method 1.1.0 is CC0-1.0 (license gate); untrusted AV1 needs subprocess isolation (notes.lanes.SMB-REEL-ENG-3.blockers); earlier candidate fa365cd follow-ups: Matroska ContentEncodings and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
+  "updated_at": "2026-10-11T03:29:23Z",
   "notes": {
     "decisions": [
       {
@@ -114,6 +127,46 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "lanes": {
+      "SMB-REEL-ENG-3": {
+        "status": "READY_FOR_VALIDATION (trusted-input scope)",
+        "commits": [
+          "dcc1b37",
+          "a2b1947",
+          "fc5a04a",
+          "f0bc09d"
+        ],
+        "task": "AV1 decode behind optional cargo feature av1 (default OFF); also R3 Matroska overflow fixes (dcc1b37)",
+        "decoder": {
+          "crate": "rav1d =1.1.0 (BSD-2-Clause, crates.io 2025-05-07, MSRV 1.79)",
+          "features": "default-features=false + bitdepth_8 + bitdepth_16 (asm OFF; build.rs is a no-op, no nasm; spike build on D: 51 s)",
+          "api": "no published Rust API in 1.1.0: reel calls the dav1d C ABI that rav1d exports as Rust fns (rav1d::src::lib::dav1d_*); all unsafe in crates/hsk-studio-reel/src/av1/ffi.rs; crate attr forbid(unsafe_code) when the feature is off, deny(unsafe_code) + allow in ffi.rs when on",
+          "config": "n_threads=1, max_frame_delay=1, apply_grain=1, operating_point=0, all_layers=0, logger off, frame_size_limit from Limits.max_chunk_bytes/6; packets copied into rav1d-owned buffers",
+          "closure": "35 registry pkgs (cargo tree, windows-msvc); probe 35 cap applies to PATH packages, registry closure per direct dep is capped at 256 records: fits",
+          "licenses": "all MIT/Apache/BSD/Unlicense except to_method 1.1.0 = CC0-1.0 (LEAD decision for the permissive-only gate)",
+          "rejected": "rav1d-safe 0.6.0 (AGPL-3.0-only OR commercial), dav1d crate (needs libdav1d: reel-native only), Craft av1 crate (unpublished)"
+        },
+        "fixture": "tests/fixtures/av1/av1-16x16-3f.{mp4,mkv} (16x16 yuv420p 8-bit 3 frames, libaom via ffmpeg 8.1.1 run once offline on D:), generate.sh, provenance.json; oracle = libdav1d per-frame SHA-256 (ffmpeg framehash)",
+        "tests": "tests/av1_decode.rs: 3 tests (frames+dims+color+decoder receipt on mp4 and mkv; bit-exact vs oracle + deterministic + random access with pre-roll; typed refusals av1C version/marker/profile and frame limit). Default build: 22 tests unchanged and green; rav1d not in the default closure.",
+        "blockers": [
+          {
+            "error": "rav1d 1.1.0 aborts the process on corrupted bitstreams: panic Option::unwrap() on None at rav1d-1.1.0/src/decode.rs:4997 (on_error: f.frame_hdr.as_ref().unwrap(), reached from the submit_frame error path) inside an extern \"C\" fn, so the unwind cannot be caught",
+            "file_line": "crates/hsk-studio-reel/src/av1/ffi.rs (dav1d_send_data / dav1d_get_picture calls)",
+            "attempts": "byte-mutation probe (see mutation_probe); no in-process mitigation: catch_unwind cannot stop an abort, OBU pre-validation cannot cover tile corruption",
+            "decision": "feature stays OFF by default and documented TRUSTED INPUT ONLY (module docs + DESCRIPTOR); untrusted media needs decode in an isolated worker process (planned subprocess isolation / hsk-studio-reel-native). Lead/Operator: accept trusted-only scope for now, or require the worker before enabling the feature anywhere."
+          }
+        ],
+        "mutation_probe": "775 single-byte mutations of the fixture mdat payload (offsets 817..1010 of 817..1072, values 0x00/0xFF/0x55/0x80; probe stopped early because each abort takes ~10 s; each mutation in its own process): 653 decoded ok, 47 typed errors (45 MEDIA_CORRUPT, 1 MEDIA_LIMIT_EXCEEDED, 1 MEDIA_UNSUPPORTED), 75 process aborts (9.7%) all at rav1d decode.rs:4997. Raw rows: Handshake_Artifacts/WP-KERNEL-STUDIO/reel-av1/mut-results.txt",
+        "known_gaps": [
+          "10/12-bit, 4:2:2/4:4:4, mono and film-grain paths are implemented but not covered by a fixture (only 8-bit 4:2:0 clip, no grain)",
+          "Matroska Colour element is not parsed: Matroska colour comes only from the AV1 sequence header (container origin only for ISOBMFF colr nclx)",
+          "format change inside one segment (new sequence header with other dims/depth) is a typed Unsupported",
+          "operating point fixed to 0, highest spatial layer only; hidden-frame-only temporal units yield no chunk (receipt Partial)",
+          "Registry::standard() has no 'av1' provider id: AV1 is reached through the isobmff/matroska providers; av1::descriptor() makes the capability enumerable",
+          "decode speed in the unoptimised dev profile not measured"
+        ]
+      }
+    }
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:21:25Z",
+ "updated_at": "2026-10-11T03:30:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -171,8 +171,8 @@
    "lane_id": "SMB-REEL",
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
@@ -184,16 +184,17 @@
     "75a4d89",
     "b96a33e",
     "34ec20a",
-    "fa365cd"
+    "fa365cd",
+    "dcc1b37"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
-   "candidate": "fa365cd",
+   "candidate": "dcc1b37",
    "note": "20 tests; ISOBMFF+fMP4+Matroska/WebM indexes, PCM-in-MOV, sampled identity relink; accord timescale migration b96a33e",
    "review_findings": "R2-review-b 7 CONFIRMED fixed 75a4d89 (regression tests)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 FAIL_V1 remediated dcc1b37 (checked lace sum + duration fill)"
   },
   {
    "lane_id": "SMB-MOTION",
@@ -582,23 +583,24 @@
    "lane_id": "SMB-MOTION-JS",
    "crate": "hsk-studio-motion-js",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-motion-js",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion (reused)",
    "brief": "builders/briefs/hsk-studio-motion-js.md",
    "commits": [
     "1f87cd2",
     "5882f3c",
-    "cd2ff81"
+    "cd2ff81",
+    "a53c52d"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
-   "candidate": "cd2ff81",
+   "candidate": "a53c52d",
    "note": "slice2 quickjs feature (off by default) per prep controls; finding: hostile async syntax can abort host -> worker-process lane mandatory",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 FAIL_V1 remediated a53c52d (getter loop, InternalError classification)"
   },
   {
    "lane_id": "SMB-PRISM-ENG-1",
@@ -665,11 +667,17 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "AV1 decode via rav1d behind reel adapter; deterministic decode contract (hash-testable normative output)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-av1",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "a2b1947",
+    "fc5a04a",
+    "f0bc09d"
+   ],
+   "verdicts": [],
+   "candidate": "dcc1b37",
+   "note": "AV1 via rav1d 1.1.0 behind feature av1 (asm off), bit-exact vs libdav1d; TRUSTED INPUT ONLY: 9.7% of 1-byte mutations abort the process (uncatchable unwrap in rav1d extern C)"
   },
   {
    "lane_id": "SMB-PULSE-ENG-1",
@@ -1019,11 +1027,15 @@
    "crate": "hsk-studio-motion-js",
    "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
    "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion-js-worker",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "a53c52d"
+   ],
+   "verdicts": [],
+   "candidate": "a53c52d",
+   "note": "worker process isolation (CREATE_NO_WINDOW, deadline/cancel kill, crash -> engine_crashed, bounded respawn); in-process only via unsafe_in_process; Job Object/WerFault suppression NOT_PROVEN (needs unsafe)"
   },
   {
    "lane_id": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -1061,11 +1073,17 @@
    "crate": "hsk-studio-folio",
    "origin": "components builder Folio needs",
    "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types; + paint types (solid/gradient) for vector appearance (interop-vector folio_need)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-4",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "6567f43",
+    "efeeaa2",
+    "0e6142c"
+   ],
+   "verdicts": [],
+   "candidate": "0e6142c",
+   "note": "StudioDesignRecords (paint/autolayout/reactions/components/variables) standalone set + validators; 32 folio tests; 13 dependents compile; mutants caught"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-WIDE",
@@ -1121,6 +1139,39 @@
    "status": null,
    "owner": null,
    "blocked_on": "after SMB-PRISM-ENG-5 agent releases crate",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
+   "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-components-migrate",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
+   "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-vector-migrate",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
+   "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }

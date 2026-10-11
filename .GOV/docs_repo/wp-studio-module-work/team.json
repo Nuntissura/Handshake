@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T03:13:35Z",
+ "updated_at": "2026-10-11T03:24:59Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -501,7 +501,7 @@
    "model": "sonnet",
    "role": "reel AV1 (SMB-REEL-ENG-3)",
    "launched": "2026-10-11T02:52:29Z",
-   "status": "running"
+   "status": "done (dcc1b37 R3 + AV1 trusted-only)"
   },
   {
    "name": "builder-package-stream",
@@ -517,7 +517,7 @@
    "model": "sonnet",
    "role": "Folio design types",
    "launched": "2026-10-11T02:56:47Z",
-   "status": "running"
+   "status": "done 0e6142c"
   },
   {
    "name": "builder-prism-eng5",
@@ -533,7 +533,7 @@
    "model": "sonnet",
    "role": "motion-js worker isolation",
    "launched": "2026-10-11T02:56:47Z",
-   "status": "running"
+   "status": "done a53c52d"
   },
   {
    "name": "fix-r3-render-chain",
@@ -573,6 +573,22 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-components-migrate",
+   "agent_id": "a7c41628830faeb85",
+   "model": "sonnet",
+   "role": "components -> folio records",
+   "launched": "2026-10-11T03:24:59Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-vector-migrate",
+   "agent_id": "a1b1b1ae09e21bbcc",
+   "model": "sonnet",
+   "role": "interop-vector -> folio paint",
+   "launched": "2026-10-11T03:24:59Z",
    "status": "running"
   }
  ]
