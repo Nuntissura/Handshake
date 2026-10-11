@@ -30,7 +30,7 @@
   "lock_wait_s": 1060,
   "bg_pids": [],
   "next": "Independent validator: crates/hsk-studio-folio at bd4e811 (tests/design_records_contract.rs identity test + the 44 existing folio tests) and crates/hsk-studio-components at 3b6e9a9 (design_refuses_repeated_ids incl. the instance-id case; lane SMB-COMPONENTS-FOOTPRINT shares commit 3b6e9a9). Behaviour differences to accept or reverse are in notes.behaviour_differences.",
-  "updated_at": "2026-10-11T11:04:34Z",
+  "updated_at": "2026-10-11T11:06:04Z",
   "notes": {
     "plr": "PLR-049 (lead decision FIX_LANE): folio exposes its uniqueness pass, components calls it and deletes its rebuild (CX-CAP-001)",
     "commits_per_crate": "bd4e811 touches only crates/hsk-studio-folio; 3b6e9a9 touches only crates/hsk-studio-components and carries BOTH lanes' components changes (SMB-FOLIO-UNIQUENESS step 2 and SMB-COMPONENTS-FOOTPRINT), per the commit-per-crate rule",
@@ -63,6 +63,12 @@
     },
     "no_new_dependency": true,
     "lock_wait_note": "lock_wait_s is the longest measured wait (first check queued behind validator round R7, 1060 s); later batches ran inside one studio_disk_lock_run hold each",
-    "scope": "one agent in crates/hsk-studio-folio and crates/hsk-studio-components; Cargo.lock, root Cargo.toml and other crates untouched (Cargo.lock shows as modified in the shared tree from the steward, not staged)"
+    "scope": "one agent in crates/hsk-studio-folio and crates/hsk-studio-components; Cargo.lock, root Cargo.toml and other crates untouched (Cargo.lock shows as modified in the shared tree from the steward, not staged)",
+    "workflow_observations": [
+      "python text-mode open(path,'w') on Windows writes CRLF while the product repo files are LF (git autocrlf=true hides it in git status; bash grep -c with a CR pattern matched every line in this tool): detected via byte counts and converted back before any commit; use newline='' or binary writes for .rs edits",
+      "builder cargo commands queued 17 min behind validator round R7 (the round holds the disk lock in slices); batching check + clippy + per-test runner + doctests in one studio_disk_lock_run hold cut later waits to seconds",
+      "poll commands that mention a gated word (the per-test runner's name) and run from the kernel cwd hit the WP-KERNEL-012 gameplan (broken confirm binding); prefix polls with cd to the product workspace",
+      "the components lane file was rewritten by the R7 validator during this lane (R7 verdicts PASS_V4/PASS_V3 at dff7ef5, before these commits); this lane kept those entries and reset the components status to READY_FOR_VALIDATION because 3b6e9a9 changes the passing lanes' inputs"
+    ]
   }
 }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:05:38Z",
+ "updated_at": "2026-10-11T11:06:34Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1444,7 +1444,7 @@
     "crates/hsk-studio-components/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:06:34Z (bd4e811, 3b6e9a9)"
   },
   {
    "name": "builder-pigment-fx-ops",

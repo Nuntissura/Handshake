@@ -242,6 +242,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T10:56:49Z (R7 review A): effects + Blend-If on one layer has no defined composition -> pigment emits an intrinsically Unsupported operator `effects_with_blend_if` (admission refuses for every backend); nested effects are defined by pigment's reference -> pigment emits a declarable operator `effects_nested`, backends declare support via extension_exactness so admission refuses uniformly where unsupported (render-cpu today). Lane SMB-PIGMENT-FX-OPS; consumers adopt after.
 
+- Lead acceptance 2026-10-11T11:06:34Z (PLR-049): components Design::new now also refuses repeated component-instance ids and paint-style ids because folio's shared uniqueness pass covers those namespaces (stricter, consistent single owner); write_footprint is (instance_id, '') for whole-instance replacement (PLR-046).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

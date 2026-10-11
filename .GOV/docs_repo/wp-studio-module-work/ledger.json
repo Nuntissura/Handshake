@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:05:38Z",
+ "updated_at": "2026-10-11T11:06:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2147,22 +2147,31 @@
    "crate": "hsk-studio-components",
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "widened write footprint for whole-instance replacement (PLR-046)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-uniq",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "3b6e9a9"
+   ],
+   "verdicts": [],
+   "candidate": "3b6e9a9",
+   "note": "OverrideProposal.write_footprint = [(instance_id, '')] for whole-instance replacement; concurrent proposals on one instance conflict (test)"
   },
   {
    "lane_id": "SMB-FOLIO-UNIQUENESS",
    "crate": "hsk-studio-folio + hsk-studio-components",
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "folio exposes uniqueness/namespace pass; components uses it (PLR-049)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-uniq",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "bd4e811",
+    "3b6e9a9"
+   ],
+   "verdicts": [],
+   "candidate": "3b6e9a9",
+   "note": "folio identity.rs exposes check_identity_uniqueness/check_variable_identity_uniqueness (folio validators use the same code); components Design::new/VariableTable::new call it, rebuilt rules deleted; behaviour change accepted by lead: repeated component instance ids and paint style ids now refused (folio namespaces); 62 green"
   },
   {
    "lane_id": "SMB-PIGMENT-FX-OPS",
