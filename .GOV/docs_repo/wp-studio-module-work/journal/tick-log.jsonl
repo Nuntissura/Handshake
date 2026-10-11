@@ -49,3 +49,4 @@
 {"t": "2026-10-11T06:07:09Z", "event": "SMB-MOTION-JS READY_FOR_VALIDATION ffe5592 (rem-motionjs-reelnative)", "lanes_moved": ["SMB-MOTION-JS READY"], "commits": ["ffe5592"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:07:09Z", "event": "SMB-MOTION-JS-WORKER READY_FOR_VALIDATION ffe5592 (rem-motionjs-reelnative)", "lanes_moved": ["SMB-MOTION-JS-WORKER READY"], "commits": ["ffe5592"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:07:09Z", "event": "SMB-REEL-NATIVE-AV1-WORKER READY_FOR_VALIDATION f080dd6 (rem-motionjs-reelnative)", "lanes_moved": ["SMB-REEL-NATIVE-AV1-WORKER READY"], "commits": ["f080dd6"], "progress": "direct: product commit"}
+{"t": "2026-10-11T06:08:06Z", "event": "SMB-SCORE-PLUGIN READY_FOR_VALIDATION 6c45e64 (builder-score-plugin)", "lanes_moved": ["SMB-SCORE-PLUGIN READY"], "commits": ["6c45e64"], "progress": "direct: product commit"}

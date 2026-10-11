@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:07:09Z",
+ "updated_at": "2026-10-11T06:08:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -655,11 +655,12 @@
    "owner": "builder-score-plugin",
    "brief": "builders/briefs/hsk-studio-score-plugin.md",
    "commits": [
-    "67fdd10"
+    "67fdd10",
+    "6c45e64"
    ],
    "verdicts": [],
-   "candidate": "67fdd10",
-   "note": "slice 1 ccc9c9a (IsolatedHost over framed worker protocol, state versioning, PluginProcessor over score Engine) + 8a6bc23 Backend port + native CLAP feature (default OFF, unsafe only clap_backend.rs) + 35f197e CLAP fixture bit-exact in worker, library mapped in worker not host + 67fdd10 V4 remediation; supervision in one file src/supervisor.rs (D18 known site); fault modes only under test-faults; 7/9/11 green per feature set; CLAP beyond parameterless gain NOT_PROVEN"
+   "candidate": "6c45e64",
+   "note": "CLAP fixture via .config/oracle-corpus.toml MANIFEST (sha256 + source_sha256 tie), env var only optional override, absent -> NOT_PROVEN; 11 of 11 green with clap+test-faults features and no HSK_* env (absent/mismatch branches not exercised)"
   },
   {
    "lane_id": "SMB-REEL-NATIVE",
