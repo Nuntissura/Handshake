@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:12:06Z",
+ "updated_at": "2026-10-11T10:12:35Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1270,7 +1270,7 @@
     "crates/hsk-studio-develop/**"
    ],
    "launched": "2026-10-11T07:59:09Z",
-   "status": "done 2026-10-11T09:59:23Z (SMB-DEVELOP READY at 60b0e47)"
+   "status": "done 2026-10-11T10:12:35Z"
   },
   {
    "name": "rem-press-soundness",
@@ -1293,7 +1293,7 @@
     "crates/hsk-studio-motion-js/**"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "done 2026-10-11T10:06:33Z (SMB-MOTION-JS-WORKER READY at 1d972f1)"
+   "status": "done 2026-10-11T10:12:35Z"
   },
   {
    "name": "validator-r7",
@@ -1351,7 +1351,7 @@
     "crates/hsk-studio-render-gpu/**"
    ],
    "launched": "2026-10-11T08:05:44Z",
-   "status": "done 2026-10-11T10:12:06Z (SMB-BLENDIF-CLIP-ADOPT READY at 1f99350)"
+   "status": "done 2026-10-11T10:12:35Z"
   },
   {
    "name": "workflow-2",
@@ -1363,6 +1363,18 @@
     "workflow/plausible-register.json"
    ],
    "launched": "2026-10-11T09:51:51Z",
+   "status": "running"
+  },
+  {
+   "name": "steward-4",
+   "agent_id": "PENDING-S4",
+   "model": "opus",
+   "role": "workspace steward (fresh): sync for R7 rerun (kernel-bindings test-faults matrix, dep requests), canary, lock audit",
+   "owns": [
+    "root manifests/lock/.config/round entrypoint/probe/disk lock",
+    "builders/lanes/workspace-steward.json"
+   ],
+   "launched": "2026-10-11T10:12:35Z",
    "status": "running"
   }
  ]
