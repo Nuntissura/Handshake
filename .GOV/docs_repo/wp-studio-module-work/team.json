@@ -2114,6 +2114,17 @@
    ],
    "launched": "2026-10-11T20:27:46Z",
    "status": "running"
+  },
+  {
+   "name": "prereview-r14-web-narrow",
+   "agent_id": "ac5e17470cf694988",
+   "model": "sonnet",
+   "role": "narrow V4-13 pre-review SMB-WEB e409030..3d795a5",
+   "owns": [
+    "validation/R14-prereview-web-narrow.json"
+   ],
+   "launched": "2026-10-11T20:58:15Z",
+   "status": "running"
   }
  ]
 }
