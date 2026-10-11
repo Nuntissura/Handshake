@@ -1,48 +1,73 @@
 {
   "crate": "hsk-studio-controls",
-  "lane": "SMB-CONTROLS-1",
+  "lane": "SMB-CONTROLS-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 pushed: registry, legality owner, store, egui renderer, projections, audit; 5 focused tests green",
+  "phase": "slice 2 pushed: spec-aligned gestures + undo coalescing, Observe report, integer domain, sections; 9 focused tests green (5 slice-1 + 4 slice-2)",
   "commits": [
     {"sha": "a1d0fbd", "subject": "Controls slice 1: descriptor registry (number/toggle/choice/color/text), strict legality owner, validated value store with undo-friendly events, descriptor-driven egui renderer, agent JSON + manual projections, dead-control audit"},
-    {"sha": "2ea0c1e", "subject": "Controls slice 1: 5 focused tests (numeric legality + store/undo, headless egui frames, projection round-trip, orphan audit, descriptor refusal) + controls-consumer example"}
+    {"sha": "2ea0c1e", "subject": "Controls slice 1: 5 focused tests (numeric legality + store/undo, headless egui frames, projection round-trip, orphan audit, descriptor refusal) + controls-consumer example"},
+    {"sha": "62ea29a", "subject": "Controls slice 2: spec-aligned gestures (STU-FX-149/SHL-188..194), one undo step per gesture, integer domain, collapsible sections across egui/agent JSON/manual, Observe report per operation; 4 focused tests"}
   ],
   "capabilities_done": [
-    "ControlSpec descriptors (id,label,unit,help,kind,default) for number(field|slider)/toggle/choice/color/text; Registry with duplicate/invalid refusal and ordered specs",
-    "single legality owner on the descriptor: validate_value, strict parse_text (no arithmetic/junk-stripping, exact unit suffix), pointer_value (clamps hard bounds only, crosses soft), step_value (one modifier, rejects at hard bound); four-field bounds always (STU-FX-107); hard violation = OutOfHardBounds naming control, value, both bounds",
-    "ValueStore bound to a Registry: every write validated, ChangeEvent{seq,control_id,old,new,source,actor} per accepted change, no event for unchanged value, undo() with Stale refusal, reset, Interaction apply",
-    "egui_adapter: one renderer driven only by descriptors (scrub label + slider + typed field with Enter/blur commit, Escape discard, arrow steps; checkbox; combo box; colour button; text field), stable egui ids from control id, inline rejection text, soft-range marker, show_panel / show_panel_and_apply; headless (egui 0.33.3, default_fonts only, no eframe/accesskit/wgpu)",
-    "projection: agent_json (deterministic pretty JSON with all four bounds, derived step trio, help, consumers, actions, current value) + registry_from_json (full re-validation) + manual_topics from the same descriptors",
-    "dead-control audit: Registry::audit() -> AuditReport{total,consumed,orphans}; register_consumer refuses unknown controls",
-    "DESCRIPTOR const + examples/controls-consumer (--descriptor | --text <v>)"
+    "slice 1: ControlSpec descriptors (id,label,unit,help,kind,default) for number(field|slider)/toggle/choice/color/text; Registry with duplicate/invalid refusal and ordered specs",
+    "slice 1: single legality owner on the descriptor: validate_value, strict parse_text (no arithmetic/junk-stripping, exact unit suffix), pointer_value (clamps hard bounds only, crosses soft), step_value; four-field bounds always (STU-FX-107); hard violation = OutOfHardBounds naming control, value, both bounds",
+    "slice 1: ValueStore bound to a Registry: every write validated, ChangeEvent per accepted change, no event for unchanged value, undo() with Stale refusal, reset, Interaction apply",
+    "slice 1: egui_adapter: one renderer driven only by descriptors, stable egui ids from control id, inline rejection text, soft-range marker; headless (egui 0.33.3, default_fonts only, no eframe/accesskit/wgpu)",
+    "slice 1: projection: agent_json + registry_from_json (full re-validation) + manual_topics from the same descriptors; dead-control audit Registry::audit(); DESCRIPTOR const + examples/controls-consumer",
+    "slice 2: Shift/Alt picks replaced by spec: GestureRoles (Shift coarse x10, Ctrl on Windows/Linux or Command on macOS = egui `command` fine /10, both x100, Alt unused) via roles_from(); pointer sensitivity per STU-SHL-191 frozen at press (ScrubGesture: max(q, soft_range/200) else max(q, max(|anchor|,1)/200), delta = dx - dy, accumulator clamped to hard bounds only so dragging back from a hard stop returns immediately, crosses soft bounds)",
+    "slice 2: gesture protocol in ValueStore (STU-SHL-194): Update* -> Live events (not undo steps), End -> ONE Committed event press value -> final value (single undo step; net-zero gesture emits none), Abort/Escape -> restores press value, Aborted event excluded from undo; writes during a gesture refused; label scrub and slider both gesture-aware in the egui renderer",
+    "slice 2: report module: one Observe terminal frame per operation (Success; Canceled for abort or cancelled token; Failure Validation|Unsupported|Unavailable), live samples emit nothing, values and ids never reach the sink",
+    "slice 2: integer domain (`integer` kind, STU-FX-112): Value::Int, four i64 bounds, step=coarse=fine=1 regardless of modifiers, strict integer parser, OutOfHardBoundsInt, scrub rounds",
+    "slice 2: SectionSpec (ordered, collapsible, collapsed_by_default, parent chain) + ControlSpec.group_path; registry validates chains and shared id space; egui CollapsingHeader tree (PanelFrame reports rendered ids + header rects), agent JSON `sections` + group_path + is_default, manual section topics, audit reports empty sections; JSON round trip byte-identical"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-controls --tests --no-fail-fast",
     "exit": 0,
-    "sha": "2ea0c1e",
-    "passed": 5,
+    "sha": "62ea29a",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "steward: Cargo.lock sync + registry pins/probe approval for egui 0.33.3 (+closure), serde 1.0.229, serde_json 1.0.151 (3 lines appended to builders/dep-requests.jsonl); validator round. Next slice candidates: gesture-end coalescing flag on Interaction, accesskit projection (descriptor -> AccessProps), observe report(), integer/enum steppers, panel grouping",
-  "updated_at": "2026-10-11T02:26:48Z",
+  "next": "validator round (no new crates.io deps in slice 2: observe is an allowed path edge; Cargo.toml gained only the observe path edge). Next slice candidates: AccessKit projection (descriptor -> role/label/value text, same string as display per STU-SHL-193), wheel gesture (400 ms finalize), double-click reset / secondary-click menu (STU-SHL-195), search + show-only-non-default filters (STU-SHL-165 items 5/6), read-only expression state (STU-MOT-072), gesture-role rebinding config (STU-FX-149), PERCENT display flag",
+  "updated_at": "2026-10-11T02:38:34Z",
   "notes": {
-    "fine_step_vs_precision": "Interpretation recorded for spec enrichment (STU-FX-109/110): precision = declared DISPLAY decimal places only; step=10^-precision, fine_step=step/10 and coarse_step=step*10 are DERIVED, never stored, and fine_step may be finer than the display precision (0.001 at precision 2). Stored/accepted values keep full parsed precision (typed 0.7549 is stored as 0.7549, shown as 0.75); nothing rounds to precision silently. Step arithmetic only strips binary noise (clean(): 1e-9 grid below 1e6).",
-    "step_at_hard_bound": "Keyboard/accessibility step that would leave the hard range is REJECTED with OutOfHardBounds (not clamped, not a silent no-op); pointer route is the only clamping route (hard bounds only).",
-    "modifier_defaults_unverified": "Shift = coarse, Alt = fine, applied once, are lead-chosen defaults; STU-FX-149 closed defaults were not read in this slice (UNVERIFIED).",
-    "slider_track": "Slider track = complete soft pair, else complete hard pair; label drag-scrub (not the slider) is the route that crosses soft bounds up to the hard clamp (STU-FX-110a).",
-    "dep_requests": "builders/dep-requests.jsonl: egui =0.33.3 (default-features=false, features=[default_fonts]; no eframe/accesskit/wgpu; default_fonts needed because Context::run lays out text), serde =1.0.229 (std,derive), serde_json =1.0.151 (std). accord is an allowed path edge (ActorContext on ChangeEvent). observe edge not used yet.",
+    "fine_step_vs_precision": "Interpretation (accepted by lead pending spec enrichment): precision = declared DISPLAY decimal places; step=10^-precision, fine_step=step/10 and coarse_step=step*10 are DERIVED (STU-FX-110), fine_step may be finer than the display precision. Stored/accepted values keep full parsed precision; nothing rounds to precision silently. Step arithmetic only strips binary noise (1e-9 grid below 1e6).",
+    "modifier_defaults": "RESOLVED slice 2 from STU-FX-149 / STU-SHL-190 (14-studio-creative-suite.md l.19006, l.32910): coarse Shift x10, fine Ctrl (Windows/Linux) or Command (macOS) /10, both x100, Alt has no numeric role; implemented as roles_from(egui::Modifiers) using egui `command`. Slice-1 Shift/Alt pick removed.",
+    "step_at_hard_bound": "Spec is SILENT on an arrow/accessibility step that would leave the hard range (STU-FX-110 defines step/fine/coarse; STU-FX-110a: only pointer scrubbing clamps, typed/non-pointer values reject). Kept: such a step is REJECTED with OutOfHardBounds(Int); the pointer route is the only clamping route.",
+    "spec_decisions_slice2": {
+      "implemented_from_spec": [
+        "STU-FX-149 / STU-SHL-190 gesture roles",
+        "STU-SHL-188 delta = dx - dy",
+        "STU-SHL-191 sensitivity (anchor and step frozen per gesture, fractional accumulation retained)",
+        "STU-SHL-192 hard clamp only, gesture continues at a hard stop (dragging back returns immediately)",
+        "STU-SHL-194 one scope per gesture, Escape restores the press value, aborted gesture excluded from undo, success = one promoted history entry",
+        "STU-FX-110 integer step=coarse=fine=1 (modifiers never skip), STU-FX-112 integer kind (signed, four bounds)",
+        "STU-SHL-165 groups from group_path + collapsed_by_default, STU-IO-109 group_path = ordered container ids",
+        "STU-SHL-193 one display string (format_value) for field and projections"
+      ],
+      "spec_silent_choices": [
+        "arrow/accessibility step with BOTH roles: step*100 (STU-FX-110 gives step/fine/coarse only; the x100 of STU-SHL-190 is stated for drag/wheel)",
+        "arrow/accessibility step beyond a hard bound: reject (see step_at_hard_bound)",
+        "pointer values are not quantized to step/precision (only binary noise stripped); integer scrub rounds to nearest",
+        "soft-bound resistance zone width/deceleration (STU-SHL-192 says 'short resistance zone', no numbers): NOT implemented; scrub crosses soft bounds freely",
+        "slider track = complete soft pair else complete hard pair; Escape during a slider drag aborts like label scrub",
+        "enumeration is by stable option id, not STU-FX-115/116 1-based index with separators/default_index (index mapping is an import/wire concern for a later slice)",
+        "section ids share one id space with control ids; inside a level controls render before child sections"
+      ]
+    },
+    "dep_requests": "slice 1 lines (egui =0.33.3 default_fonts only, serde =1.0.229, serde_json =1.0.151) stay in builders/dep-requests.jsonl; slice 2 adds only the allowed path edge hsk-studio-observe (no crates.io change).",
     "serde_json_float": "serde_json default float parsing is exact for <=15 significant digits (tests use such values); no float_roundtrip feature enabled.",
     "known_gaps": [
-      "drag gestures emit one Interaction per frame: no gesture-end/coalescing marker for undo grouping yet",
-      "no AccessKit projection / accesskit feature (descriptor already carries role-relevant fields: label, value, min, max, step)",
-      "no Observe reporting of outcomes (report(&Outcome ...) from brief step 6)",
-      "no integer domain, no panels/docking/gizmos/swatches, no pointer resistance (STU-SHL-192)",
-      "ChangeEvent/Interaction are in-process types (not serde); document commit remains with the host actor",
-      "egui widget rendering is verified headless only via value/interaction outcomes; no pixel/visual proof"
+      "wheel gesture (STU-SHL-189/194: 400 ms after the last notch finalizes) not implemented; gesture finalization on focus loss/modal open happens only via pointer release or Escape",
+      "no gesture-role rebinding configuration (STU-FX-149 allows typed rebinding with conflict validation): defaults only",
+      "no soft-bound resistance zone (STU-SHL-192), no double-click reset / secondary-click menu (STU-SHL-195), no search / show-only-non-default filters (STU-SHL-165 items 5/6)",
+      "no AccessKit projection / accesskit feature; no expression-driven read-only state (STU-MOT-072)",
+      "angle (wraps), point_2d/3d, enumeration-by-index, layer_reference, path, action, label kinds of STU-FX-112 not modelled",
+      "report() builds one Observe per call (caller supplies correlation/resource/actor); no Observe progress frames for live gesture samples",
+      "egui rendering verified headless only via value/interaction/section-visibility outcomes; no pixel/visual proof"
     ],
-    "craft_lesson": "Dead-control audit implemented as Registry::audit(); every fixture control has a registered consumer and the orphan test proves detection (Craft: 55/141 dead preferences)."
+    "craft_lesson": "Dead-control audit is Registry::audit() (orphans + empty sections); every fixture control has a registered consumer and the orphan test proves detection (Craft: 55/141 dead preferences)."
   }
 }

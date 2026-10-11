@@ -287,7 +287,7 @@
     "builders/lanes/hsk-studio-folio-eng-1.json"
    ],
    "launched": "2026-10-11T02:50Z",
-   "status": "running"
+   "status": "retired (refresh rule); prism ENG-1..4 READY"
   },
   {
    "name": "architect-render-ir",
@@ -461,6 +461,22 @@
    "model": "opus",
    "role": "adversarial review R3 (code since 87c1cd9)",
    "launched": "2026-10-11T02:38:16Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-wide",
+   "agent_id": "ae2a1b12b6cd510d2",
+   "model": "sonnet",
+   "role": "interop-psd wide color",
+   "launched": "2026-10-11T02:39:54Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-develop-wide",
+   "agent_id": "a110ca7f580981356",
+   "model": "sonnet",
+   "role": "develop WideEngine + speed",
+   "launched": "2026-10-11T02:39:54Z",
    "status": "running"
   }
  ]

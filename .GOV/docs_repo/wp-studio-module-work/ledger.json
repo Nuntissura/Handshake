@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:38:16Z",
+ "updated_at": "2026-10-11T02:39:54Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -302,12 +302,19 @@
    "lane_id": "SMB-INTEROP-VECTOR",
    "crate": "hsk-studio-interop-vector",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-vector",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-vector",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "f058a1b",
+    "ebd2efd",
+    "f95a3c0",
+    "41d4ff1"
+   ],
+   "verdicts": [],
+   "candidate": "41d4ff1",
+   "note": "SVG import/export on nib OwnedPath, typed losses, hostile budgets, AI blocker, PDF port; 5 tests; slice2 gradients/SVGZ/strokes in progress"
   },
   {
    "lane_id": "SMB-INTEROP-FIG",
@@ -357,11 +364,12 @@
    "brief": null,
    "commits": [
     "a1d0fbd",
-    "2ea0c1e"
+    "2ea0c1e",
+    "62ea29a"
    ],
    "verdicts": [],
-   "candidate": "2ea0c1e",
-   "note": "descriptor registry, ValueStore undo events, egui renderer (headless), agent JSON + manual projection, dead-control audit; 5 tests; slice2 spec gestures/panels in progress"
+   "candidate": "62ea29a",
+   "note": "slice1+2: spec gestures (STU-FX-149, SHL-188..192), undo coalescing, report(), integer domain, sections; 9 tests"
   },
   {
    "lane_id": "SMB-SESSION",
@@ -386,12 +394,13 @@
    "lane_id": "SMB-HARNESS",
    "crate": "hsk-studio-harness",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-harness",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-controls (reused)",
    "brief": null,
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-harness.json"
   },
   {
    "lane_id": "SMB-KERNEL-BINDINGS",
@@ -494,13 +503,16 @@
    "crate": "hsk-studio-prism",
    "origin": "research/color-codecs-raw.md risk 1; lead decision START_LOG decisions 01:50Z",
    "scope": "Prism-owned black-point compensation flag (STU-COL-136) on top of moxcms 0.9.1 transforms; published BPC algorithm",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1 (reused)",
    "brief": "research/engine-color.md topic bpc-algorithm (ISO 18619); prevent double-apply with moxcms hard-coded BPC (RGB v4 LUT perceptual/saturation)",
-   "commits": [],
+   "commits": [
+    "0a057a1"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "candidate": "0a057a1"
   },
   {
    "lane_id": "SMB-TYPE-ENG-1",
@@ -579,36 +591,46 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "absolute colorimetric with media-white scaling + first-class clip/gamut report in transform receipts",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1 (reused)",
-   "commits": [],
+   "commits": [
+    "4f8d14e"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "candidate": "4f8d14e"
   },
   {
    "lane_id": "SMB-PRISM-ENG-3",
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK; + n-channel input path (gray/CMYK/Lab) public API for interop-psd",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1 (reused)",
-   "commits": [],
+   "commits": [
+    "fb03223",
+    "53f0d4d"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "candidate": "53f0d4d"
   },
   {
    "lane_id": "SMB-PRISM-ENG-4",
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "scalar-determinism harness: SIMD features off + fma check; engine id in receipts; byte-identical materialisation",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-1 (reused)",
-   "commits": [],
+   "commits": [
+    "40821f9"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-prism-eng.json"
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "candidate": "40821f9"
   },
   {
    "lane_id": "SMB-PRISM-ENG-5",
@@ -886,6 +908,28 @@
    "phase": "brief",
    "status": null,
    "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "origin": "prism ENG lanes landed",
+   "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
+   "phase": "build",
+   "status": null,
+   "owner": "fresh builder",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "origin": "prism ENG lanes landed",
+   "scope": "output via WideEngine large chunks + demosaic speed tables, byte-identical output",
+   "phase": "build",
+   "status": null,
+   "owner": "fresh builder",
    "commits": [],
    "verdicts": []
   }

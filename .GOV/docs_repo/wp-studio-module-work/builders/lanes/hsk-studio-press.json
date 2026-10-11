@@ -1,0 +1,62 @@
+{
+  "crate": "hsk-studio-press",
+  "lane": "MT-35557 press slice 1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 complete: bounded reader, object-model proposal, allowlisted edit, reachable-only full save, irreversible region redaction + independent payload proof, typed refusals",
+  "commits": [
+    {"sha": "70b4c74", "subject": "Press slice 1a: bounded PDF reader (xref table/stream/hybrid, Prev chain, object streams, Flate+predictors/ASCIIHex/ASCII85/RunLength), object-model proposal, allowlisted entry edit, reachable-only full-save writer"},
+    {"sha": "df8842b", "subject": "Press slice 1b: irreversible region redaction, sanitized full rewrite, independent full reachable payload proof, 5 focused tests"},
+    {"sha": "08080cb", "subject": "Press: harden parser (hash-indexed large dicts, checked xref numbers, null objects, exact object spans), descriptor refresh"},
+    {"sha": "8b24131", "subject": "Press: press-consumer example, residual re-pass over saved bytes, distinctive-needle byte-scan proof"}
+  ],
+  "capabilities_done": [
+    "reader: header, startxref, classic xref table, xref stream (W/Index, PNG/TIFF predictors), hybrid XRefStm, /Prev chain (newest wins; loop and section-count refused), object streams, indirect /Length with bounded endstream recovery scan; NO repair heuristics (damaged xref = typed refusal)",
+    "filters: FlateDecode via miniz_oxide with output limit (decompression-bomb cap), ASCIIHex, ASCII85, RunLength; everything else (LZW, DCT, JPX, CCITT, JBIG2, Crypt) = UnsupportedFilter",
+    "limits: max_bytes, max_objects, max_depth, max_decoded_bytes, max_decoded_total, max_xref_sections, max_pages, max_content_ops; hash-indexed large dictionaries; checked arithmetic on xref numbers",
+    "PdfDoc::open/inspect/proposal: typed object-model projection (pages, media box, rotate, annotations, AcroForm field tree, signature states); encrypted input opens structure-only (permission bit read), every mutation refused (Encrypted / PermissionDenied)",
+    "PdfDoc::edit_entry: allowlisted scalar edit (Info Title/Author/Subject, page Rotate, annotation Contents) with SHA-256 stale check; refusals SignedDocument, Encrypted, PermissionDenied, NoSuchObject, UnsupportedObject, StaleSource, KeyNotAllowed, Canceled",
+    "PdfDoc::save_full/save_to: fresh full rewrite of objects reachable from /Root and /Info only (no incremental tail, no orphans, prior revisions gone); unmodified objects copied byte-verbatim; ArtifactSink begin/write/commit/abort with last-good retained on any fault or cancel",
+    "PdfDoc::redact_region: removes text-showing operators (Tj TJ ' \") whose glyph-run box may touch the region (exact advance from /Widths else 1000/1000 em upper bound; kerning spacer keeps following text in place when widths are exact), annotations touching the region (plus popups/children) and all AcroForm references; page /Contents repointed to a NEW stream; staged commit after a reachability proof; images/vectors/form XObjects/shadings/inline images in the region refuse with UnsupportedRedactionClass (policy ReportAndContinue lists them)",
+    "verify_payload_absent: re-opens the OUTPUT and scans raw bytes, every decoded stream (object streams included), string/name objects, content-stream string operands, UTF-16BE spelling; reports xref sections, unreachable objects, unlisted endobj markers, undecodable streams",
+    "redact_and_save: redact + full save + payload proof + residual re-pass over the saved bytes (fresh open, region test must select nothing); restores the document on error",
+    "sanitize_full_rewrite: drop Info / XMP / embedded files / JavaScript then full rewrite (implemented, not covered by a dedicated test in this slice)",
+    "Observe mapping (outcome_for, report), DESCRIPTOR, example press-consumer (--descriptor, --inspect, --set-title, --redact)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
+    "exit": 0,
+    "sha": "8b24131",
+    "passed": 5,
+    "failed": 0,
+    "names": [
+      "pdf_object_edit_save_independent_reopen",
+      "redacted_text_absent_all_reachable_streams",
+      "signed_readonly_cancel_stale_save_fault",
+      "hostile_pdf_bounds",
+      "xref_stream_object_stream_predictor_and_object_model"
+    ]
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator round on 8b24131 (one test target, 5 tests). Then: LZW filter, text inside form XObjects, image/vector removal in region, prepress facts (separations/overprint/output intents per brief), sanitize_full_rewrite test, Acrobat-saved fixture oracle, encrypted (RC4/AESV2/AESV3) read, incremental-save policy for signed documents, Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T02:39:24Z",
+  "notes": {
+    "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl.",
+    "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
+    "real_pdf_probe": "press-consumer on two local research PDFs (23 pages 1.3 MB, 20 pages 16.5 MB; xref streams + object streams): inspect OK; region redaction on a text-only region removed 12 strings, residual_in_region 0, layout_shift false (embedded fonts with /Widths); regions touching vector/image content refuse fail-closed (UnsupportedRedactionClass vector / image). Output files under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-probe (no document text printed).",
+    "known_gaps": [
+      "Byte-scan proof is strict: short removed strings (< 6 bytes, e.g. kerned word pieces, subset glyph codes) are excluded from the scan (RedactedOutput.short_needles) because they legitimately occur elsewhere; for natural-language documents a distinctive removed word that also appears elsewhere (kept text) yields hits and is_proven() == false. The structural proof is residual_in_region == 0 on a fresh pass over the saved bytes (same region test, so not independent of the interpreter).",
+      "Whole strings are removed (a string straddling the region edge is removed entirely); standard fonts without /Widths use an upper-bound advance, and layout_shift_possible is reported when following text on the line may move.",
+      "Text inside Form XObjects, Type3 glyph procs, patterns, thumbnails (/Thumb), outlines, structure ActualText, PieceInfo and other app-private payloads are not touched; the payload proof flags removed strings still present there.",
+      "Rotated pages: region is in default user space (no /Rotate or /CropBox mapping). Encrypted PDFs are structure-only (no decryption). No LZW.",
+      "Same-parser reopen is not independent evidence; the tests use raw byte comparison and an independent miniz_oxide inflate scan of every stream body as the oracle. Acrobat-saved fixture oracle still pending (Acrobat DC installed, foreground session needs Operator approval per START_LOG D5)."
+    ],
+    "decisions": [
+      "Object numbers are preserved on full save (no renumbering) so unmodified objects can be copied byte-verbatim; free numbers get a linked free list.",
+      "Redaction rewrites the page content into a NEW object and repoints /Contents instead of editing shared streams in place.",
+      "Fail closed on unsupported painted content by default; ReportAndContinue is an explicit caller choice.",
+      "Signed documents are refused for every mutation including full save (a full rewrite invalidates byte-range signatures); incremental policy is later scope."
+    ]
+  }
+}

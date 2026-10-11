@@ -1,0 +1,68 @@
+{
+  "crate": "hsk-studio-prism",
+  "owner_scope": "crates/hsk-studio-prism/** only; strictly additive (legacy Prism, ColorEngine, AdmittedPrism, MAX_PROFILE_BYTES, MAX_PIXELS and their 20 tests unchanged)",
+  "updated_at": "2026-10-11T07:30:00Z",
+  "tests": {
+    "legacy_foundation_contract": "PASS 20/20",
+    "wide_profiles": "PASS 3/3 (ENG-3 admission, K-ramp conversion, admission order + installed profiles)",
+    "wide_inputs": "PASS 2/2 (ENG-3 Gray + Lab inputs, parse-free cache hit + 100k-pixel request)",
+    "wide_bpc": "PASS 3/3 (ENG-1)",
+    "wide_absolute": "PASS 2/2 (ENG-2 absolute + clip report)",
+    "wide_determinism": "PASS 2/2 (ENG-4)",
+    "clippy_tests": "PASS no prism warnings",
+    "dependents_check": "cargo check --tests PASS: pigment, render-cpu, composite, develop, interop-psd"
+  },
+  "lanes": {
+    "SMB-PRISM-ENG-3": {
+      "status": "READY_FOR_VALIDATION",
+      "commits": ["fb03223 (admission + two-leg engine)", "53f0d4d (Gray + Lab inputs, parse-free cache, 2M-pixel requests, D50-normalised companion)"],
+      "done": [
+        "moxcms features extended_range + lut + options (no SIMD feature); `options` is required: the default Low barycentric scale quantises float LUT inputs to 256 bins (measured Y error 0.002 on a linear mAB), High + tetrahedral measured 1e-5",
+        "Wide admission order: v4 matrix (para), v2 curv matrix, Gray kTRC, mAB/mBA, mft1/mft2; Gray/RGB/CMYK devices, XYZ/Lab PCS, up to 2 MiB (MAX_WIDE_PROFILE_BYTES), typed refusals (version, class, color space, PCS, tag type, D2B/B2D, malformed, hash, id, missing intent table, missing wtpt)",
+        "WideEngine: inspect_profile + transform for Gray (1), RGB (3), CMYK (4) device pixels and WideSource::Lab (PCS Lab, no profile); destinations Gray/RGB/CMYK",
+        "Perf (develop a8dd8e8): plans cached per (source sha256, destination sha256, intent, BPC flag); a hit re-proves id/size/sha256 and parses nothing (WideCacheStats.parses, test second_conversion_with_the_same_key_reuses_the_plan_without_parsing); MAX_WIDE_PIXELS = 2,097,152 per request. The LEGACY Prism cache hit also skips re-parsing now (same observable behaviour); legacy MAX_PIXELS 4096 and its allocation-cost model are untouched, so large frames must use WideEngine",
+        "Installed Adobe profiles on this machine admitted and converted in a smoke run (not committed): SWOP 557 KB, FOGRA39 654 KB (CMYK mft2), Rec2100 HLG W203 973 KB (mAB) to sRGB, all four intents, finite output"
+      ],
+      "api_for_interop_psd": {
+        "construct": "let mut eng = WideEngine::new(actor.clone(), 8)?;   // cache of up to 8 plans per engine, keep one engine per caller context",
+        "inspect": "eng.inspect_profile(ProfileInput { profile_id, bytes, expected_sha256: profile_hash(bytes) }, &cancel) -> WideProfileDescriptor { kind, device (Gray|Rgb|Cmyk), pcs, version_major, device_to_pcs/pcs_to_device intent tables, media_white, bytes }",
+        "cmyk_to_working_rgb": "eng.transform(&WideTransformRequest { source: WideSource::Profile(cmyk_input), destination: working_rgb_input, pixels: &interleaved_cmyk_f32, intent, black_point_compensation, revision, expected_revision, correlation_id, resource_id, actor }, &cancel, &mut sink)",
+        "lab": "same call with source: WideSource::Lab and pixels = L (0..100), a, b (-128..128) triples; no profile",
+        "gray": "source Profile with a Gray kTRC profile, pixels = 1 channel 0..1",
+        "pixels": "interleaved f32. CMYK is ink coverage (1.0 = full ink, ICC convention); PSD raw CMYK channels are commonly stored inverted, the caller converts. Lab 8-bit PSD data must be decoded to float L/a/b by the caller",
+        "output": "WideTransformResult { pixels (interleaved destination channels, UNCLAMPED for matrix/TRC destinations: out-of-gamut values go below 0 / above 1, e.g. SWOP cyan -> sRGB R about -2.4), receipt, delivery, diagnostic_state }; read receipt.clip (method LinearDevice, pixels_clipped, channels_clipped, max_overshoot) and clamp or gamut-map before display",
+        "errors": "WideFailure { error: WideError (code() stable snake_case), operation_error, delivery, diagnostic_state }; numeric output is withheld when delivery fails",
+        "limits": "<= 2,097,152 pixels per request; profile <= 2 MiB; first call per key bakes the LUT (about 0.2-0.5 s for CMYK), later calls reuse the plan",
+        "descriptor": "hsk_studio_prism::WIDE_DESCRIPTOR"
+      }
+    },
+    "SMB-PRISM-ENG-1": {
+      "status": "READY_FOR_VALIDATION",
+      "commits": ["0a057a1"],
+      "rule": "ISO 18619 per src/bpc.rs module docs: Prism-owned PCS stage between two moxcms legs; source black from the darkest device vertex (CMYK with B2A0: local black through Lab(0,0,0)); destination black from the darkest vertex (matrix) or the 256-point round-trip ramp (table); L* capped at 50; scale = (1-Yd)/(1-Ys), XYZ' = scale*XYZ + (1-scale)*D50. Double-apply guard: the PCS companion is an ICC v2.1 profile, and moxcms only scales black for version >= 4.0 RGB profiles, so no leg applies it; when moxcms would have, receipt.bpc.engine_builtin_suppressed is true and Prism applies exactly once (flag on) or never (flag off)",
+      "evidence": "wide_bpc: matrix destination exact (K=1 black L* 20 -> sRGB 0 with BPC, 0.1894 without; K=0.5 matches the formula within 3e-3), table destination ramp detects L* 20, mAB RGB v4 perceptual stays unscaled to 5e-4 with the flag off",
+      "decisions": ["ISO text says fit when >= 3 shadow samples, lcms2 needs 4: ISO (3) implemented", "mid-range-straight test uses |in-out| < 4 (lcms2 reading of the garbled operator)", "Y(L) second branch L*27/24389 (continuity at L=8)", "Lab source black is L* 0"]
+    },
+    "SMB-PRISM-ENG-2": {
+      "status": "READY_FOR_VALIDATION",
+      "commits": ["4f8d14e"],
+      "rule": "src/wide_plan.rs module docs: relative tables on both legs, then PCS XYZ scaled by wtpt_src/wtpt_dst component-wise (Lab source = D50); BPC flag ignored (rule absolute_ignores_bpc); missing wtpt refused. Clip report: linear destination value = inverse colorant matrix * D50 * normalised PCS, counted outside [-1e-3, 1+1e-3] per channel (exact, independent of TRC clamping; output left unclamped); table destinations report method Unavailable (their clamped output cannot reveal clipping); no gamut-check tag (gamt) or round-trip estimate yet",
+      "evidence": "wide_absolute: paper-white CMYK (wtpt 0.90/0.93/0.70) -> sRGB follows MW_src/MW_dst within 2e-3; clip counts match an independent linear-sRGB count"
+    },
+    "SMB-PRISM-ENG-4": {
+      "status": "READY_FOR_VALIDATION",
+      "commits": ["40821f9"],
+      "evidence": "wide_determinism: Cargo.toml moxcms features audited (no avx/sse/neon/sve), version bound to Cargo.lock, fma/neon contraction fails the test unless HSK_PRISM_ALLOW_FMA is set, engine name/version/build + output_sha256 in every receipt, bit-identical output across one call / three calls / per-pixel calls / cold engine, pinned x86_64-windows digests for a CMYK table (f848eec1...), an RGB mAB table (d34dc22e...) and a Lab source (0f2a4f5a...). Cross-host proof = run the same test on another host and compare the DIGESTS line (not done)"
+    }
+  },
+  "not_proven_or_open": [
+    "No Photoshop/ACE or lcms2 oracle comparison yet (tiers T1-T3 of research/engine-color.md); fixtures are synthetic or independent closed-form; real-profile conversions are smoke-checked only",
+    "moxcms bakes 33^3 / 17^4 grids: matrix-to-table destinations carry about 5e-3 error on the K plate in the synthetic tests",
+    "Katana (any_to_any) not enabled: profiles with degenerate/non-monotonic tables use moxcms's baked path",
+    "Gray destination, RGB destination mAB, perceptual/saturation on real CMYK and the ISO ramp curve-fit branch (non-straight round trip) are exercised only indirectly",
+    "The wide path is not admitted by a caller memory ledger (bounded by 2 MiB profiles, 2M-pixel requests, 8 cached plans)",
+    "Lab as a device profile, device-link, named colour, mpet, ink limit/black preservation, gamut check for table destinations: refused or absent"
+  ],
+  "dep_requests": "builders/dep-requests.jsonl: moxcms features extended_range+lut (superseded by) extended_range+lut+options; no new crates",
+  "blockers": []
+}
