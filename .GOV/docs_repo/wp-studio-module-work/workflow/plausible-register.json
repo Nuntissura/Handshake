@@ -1247,6 +1247,66 @@
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
    "disposition_note": "next web lane; not reopening the crate before the round"
+  },
+  {
+   "id": "PLR-072",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:541-543",
+   "finding": "max_depth only compared inside the per-layer loop: a plan with no layers is never depth-checked (max_depth = 0 admits it); test comment plan_limits.rs:212 overclaims",
+   "first_seen": "R12-review-a",
+   "seen_in": [
+    "R12-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3d795a5",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (with PLR-069/070)"
+  },
+  {
+   "id": "PLR-073",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:943 + extensions.rs:280",
+   "finding": "V4-06 regexes cannot see the trait default execute_extended or the envelope operator loop (PLR-069/070 adjacency)",
+   "first_seen": "R12-review-a",
+   "seen_in": [
+    "R12-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3d795a5",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (with PLR-069/070)"
+  },
+  {
+   "id": "PLR-074",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs validate rustdoc + DESCRIPTOR",
+   "finding": "'an unreachable node admits' is true for v1 operators only (envelope operators still collected, PLR-069)",
+   "first_seen": "R12-review-a",
+   "seen_in": [
+    "R12-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3d795a5",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (with PLR-069/070)"
+  },
+  {
+   "id": "PLR-075",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:592-594",
+   "finding": "clip-base search quadratic for a 65536-layer clipped run (~2.1e9 steps at default maximum); pre-existing",
+   "first_seen": "R12-review-a",
+   "seen_in": [
+    "R12-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3d795a5",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next pigment lane (with PLR-069/070)"
   }
  ],
  "process_items": [

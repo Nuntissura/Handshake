@@ -2147,7 +2147,7 @@
     "validation/R12-review-a.json"
    ],
    "launched": "2026-10-11T21:20:01Z",
-   "status": "running"
+   "status": "done 2026-10-11T21:39:53Z (COMPLETE: plan limits PASS_WITH_NOTES; PLR-072..075)"
   }
  ]
 }
