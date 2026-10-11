@@ -2300,7 +2300,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Latest shared core Round28 FAILED101 nine legacy PG inventory diagnostics; explicitly authorized scoped backend execution-test retirement pending implementation/freeze/independent review and required compiler proof. Real authenticated lifecycle mapping/full composer/runtime acceptance remains outstanding; no PASS.",
+    "blocked_on": "Independent135 NOT_SOURCE_CLEAR exact lost non-PG launch prefix and native seven retired-producer artifact consumers; scoped correction admitted, replacement freeze/review and compiler proof pending. Runtime/auth/full composer/accepted0of5 unchanged.",
     "depends_on": [
       "MT-174"
     ],
@@ -2310,7 +2310,7 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Root admits exclusive /root/round19_boot_coder retirement batch after this scoped record; disjoint launch/console child only. Independent reviewer then delivery under current gates; native MT175 retains MT174 predecessor."
+    "next_actor": "Exclusive /root/round19_boot_coder launch/native correction only; capture and other inputs frozen. Independent affected re-review replacement freeze, then delivery existing gates; no Cargo admitted."
   },
   "scope": {
     "summary": "Reconcile native import paths preserving current native host",
@@ -5517,7 +5517,7 @@
       "decision_id": "WP012-P2-BACKEND-TEST-RETIREMENT-20261011",
       "operator_quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
       "authority": "Explicit Operator ALL actual PostgreSQL/SQLite execution-test retirement; parent root scoped admission after independent backend_retirement_scope_review source inspection. No fabricated USER_SIGNATURE.",
-      "state": "AUTHORIZED_SCOPED_IMPLEMENTATION_PENDING_ROOT_WRITER_DISPATCH",
+      "state": "INDEPENDENT_NOT_SOURCE_CLEAR_SCOPED_CORRECTION_ADMITTED",
       "limits": [
         "Active legacy PG test placement superseded; historical raw backup/non-executable inventory retained, not current proof gates.",
         "Preserve valid Surreal coverage, independent acceptance, backend prohibition guards and original Phase2 obligations; retirement is not PASS or runtime proof.",
@@ -5528,7 +5528,14 @@
       "owned_paths": [
         "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
       ],
-      "partial_disposition": "Remove only PG test630-752 and PG import19; retain other native tests, source and proof obligations. Native runtime proof remains held until actual owning predecessors."
+      "partial_disposition": "Retire PG test630-752/import19 plus independently verified seven active PG-PROOF artifact consumers/sole helpers because retired producer cannot supply fresh artifact. Retain provenance negative and original external inverse; other valid native coverage unchanged.",
+      "current_independent_findings": {
+        "review": "Independent135 NOT_SOURCE_CLEAR",
+        "launch": "Confirmed original34fb6f/raw-before1054-1118 no-PG prefix lost; restore exact original prefix plus CountingFactory/spawn helpers.",
+        "native": "Seven active PG-PROOF artifact consumers require fresh<30min artifact/exact retired producer ID without producer; retire seven and sole helpers while retaining provenance negative and original external inverse.",
+        "classification_correction": "Earlier speculative independent-component classification superseded by actual artifact dependency inspection.",
+        "admission": "Root exclusive /root/round19_boot_coder both existing BOTH-allowed paths; capture/all other inputs frozen. No Cargo/source-clear or acceptance advancement."
+      }
     }
   }
 }

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 595
+generation: 596
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -499,3 +499,4 @@ steps:
 - {id: GP-478, role: coder, at: before_dispatch, do: confirm resolved retirement targets in assigned WP; exclusive owner; retained non-PG scope, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
 - {id: GP-479, role: coder, at: before_dispatch, do: confirm external raw before bytes preserved and hashes verified, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
 - {id: GP-480, role: coder, at: before_dispatch, do: confirm current MT admission and root STEP1; no Cargo or active proof freeze, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
+- {id: GP-481, role: builder, at: before_dispatch, do: verify reviewed backend retirement freeze preserves valid coverage and binds ten actual path absences, check: {type: confirm}, source: round28 exit101 recovery_scope_api_pg_tests nine E0583/E0433; authorized backend retirement135freeze, state: active}

@@ -1680,7 +1680,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Latest shared core Round28 FAILED101 nine legacy PG inventory diagnostics; explicitly authorized scoped backend execution-test retirement pending implementation/freeze/independent review and required compiler proof. Real authenticated lifecycle mapping/full composer/runtime acceptance remains outstanding; no PASS.",
+    "blocked_on": "Independent135 NOT_SOURCE_CLEAR exact lost non-PG launch prefix and native seven retired-producer artifact consumers; scoped correction admitted, replacement freeze/review and compiler proof pending. Runtime/auth/full composer/accepted0of5 unchanged.",
     "depends_on": [],
     "blocks": [],
     "active": true,
@@ -1688,7 +1688,7 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Root admits exclusive /root/round19_boot_coder retirement batch after this scoped record; disjoint launch/console child only. Independent reviewer then delivery under current gates; native MT175 retains MT174 predecessor."
+    "next_actor": "Exclusive /root/round19_boot_coder launch/native correction only; capture and other inputs frozen. Independent affected re-review replacement freeze, then delivery existing gates; no Cargo admitted."
   },
   "scope": {
     "summary": "Reconcile WP1-owned core import paths",
@@ -8187,7 +8187,7 @@
       "decision_id": "WP012-P2-BACKEND-TEST-RETIREMENT-20261011",
       "operator_quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
       "authority": "Explicit Operator ALL actual PostgreSQL/SQLite execution-test retirement; parent root scoped admission after independent backend_retirement_scope_review source inspection. No fabricated USER_SIGNATURE.",
-      "state": "AUTHORIZED_SCOPED_IMPLEMENTATION_PENDING_ROOT_WRITER_DISPATCH",
+      "state": "INDEPENDENT_NOT_SOURCE_CLEAR_SCOPED_CORRECTION_ADMITTED",
       "limits": [
         "Active legacy PG test placement superseded; historical raw backup/non-executable inventory retained, not current proof gates.",
         "Preserve valid Surreal coverage, independent acceptance, backend prohibition guards and original Phase2 obligations; retirement is not PASS or runtime proof.",
@@ -8228,18 +8228,33 @@
       "partial_dispositions": {
         "mixed_model_lane_integration_pg_tests.rs": "Remove PG bodies/imports; KEEP exact pure AC9 guard8150-8170 and execute_production_routing_wave import.",
         "model_lane_crdt_support.rs": "Remove PG-only support; its two PG consumers retire.",
-        "model_lane_launch_tests.rs": "KEEP actual Surreal54-223/helper closure/source guard2475+; remove only PG execution material.",
+        "model_lane_launch_tests.rs": "Restore original non-PG bypass prefix1054-1118 plus CountingFactory/spawn helpers; preserve retained Surreal54-223/helper closure/source guards. Source finding confirmed, no test waiver.",
         "wp1_console_stream_sse_tests.rs": "Remove three PG bodies178-421/knowledge_pg module/app_state_for import; KEEP existing real Surreal user_manual_support/start_server and remaining tests/helpers.",
         "test_harness": "Remove PG-only model_runtime_selection.rs and its mod.rs declaration; retain other harnesses.",
         "user_manual/seed.rs": "Remove obsolete navigation commands6341-42/test anchor6353/toolhash+push8443-8561 and old active native proof ID9167 only; retain valid current coverage.",
         "native_proof_marker": "Exact recovery.reobserve row only: new RetiredPendingReplacement status, old proof ID historical plus explicit pending notice; active feature.tool_ids omits old ID. Verifier exact action/old-ID/retired-status triple requires absent active ID and notice; all other constraints unchanged. Coverage test retains historical marker861/asserts retired status; global953 splits exact retired row from all other DeclaredNotExecuted. No executed replacement proof claimed.",
-        "operator_chat_capture_tests.rs": "Admitted existing MT172 path under explicit Operator ALL-backend retirement; actual lines10/373-390 and SQLx consumers still execute PG/import missing support. Remove actual PG execution material, preserve valid non-PG coverage; complete source disposition/freeze/independent review pending. Distinct from operator_chat_route_tests.rs492-line KEEP."
+        "operator_chat_capture_tests.rs": "Capture repair complete: actual three valid cases retained, no PG executor reported; replacement135-input freeze independent affected review pending. Distinct operator_chat_route_tests.rs492-line KEEP."
       },
       "explicit_keep": [
         "operator_chat_route_tests.rs entire492-line current file",
         "user_manual_support real Surreal helper",
         "all valid current Surreal assertions and no_sqlite prohibition guards"
-      ]
+      ],
+      "current_freeze": {
+        "sha256": "52dc2a44fe6e5b0d9b0c8c11ffaef8f98e079c6d8784b79b8ce5d193b6799485",
+        "inputs": 135,
+        "affected_paths": 20,
+        "deletions": 10,
+        "provenance": "Root-provided actual capture repair/freeze and remote backup receipts; producer source reports not independent verdict"
+      },
+      "pending_review": "Investigate possible lost no-PG bypass prefix from parent34fb6f launch1054-1118 before PG starts1120, and exact native seven old-PG artifact-consumer disposition. No finding/verdict invented; no Cargo admitted.",
+      "current_independent_findings": {
+        "review": "Independent135 NOT_SOURCE_CLEAR",
+        "launch": "Confirmed original34fb6f/raw-before1054-1118 no-PG prefix lost; restore exact original prefix plus CountingFactory/spawn helpers.",
+        "native": "Seven active PG-PROOF artifact consumers require fresh<30min artifact/exact retired producer ID without producer; retire seven and sole helpers while retaining provenance negative and original external inverse.",
+        "classification_correction": "Earlier speculative independent-component classification superseded by actual artifact dependency inspection.",
+        "admission": "Root exclusive /root/round19_boot_coder both existing BOTH-allowed paths; capture/all other inputs frozen. No Cargo/source-clear or acceptance advancement."
+      }
     }
   }
 }

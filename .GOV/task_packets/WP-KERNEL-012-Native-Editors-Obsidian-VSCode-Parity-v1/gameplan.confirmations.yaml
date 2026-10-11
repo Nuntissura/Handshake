@@ -2231,3 +2231,6 @@ confirmations:
 - {id: GP-478, head: abff11c7f3484cf5520b1e6ff5004a2e7be27524, at: '2026-10-11T18:25:57Z', by: coder, note: 'Additional capture-only MT172 scope, resolved target/raw snapshot verified, exact reviewer recipe, no active proof'}
 - {id: GP-479, head: abff11c7f3484cf5520b1e6ff5004a2e7be27524, at: '2026-10-11T18:25:57Z', by: coder, note: 'Additional capture-only MT172 scope, resolved target/raw snapshot verified, exact reviewer recipe, no active proof'}
 - {id: GP-480, head: abff11c7f3484cf5520b1e6ff5004a2e7be27524, at: '2026-10-11T18:25:57Z', by: coder, note: 'Additional capture-only MT172 scope, resolved target/raw snapshot verified, exact reviewer recipe, no active proof'}
+- {id: GP-478, head: 217fa833e012aaf4189130398a4a40d2cf5fcb5f, at: '2026-10-11T18:32:19Z', by: coder, note: 'Two admitted preservation targets resolved, MT172/175 lists verified, raw snapshots saved, no active proof'}
+- {id: GP-479, head: 217fa833e012aaf4189130398a4a40d2cf5fcb5f, at: '2026-10-11T18:32:19Z', by: coder, note: 'Two admitted preservation targets resolved, MT172/175 lists verified, raw snapshots saved, no active proof'}
+- {id: GP-480, head: 217fa833e012aaf4189130398a4a40d2cf5fcb5f, at: '2026-10-11T18:32:19Z', by: coder, note: 'Two admitted preservation targets resolved, MT172/175 lists verified, raw snapshots saved, no active proof'}
