@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press slice 4 + remediation R5",
+  "lane": "MT-35557 press slice 5",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 4 complete (destinations, URI actions, form labels, structure text, Info/XMP, popup/IRT, ToUnicode appearances); remediation R5 landed (undecodable streams never read as proven)",
+  "phase": "slice 5 complete (raster_unsearchable class, RemoveImages, file targets, embedded-file names, XMP everywhere, ToUnicode in the payload proof, V4-01/02/07/08/09 applied); remediation R5 and slice 4 landed earlier",
   "commits": [
     {
       "sha": "70b4c74",
@@ -39,6 +39,22 @@
     {
       "sha": "e75bd5a",
       "subject": "Press slice 4: named destinations (tree rebuilt as one sorted leaf, opaque HskRdN names, every reference), URI actions, form /TU /Opt, structure /Alt /ActualText /E /T, /Info + XMP, popup/IRT annotations, ToUnicode-read appearances with Unverifiable/Dropped outcomes, per-object outcomes, +3 tests"
+    },
+    {
+      "sha": "6e95976",
+      "subject": "Press slice 5 (wip): raster_unsearchable class, RemoveImages policy, file targets, embedded-file names, XMP on pages and images, ToUnicode-aware payload proof"
+    },
+    {
+      "sha": "5a91fd7",
+      "subject": "Press slice 5 tests: raster class and image removal, file targets and embedded names, ToUnicode proof, hostile bounds, string tokenization"
+    },
+    {
+      "sha": "70c2ace",
+      "subject": "Press slice 5: descriptor and docs (V4-07 claims cite tests), raster class, file targets, RemoveImages, ToUnicode proof"
+    },
+    {
+      "sha": "272909b",
+      "subject": "Press V4-01: deny clippy::arithmetic_side_effects on the touched pdf_edit and error modules"
     }
   ],
   "capabilities_done": [
@@ -68,20 +84,27 @@
     "slice 4 (2): URI actions: /S /URI actions anywhere reachable (/A, /AA, /OpenAction, /Next chains, nested) and the catalog /URI /Base are rewritten by the text mode (ActionUri outcomes)",
     "slice 4 (3): form /TU and /Opt (option strings and [export display] pairs, nested arrays) via form_labels; structure elements (dictionaries with /S and /P or /Type /StructElem) /Alt /ActualText /E /T via structure_text; trailer /Info string entries and the catalog /Metadata XMP stream (match drops the key) via info_fields",
     "slice 4 (4): annotations reached only through /Popup, /IRT or a popup's /Parent are judged like page annotations; every class has a policy flag (destinations, action_uris, form_labels, structure_text, info_fields) and a disabled class reports KeptByPolicy",
-    "slice 4 (5): appearance text is read through each font's /ToUnicode CMap (new cmap.rs: codespacerange, bfchar, bfrange incl. array form, bounded to 262144 entries / 65536-code ranges, stray delimiters terminate); a match drops the appearance; composite-font text without a usable /ToUnicode (or an undecodable appearance) on an edited annotation drops the appearance (Dropped, unreadable) and on an unedited annotation is reported Unverifiable (kept; report.complete == false; TextFieldReport.unverifiable)"
+    "slice 4 (5): appearance text is read through each font's /ToUnicode CMap (new cmap.rs: codespacerange, bfchar, bfrange incl. array form, bounded to 262144 entries / 65536-code ranges, stray delimiters terminate); a match drops the appearance; composite-font text without a usable /ToUnicode (or an undecodable appearance) on an edited annotation drops the appearance (Dropped, unreadable) and on an unedited annotation is reported Unverifiable (kept; report.complete == false; TextFieldReport.unverifiable)",
+    "slice 5 (1) raster class (lead decision, narrow): raster.rs; a stream is raster_unsearchable ONLY when it is an image XObject (/Subtype /Image) or an inline image whose filter chain ENDS in DCTDecode, JPXDecode, CCITTFaxDecode or JBIG2Decode after implemented filters; PayloadProof.raster_streams lists it (RasterStream {object, class RASTER_CLASS, filter, inline}), the decodable prefix is still decoded and scanned (a needle in a JPEG comment segment behind ASCIIHex is a hit), it does not block is_clean/is_proven; Crypt, unknown filters, a raster filter in any other position and every non-image stream with an unimplemented filter block exactly as before (an inline image with such a filter blocks as 'inline:<name>')",
+    "slice 5 (2) region over a raster: UnsupportedPolicy::RemoveImages removes an image XObject or inline image whose placement touches a region whole (Do / BI..EI leaves the content; resource entry dropped when no other Do at that level uses it; image object leaves the file when unused); RedactionReport.images_removed / inline_images_removed; with Refuse the region fails closed, with ReportAndContinue it stays incomplete (not proven); no pixel codec",
+    "slice 5 (3) file targets: GoToR/GoToE/Launch/ImportData/SubmitForm /F (string, typed or untyped file specification), GoToR/GoToE /D, Launch /Win /F /D /P, file specification /F /UF /DOS /Mac /Unix /Desc (typed, via /AF, /FS or an action), and the /Names /EmbeddedFiles tree keys (renamed to opaque HskRdN, tree rebuilt as one sorted leaf) via TextFieldPolicy.file_targets; roles FileSpecName, FileSpecDesc, RemoteDest, LaunchWin, EmbeddedFileName; disabled class = KeptByPolicy",
+    "slice 5 (4) /Metadata XMP of pages, images, forms (and the catalog) is judged: a match drops the key (role Xmp, kind Dropped), info_fields flag",
+    "slice 5 (5) payload proof reads /ToUnicode: show_text.rs reads page content, forms and appearances through each font's CMap (cached per font object, decoded under the shared budget); needle text comes from RedactionReport.removed_unicode (new) or the needle bytes; kept page text = collision, appearance text = hit (PayloadLocation::DecodedText); verify_payload_absent_unicode; composite-font text without a map is listed in PayloadProof.opaque_text_streams (not blocking)",
+    "slice 5 (6) matching ignores case, runs of white space (incl. no-break space) and zero-width characters (Matcher normalizes both needle and text and maps spans back to the original); PDF string tokenization tests cover escapes (octal, hex, name #xx), nested parentheses, comment decoys, wrongly cased names",
+    "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
     "exit": 0,
-    "sha": "e75bd5a",
-    "passed": 18,
+    "sha": "272909b",
+    "passed": 23,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on e75bd5a (one test target, 18 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4). Then: Acrobat-saved fixture oracle (outline, annotation text, named destinations), press-consumer --redact-text, GoToR/Launch targets, other name trees (embedded file names), page/image /Metadata, proof-side ToUnicode reading, prepress facts, Type3/pattern text, rotated pages, Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T05:33:56Z",
+  "next": "Validator round on 272909b (one test target, 23 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4 + 5 slice 5). Then: V4-01 for the untouched decoder modules filters, reader, syntax, writer (crate-wide arithmetic deny); Acrobat-saved fixture oracle (outline, annotation text, destinations, file targets); other name trees, SubmitForm /Fields, embedded-file content; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T06:03:01Z",
   "notes": {
     "test_names": [
       "pdf_object_edit_save_independent_reopen",
@@ -101,7 +124,12 @@
       "undecodable_stream_never_reads_as_proven",
       "destinations_and_action_uris_redacted_with_consistent_references",
       "form_labels_structure_text_info_and_xmp_redacted",
-      "popup_irt_annotations_and_composite_font_appearances"
+      "popup_irt_annotations_and_composite_font_appearances",
+      "raster_class_is_listed_and_region_images_are_removed",
+      "file_targets_embedded_names_and_xmp_redacted",
+      "proof_reads_tounicode_text_and_region_needles",
+      "hostile_decoder_bounds_dims_and_aggregate",
+      "pdf_string_tokenization_adversarial"
     ],
     "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
@@ -160,6 +188,22 @@
       "Per-object outcomes for the name tree report the holder of the tree root, not each leaf (leaves are rebuilt away).",
       "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
     ],
+    "slice5_decisions": [
+      "Raster class per the lead decision: image XObject or inline image, chain ends in DCT/JPX/CCITT/JBIG2 after implemented filters. Everything else with an unimplemented filter keeps blocking the proof.",
+      "Limit (a) is enforced by the redaction side, not by a proof flag: any image under a region makes the region incomplete (Refuse = typed error, ReportAndContinue = unredacted lists Image/InlineImage, not proven) unless UnsupportedPolicy::RemoveImages removed it whole. RemoveImages still refuses every other unsupported class (vector, shading, deep forms).",
+      "Raster streams are still scanned: their decodable prefix is decoded and a plain needle in it (JPEG comment segment) is a hit. Only a needle drawn as pixels is out of reach, and that is what region removal of the image answers.",
+      "File targets: /F of remote and launch actions is judged as text or as a file specification; typed file specifications are found anywhere, untyped ones through the action, /FS, /AF and the embedded-file tree (SweepState.fs). /Desc is judged with the names. SubmitForm /Fields and the embedded file CONTENT stay proof hits.",
+      "The embedded-file name tree is renamed like /Dests: keys are identifiers nothing refers to, so a matching key becomes an opaque HskRdN and the tree is rebuilt as one sorted leaf.",
+      "ToUnicode in the proof: kept page text decoded through a map is a collision, appearance text a hit; the needle text comes from RedactionReport.removed_unicode (font map at removal time) or the PDFDocEncoding reading of the needle bytes. Composite text without a map is listed (opaque_text_streams), not blocking.",
+      "Matching normalizes white space and zero-width characters; the byte proof stays an exact-spelling scan, so it is never stricter than the redaction."
+    ],
+    "slice5_known_gaps": [
+      "V4-01 is applied to the modules touched in this slice; filters.rs, reader.rs, syntax.rs and writer.rs (the decoders of slices 1-2) do not carry the arithmetic deny yet: suggested next slice (a crate-wide deny was tried and lists many sites; filters.rs alone shows at least 14).",
+      "Other name trees (AP, JavaScript, Pages, Templates, IDS, URLS), SubmitForm /Fields, embedded file content, Type3/pattern text, GoToE /T target dictionaries are not covered (proof hits).",
+      "The inline-image classification reads the BI dictionary operands; a malformed filter entry blocks as 'inline:filter_entry'.",
+      "Proof text matching is case-sensitive exact spelling over the ToUnicode text, like the byte scan."
+    ],
+    "slice5_infra_note": "One cargo test run failed to compile with errors saying the library lacked items that exist in the source (stale rlib after concurrent builds in the shared target dir); touching the sources fixed it and the identical command then ran. Cause: stale artifact in the shared warm target, not a product failure. No gameplan step added (no machine check can see it; the lead may want a mtime-based preparation check). Retry-guard: the later identical failure of pdf_string_tokenization_adversarial was a test-data bug (hex URI spelled only the needle) fixed by commit 5a91fd7 (route a: product failure -> commit -> rerun).",
     "verdicts": [
       {
         "round": "STUDIO-R5",

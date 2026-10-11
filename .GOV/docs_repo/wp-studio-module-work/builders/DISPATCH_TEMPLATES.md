@@ -52,6 +52,7 @@ FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, 
 - [V4-08] Hostile text formats (CSS, SVG/XML, HTML, PDF strings): tokenize per the spec (decode escapes first), never substring-match raw text; at least 3 adversarial tests (escape, comment/decoy, case/whitespace).
 - [V4-09] Free text goes through files: `git commit -F <file>` and Write/Edit tools, never long inline shell heredocs (the gameplan hook gates words inside quoted text, D3).
 - [V4-10] Lead procedure: reviews resume per lane (incremental files, no reviewer sub-agent fan-out); at most 8 Opus and 18 agents running; verdict agents (validator/reviewers/remediation) launch before new slices.
+- [V4-11] (added 2026-10-11T06:05Z; press builder hit a stale rlib after a temp revert/restore in the shared tree) Never restore source files with preserved timestamps (`cp -p`, archive extract with mtimes); after any temporary revert/restore of files, `touch` every restored file before the next build, so the shared target cannot reuse stale artifacts (GLOBAL-VALIDATION-024). Prefer red-proof runs on a scratch copy outside the shared tree over reverting shared files.
 
 </topic>
 

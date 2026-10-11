@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:04:14Z",
+ "updated_at": "2026-10-11T06:05:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -592,13 +592,14 @@
     "d1bb2ff",
     "1df11b2",
     "cb38b86",
-    "e75bd5a"
+    "e75bd5a",
+    "272909b"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)"
    ],
-   "candidate": "e75bd5a",
-   "note": "R5 remediation 03fb753 (is_clean/region_cleared/is_proven require fully_decoded; regression red first) + slice 4 e75bd5a (named dests renamed HskRdN, URI actions + URI Base, /TU /Opt, struct /Alt /ActualText /E /T, /Info + XMP, popup/IRT reach, AP text via ToUnicode cmap.rs; Unverifiable -> report.complete false); 18 of 18 green; slice 5 dispatched with lead raster-class decision",
+   "candidate": "272909b",
+   "note": "slice 5 (6e95976, 5a91fd7, 70c2ace, 272909b): raster class per lead decision (decodable prefix still scanned), RemoveImages policy, file targets GoToR/GoToE/Launch/ImportData/SubmitForm/AF/FS, embedded-file names opaque, XMP on pages/images/forms, ToUnicode text in proof (DecodedText hits), case/whitespace/zero-width-insensitive matching, V4-01 on 10 modules; 23 of 23 green; CORRECTION requested: opaque_text_streams must block is_proven (R5 class)",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
