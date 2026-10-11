@@ -113,3 +113,4 @@
 {"t": "2026-10-11T09:59:23Z", "event": "SMB-DEVELOP READY_FOR_VALIDATION 60b0e47 (builder-develop-prereview)", "lanes_moved": ["SMB-DEVELOP READY"], "commits": ["60b0e47"], "progress": "direct: product commit"}
 {"t": "2026-10-11T10:06:33Z", "event": "SMB-MOTION-JS READY_FOR_VALIDATION 1d972f1 (rem-motionjs-nul)", "lanes_moved": ["SMB-MOTION-JS READY"], "commits": ["1d972f1"], "progress": "direct: product commit"}
 {"t": "2026-10-11T10:06:33Z", "event": "SMB-MOTION-JS-WORKER READY_FOR_VALIDATION 1d972f1 (rem-motionjs-nul)", "lanes_moved": ["SMB-MOTION-JS-WORKER READY"], "commits": ["1d972f1"], "progress": "direct: product commit"}
+{"t": "2026-10-11T10:12:06Z", "event": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION 1f99350 (builder-blendif-adopt)", "lanes_moved": ["SMB-BLENDIF-CLIP-ADOPT READY"], "commits": ["1f99350"], "progress": "direct: product commit"}

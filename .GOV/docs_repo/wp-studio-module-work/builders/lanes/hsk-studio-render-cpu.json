@@ -5,6 +5,10 @@
   "phase": "SMB-RENDER-CPU-FX2 pushed (8d46aa8): wave 2 effect kinds (inner shadow, outer glow, inner glow) enabled on the windowed API, 29 tests pass. SMB-RENDER-CPU-WINDOW pushed before it (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
   "commits": [
     {
+      "sha": "b10475d",
+      "subject": "render-cpu: drop the unreachable Blend-If application on clip roles (SMB-BLENDIF-CLIP-ADOPT)"
+    },
+    {
       "sha": "8d46aa8",
       "subject": "render-cpu: layer effects wave 2 (inner shadow, outer glow, inner glow) on the windowed API (SMB-RENDER-CPU-FX2)"
     },
@@ -97,9 +101,56 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
-  "updated_at": "2026-10-11T07:52:39Z",
+  "next": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on b10475d (separate lane id; the claim of SMB-RENDER-CPU-WINDOW/FX2 stays 8d46aa8, V4-14 lists this commit): Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
+  "updated_at": "2026-10-11T10:11:27Z",
   "notes": {
+    "blendif_clip_adopt": {
+      "lane": "SMB-BLENDIF-CLIP-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "b10475d",
+      "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/plan_sink.rs (clip_run: run composite without base.fx.blend_if; composite_clipped: no Blend-If weight; docs)",
+        "src/lib.rs (DESCRIPTOR extensions/operators.unsupported)",
+        "tests/cpu_extended.rs (+1 test)"
+      ],
+      "removed": [
+        "plan_sink.rs clip_run: LayerFx { blend_if: base.fx.blend_if, .. } on the run composite (the base layer's Blend-If weighing G against the running backdrop)",
+        "plan_sink.rs composite_clipped: blend_set(layer) and the blend_weight multiplication of a clipped layer's source alpha (same operator class, same refusal; removed with the base path because it was the other half of the same unreachable semantics)"
+      ],
+      "kept": "Blend-If on unclipped layers and unclipped adjustment layers (composite(), adjust()): behaviour and bytes unchanged, tests blend_if_ramps_hand_values and the adjustment tests pass unchanged. extension_exactness needed no change: the wildcard arm already answers Unsupported for BlendIfClipBase and BlendIfClippedLayer (asserted)",
+      "tests_added": [
+        "blend_if_on_clip_roles_is_refused_before_any_sink_call"
+      ],
+      "test_detail": "roles pinned through Group::clip_role; blend_if_clip_base on the base and blend_if_clipped_layer on the clipped layer: BackendError::Unsupported{key, Unsupported} with 0 sink calls; backend reports Unsupported for both operators; identity ranges on both roles are no operator and render bytes equal to the plain plan; the same ranges on an unclipped layer weigh the source alpha (hand values (0.45, 0.05, 0.05) and (0.55, 0.15, 0.15), receipt blend_if Approximate)",
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-render-cpu",
+          "--tests"
+        ],
+        "exit": 0,
+        "sha": "b10475d",
+        "passed": 30,
+        "failed": 0
+      },
+      "check_clippy": "cargo check --tests, cargo clippy -p hsk-studio-render-cpu --tests --examples --no-deps clean, cargo fmt -p hsk-studio-render-cpu applied; deny(clippy::arithmetic_side_effects) kept on every touched module (V4-01)",
+      "v4": {
+        "V4-03": "Photoshop behaviour NOT_PROVEN (D5 cases 18-23)",
+        "V4-06": "class: Blend-If application on a clip role (regex blend_set|blend_weight|fx\\.blend_if|blend_if: over src/plan_sink.rs and src/plan_sink/extended.rs): removed from the two functions that applied it to a clip role (clip_run, composite_clipped); the 13 matching lines that remain are the import, the effects_with_blend_if refusal in prepare, composite() and adjust() (unclipped layers), the LayerFx field, the blend_sets table, blend_weight, ExtPrep::build and blend_set: none applies ranges to a clip base or a clipped layer, and a clipped adjustment layer's ranges are refused by admission before adjust() could read them",
+        "V4-07": "extension_exactness doc and DESCRIPTOR text cite the new test",
+        "V4-09": "commit message through git commit -F"
+      },
+      "red_proof": "the refusal is pigment's (admit_extended runs first), so a mutation of render-cpu cannot change the refusal assertions; non-vacuity: the unclipped counterfactual in the same test must still weigh and the same ranges on the roles must be refused (a global refusal would fail the counterfactual)",
+      "plausible_not_addressed": [
+        "adjust() still reads blend_set(layer) for a clipped adjustment layer: unreachable (admission refuses the ranges) and shared with unclipped adjustment layers, so it was left as is"
+      ],
+      "retry_guard": "no hook block; the first test run after the commit-ready tree and the rerun on the pushed commit (HEAD changed) both passed",
+      "date": "2026-10-11T10:11:27Z"
+    },
     "fx2": {
       "lane": "SMB-RENDER-CPU-FX2",
       "rule": "V4-15: a new feature lane id on this lane file; commit 8d46aa8 belongs to it and is listed in the claim together with SMB-RENDER-CPU-WINDOW (be1836b, 0f58c1c), V4-14",

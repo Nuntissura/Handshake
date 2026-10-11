@@ -5,6 +5,10 @@
   "phase": "slice 5 (a6ac630): Blend-If agreement check against pigment evaluate_stack (adjustment layer + plain layer agree, clip-base ranges refused as blend_if_clip_base because pigment does not define them), layer effects waves 1+2 (drop shadow, colour overlay, stroke, inner shadow, outer glow, inner glow) as WGSL matte passes with frame margins, reported operator classes never above pigment's. Earlier: R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
   "commits": [
     {
+      "sha": "2aeeeba",
+      "subject": "render-gpu: align Blend-If clip-role refusals to pigment's keys and roles (SMB-BLENDIF-CLIP-ADOPT)"
+    },
+    {
       "sha": "a813cf3",
       "subject": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite"
     },
@@ -84,9 +88,55 @@
   "blockers": [],
   "lock_wait_s": 772,
   "bg_pids": [],
-  "next": "Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
-  "updated_at": "2026-10-11T07:44:41Z",
+  "next": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+  "updated_at": "2026-10-11T10:11:27Z",
   "notes": {
+    "blendif_clip_adopt": {
+      "lane": "SMB-BLENDIF-CLIP-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "2aeeeba",
+      "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/plan_sink.rs (blend_if_clip_refusal(group, index) from Group::clip_role + ExtOperator::key replaces the local is_clip_base computation; prepare refuses a clip base as blend_if_clip_base and a clipped layer as blend_if_clipped_layer; unit test; extension_exactness doc)",
+        "src/lib.rs (DESCRIPTOR extensions.operators/refused, clip_to_base)",
+        "tests/gpu_plan.rs (ext_blend_if_parity, fx_admission_and_refusals_run_without_adapter, ext_refusals_and_capabilities_run_without_adapter)"
+      ],
+      "behaviour": "shared admission (admit_extended) already refuses both roles with pigment's keys before prepare; the prepare check is defence in depth under the same keys, now derived from pigment's roles and keys instead of a local spelling. extension_exactness answers Unsupported for BlendIfClipBase and BlendIfClippedLayer (wildcard arm; asserted without an adapter)",
+      "tests_changed": {
+        "ext_blend_if_parity": "(b) the Blue destination range moves from root layer 2 (a clipped layer) to a new unclipped root layer 4 (the same solid source, Overlay 0.8), so the group/clip parity case still weighs a layer; the clip base and the clipped layer of the run carry no range; new part (c): the same range on root layer 1 (clip base) and 2 (clipped) is Err(Unsupported{blend_if_clip_base | blend_if_clipped_layer, Unsupported}) on a real adapter run, sink.accepted == 0, resident_bytes == 0",
+        "fx_admission_and_refusals_run_without_adapter": "on_clipped now expects Unsupported{blend_if_clipped_layer} from admission before any adapter use (was Unavailable(no_adapter)); added: identity ranges on both roles and the same range on an unclipped layer reach only the missing adapter (Unavailable(no_adapter))",
+        "ext_refusals_and_capabilities_run_without_adapter": "added: both operators report Unsupported here and intrinsically, keys equal the literals"
+      },
+      "tests_added": [
+        "plan_sink::tests::clip_role_blend_if_refusal_uses_pigments_roles_and_keys (unit test: base, two clipped layers, plain layers, out-of-range index)"
+      ],
+      "tests": {
+        "argv": [
+          "cargo nextest run -p hsk-studio-render-gpu --tests (default features: 21 passed)",
+          "cargo nextest run -p hsk-studio-render-gpu --tests --features test-faults (24 passed)",
+          "cargo test --doc -p hsk-studio-render-gpu (4 compile_fail passed)"
+        ],
+        "exit": 0,
+        "sha": "2aeeeba",
+        "passed": 24,
+        "failed": 0
+      },
+      "gpu_run": "backend selector auto (adapter name not printed for passing tests by the runner); tests/gpu-proof.toml require_gpu = true unchanged, so a missing adapter would have failed every GPU proof; 0 failed, no NOT_PROVEN failure. ext_blend_if_parity passed on the adapter with the clip-role refusals asserted",
+      "check_clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps clean on default features and --features test-faults; cargo fmt -p hsk-studio-render-gpu --check clean; deny(clippy::arithmetic_side_effects) kept",
+      "v4": {
+        "V4-01": "plan_sink.rs keeps its deny; the new helper has no arithmetic",
+        "V4-03": "tests/gpu-proof.toml untouched; Photoshop behaviour NOT_PROVEN (D5 cases 18-23)",
+        "V4-04": "no new fault hook; the test-faults gating is untouched (fault_hooks_exist_only_under_the_test_faults_feature passes in the default run)",
+        "V4-06": "class: Blend-If handled on a clip role (regex is_clip_base|blend_if_clip_base|blend_if_clipped_layer|clip_to_base\\(\\) in src/plan_sink.rs and tests/gpu_plan.rs): the local is_clip_base site is replaced by pigment's clip_role (fixed 1); the test sites that put Blend-If on a clipped layer (ext_blend_if_parity (b)) fixed 1, fx_admission on_clipped fixed 1",
+        "V4-07": "DESCRIPTOR and doc claims cite the tests; valid JSON checked with json.loads",
+        "V4-09": "commit message through git commit -F"
+      },
+      "red_proof": "not run on a scratch tree: the refusal is pigment's; the unit test pins the role to key mapping and the old parity case (Blend-If on root layer 2) would now fail with blend_if_clipped_layer, which is why it moved",
+      "plausible_not_addressed": [
+        "the clip-run passes (plan_sink.rs eval_clip_run and the shader parameter block) still carry the Blend-If plumbing for a clipped layer and for the run composite: unreachable after the refusals, left to keep this slice small; removing it needs a WGSL pass-parameter change and a GPU parity rerun"
+      ],
+      "date": "2026-10-11T10:11:27Z"
+    },
     "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
     "runs": {
       "adapter_auto_dx12": "10 passed, 0 failed (NVIDIA GeForce RTX 3090 discrete, dx12); every GPU test executed, no NOT_PROVEN",

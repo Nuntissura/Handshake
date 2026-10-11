@@ -5,6 +5,10 @@
   "phase": "adjustments + mask parameters + Blend-If + knockout + effects waves 1/2 + real folio graph adjustment layers lowered; remediation_R6 (pass-through fill ledger); compiled, clippy clean, 22/22 on pushed b2cf5c6",
   "commits": [
     {
+      "sha": "1f99350",
+      "subject": "composite: report Blend-If clip-role operators like pigment and refuse Blend Clipped Layers as Group off (SMB-BLENDIF-CLIP-ADOPT)"
+    },
+    {
       "sha": "b2cf5c6",
       "subject": "Composite: real folio graph adjustment layer (Folio ENG-6) lowers at its input_ordinal, test evaluates the lowered stack against pigment evaluate_stack; adjustment_not_in_composition_graph narrowed to an adjustment layer without a graph operation; DESCRIPTOR proof map updated"
     },
@@ -101,9 +105,69 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
-  "updated_at": "2026-10-11T06:54:32Z",
+  "next": "SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+  "updated_at": "2026-10-11T10:11:27Z",
   "notes": {
+    "blendif_clip_adopt": {
+      "lane": "SMB-BLENDIF-CLIP-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "1f99350",
+      "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/evaluate_static.rs (clip_roles + RoleSet; Blend-If recorded after the steps are evaluated, per role; Blend Clipped Layers as Group off refused on a clip base)",
+        "src/lower_extensions.rs (blend_if_operator(role), REFUSE_CLIP_GROUP_BLEND_OFF, LayerFeatures.clipped_group_blend_off; operators() no longer lists Blend-If)",
+        "src/lower_render_plan.rs (base_group_blend_off refusal in lowering, docs)",
+        "src/lib.rs (DESCRIPTOR: extended_lowering, unsupported, proof)",
+        "tests/render_plan_lowering.rs (+2 tests)"
+      ],
+      "blend_if_clip_roles": {
+        "evaluation": "ledger records ExtOperator::BlendIf / BlendIfClipBase / BlendIfClippedLayer by the role the layer has in the group that composites it, with pigment's key() and intrinsic() (Unsupported for the two clip operators, so eval_outcome is Failure(Unsupported) like knockout); the old code recorded BlendIf for every role",
+        "role_rule": "mirrors the lowering: Clipped = an emitted clipped layer; Base = unclipped layer with an emitted clipped layer above it in the same group; a clipped layer under a hidden or empty base and a hidden or empty clipped layer are not emitted and have no role; a step no group composites is Unclipped; a step shared by two groups can record two operators",
+        "lowering": "no change needed: record_envelope takes the operators from pigment validate on the lowered plan, so lowering already reported both; the ranges are carried in LayerExtension.blend_if and pigment admit_extended refuses them (test asserts the refusal with a backend that claims every operator Exact)"
+      },
+      "clbl_off": {
+        "code": "blend_clipped_layers_as_group_off_not_modelled (REFUSE_CLIP_GROUP_BLEND_OFF, the code interop-psd reports for clbl = 0)",
+        "condition": "Folio StudioAdvancedBlending.blend_clipped_effects == false on the base of a clipping run that renders at least one clipped layer",
+        "behaviour": "evaluation: ledger Unsupported + parent Unavailable; lowering: Unavailable naming the clipped layer; both from the extended path only (the v1 path does not read raster records, like Blend-If and knockout)",
+        "not_refused": "toggle on; no clipping; only the clipped layer has it off (the toggle belongs to the base); clipped layer hidden; base hidden (run dropped). Reason: the setting changes no pixel there",
+        "supersedes": "the earlier note adjustments_slice.decisions_and_readings that said the clipped-effects toggle only matters with effects and is not refused: a clip base with the toggle off changes the composite itself (Adobe Help text read only through search snippets, UNVERIFIED; PSD spec: clbl = blend clipped elements)"
+      },
+      "tests_added": [
+        "blend_if_on_clip_roles_is_reported_and_refused_like_pigment",
+        "blend_clipped_layers_as_group_off_is_refused_on_a_clip_base"
+      ],
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-composite",
+          "--tests"
+        ],
+        "exit": 0,
+        "sha": "1f99350",
+        "passed": 24,
+        "failed": 0
+      },
+      "check_clippy": "cargo clippy -p hsk-studio-composite --tests --examples --no-deps: clean; cargo fmt --check not applied (119 pre-existing diffs in this crate, untouched files and lines kept)",
+      "v4": {
+        "V4-03": "Photoshop behaviour of Blend-If on a clip base or clipped layer and of Blend Clipped Layers as Group OFF is NOT_PROVEN (D5 cases 18-23); the tests prove the refusal contract only",
+        "V4-06": "not a remediation lane, no sweep claimed; the one role-dependent ledger site (Blend-If) now takes pigment's operator through blend_if_operator(role)",
+        "V4-07": "DESCRIPTOR claims cite the two new tests; valid JSON checked with json.loads",
+        "V4-09": "commit message through git commit -F"
+      },
+      "red_proof": "by construction, not run on a scratch tree: the pre-change evaluation recorded blend_if for the base and the clipped layer, so the has_operator(BlendIf) == (op == want) assertions of the first test fail on it, and the clbl test fails without the refusal (status Ready); no shared file was mutated (V4-11)",
+      "decisions_for_lead": [
+        "Blend-If on a clip role is carried and reported Unsupported (knockout precedent), not refused in lowering: pigment admit_extended is the single refusal point with the operator key, lowering stays a faithful conversion",
+        "clbl = 0 is refused only on a base that renders a clipped layer; a blanket refusal of every layer with the toggle off would reject documents where the setting changes nothing"
+      ],
+      "plausible_not_addressed": [
+        "the v1 lower_to_render_plan/evaluate path does not see raster records, so a document with clbl = 0 or clip-role Blend-If rendered without records is not told (same as every record-borne feature)",
+        "clip_roles repeats the base/emitted rules of lower_render_plan.rs phase 2 instead of sharing one function; a change to the drop rules must change both (the new tests compare evaluation and lowering ledgers)"
+      ],
+      "date": "2026-10-11T10:11:27Z"
+    },
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
       "files": [

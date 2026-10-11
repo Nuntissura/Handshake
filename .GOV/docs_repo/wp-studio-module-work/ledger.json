@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:06:33Z",
+ "updated_at": "2026-10-11T10:12:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1977,12 +1977,15 @@
    "crate": "hsk-studio-composite + render-cpu + render-gpu",
    "origin": "Blend-If clip-base disagreement between backends (render-gpu a6ac630)",
    "scope": "adopt pigment clip-role refusals; fix 2 render-gpu tests; composite ledger operators; clbl=0 refusal",
-   "phase": "build",
-   "status": null,
-   "candidate": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "candidate": "1f99350",
    "owner": "builder-blendif-adopt",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "1f99350"
+   ],
+   "verdicts": [],
+   "note": "adoption of pigment clip-role refusals: render-cpu b10475d (unreachable clip-base and clipped-layer Blend-If weights removed; refusal before any sink call; 30 green), render-gpu 2aeeeba (prepare uses pigment clip_role + ExtOperator keys; parity test moved to unclipped layer + refusal asserts; 21 default / 24 test-faults on GPU), composite 1f99350 (ledger reports BlendIfClipBase/BlendIfClippedLayer by role; clbl=0 refused only where it changes pixels, same code as interop-psd; 24 green); open: unreachable Blend-If plumbing in render-gpu clip-run shader passes (needs WGSL change + parity rerun)"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-CLIP-ROLES",
@@ -2089,7 +2092,8 @@
   "SMB-HARNESS",
   "SMB-RENDER-CPU-WINDOW",
   "SMB-RENDER-CPU-FX2",
-  "SMB-INTEROP-VECTOR-RECORDS"
+  "SMB-INTEROP-VECTOR-RECORDS",
+  "SMB-BLENDIF-CLIP-ADOPT"
  ],
  "round_R6": {
   "candidate": "bd8533f",

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:06:33Z",
+ "updated_at": "2026-10-11T10:12:06Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1351,7 +1351,7 @@
     "crates/hsk-studio-render-gpu/**"
    ],
    "launched": "2026-10-11T08:05:44Z",
-   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
+   "status": "done 2026-10-11T10:12:06Z (SMB-BLENDIF-CLIP-ADOPT READY at 1f99350)"
   },
   {
    "name": "workflow-2",
