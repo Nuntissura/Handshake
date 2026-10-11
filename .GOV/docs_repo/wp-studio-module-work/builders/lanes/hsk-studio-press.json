@@ -87,6 +87,10 @@
   {
    "sha": "1c3fd8c",
    "subject": "Press PLR-040: raster class needs codec structure (fail closed); DESCRIPTOR proof scope"
+  },
+  {
+   "sha": "607d47c",
+   "subject": "Press SMB-PRESS-DIFFERENCES: simple-font encodings (Differences, Type3, encoding-less fonts) are read; unreadable codes are opaque"
   }
  ],
  "capabilities_done": [
@@ -131,7 +135,8 @@
   "hardening 4 (V4-02 tests): hostile_parser_dims_u32_max, aggregate_over_budget_many_streams, hostile_nesting_cycles_and_overlap (integration) + filters unit tests budget_is_charged_by_every_stage_and_by_failures, predictor_rows_are_not_padded_and_chains_are_bounded; each red-proved on a scratch copy at 555ea97 sources",
   "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text",
   "slice 6 (a1c9747): (1) keys of every /Names tree except /Dests and /EmbeddedFiles (JavaScript, AP, Pages, Templates, IDS, URLS, ...) renamed to opaque HskRdN and the tree rebuilt as one sorted leaf (TextRole::NameTreeKey, policy name_trees); (2) strings of /Fields of SubmitForm and ResetForm actions through the text mode (TextRole::ActionFields, policy form_labels; refs inside /Fields untouched); (3) embedded file content: a file specification whose /EF stream decodes to bytes holding a match loses /EF and /RF, the stream leaves the file (TextRole::EmbeddedFileContent Dropped; undecodable = Unverifiable; policy embedded_content off = KeptByPolicy); test name_trees_submit_fields_and_embedded_content_redacted",
-  "R7 pre-review B: payload proof sound by construction: raw backstop over every output byte (no span subtraction), decoders report consumed input (NotProven::TrailingData), inline-image data decoded and scanned (PayloadLocation::InlineImage), dictionary keys scanned, spellings bytes/PDFDoc/UTF-8/UTF-16BE/LE/hex + ToUnicode codes, one content walker (q/Q, gs /Font, Tf across page streams and into Do forms, inherited resources, /DR for appearances), kept text = drawn by Do from a page, stray content-role streams read, NotProven::UnreadableContent; PLR-040 raster class requires JPEG/JPX/JBIG2 structure or CCITT rows that decode to the image size"
+  "R7 pre-review B: payload proof sound by construction: raw backstop over every output byte (no span subtraction), decoders report consumed input (NotProven::TrailingData), inline-image data decoded and scanned (PayloadLocation::InlineImage), dictionary keys scanned, spellings bytes/PDFDoc/UTF-8/UTF-16BE/LE/hex + ToUnicode codes, one content walker (q/Q, gs /Font, Tf across page streams and into Do forms, inherited resources, /DR for appearances), kept text = drawn by Do from a page, stray content-role streams read, NotProven::UnreadableContent; PLR-040 raster class requires JPEG/JPX/JBIG2 structure or CCITT rows that decode to the image size",
+  "SMB-PRESS-DIFFERENCES (607d47c, lead decision on the 1c3fd8c residual): simple fonts are read through /Encoding (base encoding StandardEncoding/WinAnsiEncoding/MacRomanEncoding/PDFDocEncoding, implicit StandardEncoding for a non-embedded non-symbolic font, /Differences glyph names through the Adobe Glyph List + uniXXXX/uXXXX conventions, Type3 from /Differences only); the proof (page/appearance/stray text, code spellings) and the redaction (removed_unicode) both see that text; a code nothing reads (unmappable glyph name, embedded or symbolic font without /Encoding, malformed /Differences) is read through /ToUnicode or makes the text opaque: NotProven::OpaqueText when a needle search ran. Details in notes.differences."
  ],
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
@@ -143,8 +148,8 @@
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator round on 1c3fd8c (38 tests: 6 new R7 tests + filters unit consumed_and_trailing_input_are_reported). Lead items: residuals_for_lead in notes.remediation_R7pre (simple-font /Differences reading, whole-token rule on glued raw needles, CCITT K>0 not raster). Then: Acrobat fixture oracle (D5), Type3/pattern text redaction, rotated pages.",
- "updated_at": "2026-10-11T11:01:30Z",
+ "next": "Validator round on 1c3fd8c (38 tests: 6 new R7 tests + filters unit consumed_and_trailing_input_are_reported). Lead items: residuals_for_lead in notes.remediation_R7pre (simple-font /Differences reading, whole-token rule on glued raw needles, CCITT K>0 not raster). Then: Acrobat fixture oracle (D5), Type3/pattern text redaction, rotated pages. | SMB-PRESS-DIFFERENCES (new lane id, V4-15) READY_FOR_VALIDATION on 607d47c: see notes.differences.",
+ "updated_at": "2026-10-11T11:31:29Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
@@ -571,6 +576,288 @@
     "CCITT mixed 2D (K > 0) is not raster (fail closed): such images block until a K > 0 row decoder exists."
    ],
    "gameplan_route": "two retry-guard blocks after product test failures; route (a): fixes committed (187e6cf, a4d2234), HEAD changed, rerun green"
+  },
+  "v4_06_class": "SMB-PRESS-DIFFERENCES: a font code is turned into text (or into a font identity that decides the reading) by a rule narrower than what a viewer draws, so text a viewer shows is not read and the proof says proven",
+  "v4_06_regex": "\\.read\\(|\\.decode\\(|\\.encode\\(|latin1\\(|char::from\\(\\*b\\)|parse_to_unicode\\(|SimpleEncoding::of_font|FontText::|FontInfo \\{|\\.cmap|font_named\\(|lookup_font\\(|font_of\\(|unicode_of\\(|fonts_in\\(|read_font\\(|expand_ligatures\\(|same_words\\(|is_composite\\(",
+  "v4_06_scope": "grep -nE <regex> over crates/hsk-studio-press/src/*.rs except encoding.rs and encoding_data.rs (the new module and its generated data are the fix itself)",
+  "v4_06_count": 53,
+  "v4_06_sites": [
+   {
+    "file_line": "crates/hsk-studio-press/src/cmap.rs:130",
+    "verdict": "n/a: ToUnicode CMap parser (unchanged); its text stays one reading of a simple font"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/reader.rs:364",
+    "verdict": "n/a: PDF version string of the header, not font text"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:133",
+    "verdict": "FIXED: FontInfo carries the simple font's encoding (enc)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:230",
+    "verdict": "FIXED: builds the simple font's SimpleEncoding next to widths and ToUnicode"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:234",
+    "verdict": "n/a: font the resources do not hold: no widths, no map, no encoding (selector keeps the byte reading; the proof reads such text as opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:248",
+    "verdict": "FIXED: the composite test is shared with the proof (Type0 and CIDFont subtypes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:249",
+    "verdict": "n/a: composite font: ToUnicode only, no one-byte encoding"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:264",
+    "verdict": "FIXED: encoding read for the selector, charged to the pass budget"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:265",
+    "verdict": "FIXED: carries enc"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:280",
+    "verdict": "n/a: ToUnicode loader (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:287",
+    "verdict": "FIXED: removed_unicode follows the encoding when that reading is complete and tells more than the bytes"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:291",
+    "verdict": "FIXED: encoding reading of the removed string (ToUnicode completes unknown codes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:292",
+    "verdict": "n/a: raw byte reading, the comparison base of same_words"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:293",
+    "verdict": "FIXED: encoding reading used only when it differs from the bytes in letters or digits"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:297",
+    "verdict": "n/a: ToUnicode fallback of unicode_of (unchanged behaviour)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:578",
+    "verdict": "FIXED via unicode_of (Tj/quote/double-quote and TJ elements)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:602",
+    "verdict": "FIXED via unicode_of (Tj/quote/double-quote and TJ elements)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:581",
+    "verdict": "n/a: composite codes spelled through ToUnicode (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:582",
+    "verdict": "FIXED: code spellings of a simple font come from its encoding as well as its ToUnicode"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:583",
+    "verdict": "n/a: opaque font has no spellings"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:831",
+    "verdict": "n/a: collects the fonts a stream can select; spellings are made in font_codes (FIXED)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:71",
+    "verdict": "n/a: raw byte reading, kept as one reading of every string"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:72",
+    "verdict": "n/a: body of the raw byte reading helper"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:95",
+    "verdict": "FIXED: simple fonts get their SimpleEncoding (charged to the budget); composite handling unchanged"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:96",
+    "verdict": "FIXED: shared composite test"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:102",
+    "verdict": "n/a: ToUnicode parsed as before, now an extra reading for simple fonts"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:108",
+    "verdict": "n/a: composite font with ToUnicode (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:109",
+    "verdict": "n/a: composite font without ToUnicode stays opaque (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:110",
+    "verdict": "FIXED: simple font = encoding + optional ToUnicode"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:115",
+    "verdict": "FIXED: direct font dictionaries are cached by address per walker (bounds repeated Tf)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:129",
+    "verdict": "n/a: call of read_font (FIXED there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:138",
+    "verdict": "n/a: font resolution by resource name, no decoding"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:147",
+    "verdict": "n/a: font resolution (FIXED in font_of)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:352",
+    "verdict": "n/a: content that does not tokenize: raw bytes plus the unreadable flag (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:362",
+    "verdict": "n/a: font resolution by Tf name, no decoding"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:365",
+    "verdict": "n/a: font resolution (appearance falls back to /DR), no decoding"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:369",
+    "verdict": "n/a: font resolution (appearance falls back to /DR), no decoding"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:391",
+    "verdict": "n/a: font resolution (FIXED in font_of)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:426",
+    "verdict": "n/a: font resolution"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:448",
+    "verdict": "n/a: composite codes read through ToUnicode (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:449",
+    "verdict": "n/a: composite ToUnicode reading (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:454",
+    "verdict": "n/a: opaque composite text: flagged, bytes kept (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:456",
+    "verdict": "n/a: unresolved font / opaque font: bytes + opaque flag (unchanged: Kept text with an unresolved font is opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:458",
+    "verdict": "FIXED: encoding + ToUnicode + byte readings of a simple font's string"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:462",
+    "verdict": "FIXED site: byte reading is the base the other readings are compared with"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:463",
+    "verdict": "FIXED: the encoding reading (opaque when a code stays unknown)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:466",
+    "verdict": "FIXED: ligature glyphs also spelled out"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:468",
+    "verdict": "FIXED site: ToUnicode reading of a simple font as an extra reading"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:485",
+    "verdict": "n/a: unresolved font / opaque font: bytes + opaque flag (unchanged: Kept text with an unresolved font is opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:487",
+    "verdict": "n/a: no Tf yet: bytes (unchanged)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:675",
+    "verdict": "n/a: collects fonts for the code spellings"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:680",
+    "verdict": "n/a: font resolution (FIXED in font_of)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:954",
+    "verdict": "n/a: bytes of an embedded file attachment, not font text"
+   }
+  ],
+  "differences": {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "status": "READY_FOR_VALIDATION",
+   "head": "607d47c",
+   "base": "1c3fd8c (SMB-PRESS, 2 FAILs, untouched claim)",
+   "commits": [
+    {
+     "sha": "607d47c",
+     "subject": "Press SMB-PRESS-DIFFERENCES: simple-font encodings (Differences, Type3, encoding-less fonts) are read; unreadable codes are opaque"
+    }
+   ],
+   "lead_decision": "text shown with simple fonts that use /Encoding /Differences must never read as proven: decode (base encoding + glyph names through the Adobe Glyph List + uniXXXX/uXXXX), unmappable names make the text opaque -> NotProven::OpaqueText when a needle search ran (rule of dd1df63); Type3 and fonts without any usable encoding: decode where possible, otherwise opaque",
+   "coverage": {
+    "simple_subtypes": "Type1, MMType1, TrueType, Type3 (CIDFont subtypes referenced directly are composite)",
+    "base_encodings": "StandardEncoding, WinAnsiEncoding, MacRomanEncoding, PDFDocEncoding (named as /Encoding or /BaseEncoding); MacExpertEncoding and any other name: base unknown",
+    "implicit_base": "no base named: non-embedded non-symbolic font -> StandardEncoding; embedded (FontFile/FontFile2/FontFile3), symbolic flag or Symbol -> font-program built-in (unread, codes unknown); Type3 -> none; non-embedded ZapfDingbats -> symbols, no text",
+    "differences": "[code /name ...] on top of the base; indirect arrays, elements and encodings resolved; #xx name escapes and comments handled by the lexer; malformed (name before a code, code outside 0..255, real/string element, > 2048 elements) -> every code unknown",
+    "glyph_names": "Adobe Glyph List 2.0 (4089 names embedded, 192 Private Use Area names left out so they stay unmappable), suffix after the first period dropped, underscore components, uniXXXX[XXXX...] and uXXXX[XX] (either hex case, surrogates and PUA unmappable); ligature glyphs also spelled out as letters; no-break spaces read as spaces, zero-width characters and the soft hyphen as nothing",
+    "unreadable": "a code the encoding cannot read is completed by the font /ToUnicode when that has the code, otherwise the string is opaque (Walker record opaque -> opaque_text_streams -> NotProven::OpaqueText when needles_searched > 0; text-field appearances -> Dropped/Unverifiable)",
+    "readings_per_string": "encoding reading, ligature-expanded reading, /ToUnicode reading and the raw bytes are all matched (a needle found in any reading counts)",
+    "redaction_side": "RedactionReport.removed_unicode follows the encoding when that reading is complete and tells more than the bytes (letters/digits differ), so outline/annotation twins of region-removed text are redacted",
+    "proof_side": "page content (collision), annotation appearance (hit), stray content (hit), code spellings of the needle text under each font's encoding (backstop, hex and raw)",
+    "work_bound": "encoding read charged to max_decoded_total at (elements + 16) x 64; direct font dictionaries cached per walker by address"
+   },
+   "font_decoding_sites": "notes.v4_06_sites (count in notes.v4_06_count)",
+   "licence": {
+    "data": "Adobe Glyph List (glyphlist.txt) table version 2.0, 2002-09-20, https://github.com/adobe-type-tools/agl-aglfn",
+    "licence": "BSD-3-Clause: repo LICENSE.md (WebFetch 2026-10-11: three BSD-3 conditions, Adobe non-endorsement) and the glyphlist.txt header (Copyright 2002-2019 Adobe, same text); repo page shows 'BSD-3-Clause license'",
+    "embedded": "only name -> text (4089 of 4281 entries; the 192 Private Use Area names omitted) plus three base-encoding tables in src/encoding_data.rs, with the licence notice retained as required (unit test glyph_list_is_sorted_attributed_and_complete checks the notice travels with the data)",
+    "source_of_the_copy": "no file was downloaded (Operator download permission covers tools, not data files; D10 precedent): the 4281 entries were read from the locally installed pdfminer.six glyphlist module (a conversion of Adobe's glyphlist.txt table 2.0, which carries the older Adobe licence text) and verified against the BSD-3 repo file by 28 sampled names + first (A;0041) and last (zukatakana;30BA) lines + absent names, all equal; NOT a byte diff of the whole file. A byte diff needs Operator approval to download glyphlist.txt (~80 KB) to a scratch dir",
+    "base_tables": "pdfminer.six latin_enc (PDF Reference 1.6 Annex D.1) cross-checked: StandardEncoding vs fontTools StandardEncoding names (0 differences), WinAnsi vs Python cp1252 (differences only unassigned codes and the Annex D footnotes 0xA0/0xAD), MacRoman vs fontTools MacRoman (PDF Latin set subset; Mac OS Roman characters above 0x7F added where the PDF set is empty)",
+    "glyph_name_algorithm": "AGL specification https://github.com/adobe-type-tools/agl-specification, cross-checked against fontTools.agl.toUnicode on 19 names (differences by design: lower-case hex accepted, PUA and unmappable components make the glyph unknown instead of empty)"
+   },
+   "tests": {
+    "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
+    "exit": 0,
+    "sha": "607d47c",
+    "passed": 51,
+    "failed": 0,
+    "composition": "38 existing + 4 integration (differences_encoded_text_is_found_proven_and_redacted, unmappable_glyph_names_and_encodingless_fonts_are_opaque, differences_names_are_read_as_pdf_syntax, hostile_differences_are_bounded) + 9 encoding unit tests",
+    "clippy": "cargo clippy -p hsk-studio-press --tests --examples: no press warnings (only the 2 pre-existing hsk-studio-observe warnings)",
+    "doctests": "cargo test --doc -p hsk-studio-press: 0 tests, ok"
+   },
+   "red_proof": {
+    "method": "V4-11: scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/press-differences-redproof (git archive 1c3fd8c, all files touched, own STUDIO_OWNER press-differences-redproof and own target) with only tests/pdf_delivery.rs replaced by the file of 607d47c (new tests use public API only)",
+    "result": "42 tests run: 38 passed, 4 failed (the 4 new integration tests); the 9 encoding unit tests are src-internal and absent there",
+    "failures_on_1c3fd8c": {
+     "differences_encoded_text_is_found_proven_and_redacted": "no proof hit for the Differences-drawn appearance (hits [] = read as clean)",
+     "unmappable_glyph_names_and_encodingless_fonts_are_opaque": "not_proven_reasons [] where [OpaqueText] is required (read as proven)",
+     "differences_names_are_read_as_pdf_syntax": "name escapes: no hit (read as clean)",
+     "hostile_differences_are_bounded": "InputLimit expected, Ok returned (no encoding work was charged)"
+    }
+   },
+   "gameplan_route": "no retry-guard block; one command started with a variable assignment instead of the leading cd and was refused by the hook (it resolved the WP-KERNEL-012 gameplan); rerun with the leading cd, nothing bypassed",
+   "residuals_for_lead": [
+    "Glyph SHAPES are not read: a font program whose glyph for a name draws something else, and Type 3 glyph procedures that draw letters under unrelated names, still read as the name says (DESCRIPTOR proof.not_covered).",
+    "Symbolic TrueType fonts that a viewer draws through the font's built-in cmap (ignoring /Encoding) are read through /Encoding as written; embedded fonts with no /Encoding are opaque (strict) unless /ToUnicode has the code. Non-embedded Symbol is opaque.",
+    "Real documents: embedded simple fonts without /Encoding and without /ToUnicode (some producers) now block with OpaqueText when a needle search ran; before they read as proven.",
+    "Type 3 /Widths in the region selector are divided by 1000 like other simple fonts although glyph space is set by /FontMatrix (pre-existing geometry, not changed here).",
+    "MAX_CODE_VARIANTS (256) still truncates the code spellings silently (pre-existing; the walker reading is the primary check).",
+    "AGL data copy provenance: see licence.source_of_the_copy (whole-file byte diff needs download approval)."
+   ],
+   "v4_06": "class + regex + 53 sites in notes.v4_06_class / v4_06_regex / v4_06_sites (count notes.v4_06_count)"
   }
  }
 }

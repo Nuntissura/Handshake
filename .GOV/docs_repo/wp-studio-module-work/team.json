@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:27:36Z",
+ "updated_at": "2026-10-11T11:32:26Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1489,7 +1489,7 @@
     "crates/hsk-studio-press/**"
    ],
    "launched": "2026-10-11T11:03:27Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:32:26Z (607d47c)"
   },
   {
    "name": "builder-pigment-admit-parity",
@@ -1525,6 +1525,17 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T11:27:36Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r8-press",
+   "agent_id": "a77ec7c9758fb7cae",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + SMB-PRESS-DIFFERENCES",
+   "owns": [
+    "validation/R8-prereview-press.json"
+   ],
+   "launched": "2026-10-11T11:32:26Z",
    "status": "running"
   }
  ]
