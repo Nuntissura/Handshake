@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:19:58Z",
+ "updated_at": "2026-10-11T11:20:25Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1500,6 +1500,17 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T11:09:18Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r8-reel",
+   "agent_id": "a4874ff0cd83ddab6",
+   "model": "opus",
+   "role": "V4-13 pre-review: SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER",
+   "owns": [
+    "validation/R8-prereview-reel.json"
+   ],
+   "launched": "2026-10-11T11:20:25Z",
    "status": "running"
   }
  ]
