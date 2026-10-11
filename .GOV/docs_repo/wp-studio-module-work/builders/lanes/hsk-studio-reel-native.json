@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel-native",
   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation (SMB-REEL-NATIVE-AV1-WORKER: 2 overflows, test hooks, worker feature split) on f080dd6; supervision duplicate (D18) untouched",
+  "phase": "R7 review B remediation (SMB-REEL-NATIVE-AV1-WORKER x2 CONFIRMED: PLR-034 parent-directory worker lookup, PLR-035 uncancellable HELLO wait) on 7886369, the same fixes as motion-js 961c301 and score-plugin 7d5641c in reel-native's existing supervisor copy; D18 untouched (no new supervisor copy)",
   "commits": [
     {
       "sha": "e95163a",
@@ -15,6 +15,10 @@
     {
       "sha": "f080dd6",
       "subject": "reel-native: R5 remediation - checked declared-size and wire plane arithmetic, host feature without rav1d, test faults behind test-faults"
+    },
+    {
+      "sha": "7886369",
+      "subject": "reel-native R7 review B (SMB-REEL-NATIVE-AV1-WORKER, PLR-034, PLR-035): worker found only beside the executable, HELLO wait cancel-polled"
     }
   ],
   "capabilities_done": [
@@ -30,17 +34,17 @@
     "R5: av1 = host only (hsk-studio-reel without its av1 feature, no rav1d; decoder id checked and version learned from HELLO, pinned per pool, interned bounded); av1-worker = av1 + hsk-studio-reel/av1 for the worker bin; test-faults = fault injection only; checked declared-size and wire plane arithmetic; deny(clippy::arithmetic_side_effects) on host/wire/worker"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel-native --no-fail-fast with --features av1-worker,test-faults | av1-worker | av1 | default (studio-env.sh cargo form, shared edit tree)",
+    "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel-native --no-fail-fast with --features av1-worker,test-faults (10) and --features av1-worker (4); cargo clippy -p hsk-studio-reel-native --all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults; cargo fmt -p hsk-studio-reel-native --check clean",
     "exit": 0,
-    "sha": "f080dd6",
-    "passed": 12,
+    "sha": "7886369",
+    "passed": 10,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on f080dd6 with round-features sets [av1-worker] and [av1-worker,test-faults] (steward request in dep-requests.jsonl; current [[av1]] runs only the wire unit tests). Open: D18 shared supervisor, D14 worker packaging, PLAUSIBLE parent-dir discovery and uncancellable HELLO wait (not in this pass).",
-  "updated_at": "2026-10-11T06:04:35Z",
+  "next": "Validator round on 7886369 with round-features [av1-worker] and [av1-worker,test-faults] (unchanged). Behaviour change for embedders: Av1WorkerOptions::program = None now finds reel-native-av1-worker only in the directory of the running executable; cargo test and example binaries sit one directory below the worker and pass with_worker_program(env!(\"CARGO_BIN_EXE_reel-native-av1-worker\")) (this crate's tests already did), embedders that relied on the parent-directory lookup pass the path or ship the worker beside the host (D14 packaging stays with the lead). New test-faults variant WorkerTestFault::StallHello (worker sleeps before HELLO). Open and untouched: D18 shared supervisor, D14 packaging. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof (src, target, tmp).",
+  "updated_at": "2026-10-11T11:19:13Z",
   "notes": {
     "lanes": {
       "SMB-REEL-NATIVE-AV1-WORKER": {
@@ -280,6 +284,229 @@
       },
       "governance": "steward request appended to builders/dep-requests.jsonl: round-features hsk-studio-reel-native = [[av1-worker],[av1-worker,test-faults]] (replaces [[av1]])",
       "retry_guard": "No gameplan block. The first RED attempt failed to compile (reel working tree, infrastructure) and was not a rerun of a recorded failure; GREEN runs after commit f080dd6 (new HEAD). No gameplan step added."
+    },
+    "v4_06_class": "worker lookup outside the running executable's directory, and a blocking wait on a worker that has no cancel poll",
+    "v4_06_regex": "(code lines only) \\b(recv_timeout|recv|try_wait|wait|sleep|join|read_frame|current_exe|parent|is_file|var|discover_program|discover_beside)\\b|Command::new over crates/hsk-studio-reel-native/src/**/*.rs",
+    "v4_06_scope": "crates/hsk-studio-reel-native/src at 7886369 (src/host.rs test module included, tests/ not scanned)",
+    "v4_06_count": {
+      "hits": 45,
+      "listed": 45
+    },
+    "v4_06_sites": [
+      {
+        "file_line": "src/host.rs:304",
+        "verdict": "NOT_APPLICABLE: pure Instant arithmetic, no lookup or wait"
+      },
+      {
+        "file_line": "src/host.rs:306",
+        "verdict": "NOT_APPLICABLE: pure Instant arithmetic, no lookup or wait"
+      },
+      {
+        "file_line": "src/host.rs:369",
+        "verdict": "NOT_APPLICABLE: non-blocking liveness poll"
+      },
+      {
+        "file_line": "src/host.rs:373",
+        "verdict": "OK: the single cancel-polled wait (WAIT_SLICE slices: cancel, then wall deadline), used for the HELLO wait (FIXED 7886369) and every reply wait"
+      },
+      {
+        "file_line": "src/host.rs:375",
+        "verdict": "OK: the single cancel-polled wait (WAIT_SLICE slices: cancel, then wall deadline), used for the HELLO wait (FIXED 7886369) and every reply wait"
+      },
+      {
+        "file_line": "src/host.rs:397",
+        "verdict": "NOT_APPLICABLE: post-failure cleanup bounded by `patience` (0 or EXIT_PATIENCE 500 ms), not a wait on the worker's progress"
+      },
+      {
+        "file_line": "src/host.rs:399",
+        "verdict": "NOT_APPLICABLE: post-failure cleanup bounded by `patience` (0 or EXIT_PATIENCE 500 ms), not a wait on the worker's progress"
+      },
+      {
+        "file_line": "src/host.rs:404",
+        "verdict": "NOT_APPLICABLE: reaps a child that was just killed; bounded by the kill"
+      },
+      {
+        "file_line": "src/host.rs:421",
+        "verdict": "NOT_APPLICABLE: blocking read on the worker I/O thread; the calling thread waits through Session::wait and killing the child ends the read"
+      },
+      {
+        "file_line": "src/host.rs:426",
+        "verdict": "NOT_APPLICABLE: job channel on the worker I/O thread; ends when the Session (its sender) is dropped"
+      },
+      {
+        "file_line": "src/host.rs:432",
+        "verdict": "NOT_APPLICABLE: blocking read on the worker I/O thread; the calling thread waits through Session::wait and killing the child ends the read"
+      },
+      {
+        "file_line": "src/host.rs:464",
+        "verdict": "FIXED 7886369: discover_beside looks in the executable's directory only (was: that directory, then its parent; PLR-034)"
+      },
+      {
+        "file_line": "src/host.rs:466",
+        "verdict": "FIXED 7886369: discover_beside looks in the executable's directory only (was: that directory, then its parent; PLR-034)"
+      },
+      {
+        "file_line": "src/host.rs:469",
+        "verdict": "FIXED 7886369: discover_program delegates to discover_beside"
+      },
+      {
+        "file_line": "src/host.rs:470",
+        "verdict": "FIXED 7886369: discover_program delegates to discover_beside"
+      },
+      {
+        "file_line": "src/host.rs:579",
+        "verdict": "NOT_APPLICABLE: runs the path chosen at construction (explicit Av1WorkerOptions::program or the executable-directory file); this crate performs no search"
+      },
+      {
+        "file_line": "src/host.rs:598",
+        "verdict": "NOT_APPLICABLE: reaps a child that was just killed in the spawn-failure path; bounded by the kill"
+      },
+      {
+        "file_line": "src/host.rs:615",
+        "verdict": "FIXED 7886369: HELLO wait goes through Session::wait (cancel polled every WAIT_SLICE, spawn_timeout as the bound); was recv_timeout(spawn_timeout) with no cancel (PLR-035)"
+      },
+      {
+        "file_line": "src/host.rs:717",
+        "verdict": "OK: exchange waits through Session::wait, which polls cancel and the wall deadline"
+      },
+      {
+        "file_line": "src/host.rs:921",
+        "verdict": "OK: reached only when no explicit program is configured; the fixed lookup"
+      },
+      {
+        "file_line": "src/host.rs:922",
+        "verdict": "OK: the configured or discovered program must be an existing file before construction succeeds"
+      },
+      {
+        "file_line": "src/host.rs:1241",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1243",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1246",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1248",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1250",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1252",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1254",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1256",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1260",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1261",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1262",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/host.rs:1263",
+        "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+      },
+      {
+        "file_line": "src/lib.rs:45",
+        "verdict": "NOT_APPLICABLE: DESCRIPTOR text; its bounds name the lookup rule and the cancel-polled HELLO wait with their tests"
+      },
+      {
+        "file_line": "src/test_fault.rs:43",
+        "verdict": "NOT_APPLICABLE: fault-injection environment read in the worker, compiled only with test-faults (V4-04; tests/worker_fault_env.rs)"
+      },
+      {
+        "file_line": "src/wire.rs:71",
+        "verdict": "NOT_APPLICABLE: blocking frame read, only ever called on the worker I/O thread (host) or the worker stdin thread; the host's calling thread never blocks on it"
+      },
+      {
+        "file_line": "src/wire.rs:672",
+        "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+      },
+      {
+        "file_line": "src/wire.rs:679",
+        "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+      },
+      {
+        "file_line": "src/wire.rs:685",
+        "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+      },
+      {
+        "file_line": "src/wire.rs:731",
+        "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+      },
+      {
+        "file_line": "src/worker.rs:66",
+        "verdict": "NOT_APPLICABLE: injected fault sleeps inside the worker process (test-faults only); the host kills or times out the worker"
+      },
+      {
+        "file_line": "src/worker.rs:79",
+        "verdict": "NOT_APPLICABLE: injected fault sleeps inside the worker process (test-faults only); the host kills or times out the worker"
+      },
+      {
+        "file_line": "src/worker.rs:140",
+        "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+      },
+      {
+        "file_line": "src/worker.rs:222",
+        "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+      },
+      {
+        "file_line": "src/worker.rs:242",
+        "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+      }
+    ],
+    "remediation_R7": {
+      "source": "validation/R7-review-b.json lane SMB-REEL-NATIVE-AV1-WORKER (reviewed commit dff7ef5) + workflow/plausible-register.json PLR-034, PLR-035",
+      "commits": [
+        "7886369"
+      ],
+      "findings": [
+        {
+          "finding": "SMB-REEL-NATIVE-AV1-WORKER CONFIRMED security_worker_lookup_parent_dir (host.rs:458-469 at dff7ef5; PLR-034)",
+          "class": "worker lookup outside the running executable's directory",
+          "diagnosis": "discover_program accepted reel-native-av1-worker[.exe] from the executable's directory and then from its PARENT; a binary planted there ran as the decoder worker (HELLO checks only self-reported decoder id, version and protocol).",
+          "fix": "discover_beside(exe) = exe.parent().join(name) filtered by is_file(), nothing else (same shape as motion-js discover_beside); discover_program delegates to it; Av1WorkerOptions::program still overrides; docs updated.",
+          "regression_test": "host.rs unit worker_is_found_only_beside_the_running_executable (decoy in the parent not used, directory named like the worker not a program, beside-the-exe file found, no parent -> None) + tests/av1_worker.rs default_discovery_does_not_look_in_the_parent_of_the_executable_directory (real cargo layout: the worker binary sits in the parent of the test executable's directory; default discovery is WorkerProgramMissing, the explicit path works)",
+          "red_proof": "scratch copy with the parent lookup restored: host unit FAIL host.rs:1253 `the parent directory must not be searched` (found the decoy in the parent); default_discovery FAIL av1_worker.rs:570 left None right Some(WorkerProgramMissing) (the real layout was exercised, not the NOT_PROVEN branch)"
+        },
+        {
+          "finding": "SMB-REEL-NATIVE-AV1-WORKER CONFIRMED uncancellable_wait (host.rs:609 at dff7ef5; PLR-035)",
+          "class": "blocking wait on a worker that has no cancel poll",
+          "diagnosis": "Pool::spawn waited for HELLO with session.frames.recv_timeout(spawn_timeout), ignoring the caller's cancel token, while request waits polled in WAIT_SLICE.",
+          "fix": "Pool::spawn(cancel) and checkout(cancel) (open_session passes its token); the HELLO wait uses Session::wait (cancel polled every WAIT_SLICE, spawn_timeout as the wall bound). A cancel runs fail(Failure::Canceled): killed_canceled counted, worker killed and reaped, Av1Error::Reel(Canceled); a stall without cancel is worker_spawn_failed as before. spawn/checkout now return Av1Error (Canceled is not a worker fault). test-faults: WorkerTestFault::StallHello (worker sleeps HANG_LIMIT before HELLO).",
+          "regression_test": "tests/av1_worker.rs canceled_call_does_not_wait_for_a_stalled_hello (cancel after 300 ms against a 30 s spawn_timeout: Canceled in < 5 s, sink empty, spawned 1, killed_canceled 1, spawn_failed 0, crashed 0, alive 0; without cancel a 400 ms spawn_timeout gives Worker(SpawnFailed) in < 10 s, spawned 1, spawn_failed 1, alive 0)",
+          "red_proof": "scratch copy with recv_timeout(spawn_timeout) restored: FAIL av1_worker.rs:510 left Worker(SpawnFailed) right Reel(Canceled) after 30.1 s (the call waited out the whole spawn_timeout)"
+        }
+      ],
+      "tests_breakdown": {
+        "av1-worker,test-faults": "10/10: lib 3 (wire_roundtrip_and_bounds, frame_dims_u32_max_is_malformed, host worker_is_found_only_beside_the_running_executable), av1_worker 7 (5 existing + default_discovery_does_not_look_in_the_parent_of_the_executable_directory + canceled_call_does_not_wait_for_a_stalled_hello)",
+        "av1-worker": "4/4: lib 3, worker_fault_env 1 (av1_worker is required-features test-faults)",
+        "clippy": "--all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)",
+        "fmt": "cargo fmt -p hsk-studio-reel-native --check clean (also reformatted one pre-existing wrapped line in host.rs open_session)"
+      },
+      "red_proof_tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof/src (git archive of the committed workspace + the two crates overlaid + the three reverts), STUDIO_OWNER=smb-reel-r7-redproof, its own target and tmp; the shared edit tree was never reverted (V4-11).",
+      "route": "No gameplan step added and no retry-guard block occurred.",
+      "v4_06": "see notes.v4_06_* (class, regex, count, per-site verdicts)",
+      "at": "2026-10-11T11:19:13Z"
     }
   }
 }

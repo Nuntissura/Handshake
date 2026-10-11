@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 4 complete + R6 V4 hardening: deny(clippy::arithmetic_side_effects) now on every untrusted-byte module (isobmff, fragments, wav, y4m, identity, registry added); dims_u32_max/aggregate_over_budget tests per container family",
+  "phase": "R7 review B remediation (SMB-REEL-AV1-ROUTE CONFIRMED, PLR-033) on 8438b1d + 589f544: ProxySource carries its own trust (ProxySource::new = Untrusted, with_trust grants it for that proxy alone) and the proxy is decoded through its own route, never the original's; slice 4 + R6 V4 hardening unchanged",
   "commits": [
     {
       "sha": "f09f33b",
@@ -107,6 +107,14 @@
     {
       "sha": "b555905",
       "subject": "comment-only: two doc claims weakened (V4-07); no code change"
+    },
+    {
+      "sha": "8438b1d",
+      "subject": "reel R7 review B (SMB-REEL-AV1-ROUTE, PLR-033): a proxy is its own source and never inherits the original's trust"
+    },
+    {
+      "sha": "589f544",
+      "subject": "reel DESCRIPTOR: video_routing states the per-source trust rule (PLR-033) and cites its test"
     }
   ],
   "capabilities_done": [
@@ -128,17 +136,17 @@
     "v4 hardening (2a6f32e, 3c82784): V4-01 deny on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (111 sites fixed); V4-02 dims_u32_max + aggregate_over_budget tests for y4m, wav, isobmff, fragments, identity; 3 per-thread largest-allocation proofs; 7 latent bugs fixed (see notes.v4_hardening)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --tests (default: 48 = 35 existing + 13 new) / --features av1 (52 = 39 + 13); cargo clippy -p hsk-studio-reel --tests --examples clean in both feature sets; cargo fmt -p hsk-studio-reel --check clean",
+    "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 49) / --features av1 (53); cargo clippy -p hsk-studio-reel --tests --examples clean in both feature sets; cargo fmt -p hsk-studio-reel --check clean",
     "exit": 0,
-    "sha": "3c82784",
-    "passed": 52,
+    "sha": "589f544",
+    "passed": 53,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on b555905 (code identical to 3c82784) (default and --features av1). Open: MXF is not in Registry::standard() (pinned at 4 providers by foundation_contract and reel-native tests); reel-native tests/av1_worker.rs follow-up from SMB-REEL-AV1-ROUTE still pending; pub mod fixtures (62 arithmetic sites, synthetic byte builders) is deliberately not under deny. Scratch tree for the red proofs (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/reel-v4-redproof (src, target, tmp).",
-  "updated_at": "2026-10-11T07:27:06Z",
+  "next": "Validator round on 589f544 (default and --features av1). Behaviour change for callers: ProxySource is built with ProxySource::new(reader, grant, revision) (optionally .with_trust(..)) or with the new `trust` field; a Trusted original with a default (Untrusted) proxy now decodes the proxy through the registered external decoder or answers CodecUnavailable, and does not fall back to the original on its own (the caller retries with prefer=Original). NOT in this pass: PLR-032 (picture vs container-declared dims, pack before max_chunk_bytes; FIX_LANE on SMB-REEL-AV1-ROUTE), PLR-029 (pub mod fixtures; FIX_LANE), the SMB-REEL PLAUSIBLE notes (aggregate decoded-bytes budget, approx_bytes undercount), SMB-REEL-ENG-3 av1C-derived pixel limit; PLR-030 lead-WAIVED, PLR-031 Operator. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof (src, target, tmp).",
+  "updated_at": "2026-10-11T11:19:13Z",
   "notes": {
     "decisions": [
       {
@@ -755,6 +763,273 @@
         "behaviour on 32-bit usize targets (u32 -> usize widenings are lossless only for usize >= 32 bits; every `as usize` of a u64 is behind a range check or try_from)",
         "process-level RSS: the allocation proofs count the largest single allocation request per thread, not resident memory"
       ]
+    },
+    "v4_06_class": "trust stated for one source applied to a different source: a trust decision (SourceTrust / VideoRoute) that reaches a decoder choice for bytes other than the ones the caller vouched for",
+    "v4_06_regex": "^\\s*[^/\\s].*\\b(SourceTrust|VideoRoute|decode_segment_routed|proxy_trust|trust|route)\\b (code lines only: lines starting with // or /// are excluded) over crates/hsk-studio-reel/src/**/*.rs",
+    "v4_06_scope": "crates/hsk-studio-reel/src at 589f544; test code is outside the scope (tests/ is not scanned)",
+    "v4_06_count": {
+      "hits": 57,
+      "listed": 57
+    },
+    "v4_06_sites": [
+      {
+        "file_line": "src/isobmff.rs:19",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/isobmff.rs:1636",
+        "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
+      },
+      {
+        "file_line": "src/isobmff.rs:1639",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/isobmff.rs:1646",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/isobmff.rs:1659",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/isobmff.rs:1701",
+        "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
+      },
+      {
+        "file_line": "src/isobmff.rs:1714",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/isobmff.rs:1737",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/lib.rs:67",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/lib.rs:68",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/lib.rs:73",
+        "verdict": "NOT_APPLICABLE: DESCRIPTOR text; its video_routing policy states the per-source rule and cites the test (589f544)"
+      },
+      {
+        "file_line": "src/matroska.rs:23",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/matroska.rs:1497",
+        "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
+      },
+      {
+        "file_line": "src/matroska.rs:1510",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/matroska.rs:1547",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/matroska.rs:1663",
+        "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
+      },
+      {
+        "file_line": "src/matroska.rs:1666",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/matroska.rs:1673",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/matroska.rs:1686",
+        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+      },
+      {
+        "file_line": "src/model.rs:4",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/model.rs:393",
+        "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
+      },
+      {
+        "file_line": "src/model.rs:400",
+        "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
+      },
+      {
+        "file_line": "src/registry.rs:8",
+        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+      },
+      {
+        "file_line": "src/registry.rs:33",
+        "verdict": "FIXED 8438b1d: ProxySource carries its own trust field (PLR-033)"
+      },
+      {
+        "file_line": "src/registry.rs:43",
+        "verdict": "FIXED 8438b1d: ProxySource::new starts Untrusted"
+      },
+      {
+        "file_line": "src/registry.rs:48",
+        "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
+      },
+      {
+        "file_line": "src/registry.rs:49",
+        "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
+      },
+      {
+        "file_line": "src/registry.rs:193",
+        "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
+      },
+      {
+        "file_line": "src/registry.rs:200",
+        "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
+      },
+      {
+        "file_line": "src/registry.rs:209",
+        "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
+      },
+      {
+        "file_line": "src/registry.rs:217",
+        "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
+      },
+      {
+        "file_line": "src/registry.rs:219",
+        "verdict": "OK: this route is built for the original's reader only"
+      },
+      {
+        "file_line": "src/registry.rs:220",
+        "verdict": "OK: the original's trust, used for the original's reader only"
+      },
+      {
+        "file_line": "src/registry.rs:242",
+        "verdict": "FIXED 8438b1d: the proxy's own trust is read from the ProxySource (PLR-033)"
+      },
+      {
+        "file_line": "src/registry.rs:248",
+        "verdict": "FIXED 8438b1d: separate route for the proxy reader (was one route for both readers, registry.rs:218-219 at dff7ef5)"
+      },
+      {
+        "file_line": "src/registry.rs:249",
+        "verdict": "FIXED 8438b1d: the proxy route takes the proxy's trust, never the original's"
+      },
+      {
+        "file_line": "src/registry.rs:250",
+        "verdict": "OK: the registered external decoder is shared, only trust differs per source"
+      },
+      {
+        "file_line": "src/registry.rs:252",
+        "verdict": "FIXED 8438b1d: the proxy reader is decoded with &proxy_route"
+      },
+      {
+        "file_line": "src/registry.rs:273",
+        "verdict": "OK: original bytes under the original's trust, also after an unusable proxy fell back (ProxyUnusableUsedOriginal; test trusted_original_never_lends_its_trust_to_a_proxy last block)"
+      },
+      {
+        "file_line": "src/video.rs:37",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:163",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:164",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:168",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:172",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:178",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:181",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:189",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:200",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:202",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:203",
+        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+      },
+      {
+        "file_line": "src/video.rs:217",
+        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+      },
+      {
+        "file_line": "src/video.rs:219",
+        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+      },
+      {
+        "file_line": "src/video.rs:222",
+        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+      },
+      {
+        "file_line": "src/video.rs:377",
+        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+      },
+      {
+        "file_line": "src/video.rs:387",
+        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+      },
+      {
+        "file_line": "src/video.rs:401",
+        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+      },
+      {
+        "file_line": "src/video.rs:403",
+        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+      }
+    ],
+    "remediation_R7": {
+      "source": "validation/R7-review-b.json lane SMB-REEL-AV1-ROUTE (reviewed commit dff7ef5) + workflow/plausible-register.json PLR-033",
+      "commits": [
+        "8438b1d",
+        "589f544"
+      ],
+      "findings": [
+        {
+          "finding": "SMB-REEL-AV1-ROUTE CONFIRMED trust_boundary_proxy_inherits_original_trust (registry.rs:178-219 at dff7ef5)",
+          "class": "trust stated for one source applied to a different source",
+          "diagnosis": "Registry::decode_segment_routed built ONE VideoRoute from the caller's trust and decoded the proxy reader through the same route; video.rs choose() sends Trusted + AV1 (feature av1) to the in-process rav1d decoder, which the crate documents as aborting the process on corrupt streams (lane mutation probe: 9.7% of single-byte mutations). A proxy is generated or fetched separately, so a digest check of the original does not cover it.",
+          "fix": "ProxySource gains `trust: SourceTrust` (ProxySource::new = Untrusted; with_trust(Trusted) vouches for that proxy's grant alone). decode_segment_routed builds a separate proxy_route from the proxy's own trust (the registered external decoder is shared); the original keeps the caller's trust, also when an unusable proxy falls back to the original. Untrusted AV1 therefore reaches the external decoder (worker) or is CodecUnavailable. Docs: SourceTrust, decode_segment_routed, crate docs, DESCRIPTOR (cites the test).",
+          "regression_test": "tests/video_route.rs trusted_original_never_lends_its_trust_to_a_proxy (mp4 + mkv; Trusted and Untrusted original with a default proxy -> external decoder only, receipt source Proxy / decoder fake-av1; no external decoder -> CodecUnavailable with an empty sink; explicit Trusted proxy honoured on its own (rav1d with feature av1, external otherwise); explicit Untrusted proxy next to a Trusted original -> external; stale proxy grant falls back to the original under the original's own trust)",
+          "red_proof": "scratch copy with the fix reverted (proxy_route takes `trust` of the original), --features av1: FAIL at tests/video_route.rs:494 `av01 Trusted: proxy bytes reached a decoder other than the external one` left \"rav1d\" right \"fake-av1\""
+        }
+      ],
+      "limits": [
+        "The grant on a proxy is a caller statement bound to that ProxySource (its grant.content_id), checked only by the existing verify_grant (revision, length); the decode path verifies no digest, so 'this exact source identity' is the proxy's grant, not a content hash (UNVERIFIED beyond that).",
+        "ProxySource gained a public field: struct-literal construction outside the crate needs `trust` (compile error, never a silent default); the two in-repo literals (tests/foundation_contract.rs, tests/review_r2_regressions.rs) now use ProxySource::new."
+      ],
+      "tests_breakdown": {
+        "default": "49/49 (48 + the new test; its in-process half is feature-gated)",
+        "av1": "53/53 (52 + the new test with the in-process half)",
+        "clippy": "clean for --tests --examples in default and --features av1 (observe: 2 pre-existing too_many_arguments warnings, not ours)",
+        "fmt": "cargo fmt -p hsk-studio-reel --check clean"
+      },
+      "route": "No gameplan step added and no retry-guard block occurred; red proofs ran on a scratch copy (own STUDIO_OWNER smb-reel-r7-redproof, own target), never on the shared edit tree.",
+      "v4_06": "see notes.v4_06_* (class, regex, count, per-site verdicts)",
+      "at": "2026-10-11T11:19:13Z"
     }
   }
 }
