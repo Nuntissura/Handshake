@@ -1104,7 +1104,7 @@
    "status": "OPEN",
    "verified_at": "cc3eaae",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane (crate frozen for R10 to keep the AV1-ROUTE pre-review valid)"
+   "disposition_note": "fix claimed e424f46/7cdf18e (SMB-REEL-ENG-1); reviewer confirms in R11"
   },
   {
    "id": "PLR-063",

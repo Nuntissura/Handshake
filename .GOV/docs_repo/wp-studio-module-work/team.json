@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T15:43:54Z",
+ "updated_at": "2026-10-11T16:04:09Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1916,7 +1916,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T15:30:02Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:04:09Z (SMB-REEL-ENG-1 READY at 7cdf18e)"
   },
   {
    "name": "rem-psd-budget-r10",
@@ -1940,6 +1940,17 @@
    ],
    "launched": "2026-10-11T15:44:05Z",
    "status": "done 2026-10-11T16:02:32Z (SAFE_TO_JUDGE; PLR-063..065)"
+  },
+  {
+   "name": "prereview-r11-reel-route",
+   "agent_id": "a482e23901160398d",
+   "model": "sonnet",
+   "role": "V4-13 narrow pre-review SMB-REEL-AV1-ROUTE after e424f46/7cdf18e",
+   "owns": [
+    "validation/R11-prereview-reel-route.json"
+   ],
+   "launched": "2026-10-11T16:04:19Z",
+   "status": "running"
   }
  ]
 }
