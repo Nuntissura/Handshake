@@ -1,78 +1,48 @@
 {
  "crate": "workspace",
  "lane": "SMB-ROUND-ENTRYPOINT",
- "status": "READY_FOR_VALIDATION",
- "phase": "R7 candidate 2074f5e (steward sync over origin 231115f, pushed): steward canary C9 exit 0, 53 units, not_proven 0",
+ "status": "BLOCKED",
+ "phase": "lane FAIL_V3 in R6 (fix budget exhausted; Operator decision D20, no READY claim). CX-EXEC-015(4) infrastructure fix pushed in syncs 7095a32 + 0e48167; R7 candidate = 0e48167 (replaces 2074f5e and 7095a32); steward canary C11 on 0e48167 running",
  "commits": [
-  {
-   "sha": "fd24723",
-   "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"
-  },
-  {
-   "sha": "1d404f8",
-   "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"
-  },
-  {
-   "sha": "4ea5171",
-   "subject": "run-round: NOT_PROVEN accounting, commit-free oracle corpus root; registry-sync labels cpal native-ffi (R5 review A)"
-  },
-  {
-   "sha": "cf2e8c7",
-   "subject": "run-round step 0 policy: V4-03 machine-local path gate, V4-05 frozen-duplicate fingerprints (workflow v4)"
-  },
-  {
-   "sha": "9ab64c2",
-   "subject": "Steward sync: lock, registry pins and probe approvals for fec865b"
-  },
-  {
-   "sha": "bd8533f",
-   "subject": "run-round: oracle fixture unit (CLAP gain), score-plugin feature matrix, frozen sites as exact files"
-  },
-  {
-   "sha": "fc7822b",
-   "subject": "round-features: motion-js quickjs+test-faults unit (tests/quickjs_worker.rs requires both)"
-  },
-  {
-   "sha": "2074f5e",
-   "subject": "Steward sync: lock, registry pins and probe approvals for 231115f (overlays: round-features, machine-paths, workspace-probe)"
-  }
+  {"sha": "fd24723", "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"},
+  {"sha": "1d404f8", "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"},
+  {"sha": "4ea5171", "subject": "run-round: NOT_PROVEN accounting, commit-free oracle corpus root; registry-sync labels cpal native-ffi (R5 review A)"},
+  {"sha": "cf2e8c7", "subject": "run-round step 0 policy: V4-03 machine-local path gate, V4-05 frozen-duplicate fingerprints (workflow v4)"},
+  {"sha": "9ab64c2", "subject": "Steward sync: lock, registry pins and probe approvals for fec865b"},
+  {"sha": "bd8533f", "subject": "run-round: oracle fixture unit (CLAP gain), score-plugin feature matrix, frozen sites as exact files"},
+  {"sha": "fc7822b", "subject": "round-features: motion-js quickjs+test-faults unit"},
+  {"sha": "2074f5e", "subject": "Steward sync for 231115f: round-features reel-native av1-worker sets, workspace-probe dep/feature selectors, machine-paths press pin, reel miniz_oxide"},
+  {"sha": "7095a32", "subject": "Steward sync for d0eb304: fixture content-addressed placement + binding (R6 finding), disk build lock @1 in run-round, tree-binding guard, round-features render-gpu/score-device, motion-js windows-sys"},
+  {"sha": "0e48167", "subject": "Steward sync for 8d46aa8: disk build lock @2 (identity pid+start, fence, FIFO queue, round priority + gaps, release retry, max hold), V4-03 regex excludes escaped quotes, score-plugin sha2, motion-js windows-sys 6 features"}
  ],
  "capabilities_done": [
-  "NOT_PROVEN accounting: lines starting NOT_PROVEN: in nextest units' captured output (junit system-out/err) -> round.json not_proven [{unit, crate, binary, test, reason}], unit counts, tests.json; otherwise green round exits 73",
-  "oracle corpus convention .config/oracle-corpus.toml (search Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus, walk up <=8 ancestors from the workspace root; plain key = value lines); round.json oracle_corpus root, file count, sha256 manifest",
-  "oracle fixture unit .config/oracle-fixtures.toml: score-plugin clap-gain built offline+locked before the units and placed at <corpus>/score-plugin/clap-gain/ with MANIFEST.json (library sha256, source sha256, round sha); build failure = unit build failure; corpus absent = corpus_absent",
-  "step 0 policy (both modes, ~1.6 s): V4-03 machine-local paths over crates/*/{src,tests} (exit 72 beyond .config/machine-paths.toml pinned counts); V4-05 frozen duplicates over crates/*/src (exit 71 outside .config/duplicate-fingerprints.toml allowed files)",
-  "round-features (2074f5e): type [harfrust]; motion-js [quickjs], [quickjs, test-faults]; reel [av1]; reel-native [av1-worker], [av1-worker, test-faults] (replaces [av1]; av1 host-only since f080dd6); score-plugin [test-faults], [clap, test-faults]",
-  "workspace-probe (2074f5e): Cargo feature unification for path deps: x/f and weak x?/f selectors forward f to Studio path dependency x (x activated unless weak), path-dependency features lists forward the same way, a package is re-inspected when its feature set grows (bounded), manifests parsed once; selectors on registry deps reject unsupported_dependency_feature_selector, on undeclared deps unknown_dependency_feature_selector; result carries closure_features. Proof: reel-native/av1-worker closure_features {reel:[av1], reel-native:[av1-worker]} and rav1d records observed under owner reel; negatives (unknown forwarded feature, unknown dep, registry selector rav1d/asm) reject with the named codes; weak selector on an inactive dep leaves reel out",
-  "steward-sync.sh (kernel): --overlay for steward-owned root files (.config/*.toml, tools/run-round.sh, tools/workspace-probe.rs, tools/registry-sync.py) committed in the same sync; probes every package AND every round-features set, any reject exits 7; dep-requests gate reads only lines with crate+dep (round-features request lines crashed registry-sync with KeyError); --dry-run; CAS re-parent onto the tip when lanes pushed meanwhile and no derivation input (root Cargo.toml/lock, toolchain, crate manifests, tools/, .config/) changed, up to 8 attempts; shared-tree reconcile of committed root paths (index entry and working file) except the working Cargo.lock; push failure exit 9",
-  "sync 2074f5e: approval reel miniz_oxide 0.9.1 [with-alloc] (request line 48, pin shared with 5 crates; no lock package added; lock dependency list of hsk-studio-reel changed); license gate OK; probe 43/43 (35 packages + 8 feature sets); machine-paths pin crates/hsk-studio-press/tests/pdf_delivery.rs = 2 (hostile PDF /Launch filespec C:\\Budget Plan\\run.exe and its expected redacted string; press 5a91fd7; lead-reviewable)"
+  "R6 finding fix (CX-EXEC-015(4)): fixture built into the run's own target, placed content-addressed at <corpus>/<dest>/sha256/<sha256>/<lib> (never overwrites other bytes), MANIFEST.json atomic; corpus hashed AFTER placement; round.json fixtures[] binds library path, sha256, MANIFEST sha256 and re-verifies after the units (binding_intact; changed = exit 76). Proof on a pre-commit export: F1 placed=written intact=True and the corpus manifest lists the new MANIFEST + library; F2 (MANIFEST changed mid-run) exit 76 binding_intact=False; old shared copy hsk_score_plugin_clap_gain_fixture.dll b2892526 untouched",
+  "disk build lock @2 (tools/disk-build-lock.sh, kernel copy byte-identical, steward-sync refuses drift): identity msys pid + /proc start time + command (CX-VAL-004), unknown = alive, dead only if pid gone or start differs; schema fence (75 protocol mismatch); FIFO ticket queue with round priority, round yields one gap per slice (STUDIO_DISK_BUILD_LOCK_ROUND_SLICE_S default 300) between units; release retried 10 s and RELEASE_FAILED logged; break by CAS rename stale.<dead token> (EXCLUSION_RISK logged if a put-back fails); max hold builder 900 s / round 5400 s -> one OVER_MAX_HOLD line in R/events.log, never force-broken; events.log",
+  "studio-env.sh: cargo wrapper (builder class) for build/check/clippy/run/bench/doc/rustc/rustdoc/fix/install/nextest/miri/tarpaulin/llvm-cov and test --doc; plain `cargo test` refused (exit 2, use cargo nextest run); tree-binding guard marker ${CARGO_TARGET_DIR}/.studio-workspace-root (seeded: studio-team-dev/target = edit tree, steward-export/target and sync-export/target = their exports)",
+  "run-round: lock per cargo unit (class round), tree binding of --target-dir, disk-lock.json + round.json disk_lock (holds, yields, waits, broken stale locks), lock root from .config/disk-build-lock.toml walk-up or STUDIO_DISK_BUILD_LOCK_DIR (must agree)",
+  "kernel tools: disk-build-lock-test.sh (G1, T1-T14 incl. T9-T12 of workflow tick-3: 21/21 PASS on the staged copies), disk-lock-audit.sh (read-only tick check: held/queue/events, cargo.exe command lines, BYPASS_SUSPECT, repo-local target dirs); steward-sync.sh: sync-export/target + tree guard, probe compile under the lock, lib drift check, overlay of tools/disk-build-lock.sh",
+  "registry: reel miniz_oxide (2074f5e); motion-js windows-sys 0.61.2 native-ffi (7095a32; 6 features 0e48167); score-plugin sha2 0.10.9 force-soft (0e48167); probe 45/45 (35 packages + 10 round-features sets); license gate OK"
  ],
  "tests": {
-  "argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C9-2074f5e --target-dir studio-team-dev/target (export of 2074f5e)",
-  "exit": 0,
-  "sha": "2074f5e",
-  "passed": 53,
+  "argv": "source studio-env.sh (STUDIO_OWNER=studio-team-dev/steward-export) && RUSTC_WRAPPER=sccache ... bash tools/run-round.sh --canary --all --results <steward-export>/results/C11-0e48167 --target-dir <steward-export>/target",
+  "exit": 73,
+  "sha": "0e48167",
+  "passed": 57,
   "failed": 0
  },
- "blockers": [],
- "lock_wait_s": 0,
+ "blockers": ["D20 (Operator) for the lane verdict"],
+ "lock_wait_s": 1,
  "bg_pids": [],
- "next": "R7 candidate 2074f5e unchanged. Prepared, NOT committed until the lead says R6 finished: round-features render-gpu [[test-faults]], score-device [[cpal-backend]] (shared-tree .config/round-features.toml edited; dry-run over origin 42fba02: probe 45/45, only that file would commit) -> steward-sync.sh --overlay .config/round-features.toml, then canary C10 with --target-dir steward-export/target + sccache",
- "updated_at": "2026-10-11T06:46:07Z",
+ "next": "lead names 0e48167 as R7 candidate; lead/workflow ticks run tools/disk-lock-audit.sh; @1 stale.* dirs and the repo-local target dir are lead items",
+ "updated_at": "2026-10-11T08:00:36Z",
  "notes": {
-  "verdicts": [
-   {"round": "STUDIO-R6", "lane": "SMB-ROUND-ENTRYPOINT", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V3", "failures": [{"failure_kind": "product", "failure_class": "corpus-binding-precedes-fixture-placement", "file_line": "tools/run-round.sh:301-341 (corpus manifest) vs :428-486 (fixture written into the corpus root :471-482)"}, {"failure_kind": "product", "failure_class": "shared-corpus-fixture-overwritten-across-owners", "file_line": "tools/run-round.sh:471-482; .config/oracle-fixtures.toml"}], "remediation": "Bind the corpus after fixture placement; place fixtures per owner so a run never replaces another owner's input", "status_after": "FAIL_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-ROUND-ENTRYPOINT:bd8533f9b29c:FAIL_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
-  ],
-  "C8_bd8533f": "steward export canary exit 0, 49 units, not_proven 0, absent 0, timed_out 0",
-  "C9_2074f5e": "steward export canary 2026-10-11T06:24:01Z..06:35:03Z: step 0 lock/registry/policy clean (V4-03 0 violations, 11 files with pinned hits; V4-05 0 new sites); fixture score-plugin/clap-gain built; default 34/34 (242 skipped); features motion-js+quickjs, motion-js+quickjs+test-faults, reel+av1, reel-native+av1-worker, reel-native+av1-worker+test-faults, score-plugin+test-faults, score-plugin+clap+test-faults, type+harfrust all build 0 / run 0; 43 doctest units exit 0; 53 units, not_proven 0, absent 0, timed_out 0, exit 0; round.json a635a908..., tests.json 52c9b605..., junit.xml 1249c1bd...; log studio-team-dev/steward/C9-2074f5e.log",
-  "dep_requests_processed_2074f5e": "line 48 reel miniz_oxide (approved + pinned); line 49 motion-js round-features (already in fc7822b, unchanged); line 50 reel-native round-features + probe selector note (done)",
-  "prism_score_plugin_corpus": "no steward key needed: prism 65a08c9 reads .config/oracle-corpus.toml root + tests/oracle/corpus.json icc_subdir=icc; score-plugin 6c45e64 reads <corpus>/score-plugin/clap-gain/MANIFEST.json via the same config",
-  "sync_cas_races": "two plain CAS failures (lanes pushed during the ~90 s sync: 4ee398a->eb7080d, eb7080d->231115f); changed approach: re-parent when no derivation input changed (CX-EXEC-003); third run committed on its own base",
-  "steward_scratch": "steward helper files only under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/ (probe-dev, probe-neg, precheck) and studio-team-dev/sync-export, steward-export (V4-12)",
-  "license_gate": "kernel tools/license_gate.py reads cached .crate archives and tools/license_evidence.json checksum-matched records for other-target crates; honest kinds (-sys and NATIVE_FFI_EXTRA = native-ffi)",
-  "machine_paths_baseline": "pinned 11 files (10 baseline + press pdf_delivery.rs 2); lead may delete entries to make files strict",
-  "canary_export_choice": "steward canaries run in studio-team-dev/steward-export (rule d; validators own studio-round)",
-  "export_target_rule": "lead root cause 2026-10-11 (5 stale-artifact incidents): export trees never share a target dir with the edit tree. C1..C9 canaries used --target-dir studio-team-dev/target (the builders' target) on touched exports and wrote older-source artifacts with newer mtimes there (C9 ran 06:24-06:35Z). From C10: --target-dir studio-team-dev/steward-export/target (TMP steward-export/tmp) with RUSTC_WRAPPER=sccache SCCACHE_DIR=studio-team-dev/sccache CARGO_INCREMENTAL=0; steward-sync.sh cargo runs use sync-export/target + tmp (STUDIO_OWNER=studio-team-dev/sync-export, asserted); rule and canary command in the steward-sync.sh header. First C10 build is cold. Validator rounds in studio-round also build into studio-team-dev/target (workflow v2 decision) and carry the same hazard (lead-owned). Separate targets mean steward canaries no longer serialize with builders through Cargo's build-dir lock (CX-984-002 one build per disk; D2 waiver open)",
-  "shared_index": "steward-sync reconciles committed root paths in the shared index/working tree; working Cargo.lock left as builders' local state"
+  "C11_0e48167": "steward export canary 07:55:19Z..08:00:25Z (lock @2, class round, slice 300 s: 1 hold 07:55:31-08:00:25, 0 yields, waited 1 s): exit 73 = only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen (D17, no Figma fixture); 57 units, all build 0 / run 0, absent 0, timed_out 0; fixture 15ac776e placed=written binding_intact; round.json 37ea9dba...",
+  "C10_7095a32": "steward export canary (own target steward-export/target, sccache) 07:26:11Z..07:37:48Z: exit 73, 57 units, all build/run 0; the only NOT_PROVEN is interop-fig actual_fig_instance_variable_prototype_edit_reopen (no Figma fixture, D17); lock waited 128 s for builders (@1); fixture 3e4e1dff placed=written intact; round.json ec5003bc...",
+  "F3_preflight": "pre-commit focused round (score-plugin, slice 0) on the dry-run export 07:51:39Z..07:53:07Z: exit 0, 7 holds, 7 yields, waits 8 s total (max 4 s; a builder interop-vector check took a gap), fixture intact",
+  "lock_incidents": "studio-env.sh was unsourceable 07:00-07:02Z (export -f named a renamed function) and @1 broke 6 locks 07:02-07:38Z (5 from mixed v1 versions, names not matching tokens: exclusion may have failed then); @2 installed 07:48:11Z with the fence; stale.* dirs of @1 left in place for the lead",
+  "repo_local_target": "disk-lock-audit found wt-studio-assets/handshake-studio-assets/target (.rustc_info.json 07:01:43Z, only .rustc_info.json + CACHEDIR.TAG): some cargo call ran without CARGO_TARGET_DIR; cause UNVERIFIED (inside the 07:00-07:02Z studio-env breakage window, but that version exported CARGO_TARGET_DIR before failing); not deleted, lead to trace",
+  "v4_03_regex": "web ca0d27e CSS vectors `a:\\\"` matched the drive-letter regex (16 hits); regex now excludes a backslash followed by a quote; pins unchanged (no pin dropped)",
+  "steward_scratch": "studio-team-dev/steward/ (dbl-test, env-stage, precheck, probe-neg, probe-dev), sync-export (test identities for dry-run exports only), steward-export",
+  "canary_export_choice": "steward canaries run in studio-team-dev/steward-export with target steward-export/target (never studio-team-dev/target)"
  }
 }

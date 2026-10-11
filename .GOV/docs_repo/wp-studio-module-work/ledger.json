@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:59:09Z",
+ "updated_at": "2026-10-11T08:02:20Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1931,12 +1931,7 @@
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
- "steward_next_sync": [
-  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)",
-  "round-features: hsk-studio-render-gpu = [[\"test-faults\"]] (R6 V4-04 fix; 3 fault tests)",
-  "windows-sys 0.61.2 optional dep for hsk-studio-motion-js feature quickjs (already in Cargo.lock; native-ffi probe approval for motion-js)",
-  "sha2 =0.10.9 (default-features off, force-soft) for hsk-studio-score-plugin (10016b5)"
- ],
+ "steward_next_sync": [],
  "round_R4": {
   "candidate": "2abb984",
   "status": "ABANDONED",
@@ -2069,11 +2064,14 @@
   "results": "studio-round/results/R6"
  },
  "round_R7_candidate": {
-  "sha": "2074f5e",
-  "sync_parent": "231115f",
-  "prepared_at": "2026-10-11T06:36:35Z",
-  "canary": "C9 exit 0, 53 units, NOT_PROVEN 0, absent 0, timed_out 0; step 0 clean",
-  "matrices": "reel-native [[av1-worker],[av1-worker,test-faults]]; motion-js [[quickjs],[quickjs,test-faults]]; score-device cpal-backend NOT yet (request came after sync)",
-  "launch_rule": "open after R6 completes (no concurrent rounds in studio-round)"
+  "sha": "0e48167",
+  "prepared_at": "2026-10-11T08:02:20Z",
+  "replaces": [
+   "2074f5e",
+   "7095a32"
+  ],
+  "canary": "C11 exit 73, 57/57 units green; only NOT_PROVEN = interop-fig Figma-authored fixture test (D17)",
+  "infra": "R6 fixture-binding fix (exit 76 if binding changes mid-run), disk lock @2 (proposals 1-4; T9-T12 pass; round slice 300 s accepted), pins: reel miniz_oxide, motion-js windows-sys (6 features), score-plugin sha2; probe 45/45; license gate OK",
+  "exclusions": "fix-budget BLOCKED: SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20); FIX_FIRST (pre-review A): SMB-PRISM-ENG-5, SMB-PRISM-ENG-6, SMB-DEVELOP; pending pre-review B: SMB-PRESS, SMB-MOTION-JS(+WORKER), SMB-WEB"
  }
 }

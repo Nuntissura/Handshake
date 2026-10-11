@@ -10,3 +10,72 @@ export TMPDIR="${TMP}"
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only
 export CARGO_PROFILE_TEST_DEBUG=line-tables-only
 mkdir -p "${CARGO_TARGET_DIR}" "${TMP}"
+
+# Tree binding (diagnostics/stale-artifacts.md M2): Cargo hashes workspace-member paths relative to the workspace
+# root, so a second tree built into the same target shares unit hashes, fingerprints and artifacts, and mtime
+# freshness then reuses artifacts compiled from the other tree. The marker ${CARGO_TARGET_DIR}/.studio-workspace-root
+# binds the target to ONE workspace root (as `cargo locate-project --workspace` prints it); sourcing from another
+# root (or from outside a workspace) fails before any cargo runs. Export, canary, probe and red-proof trees set
+# STUDIO_OWNER to their own owner dir. One locate-project call per sourcing (measured ~0.3-0.5 s).
+_studio_ws="$(command cargo locate-project --workspace --message-format plain 2>/dev/null)"
+_studio_bind="${CARGO_TARGET_DIR}/.studio-workspace-root"
+if [ -z "${_studio_ws}" ]; then
+  echo "studio-env: no cargo workspace at ${PWD}; cd to the workspace root before sourcing" >&2
+  return 1
+fi
+if [ -f "${_studio_bind}" ] && [ "$(cat "${_studio_bind}")" != "${_studio_ws}" ]; then
+  echo "studio-env: ${CARGO_TARGET_DIR} is bound to $(cat "${_studio_bind}"), not ${_studio_ws}; set STUDIO_OWNER to a per-tree owner (export, canary, probe and red-proof trees never share the edit tree's target)" >&2
+  return 1
+fi
+[ -f "${_studio_bind}" ] || printf '%s' "${_studio_ws}" >"${_studio_bind}"
+
+# Disk-wide build lock (CX-984-002: one build per physical disk; D: is the only build disk). After sourcing, `cargo`
+# is a shell function (exported to child bash scripts) that runs build|check|clippy|run|bench|doc|rustc|rustdoc|fix|
+# install|nextest|miri|tarpaulin|llvm-cov and `test --doc` (and the one-letter aliases) holding the lock
+# ${_studio_art}/.disk-build-lock as a queued builder (protocol @2, FIFO queue, round priority, stale-lock rule,
+# max hold 900 s, waits: ../tools/disk-build-lock.sh, byte-identical to the product tools/disk-build-lock.sh used by
+# tools/run-round.sh). `cargo test` without --doc is refused (libtest has no per-test timeout, so one hung test would
+# hold the disk lock for every builder; CX-EXEC-005): run tests with `cargo nextest run ...` (per-test timeout from
+# the workspace .config/nextest.toml). Other subcommands (metadata, tree, fetch, --version, ...) run unlocked. Waits
+# print to stderr (first wait, then every 60 s); STUDIO_DISK_BUILD_LOCK_TIMEOUT_S (default 7200) bounds a wait
+# (status 75). A build may wait for a validator round unit: run builds in the background.
+# `studio_disk_lock_run LABEL CMD...` locks any other build (e.g. a direct rustc).
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../tools" && pwd)/disk-build-lock.sh"
+export STUDIO_DISK_BUILD_LOCK_DIR="${STUDIO_DISK_BUILD_LOCK_DIR:-${_studio_art}/.disk-build-lock}"
+studio_disk_lock_run() {
+  local label=$1 child=""
+  shift
+  (
+    trap 'dbl_release' EXIT
+    trap '[ -n "$child" ] && kill "$child" 2>/dev/null; exit 130' INT TERM HUP
+    dbl_acquire "$STUDIO_DISK_BUILD_LOCK_DIR" builder "${STUDIO_OWNER:-studio-team-dev}" "$label (cwd $PWD)" studio-env || exit $?
+    if [ "$DBL_NESTED" -eq 1 ]; then "$@"; exit $?; fi
+    "$@" &
+    child=$!
+    dbl_note_child "$child"
+    wait "$child"
+  )
+}
+cargo() {
+  local a sub="" skip=0
+  for a in "$@"; do
+    if [ $skip -eq 1 ]; then skip=0; continue; fi
+    case "$a" in
+      -Z|--config|-C|--color|--explain|--manifest-path|--target-dir|--message-format|-p|--package|-j|--jobs|--features|-F|--profile|--target) skip=1 ;;
+      +*|-*) ;;
+      *) sub=$a; break ;;
+    esac
+  done
+  case "$sub" in
+    test|t)
+      case " $* " in
+        *" --doc "*) studio_disk_lock_run "cargo $*" command cargo "$@" ;;
+        *) echo "studio-env: 'cargo $*' refused: cargo test has no per-test timeout and holds the disk build lock (CX-EXEC-005). Run: cargo nextest run <same -p/--features/--test args> (per-test timeout from .config/nextest.toml; -- --nocapture becomes --no-capture); doctests: cargo test --doc ..." >&2
+           return 2 ;;
+      esac ;;
+    build|b|check|c|clippy|run|r|bench|doc|d|rustc|rustdoc|fix|install|nextest|miri|tarpaulin|llvm-cov)
+      studio_disk_lock_run "cargo $*" command cargo "$@" ;;
+    *) command cargo "$@" ;;
+  esac
+}
+export -f cargo studio_disk_lock_run   # the dbl_* functions export themselves (tools/disk-build-lock.sh)

@@ -234,6 +234,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead acknowledgement 2026-10-11T07:40:44Z (web R6): two earlier web tests changed to match WHATWG (legacy `&amp` without `;` decodes in text; unknown named reference `&notarealname;` stays literal and `Denied(UndecodableReference)` is removed) — accepted as spec-conformant.
 
+- Lead record 2026-10-11T08:02:20Z (steward-3 report): disk lock @2 installed 07:48:11Z; the old @1 lock broke 6 locks 07:02-07:38Z, so one-build-per-disk exclusion MAY have failed in that window (CX-984-002 not assured then); studio-env.sh failed to source 07:00-07:02Z (steward export line). A repo-local `handshake-studio-assets/target` (59 MB, gitignored, created 07:01:43Z, `nextest` subdir touched 07:49Z, writer UNVERIFIED) violates the external-artifact rule; left in place (no destructive cleanup without Operator authorization) — Operator item: delete or let the lead move it to the recycle bin. Lead accepted the round slice of 300 s (`STUDIO_DISK_BUILD_LOCK_ROUND_SLICE_S`).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

@@ -25,7 +25,10 @@
 # Usage: steward-sync.sh [--overlay RELPATH]... [--add-edge crate=dep]... [--remove-edge crate=dep]...
 #                        [--allow-unrequested] [--no-push] [--dry-run]
 # --overlay: steward-owned path relative to the workspace root (.config/*, tools/run-round.sh,
-#   tools/workspace-probe.rs, tools/registry-sync.py) copied from the shared edit tree into the export first.
+#   tools/workspace-probe.rs, tools/registry-sync.py, tools/disk-build-lock.sh) copied from the shared edit tree
+#   into the export first.
+# Disk-wide build lock: cargo goes through the studio-env.sh wrapper (metadata is not a build, so unlocked); the
+#   probe compile holds the lock; the candidate's tools/disk-build-lock.sh must equal the kernel copy (else exit 6).
 # --allow-unrequested only after reviewing every "unrequested" pair (license gate still runs); report them to the lead.
 # --dry-run: everything up to and including the probes; prints the paths that would be committed; no commit.
 # Exit: 0 ok, 2 usage, 3 HEAD moved / not pushed (redo), 4 edge error, 5 registry-sync, 6 verify failed,
@@ -49,7 +52,7 @@ while [ $# -gt 0 ]; do
     --remove-edge) edges+=("remove:${2:?}"); shift ;;
     --overlay)
       case "${2:?}" in
-        .config/*.toml|tools/run-round.sh|tools/workspace-probe.rs|tools/registry-sync.py) overlays+=("$2") ;;
+        .config/*.toml|tools/run-round.sh|tools/workspace-probe.rs|tools/registry-sync.py|tools/disk-build-lock.sh) overlays+=("$2") ;;
         *) echo "overlay not steward-owned: $2" >&2; exit 2 ;;
       esac
       case "$2" in *..*) echo "overlay path may not contain ..: $2" >&2; exit 2 ;; esac
@@ -88,7 +91,7 @@ done
 cd "$W" || exit 1
 # Export trees never share a target dir with the edit tree (see header): this export's cargo state stays in sync-export/.
 export STUDIO_OWNER=studio-team-dev/sync-export
-source "$WORK/builders/studio-env.sh"
+source "$WORK/builders/studio-env.sh" || exit 2   # tree-binding guard: sync-export/target is bound to this export
 [ "$(cd "$CARGO_TARGET_DIR" && pwd)" = "$(cd "$EX/target" 2>/dev/null && pwd)" ] \
   || { echo "steward-sync: export target $CARGO_TARGET_DIR is not $EX/target" >&2; exit 2; }
 cp Cargo.lock "$EX/committed-Cargo.lock"
@@ -120,9 +123,11 @@ python -X utf8 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("RE
 python -X utf8 -I "$TOOLS/license_gate.py" . || exit 8
 cargo metadata --locked --offline --format-version 1 >/dev/null 2>"$EX/verify.err" || { cat "$EX/verify.err"; exit 6; }
 python -X utf8 -I tools/registry-sync.py . >/dev/null || { echo "registry-sync check not clean after write"; exit 6; }
+cmp -s tools/disk-build-lock.sh "$TOOLS/disk-build-lock.sh" \
+  || { echo "disk-build-lock.sh: candidate (product) copy and kernel copy differ; overlay or update one"; exit 6; }
 
 mkdir -p "$ART/probe"
-rustc --edition=2024 -O tools/workspace-probe.rs -o "$ART/probe/workspace-probe.exe" || exit 6
+studio_disk_lock_run "steward-sync probe rustc" rustc --edition=2024 -O tools/workspace-probe.rs -o "$ART/probe/workspace-probe.exe" || exit 6
 TREE=$(git -C "$REPO" rev-parse "$BASE^{tree}")
 python -X utf8 -I "$TOOLS/probe_provenance.py" "$W" "$BASE" "$TREE" "$EX/probe-provenance.toml" $(ls crates) >/dev/null
 # Selections: every package with no features, then every (crate, feature set) of .config/round-features.toml.
