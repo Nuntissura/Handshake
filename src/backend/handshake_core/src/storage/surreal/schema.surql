@@ -435,6 +435,10 @@ DEFINE INDEX OVERWRITE idx_ai_silver_model ON TABLE ai_silver_records FIELDS emb
 
 -- 0013_loom_mvp
 DEFINE TABLE OVERWRITE assets SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));
+DEFINE FIELD OVERWRITE artifact_id ON TABLE assets TYPE option<string>;
+DEFINE FIELD OVERWRITE artifact_binding_state ON TABLE assets TYPE option<'reserved' | 'ready'>;
+DEFINE FIELD OVERWRITE artifact_retention_ttl_days ON TABLE assets TYPE option<int> ASSERT $value = NONE OR $value > 0;
+DEFINE FIELD OVERWRITE artifact_binding_event_id ON TABLE assets TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE asset_id ON TABLE assets TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE assets TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE kind ON TABLE assets TYPE string;
@@ -910,8 +914,8 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
-                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true)
                 FOR update, delete NONE;
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
@@ -931,6 +935,11 @@ DEFINE FIELD OVERWRITE payload_hash ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE source_component ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE payload ON TABLE kernel_event_ledger TYPE object FLEXIBLE;
 DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE created_at ON TABLE kernel_event_ledger TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_kernel_event_ledger ON TABLE kernel_event_ledger FIELDS event_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_sequence ON TABLE kernel_event_ledger FIELDS event_sequence UNIQUE;
@@ -1409,6 +1418,16 @@ DEFINE INDEX OVERWRITE pk_atelier_intake_item ON TABLE atelier_intake_item FIELD
 DEFINE INDEX OVERWRITE uq_atelier_intake_item_1 ON TABLE atelier_intake_item FIELDS batch_id, source_path UNIQUE;
 
 DEFINE TABLE OVERWRITE atelier_collection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
+DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
+    VALUE IF $this.character_internal_id != NONE {
+        'character:' + type::string($this.character_internal_id) + '|' + $this.name
+    } ELSE {
+        'global|' + $this.name
+    };
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_collection TYPE string;
@@ -1420,9 +1439,17 @@ DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_collection TYPE option<
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_collection TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS collection_id UNIQUE;
-DEFINE INDEX OVERWRITE uq_atelier_collection_1 ON TABLE atelier_collection FIELDS name UNIQUE;
+
 
 DEFINE TABLE OVERWRITE atelier_collection_item SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
+DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection_item TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item TYPE record<atelier_collection> ASSERT (record::exists($value)) AND ($value = type::record('atelier_collection', record::id($this.id)[0])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value = type::record('atelier_media_asset', record::id($this.id)[1])) REFERENCE ON DELETE CASCADE;
@@ -2289,8 +2316,8 @@ DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_media_source_provenance_
 DEFINE FIELD OVERWRITE source_note_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE contact_sheet_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE task_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
-DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string> ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $value != NONE);
-DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string;
+DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE);
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_source_provenance_ref TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_media_source_provenance_ref ON TABLE atelier_media_source_provenance_ref FIELDS asset_id UNIQUE;
 
@@ -2791,6 +2818,8 @@ DEFINE INDEX OVERWRITE idx_atelier_state_probe_catalog_surface ON TABLE atelier_
 
 -- 0087_atelier_action_receipts
 DEFINE TABLE OVERWRITE atelier_action_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE thread_id ON TABLE atelier_action_receipt TYPE string DEFAULT '' ASSERT string::trim($value) = $value;
+DEFINE FIELD OVERWRITE lease_claim_id ON TABLE atelier_action_receipt TYPE option<record<atelier_model_coordination_lease>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_action_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_action_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE action_id ON TABLE atelier_action_receipt TYPE string ASSERT string::trim($value) != '';
@@ -3884,7 +3913,9 @@ DEFINE FIELD OVERWRITE unsupported_reason ON TABLE knowledge_context_bundle_item
 DEFINE INDEX OVERWRITE pk_knowledge_context_bundle_items ON TABLE knowledge_context_bundle_items FIELDS bundle_id, item_ordinal UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_context_bundle_items_ref ON TABLE knowledge_context_bundle_items FIELDS ref_kind, ref_id;
 
-DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') AND (bundle_id = NONE OR bundle_id.workspace_id = workspace_id) AND (trace_receipt_event_id = NONE OR trace_receipt_event_id.authority_session_id = $auth.id) FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND (trace_receipt_event_id = NONE OR (trace_receipt_event_id.authority_session_id = $auth.id AND trace_receipt_event_id.wsids = [record::id(workspace_id)])) FOR delete NONE;
+DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS FOR select WHERE IF trace_receipt_event_id.source_component = 'loom_search::surreal_search' { fn::wp012_search_evidence($this) } ELSE { fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') } FOR create WHERE (IF trace_receipt_event_id.source_component = 'loom_search::surreal_search' { fn::wp012_search_evidence($this) } ELSE { contributor_manifest = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') }) AND (bundle_id = NONE OR bundle_id.workspace_id = workspace_id) AND (trace_receipt_event_id = NONE OR trace_receipt_event_id.authority_session_id = $auth.id) FOR update WHERE !(trace_receipt_event_id.source_component = 'loom_search::surreal_search') AND !($before.trace_receipt_event_id.source_component = 'loom_search::surreal_search') AND contributor_manifest = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND (trace_receipt_event_id = NONE OR (trace_receipt_event_id.authority_session_id = $auth.id AND trace_receipt_event_id.wsids = [record::id(workspace_id)])) FOR delete NONE;
+DEFINE FIELD OVERWRITE contributor_manifest ON TABLE knowledge_retrieval_traces TYPE option<array<object>> FLEXIBLE;
+DEFINE FIELD OVERWRITE contributor_manifest.*.* ON TABLE knowledge_retrieval_traces TYPE any;
 DEFINE FIELD OVERWRITE trace_id ON TABLE knowledge_retrieval_traces TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_retrieval_traces TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_retrieval_traces TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag';
@@ -4022,7 +4053,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_crdt_promoted_facts_workspace ON TABLE know
 
 -- 0154_knowledge_crdt_ai_edit_proposals
 DEFINE TABLE OVERWRITE knowledge_crdt_ai_edit_proposals SCHEMAFULL PERMISSIONS NONE;
-DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE { $value = record::id($this.id) } ELSE { $this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND string::trim($this.workspace_id) != '' AND record::id($this.id) = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $value, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
@@ -4049,7 +4080,8 @@ DEFINE FIELD OVERWRITE promotion_accepted_event_id ON TABLE knowledge_crdt_ai_ed
 DEFINE FIELD OVERWRITE applied_update_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE applied_update_sha256 ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($value = $this.diff_sha256 AND $this.applied_update_id != NONE);
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_ai_edit_proposals TYPE datetime DEFAULT time::now();
-DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_id UNIQUE;
+DEFINE FIELD OVERWRITE proposal_identity_key ON TABLE knowledge_crdt_ai_edit_proposals TYPE string VALUE IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE { $this.proposal_id } ELSE { crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $this.proposal_id, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_identity_key UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_document ON TABLE knowledge_crdt_ai_edit_proposals FIELDS crdt_document_id, review_state, created_at_utc;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_actor ON TABLE knowledge_crdt_ai_edit_proposals FIELDS actor_id, created_at_utc;
 
@@ -4635,7 +4667,7 @@ DEFINE FIELD OVERWRITE common_errors ON TABLE user_manual_tool_entries TYPE arra
 DEFINE FIELD OVERWRITE common_errors.* ON TABLE user_manual_tool_entries TYPE any;
 DEFINE FIELD OVERWRITE recovery_steps ON TABLE user_manual_tool_entries TYPE array DEFAULT [];
 DEFINE FIELD OVERWRITE recovery_steps.* ON TABLE user_manual_tool_entries TYPE any;
-DEFINE FIELD OVERWRITE origin ON TABLE user_manual_tool_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_tool_entries TYPE 'legacy_model_manual' | 'wp009_surface' | 'wp1_model_lane' | 'wp1_mt012_operator_chat' | 'wp1_mt013_embedded_model' | 'wp1_mt014' | 'wp1_mt015_cloud_model_access' | 'wp1_mt016_dedicated_embedding_model';
 DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_tool_entries TYPE string ASSERT string::len($value) = 64;
 DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_tool_entries TYPE datetime DEFAULT time::now();
@@ -4647,7 +4679,7 @@ DEFINE FIELD OVERWRITE feature_id ON TABLE user_manual_feature_entries TYPE stri
 DEFINE FIELD OVERWRITE title ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE description ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE tool_ids ON TABLE user_manual_feature_entries TYPE array<string> DEFAULT [];
-DEFINE FIELD OVERWRITE origin ON TABLE user_manual_feature_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_feature_entries TYPE 'legacy_model_manual' | 'wp009_surface' | 'wp1_model_lane' | 'wp1_mt012_operator_chat' | 'wp1_mt013_embedded_model' | 'wp1_mt014' | 'wp1_mt015_cloud_model_access' | 'wp1_mt016_dedicated_embedding_model';
 DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_feature_entries TYPE string ASSERT string::len($value) = 64;
 DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_feature_entries TYPE datetime DEFAULT time::now();
@@ -6255,6 +6287,91 @@ DEFINE FUNCTION OVERWRITE fn::mt120_loom_endpoint_access($block: option<record<l
     RETURN record::id($block.source_rich_document_id) = record::id($block)
         AND fn::mt120_document_access(record::id($block), $workspace, $action, $capability);
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_exact_loom_scope($owner: option<string>, $principal: option<string>, $session: option<string>, $space: option<string>, $workspace: string) {
+    RETURN fn::mt109_live_session() AND $owner = record::id($auth.account_id)
+        AND $principal = record::id($auth.principal_id) AND $session = record::id($auth.id)
+        AND $space = record::id($auth.access_space_id) AND string::trim($workspace) != '';
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_search_contributors($manifest: array<object>, $workspace: string) {
+    LET $keys = array::map($manifest, |$item| IF $item.kind = 'index' { 'index:' + $item.block_id } ELSE { 'edge:' + $item.edge_id });
+    IF array::len(array::distinct($keys)) != array::len($manifest) { RETURN false; };
+    FOR $item IN $manifest {
+        IF $item.kind = 'index' {
+            IF array::sort(object::keys($item)) != ['block_id', 'index_event_id', 'index_fingerprint', 'kind'] OR !type::is_string($item.block_id) OR string::trim($item.block_id) = '' OR !type::is_string($item.index_event_id) OR string::trim($item.index_event_id) = '' OR string::len($item.index_fingerprint) != 64 { RETURN false; };
+            LET $source = (SELECT block_id, mutation_fingerprint, index_event_id, lifecycle_state FROM loom_block_search_index WHERE id = type::record('loom_block_search_index', $item.block_id) AND workspace_id = type::record('workspaces', $workspace));
+            IF array::len($source) != 1 OR $source[0].lifecycle_state != 'active'
+                OR $source[0].mutation_fingerprint != $item.index_fingerprint
+                OR record::id($source[0].index_event_id) != $item.index_event_id
+                OR !fn::mt120_loom_endpoint_access($source[0].block_id, $workspace, 'read', 'fs.read') { RETURN false; };
+        } ELSE IF $item.kind = 'edge' {
+            IF array::sort(object::keys($item)) != ['edge_id', 'edge_type', 'kind', 'receipt_event_id', 'source_block_id', 'target_block_id'] OR !type::is_string($item.edge_id) OR string::trim($item.edge_id) = '' OR !type::is_string($item.receipt_event_id) OR string::trim($item.receipt_event_id) = '' { RETURN false; };
+            LET $source = (SELECT source_block_id, target_block_id, edge_type, event_ledger_event_id FROM loom_edges WHERE id = type::record('loom_edges', $item.edge_id) AND workspace_id = type::record('workspaces', $workspace));
+            IF array::len($source) != 1 OR record::id($source[0].source_block_id) != $item.source_block_id
+                OR record::id($source[0].target_block_id) != $item.target_block_id OR $source[0].edge_type != $item.edge_type
+                OR record::id($source[0].event_ledger_event_id) != $item.receipt_event_id
+                OR !fn::mt120_loom_endpoint_access($source[0].source_block_id, $workspace, 'read', 'fs.read')
+                OR !fn::mt120_loom_endpoint_access($source[0].target_block_id, $workspace, 'read', 'fs.read') { RETURN false; };
+        } ELSE { RETURN false; };
+    };
+    RETURN fn::mt109_has_workspace_access($workspace, 'read', 'fs.read');
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR !fn::wp012_exact_loom_scope($payload.owner_account_id, $payload.actor_principal_id, $payload.authenticated_session_id, $payload.access_space_id, $wsids[0])
+        OR $session != $auth.id OR $actor_kind != $auth.principal_id.actor_kind OR $actor_id != $auth.principal_id.actor_id
+        OR $resource = NONE OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id { RETURN false; };
+    IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
+        AND $aggregate_id = $payload.registry_row_id AND $payload.selection_revision = 1
+        AND $payload.action = 'model_runtime_selection_recorded' AND string::len($payload.artifact_sha256) = 64
+        AND string::len($payload.mutation_fingerprint) = 64 {
+        RETURN $capability = 'fs.write' AND $action = 'create'
+            AND IF $write { fn::mt109_ledger_access($resource, $session, $capability, $action) AND fn::mt109_has_workspace_access($wsids[0], 'create', 'fs.write') }
+                ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') };
+    };
+    RETURN $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'loom_search::surreal_search' AND $aggregate = 'loom_search_result_set'
+        AND $payload.action = 'loom_search_result_set_recorded' AND $payload.result_set_id = $aggregate_id
+        AND string::len($payload.query_fingerprint) = 64 AND string::len($payload.result_set_fingerprint) = 64
+        AND $capability = 'fs.read' AND $action = 'read'
+        AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+        AND type::is_array($payload.contributor_manifest) AND fn::wp012_search_contributors($payload.contributor_manifest, $wsids[0])
+        AND type::is_array($payload.ordered_hits) AND $payload.total = array::len($payload.ordered_hits)
+        AND array::len(array::distinct(array::map($payload.ordered_hits, |$hit| $hit.result_id))) = $payload.total
+        AND array::len(array::distinct(array::map($payload.ordered_hits, |$hit| $hit.block_id))) = $payload.total
+        AND array::all(array::map($payload.ordered_hits, |$hit| $hit.ordinal >= 0 AND $hit.ordinal < $payload.total
+            AND $payload.ordered_hits[$hit.ordinal] = $hit
+            AND array::len(array::filter($payload.contributor_manifest, |$item| $item.kind = 'index' AND $item.block_id = $hit.block_id AND $item.index_event_id = $hit.source_index_event_id AND $item.index_fingerprint = $hit.source_index_fingerprint)) = 1));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_search_evidence($row: object) {
+    LET $receipt = IF $row.receipt_event_id != NONE { $row.receipt_event_id } ELSE { $row.trace_receipt_event_id };
+    IF !fn::wp012_exact_loom_scope($row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, record::id($row.workspace_id))
+        OR !type::is_array($row.contributor_manifest)
+        OR !fn::wp012_search_contributors($row.contributor_manifest, record::id($row.workspace_id))
+        OR $receipt = NONE OR $receipt.event_type != 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED'
+        OR $receipt.source_component != 'loom_search::surreal_search' OR $receipt.aggregate_type != 'loom_search_result_set'
+        OR $receipt.aggregate_id != $receipt.payload.result_set_id
+        OR $receipt.payload.action != 'loom_search_result_set_recorded'
+        OR $receipt.payload.contributor_manifest != $row.contributor_manifest
+        OR $receipt.payload.query_fingerprint != $row.query_fingerprint
+        OR $receipt.payload.result_set_fingerprint != $row.result_set_fingerprint
+        OR $receipt.owner_account_id != $row.owner_account_id OR $receipt.payload.owner_account_id != $row.owner_account_id
+        OR $receipt.actor_principal_id != $row.actor_principal_id OR $receipt.payload.actor_principal_id != $row.actor_principal_id
+        OR $receipt.authenticated_session_id != $row.authenticated_session_id OR $receipt.payload.authenticated_session_id != $row.authenticated_session_id
+        OR $receipt.access_space_id != $row.access_space_id OR $receipt.payload.access_space_id != $row.access_space_id
+        OR $receipt.workspace_id != record::id($row.workspace_id) OR $receipt.payload.workspace_id != record::id($row.workspace_id)
+        OR !fn::wp012_api_receipt($receipt.authority_resource_id, $receipt.authority_session_id, $receipt.authority_capability_id, $receipt.authority_action, $receipt.wsids, $receipt.event_type, $receipt.source_component, $receipt.aggregate_type, $receipt.aggregate_id, $receipt.payload, $receipt.actor_kind, $receipt.actor_id, false)
+        OR !type::is_array($receipt.payload.ordered_hits) OR $receipt.payload.total != array::len($receipt.payload.ordered_hits) { RETURN false; };
+    IF $row.result_set_id != NONE {
+        RETURN $receipt.payload.result_set_id = $row.result_set_id AND $receipt.payload.trace_id = record::id($row.trace_id)
+            AND $receipt.payload.total = $row.total AND $receipt.payload.semantic_available = $row.semantic_available
+            AND $receipt.payload.embedding_model = $row.embedding_model;
+    };
+    RETURN $receipt.payload.trace_id = $row.trace_id AND $receipt.payload.query_text = $row.query_text
+        AND $receipt.payload.total = $row.decisions.result_count
+        AND $receipt.payload.semantic_available = $row.decisions.semantic_available
+        AND $receipt.payload.decisions = $row.decisions AND $receipt.payload.retrieval_mode = $row.retrieval_mode
+        AND $receipt.payload.mode_reason = $row.mode_reason AND $row.bundle_id = NONE;
+};
 DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
     IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE
         OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
@@ -6491,6 +6608,8 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_reader($resource: option<record<prote
 
 DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
 
+DEFINE FIELD OVERWRITE authority_grant_id ON TABLE kernel_event_ledger TYPE option<record<resource_grants>> PERMISSIONS FULL;
+
 DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FULL;
 
 DEFINE FIELD OVERWRITE authority_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
@@ -6674,6 +6793,258 @@ UPSERT handshake_schema_state:primary SET
     started_at = time::now(),
     completed_at = time::now(),
     updated_at = time::now();
+
+-- CKC 0337_atelier_ckc_search_tag_notes (MT-011). pg_trgm, pgvector and the
+-- atelier_trgm_similarity() SQL function have no Surreal counterpart: fuzzy
+-- scoring runs in Rust over string::similarity primitives and the embedding is
+-- a typed float vector compared with vector::similarity::cosine in the search
+-- layer. scope_ref stores '' for the global note instead of NONE so the
+-- (tag_id, scope_ref) UNIQUE holds without backend NONE semantics; the Rust
+-- boundary maps '' <-> None.
+DEFINE TABLE OVERWRITE atelier_tag_note SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_tag_note TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE tag_note_id ON TABLE atelier_tag_note TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE tag_id ON TABLE atelier_tag_note TYPE record<atelier_tag> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE scope_ref ON TABLE atelier_tag_note TYPE string DEFAULT '' ASSERT string::trim($value) = $value;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_tag_note TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_tag_note TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_tag_note TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_tag_note TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_tag_note ON TABLE atelier_tag_note FIELDS tag_note_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_tag_note_tag_scope ON TABLE atelier_tag_note FIELDS tag_id, scope_ref UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_tag_note_scope_ref ON TABLE atelier_tag_note FIELDS scope_ref;
+
+DEFINE TABLE OVERWRITE atelier_ckc_search_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_ckc_search_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE target_ref ON TABLE atelier_ckc_search_projection TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) != '';
+DEFINE FIELD OVERWRITE target_kind ON TABLE atelier_ckc_search_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE search_text_hash ON TABLE atelier_ckc_search_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE embedding ON TABLE atelier_ckc_search_projection TYPE option<array<float>> ASSERT $value = NONE OR array::len($value) = 768;
+DEFINE FIELD OVERWRITE embedding_model ON TABLE atelier_ckc_search_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE indexed_at_utc ON TABLE atelier_ckc_search_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_ckc_search_projection ON TABLE atelier_ckc_search_projection FIELDS target_ref UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_ckc_search_projection_kind ON TABLE atelier_ckc_search_projection FIELDS target_kind;
+DEFINE INDEX OVERWRITE idx_atelier_ckc_search_projection_embedding ON TABLE atelier_ckc_search_projection FIELDS embedding_model, indexed_at_utc;
+
+-- CKC 0338_atelier_ckc_sheet_field_projection (MT-009): latest-value lookup
+-- for sheet field suggestions across a character's sheet versions.
+DEFINE TABLE OVERWRITE atelier_sheet_field_value_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sheet_field_value_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_sheet_field_value_projection TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE field_id ON TABLE atelier_sheet_field_value_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE value ON TABLE atelier_sheet_field_value_projection TYPE string;
+DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_sheet_field_value_projection TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_sheet_field_value_projection TYPE record<atelier_sheet_version> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_field_value_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_sheet_field_value_projection ON TABLE atelier_sheet_field_value_projection FIELDS projection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_sheet_field_value_projection_value ON TABLE atelier_sheet_field_value_projection FIELDS field_id, value, character_internal_id, sheet_version_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_field_value_projection_field_latest ON TABLE atelier_sheet_field_value_projection FIELDS field_id, created_at_utc, sheet_version_id;
+
+-- CKC 0340_atelier_sheet_artifact_links (MT-016): typed refs from a character
+-- sheet version to Posekit/OpenPose and ComfyUI artifacts without copying
+-- payload bytes into sheet text. The atelier_is_native_portable_ref() SQL
+-- function is ported to Rust (atelier::refs); the schema keeps the structural
+-- floor (native scheme, trimmed, no whitespace, no backslash, never .gov). The
+-- source partial UNIQUE over active links (`WHERE detached_at_utc IS NULL`) is
+-- a stored discriminator, as for role_mailbox_claim_lease. The source composite
+-- FK (character_internal_id, sheet_version_id) -> atelier_sheet_version is the
+-- sheet_version_id ASSERT that the version belongs to the same character.
+DEFINE TABLE OVERWRITE atelier_sheet_artifact_link SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sheet_artifact_link TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE link_id ON TABLE atelier_sheet_artifact_link TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_sheet_artifact_link TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_sheet_artifact_link TYPE record<atelier_sheet_version> ASSERT record::exists($value) AND $value.character_internal_id = $this.character_internal_id REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE artifact_kind ON TABLE atelier_sheet_artifact_link TYPE 'openpose_json' | 'openpose_png' | 'conditioning_png' | 'comfy_render' | 'comfy_receipt';
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_sheet_artifact_link TYPE string ASSERT string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains($value, '\\') = false AND string::contains(string::lowercase($value), '.gov') = false;
+DEFINE FIELD OVERWRITE manifest_ref ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE source_ref ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '' AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE label ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE reuse_role ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '' AND $value = string::lowercase($value) AND string::contains($value, ' ') = false);
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_sheet_artifact_link TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE metadata ON TABLE atelier_sheet_artifact_link TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE metadata.* ON TABLE atelier_sheet_artifact_link TYPE any;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_artifact_link TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE detached_at_utc ON TABLE atelier_sheet_artifact_link TYPE option<datetime>;
+DEFINE FIELD OVERWRITE detached_by ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT ($this.detached_at_utc = NONE AND $value = NONE) OR ($this.detached_at_utc != NONE AND $value != NONE AND string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE active_link_key ON TABLE atelier_sheet_artifact_link TYPE string
+    VALUE IF $this.detached_at_utc = NONE {
+        'active:' + type::string($this.sheet_version_id) + '|' + $this.artifact_kind + '|' + $this.artifact_ref
+    } ELSE {
+        'detached:' + type::string($this.link_id)
+    };
+DEFINE INDEX OVERWRITE pk_atelier_sheet_artifact_link ON TABLE atelier_sheet_artifact_link FIELDS link_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_sheet_artifact_link_active_ref ON TABLE atelier_sheet_artifact_link FIELDS active_link_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_artifact_link_sheet_active ON TABLE atelier_sheet_artifact_link FIELDS sheet_version_id, detached_at_utc, created_at_utc, link_id;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_artifact_link_character_kind ON TABLE atelier_sheet_artifact_link FIELDS character_internal_id, artifact_kind, created_at_utc;
+
+-- CKC 0341_atelier_intake_item_metadata (MT-017): durable per-item metadata
+-- for dataset-mining intake decisions, keyed by the intake item it describes.
+-- CKC intake request serialization; ownership is checked against current metadata.
+DEFINE TABLE OVERWRITE atelier_intake_request_guard SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_request_guard TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE request_id ON TABLE atelier_intake_request_guard TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE revision ON TABLE atelier_intake_request_guard TYPE int ASSERT $value > 0;
+
+DEFINE TABLE OVERWRITE atelier_intake_item_metadata SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_item_metadata TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_item> ASSERT record::exists($value) AND record::id($value) = record::id($this.id) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_batch> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_intake_item_metadata TYPE option<record<atelier_media_asset>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE request_id ON TABLE atelier_intake_item_metadata TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE dataset_ref ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE character_ref ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE link_passed ON TABLE atelier_intake_item_metadata TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE tags_json ON TABLE atelier_intake_item_metadata TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE tags_json.* ON TABLE atelier_intake_item_metadata TYPE any;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE event_label ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE event_date ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE location ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE facial_profile ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE loaded_item_count ON TABLE atelier_intake_item_metadata TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE contact_sheet_json ON TABLE atelier_intake_item_metadata TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE contact_sheet_json.* ON TABLE atelier_intake_item_metadata TYPE any;
+DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_intake_item_metadata TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_intake_item_metadata TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_intake_item_metadata TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_intake_item_metadata ON TABLE atelier_intake_item_metadata FIELDS item_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_batch ON TABLE atelier_intake_item_metadata FIELDS batch_id, updated_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_asset ON TABLE atelier_intake_item_metadata FIELDS asset_id;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_request ON TABLE atelier_intake_item_metadata FIELDS request_id;
+
+-- CKC 0342_atelier_prompt_feedback (MT-020): deterministic prompt-feedback
+-- kernel. SurrealDB/EventLedger is the authority; JSONL export bytes live in the
+-- ArtifactStore behind a native artifact:// ref and the export row stores only
+-- the ref + content hash. The source composite PRIMARY KEY (rule_pack_id,
+-- version) is the array record id of atelier_prompt_feedback_rule_pack; the
+-- source composite FKs from rewrite/export are the rule_pack_ref record fields
+-- asserted against the scalar (rule_pack_id, rule_pack_version) columns.
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_case SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_prompt_feedback_case TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_case TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE project_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_system ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE adapter_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_iteration_id ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE source_case_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_recipe_id ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE segment ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE cell ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE framing ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE clothing_state ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE render_stack ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE identity_judgement_allowed ON TABLE atelier_prompt_feedback_case TYPE bool;
+DEFINE FIELD OVERWRITE prompt_quality_review_allowed ON TABLE atelier_prompt_feedback_case TYPE bool;
+DEFINE FIELD OVERWRITE positive_prompt ON TABLE atelier_prompt_feedback_case TYPE string;
+DEFINE FIELD OVERWRITE negative_prompt ON TABLE atelier_prompt_feedback_case TYPE string;
+DEFINE FIELD OVERWRITE micro_gate ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE expected_failure ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE image_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR ((string::starts_with($value, 'artifact://') OR string::starts_with($value, 'dataset://')) AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE sheet_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE axes ON TABLE atelier_prompt_feedback_case TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE axes.* ON TABLE atelier_prompt_feedback_case TYPE any;
+DEFINE FIELD OVERWRITE hardcore_fields ON TABLE atelier_prompt_feedback_case TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE hardcore_fields.* ON TABLE atelier_prompt_feedback_case TYPE any;
+DEFINE FIELD OVERWRITE imported_by ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_case TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_case ON TABLE atelier_prompt_feedback_case FIELDS case_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_case_source ON TABLE atelier_prompt_feedback_case FIELDS adapter_id, source_case_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_case_grouping ON TABLE atelier_prompt_feedback_case FIELDS segment, cell, render_stack, created_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_case_project ON TABLE atelier_prompt_feedback_case FIELDS project_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_verdict SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_prompt_feedback_verdict TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE verdict_id ON TABLE atelier_prompt_feedback_verdict TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_verdict TYPE record<atelier_prompt_feedback_case> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE reviewer_kind ON TABLE atelier_prompt_feedback_verdict TYPE 'operator' | 'model' | 'subagent' | 'validator' | 'script';
+DEFINE FIELD OVERWRITE reviewer_id ON TABLE atelier_prompt_feedback_verdict TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE verdict_kind ON TABLE atelier_prompt_feedback_verdict TYPE 'success' | 'watch' | 'failure' | 'reject' | 'diagnostic';
+DEFINE FIELD OVERWRITE failure_class ON TABLE atelier_prompt_feedback_verdict TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE failure_tags ON TABLE atelier_prompt_feedback_verdict TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE failure_tags.* ON TABLE atelier_prompt_feedback_verdict TYPE any;
+DEFINE FIELD OVERWRITE is_identity_judgement ON TABLE atelier_prompt_feedback_verdict TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_prompt_feedback_verdict TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_verdict TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_verdict ON TABLE atelier_prompt_feedback_verdict FIELDS verdict_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_verdict_case ON TABLE atelier_prompt_feedback_verdict FIELDS case_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_rule_pack SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_prompt_feedback_rule_pack TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT $value = record::id($this.id)[0] AND string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE version ON TABLE atelier_prompt_feedback_rule_pack TYPE int ASSERT $value = record::id($this.id)[1] AND $value >= 1;
+DEFINE FIELD OVERWRITE title ON TABLE atelier_prompt_feedback_rule_pack TYPE string;
+DEFINE FIELD OVERWRITE description ON TABLE atelier_prompt_feedback_rule_pack TYPE option<string>;
+DEFINE FIELD OVERWRITE rules ON TABLE atelier_prompt_feedback_rule_pack TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE rules.* ON TABLE atelier_prompt_feedback_rule_pack TYPE any;
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE registered_by ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_rule_pack TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_rule_pack ON TABLE atelier_prompt_feedback_rule_pack FIELDS rule_pack_id, version UNIQUE;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_rewrite SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_prompt_feedback_rewrite TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE rewrite_id ON TABLE atelier_prompt_feedback_rewrite TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_rewrite TYPE record<atelier_prompt_feedback_case> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_case_id ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_version ON TABLE atelier_prompt_feedback_rewrite TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE rule_pack_ref ON TABLE atelier_prompt_feedback_rewrite TYPE record<atelier_prompt_feedback_rule_pack> ASSERT record::exists($value) AND $value = type::record('atelier_prompt_feedback_rule_pack', [$this.rule_pack_id, $this.rule_pack_version]) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE input_hash ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE output_hash ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE changed_fields ON TABLE atelier_prompt_feedback_rewrite TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE changed_fields.* ON TABLE atelier_prompt_feedback_rewrite TYPE any;
+DEFINE FIELD OVERWRITE rewritten_positive_prompt ON TABLE atelier_prompt_feedback_rewrite TYPE string;
+DEFINE FIELD OVERWRITE rewritten_negative_prompt ON TABLE atelier_prompt_feedback_rewrite TYPE string;
+DEFINE FIELD OVERWRITE outcome ON TABLE atelier_prompt_feedback_rewrite TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE outcome.* ON TABLE atelier_prompt_feedback_rewrite TYPE any;
+DEFINE FIELD OVERWRITE planned_by ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_rewrite TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_rewrite ON TABLE atelier_prompt_feedback_rewrite FIELDS rewrite_id UNIQUE;
+-- Deterministic idempotency: the same case + rule-pack version + input hash can
+-- only produce one persisted rewrite (byte-stable output).
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_rewrite_determinism ON TABLE atelier_prompt_feedback_rewrite FIELDS case_id, rule_pack_id, rule_pack_version, input_hash UNIQUE;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_export SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_prompt_feedback_export TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE export_id ON TABLE atelier_prompt_feedback_export TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_version ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE rule_pack_ref ON TABLE atelier_prompt_feedback_export TYPE record<atelier_prompt_feedback_rule_pack> ASSERT record::exists($value) AND $value = type::record('atelier_prompt_feedback_rule_pack', [$this.rule_pack_id, $this.rule_pack_version]) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false;
+DEFINE FIELD OVERWRITE manifest_ref ON TABLE atelier_prompt_feedback_export TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE byte_len ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE row_count ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE source_case_ids ON TABLE atelier_prompt_feedback_export TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE source_case_ids.* ON TABLE atelier_prompt_feedback_export TYPE any;
+DEFINE FIELD OVERWRITE rewrite_ids ON TABLE atelier_prompt_feedback_export TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE rewrite_ids.* ON TABLE atelier_prompt_feedback_export TYPE any;
+DEFINE FIELD OVERWRITE exported_by ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_export TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_export ON TABLE atelier_prompt_feedback_export FIELDS export_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_export_content ON TABLE atelier_prompt_feedback_export FIELDS rule_pack_id, rule_pack_version, content_hash UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_export_recent ON TABLE atelier_prompt_feedback_export FIELDS created_at_utc;
+
+-- CKC 0344_atelier_ckc_media_row_attribution (MT-036), receipt half: an album
+-- unlink preserves the prior membership row for no-context recovery. The
+-- attribution columns of the same migration live on atelier_collection and
+-- atelier_collection_item above.
+DEFINE TABLE OVERWRITE atelier_collection_item_unlink_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection_item_unlink_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
+DEFINE FIELD OVERWRITE unlink_receipt_id ON TABLE atelier_collection_item_unlink_receipt TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item_unlink_receipt TYPE record<atelier_collection> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item_unlink_receipt TYPE record<atelier_media_asset> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE prior_sort_order ON TABLE atelier_collection_item_unlink_receipt TYPE int;
+DEFINE FIELD OVERWRITE prior_source_path_ref ON TABLE atelier_collection_item_unlink_receipt TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE prior_source_url_ref ON TABLE atelier_collection_item_unlink_receipt TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE member_updated_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE member_updated_at_utc ON TABLE atelier_collection_item_unlink_receipt TYPE datetime;
+DEFINE FIELD OVERWRITE unlinked_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE unlinked_at_utc ON TABLE atelier_collection_item_unlink_receipt TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_collection_item_unlink_receipt ON TABLE atelier_collection_item_unlink_receipt FIELDS unlink_receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_collection ON TABLE atelier_collection_item_unlink_receipt FIELDS collection_id, unlinked_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_unlinked_by ON TABLE atelier_collection_item_unlink_receipt FIELDS unlinked_by;
 
 COMMIT TRANSACTION;
 
@@ -7534,3 +7905,262 @@ DEFINE FUNCTION OVERWRITE fn::mt159_locus_key_is_own($record: any) {
         AND $key[0] != 'global' AND $key[0] = fn::mt158_dependency_graph_scope();
 };
 -- MT154_AUTHORITY_END
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_lease_receipt($row: object, $write: bool) {
+    IF $row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_lease'
+        OR !($row.event_type IN ['KNOWLEDGE_CRDT_LEASE_CLAIMED', 'KNOWLEDGE_CRDT_LEASE_RENEWED', 'KNOWLEDGE_CRDT_LEASE_RELEASED', 'KNOWLEDGE_CRDT_LEASE_EXPIRED'])
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.lease_id OR $row.actor_id != $row.payload.actor_id
+        OR $row.event_version != 'kernel_event_v1' OR $row.event_id != record::id($row.id)
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    IF $write {
+        IF $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+            OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+            OR $row.authority_action != $wp012_original_action
+            OR $row.authority_capability_id != $wp012_original_capability
+            OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id) { RETURN false; };
+        RETURN ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_CLAIMED'
+                AND (($wp012_original_purpose = 'document_claim' AND $row.payload.scope_kind = 'document'
+                        AND $row.payload.document_id = $wp012_original_subject_id AND $row.payload.scope_id = $row.payload.crdt_document_id)
+                    OR ($wp012_original_purpose = 'workspace_claim' AND $row.payload.scope_kind = 'workspace' AND $row.payload.scope_id = $row.workspace_id)
+                    OR ($wp012_original_purpose = 'index_run_claim' AND $row.payload.scope_kind = 'index_run')))
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_RENEWED' AND $wp012_original_purpose = 'lease_renew')
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_RELEASED' AND $wp012_original_purpose = 'lease_release')
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_EXPIRED' AND $wp012_original_purpose = 'lease_expiry');
+    };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_lease', $row.payload.lease_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $lease = (SELECT * FROM ONLY type::record('knowledge_crdt_agent_lane_leases', $key));
+    RETURN $row.event_sequence >= $lease.recorded_event_id.event_sequence
+        AND $row.event_sequence <= $lease.last_transition_event_id.event_sequence
+        AND $row.actor_id = $lease.actor_id AND $row.actor_kind = $lease.actor_kind
+        AND $row.correlation_id = $lease.correlation_id
+        AND fn::wp012_model_lane_crdt_lease_access($lease, false)
+        AND fn::wp012_model_lane_crdt_lease_identity($lease);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_proposal_receipt($row: object, $write: bool) {
+    LET $promotion = $row.source_component = 'knowledge_crdt_ai_edit_proposal'
+        AND $row.aggregate_type = 'knowledge_ai_edit_promotion' AND $row.event_type IN ['PROMOTION_REQUESTED', 'PROMOTION_ACCEPTED'];
+    IF (!$promotion AND ($row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_ai_edit_proposal'
+        OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED']))
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.proposal_id OR $row.event_id != record::id($row.id)
+        OR $row.event_version != 'kernel_event_v1' OR $row.wsids != [$row.workspace_id]
+        OR !type::is_string($row.kernel_task_run_id) OR string::trim($row.kernel_task_run_id) = ''
+        OR !type::is_string($row.session_run_id) OR string::trim($row.session_run_id) = ''
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $row.aggregate_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    IF !$write AND !$promotion {
+        LET $source = SELECT * FROM ONLY type::record('knowledge_crdt_ai_edit_proposals', $key);
+        RETURN fn::wp012_model_lane_proposal_access($source, false)
+            AND fn::wp012_model_lane_proposal_identity($source)
+            AND $row.id IN [$source.recorded_event_id, $source.decided_event_id, $source.applied_event_id];
+    };
+    IF !$write AND $promotion {
+        LET $source = SELECT * FROM ONLY type::record('knowledge_crdt_ai_edit_proposals', $key);
+        IF $source.review_state = 'promoted' {
+            RETURN fn::wp012_model_lane_proposal_access($source, false)
+                AND fn::wp012_model_lane_proposal_identity($source)
+                AND $row.id IN [$source.promotion_requested_event_id, $source.promotion_accepted_event_id];
+        };
+        -- A staged receipt is visible only to its original fenced promotion transaction.
+        IF $source.review_state != 'approved' { RETURN false; };
+    };
+    IF $wp012_original_subject_kind != 'rich_document' OR $wp012_original_action != 'update'
+        OR $wp012_original_capability != 'fs.write' OR $row.payload.document_id != $wp012_original_subject_id
+        OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $row.authority_session_id != $auth.id OR $row.authority_action != $wp012_original_action
+        OR $row.authority_capability_id != $wp012_original_capability
+        OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id) { RETURN false; };
+    IF $row.event_type = 'AI_EDIT_PROPOSAL_RECORDED' {
+        IF $wp012_original_purpose != 'proposal_record' OR $row.actor_kind NOT IN ['local_model', 'cloud_model']
+            OR $row.actor_kind != $row.payload.actor_kind OR $row.actor_id != $row.payload.actor_id
+            OR $row.session_run_id != $row.payload.session_id OR !type::is_object($row.payload.proposed_diff)
+            OR array::len($row.payload.source_span_citations) = 0 { RETURN false; };
+        LET $covering = SELECT * FROM knowledge_crdt_agent_lane_leases WHERE owner_account_id = $row.owner_account_id
+            AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id
+            AND claimed_at_utc <= time::now() AND expires_at_utc > time::now() AND released_at_utc = NONE AND expired_at_utc = NONE
+            AND ((scope_kind = 'workspace' AND scope_id = $row.workspace_id) OR (scope_kind = 'document'
+                AND document_id = $row.payload.document_id AND crdt_document_id = $row.payload.crdt_document_id
+                AND scope_id = $row.payload.crdt_document_id));
+        IF array::len($covering) != 1 { RETURN false; };
+        LET $lane_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'lane', $covering[0].lane_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+            $row.access_space_id, $row.workspace_id], '\u0000'));
+        LET $lane = SELECT * FROM ONLY type::record('model_lane_authority', $lane_key);
+        LET $body = encoding::json::decode($lane.record_json);
+        LET $bases = SELECT * FROM kernel_crdt_snapshots WHERE document_id = $row.payload.document_id
+            AND crdt_document_id = $row.payload.crdt_document_id AND covered_update_seq = $row.payload.base_update_seq
+            AND state_vector = $row.payload.base_state_vector AND owner_account_id = $row.owner_account_id
+            AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id;
+        RETURN fn::wp012_model_lane_source_identity($lane) AND $lane.run_id = $row.kernel_task_run_id
+            AND $body.session_id = $row.session_run_id AND $body.kind = $row.actor_kind
+            AND $body.locus_binding != NONE AND $body.locus_binding.session_id = $body.session_id
+            AND $body.locus_binding.model_session_id = $body.model_session_id AND $body.locus_binding.owner_session = $body.owner_session
+            AND array::len($bases) = 1 AND fn::wp012_model_lane_crdt_document_access($bases[0], false, true)
+            AND crypto::sha256(encoding::json::encode($row.payload.proposed_diff)) = $row.payload.diff_sha256
+            AND array::len(array::filter($row.payload.source_span_citations, |$citation| !type::is_string($citation) OR string::trim($citation) = '')) = 0
+            AND fn::wp012_model_lane_crdt_lease_identity($covering[0])
+            AND $covering[0].lease_id = $row.payload.lease_id AND $covering[0].actor_id = $row.actor_id
+            AND $covering[0].actor_kind = $row.actor_kind AND $covering[0].session_id = $row.session_run_id
+            AND $covering[0].correlation_id = $row.correlation_id;
+    };
+    LET $source = SELECT * FROM ONLY type::record('knowledge_crdt_ai_edit_proposals', $key);
+    IF !fn::wp012_model_lane_proposal_access($source, true) OR !fn::wp012_model_lane_proposal_identity($source)
+        OR $source.document_id != $row.payload.document_id OR $source.crdt_document_id != $row.payload.crdt_document_id
+        OR record::id($source.recorded_event_id) != $row.payload.recorded_event_id { RETURN false; };
+    IF $promotion {
+        IF $wp012_original_purpose != 'proposal_decide' OR $source.review_state != 'approved'
+            OR $source.applied_event_id = NONE OR $source.applied_update_id = NONE
+            OR $source.applied_update_sha256 != $source.diff_sha256
+            OR $auth.principal_id.principal_kind NOT IN ['human_account', 'break_glass_operator']
+            OR $auth.principal_id.status != 'enabled' OR $auth.principal_id.actor_kind != 'operator'
+            OR $row.actor_kind != 'operator' OR $row.actor_id != $auth.principal_id.actor_id
+            OR $row.session_run_id != record::id($auth.id) OR $row.correlation_id != $source.correlation_id
+            OR $row.payload.decided_by != $row.actor_id OR $row.payload.diff_sha256 != $source.diff_sha256
+            OR $row.payload.reviewer_principal_id != record::id($auth.principal_id)
+            OR $row.payload.reviewer_authenticated_session_id != record::id($auth.id)
+            OR $row.payload.reviewer_resource_id != $wp012_original_resource
+            OR $row.payload.reviewer_grant_id != $wp012_original_grant
+            OR $row.payload.reviewer_action != $wp012_original_action
+            OR $row.payload.reviewer_capability_id != $wp012_original_capability
+            OR $row.payload.decided_event_id != record::id($source.decided_event_id)
+            OR $row.payload.applied_event_id != record::id($source.applied_event_id)
+            OR $row.payload.application_update_id != $source.applied_update_id { RETURN false; };
+        LET $head = SELECT * FROM kernel_crdt_updates WHERE document_id = $source.document_id
+            AND crdt_document_id = $source.crdt_document_id AND owner_account_id = $source.owner_account_id
+            AND actor_principal_id = $source.actor_principal_id AND authenticated_session_id = $source.authenticated_session_id
+            AND access_space_id = $source.access_space_id AND workspace_id = $source.workspace_id ORDER BY update_seq DESC LIMIT 1;
+        IF array::len($head) != 1 OR $head[0].update_id != $source.applied_update_id
+            OR $head[0].update_seq != $source.base_update_seq + 1 { RETURN false; };
+        IF $row.event_type = 'PROMOTION_REQUESTED' {
+            RETURN $row.causation_id = NONE AND $row.payload.base_update_seq = $source.base_update_seq
+                AND $row.payload.base_state_vector = $source.base_state_vector;
+        };
+        LET $requested = SELECT * FROM ONLY type::record('kernel_event_ledger', $row.causation_id);
+        RETURN $requested.event_type = 'PROMOTION_REQUESTED' AND $requested.source_component = $row.source_component
+            AND $requested.aggregate_type = $row.aggregate_type AND $requested.aggregate_id = $row.aggregate_id
+            AND $requested.actor_id = $row.actor_id AND $requested.session_run_id = $row.session_run_id
+            AND $requested.kernel_task_run_id = $row.kernel_task_run_id AND $requested.correlation_id = $row.correlation_id
+            AND $requested.payload.document_id = $source.document_id AND $requested.payload.diff_sha256 = $source.diff_sha256
+            AND $requested.payload.applied_event_id = $row.payload.applied_event_id
+            AND $requested.authority_resource_id = $row.authority_resource_id AND $requested.authority_grant_id = $row.authority_grant_id
+            AND $requested.authority_session_id = $row.authority_session_id AND $requested.id != $row.id
+            AND $requested.event_sequence > $source.applied_event_id.event_sequence
+            AND $row.event_sequence > $requested.event_sequence
+            AND $row.payload.review_state = 'promoted' AND $row.payload.applied_update_id = $source.applied_update_id
+            AND $row.payload.applied_update_sha256 = $source.diff_sha256;
+    };
+    IF $wp012_original_purpose = 'proposal_decide' {
+        RETURN $source.review_state = 'proposed' AND $source.decided_event_id = NONE
+            AND $row.payload.review_state IN ['approved', 'rejected']
+            AND $auth.principal_id.principal_kind IN ['human_account', 'break_glass_operator']
+            AND $auth.principal_id.status = 'enabled' AND $auth.principal_id.actor_kind = 'operator'
+            AND $row.actor_kind = 'operator' AND $row.actor_id = $auth.principal_id.actor_id
+            AND $row.payload.decided_by = $row.actor_id AND $row.session_run_id = record::id($auth.id)
+            AND $row.payload.reviewer_principal_id = record::id($auth.principal_id)
+            AND $row.payload.reviewer_authenticated_session_id = record::id($auth.id)
+            AND $row.payload.reviewer_resource_id = $wp012_original_resource
+            AND $row.payload.reviewer_grant_id = $wp012_original_grant
+            AND $row.payload.reviewer_action = $wp012_original_action
+            AND $row.payload.reviewer_capability_id = $wp012_original_capability
+            AND $row.payload.diff_sha256 = $source.diff_sha256;
+    };
+    LET $updates = SELECT * FROM kernel_crdt_updates WHERE update_id = $row.payload.update_id
+        AND owner_account_id = $source.owner_account_id AND actor_principal_id = $source.actor_principal_id
+        AND authenticated_session_id = $source.authenticated_session_id AND access_space_id = $source.access_space_id
+        AND workspace_id = $source.workspace_id AND document_id = $source.document_id
+        AND crdt_document_id = $source.crdt_document_id;
+    RETURN array::len($updates) = 1 AND fn::wp012_model_lane_application_evidence($source, $updates[0], $row)
+        AND $wp012_original_purpose = 'proposal_apply' AND $source.review_state = 'approved'
+        AND $source.applied_update_id = NONE AND $row.actor_id = $source.actor_id AND $row.actor_kind = $source.actor_kind
+        AND $row.session_run_id = $source.session_id AND $row.correlation_id = $source.correlation_id
+        AND $row.payload.approved_diff_sha256 = $source.diff_sha256
+        AND $row.payload.applied_update_sha256 = $source.diff_sha256
+        AND $row.payload.decided_event_id = record::id($source.decided_event_id)
+        AND $row.payload.base_update_seq = $source.base_update_seq
+        AND $row.payload.base_state_vector = $source.base_state_vector;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_receipt($row: object, $write: bool) {
+    IF $row.aggregate_type IN ['knowledge_crdt_ai_edit_proposal', 'knowledge_ai_edit_promotion'] { RETURN fn::wp012_model_lane_proposal_receipt($row, $write); };
+    IF $row.aggregate_type = 'knowledge_crdt_lease' { RETURN fn::wp012_model_lane_crdt_lease_receipt($row, $write); };
+    IF $row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_document'
+        OR !($row.event_type IN ['KNOWLEDGE_CRDT_UPDATE_RECORDED', 'KNOWLEDGE_CRDT_SNAPSHOT_RECORDED'])
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.crdt_document_id
+        OR $row.event_version != 'kernel_event_v1' OR $row.event_id != record::id($row.id)
+        OR !type::is_string($row.kernel_task_run_id) OR string::trim($row.kernel_task_run_id) = ''
+        OR !type::is_string($row.session_run_id) OR string::trim($row.session_run_id) = ''
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    LET $snapshot = $row.event_type = 'KNOWLEDGE_CRDT_SNAPSHOT_RECORDED';
+    IF $write {
+        RETURN $wp012_original_subject_kind = 'rich_document' AND $wp012_original_action = 'update'
+            AND $row.payload.document_id = $wp012_original_subject_id
+            AND $row.authority_resource_id = type::record('protected_resources', $wp012_original_resource)
+            AND $row.authority_grant_id = type::record('resource_grants', $wp012_original_grant)
+            AND $row.authority_action = $wp012_original_action
+            AND $row.authority_capability_id = $wp012_original_capability
+            AND (($snapshot AND $wp012_original_purpose = 'crdt_snapshot')
+                OR (!$snapshot AND $wp012_original_purpose = 'crdt_update'));
+    };
+    LET $kind = IF $snapshot { 'crdt_snapshot' } ELSE { 'crdt_update' };
+    LET $identity = IF $snapshot { $row.payload.snapshot_id } ELSE { $row.payload.update_id };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', $kind, $identity,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $source = (SELECT * FROM ONLY type::record(IF $snapshot { 'kernel_crdt_snapshots' } ELSE { 'kernel_crdt_updates' }, $key));
+    RETURN $source.event_ledger_event_id = $row.id
+        AND fn::wp012_model_lane_crdt_document_access($source, false, $snapshot);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
+    IF $row.source_component = 'model_lane_crdt'
+        OR ($row.source_component = 'knowledge_crdt_ai_edit_proposal' AND $row.aggregate_type = 'knowledge_ai_edit_promotion') { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };
+    IF $row.source_component != 'model_lane'
+        OR !($row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED'
+            OR ($row.aggregate_type = 'message' AND $row.event_type = 'MODEL_LANE_MESSAGE_RECORDED'))
+        OR !fn::wp012_model_lane_source_kind($row.aggregate_type)
+        OR $row.aggregate_type != $row.payload.record_kind OR $row.kernel_task_run_id != $row.payload.run_id
+        OR $row.payload.event_stream_version != 1 OR $row.event_version != 'kernel_event_v1'
+        OR $row.event_id != record::id($row.id) OR $row.idempotency_key != $row.event_id
+        OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+        OR $row.owner_account_id != record::id($auth.account_id)
+        OR $row.actor_principal_id != record::id($auth.principal_id)
+        OR $row.authenticated_session_id != record::id($auth.id)
+        OR $row.access_space_id != record::id($auth.access_space_id)
+        OR array::len($row.wsids) != 1 OR $row.wsids[0] != $row.workspace_id
+        OR ($write AND ($row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+            OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)))
+        OR $row.authority_session_id != $auth.id
+        OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash { RETURN false; };
+    LET $candidate = object::extend($row, { record_kind: $row.aggregate_type, run_id: $row.kernel_task_run_id, record_json: encoding::json::encode(encoding::json::decode($row.payload.event_payload_json).record) });
+    IF !fn::wp012_model_lane_source_access($candidate, $write) { RETURN false; };
+    IF $write AND ($row.authority_action != $wp012_original_action
+        OR $row.authority_capability_id != $wp012_original_capability) { RETURN false; };
+    LET $payload = encoding::json::decode($row.payload.event_payload_json);
+    LET $record = IF $row.aggregate_type = 'message' { $payload.record.inner } ELSE { $payload.record };
+    LET $identity = IF $row.aggregate_type = 'run' { $record.run_id }
+        ELSE IF $row.aggregate_type = 'lane' { $record.lane_id }
+        ELSE IF $row.aggregate_type = 'message' { $record.message_id }
+        ELSE IF $row.aggregate_type = 'context_artifact' { $record.artifact_binding_id }
+        ELSE { $record.handoff_id };
+    LET $schema = IF $row.aggregate_type = 'run' { 'hsk.model_lane_run@1' }
+        ELSE IF $row.aggregate_type = 'lane' { 'hsk.model_lane@1' }
+        ELSE IF $row.aggregate_type = 'message' { 'hsk.model_lane_message@1' }
+        ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
+        ELSE { 'hsk.model_lane_context_bundle_handoff@1' };
+    RETURN $payload.schema_id = $schema AND $payload.dexterity_kernel = 'Dexterity'
+        AND $payload.owner_account_id = $row.owner_account_id AND $payload.actor_principal_id = $row.actor_principal_id
+        AND $payload.authenticated_session_id = $row.authenticated_session_id
+        AND $payload.access_space_id = $row.access_space_id AND $payload.workspace_id = $row.workspace_id
+        AND $identity = $row.aggregate_id AND $record.run_id = $row.kernel_task_run_id
+        AND type::is_string($record.event_ledger_stream_id) AND string::trim($record.event_ledger_stream_id) != ''
+        AND $record.event_ledger_stream_id = $row.session_run_id;
+};

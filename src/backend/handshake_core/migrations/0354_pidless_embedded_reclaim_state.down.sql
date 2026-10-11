@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_kernel_process_lifecycle_pidless_embedded_instance_open;
+DROP TABLE IF EXISTS kernel_pidless_embedded_reclaim_cursor;

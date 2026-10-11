@@ -3,6 +3,30 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use uuid::Uuid;
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomArtifactBindingState {
+    Reserved,
+    Ready,
+}
+
+/// ArtifactStore location on the existing asset row; Asset/NewAsset remain unchanged.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomArtifactBinding {
+    pub asset_id: String,
+    pub workspace_id: String,
+    pub artifact_id: Uuid,
+    pub state: LoomArtifactBindingState,
+    pub retention_ttl_days: Option<u32>,
+}
+
+/// Publication proof constructed only after the Loom filesystem boundary verifies bytes.
+#[derive(Clone, Debug)]
+pub struct VerifiedLoomArtifact {
+    pub(crate) asset: Asset,
+    pub(crate) binding: LoomArtifactBinding,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Asset {
     pub asset_id: String,
@@ -685,6 +709,12 @@ pub struct LoomSearchV2Request {
     /// `semantic_available` flag on the response is false). NEVER fabricated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query_embedding: Option<Vec<f32>>,
+    /// Stable embedding-space id that produced `query_embedding`. Required for
+    /// semantic scoring: vectors from different embedding spaces must never be
+    /// compared. This is not the per-boot routing UUID; it is durable across
+    /// restart for the same artifact hash and declared dimension.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_embedding_model: Option<String>,
     /// Graph blend: extra weight applied to a hit per inbound/outbound loom_edge
     /// (link-aware ranking). 0.0 disables the boost.
     #[serde(default)]
@@ -719,6 +749,22 @@ pub struct LoomSearchV2Hit {
     pub highlight: String,
 }
 
+/// The TYPED reason the semantic (pgvector) modality did not contribute to a
+/// LoomSearchV2 result. When `semantic_available` is false this names WHY, so a
+/// dropped semantic modality is never silent (WP-1 MT-014). `NoModel` is the
+/// expected no-embedding-configured path; `DimMismatch` is a misconfiguration
+/// (a model whose embedding dimensionality does not match the index) that
+/// degrades to keyword/trigram instead of hard-erroring the query.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SemanticUnavailableReason {
+    /// No embedding model configured (typed decline). Keyword/trigram only.
+    NoModel,
+    /// The configured model returned an embedding whose dimensionality does not
+    /// match the index (`LOOM_SEARCH_EMBEDDING_DIM`). Degraded, not errored.
+    DimMismatch { expected: usize, actual: usize },
+}
+
 /// A faceted, ranked LoomSearchV2 result set.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LoomSearchV2Response {
@@ -728,6 +774,12 @@ pub struct LoomSearchV2Response {
     /// Whether the semantic (pgvector) modality contributed (a query embedding
     /// was supplied). False => typed keyword/trigram fallback, no fabrication.
     pub semantic_available: bool,
+    /// When `semantic_available` is false, the TYPED reason it was unavailable
+    /// (WP-1 MT-014). `None` when the semantic modality WAS available, or when
+    /// the storage layer produced the response without a degrade signal (the
+    /// `loom_search` service layer sets it on a typed decline / dim mismatch).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_unavailable_reason: Option<SemanticUnavailableReason>,
     /// Total matching hits before limit/offset.
     pub total: i64,
 }

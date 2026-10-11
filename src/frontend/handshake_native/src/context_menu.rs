@@ -234,12 +234,21 @@ impl ContextMenu {
     /// Returns `Some(item_id)` on the frame an enabled action leaf (top-level or inside a submenu) is
     /// confirmed, otherwise `None`. The caller maps the returned `&'static str` to a real action.
     pub fn show_on(&self, response: &egui::Response) -> Option<&'static str> {
-        let mut activated: Option<&'static str> = None;
+        self.show_on_with_render_observation(response).0
+    }
+
+    pub(crate) fn show_on_with_render_observation(
+        &self,
+        response: &egui::Response,
+    ) -> (Option<&'static str>, bool) {
+        let mut activated = None;
+        let mut rendered = false;
         egui::Popup::context_menu(response).show(|ui| {
             ui.set_min_width(180.0);
             activated = render_menu_root(ui, self.surface_id, &self.items);
+            rendered = true;
         });
-        activated
+        (activated, rendered)
     }
 
     /// Render this menu's items into an ALREADY-OPEN menu `Ui` (advanced / testing use).

@@ -108,6 +108,13 @@ wgpu_screenshots = []
 diag-test-seams = []
 
 [dependencies]
+
+hex = "0.4"
+ed25519-dalek = "3.0.0"
+memmap2 = "0.9"
+zeroize = "1"
+chacha20poly1305 = "0.10"
+curve25519-dalek = "5.0.0"
 egui = "0.33"
 eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
 egui_tiles = { version = "0.14", features = ["serde"] }
@@ -226,7 +233,7 @@ iana-time-zone = "0.1"
 # REQUIRES). uuid 1.23.x is ALREADY in the locked graph transitively (Cargo.lock pins 1.23.3 via the egui/
 # wasm + flight-recorder stack), so declaring it adds NO new dependency family — it enables legacy `v4`
 # fixtures plus required time-ordered product `v7` ids. Pure-Rust, no native build; Cargo.lock pins the version.
-uuid = { version = "1", features = ["v4", "v7"] }
+uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 # WP-KERNEL-012 MT-059 wiki-page markdown rendering: `pulldown-cmark` (0.11) is the de-facto Rust
 # CommonMark parser (pure-Rust, MIT/Apache-2.0; used by mdBook and docs.rs). The shared
 # `rich_editor::markdown_render` adapter runs it over the read-only wiki projection `rendered_content`
@@ -367,6 +374,10 @@ windows-sys = { version = "0.61", features = [
 # a single feature-unified `image` entry in the locked graph (no png-only vs png+jpeg+webp+gif duplicate).
 
 [dev-dependencies]
+
+tempfile = "3"
+handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full", "test-utils"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 # WP-KERNEL-012 MT-082 ADDS the `eframe` feature so the AC-002-4 live-consumer test can drive the REAL
 # production `HandshakeApp::new(cc)` via `Harness::builder().build_eframe(..)` (it needs a real
 # `eframe::CreationContext`). The `eframe` feature only activates `dep:eframe` + `eframe/accesskit` —

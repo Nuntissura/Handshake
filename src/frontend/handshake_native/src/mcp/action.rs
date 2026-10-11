@@ -656,20 +656,29 @@ pub(crate) fn serialize_observer_click_failure(
 pub enum UiAction {
     /// Activate the widget (egui `Action::Click` — buttons, toggles, tabs).
     Click,
+    ShowContextMenu,
     /// Activate the widget with a JSON payload carried as `ActionData::Value`. This is how
     /// parameterized KnowledgeActionRegistry controls such as `collection.sort` and
     /// `collection.kanban-move` are driven through the same `click_widget` transport.
-    ClickWithPayload { payload: String },
+    ClickWithPayload {
+        payload: String,
+    },
     /// Move keyboard focus to the widget (egui `Action::Focus`).
     Focus,
     /// Replace the whole widget value through one target-specific AccessKit `SetValue` request.
     /// String-valued widgets consume `ActionData::Value`; numeric widgets consume
     /// `ActionData::NumericValue`. No global keyboard/text events are injected.
-    SetValue { text: String },
+    SetValue {
+        text: String,
+    },
     /// Set a value through a native AccessKit SetValue request on surfaces that consume it directly.
-    NativeSetValue { text: String },
+    NativeSetValue {
+        text: String,
+    },
     /// Replace the current text selection through the native AccessKit request.
-    ReplaceSelectedText { text: String },
+    ReplaceSelectedText {
+        text: String,
+    },
     /// Scroll the widget (or its scroll container) into view (egui `Action::ScrollIntoView`).
     Scroll,
     /// Select the widget (focus is egui's selection primitive for list/tree rows).
@@ -682,6 +691,7 @@ impl UiAction {
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
             UiAction::Click | UiAction::ClickWithPayload { .. } => accesskit::Action::Click,
+            UiAction::ShowContextMenu => accesskit::Action::ShowContextMenu,
             UiAction::Focus | UiAction::Select => accesskit::Action::Focus,
             UiAction::SetValue { .. } | UiAction::NativeSetValue { .. } => {
                 accesskit::Action::SetValue
@@ -1272,7 +1282,7 @@ impl ActionChannel {
                 }
                 continue;
             }
-            if is_click_activation(&pending.action) && pending.click_completion.is_some() {
+            if is_effect_activation(&pending.action) && pending.click_completion.is_some() {
                 match acknowledge_click_completion(&pending, fresh_snapshot) {
                     ClickCompletionAcknowledgement::Terminal {
                         status,
@@ -1399,7 +1409,7 @@ impl ActionChannel {
                         Some("target disappeared before mutation acknowledgement".to_owned()),
                     )
                 }
-                (UiAction::Click | UiAction::ClickWithPayload { .. }, Some(node)) => {
+                (UiAction::Click | UiAction::ClickWithPayload { .. } | UiAction::ShowContextMenu, Some(node)) => {
                     let reason = if post_render_target_identity_matches(&pending, node) {
                         "click was dispatched, but this target exposes no action-specific completion predicate"
                     } else {
@@ -1412,7 +1422,7 @@ impl ActionChannel {
                         Some(reason.to_owned()),
                     );
                 }
-                (UiAction::Click | UiAction::ClickWithPayload { .. }, None) => self.update_receipt(
+                (UiAction::Click | UiAction::ClickWithPayload { .. } | UiAction::ShowContextMenu, None) => self.update_receipt(
                     pending.outcome.receipt_id,
                     ActionReceiptStatus::Indeterminate,
                     None,
@@ -1769,10 +1779,14 @@ fn pending_click_completion(
     target: &crate::accessibility::UiTreeNode,
     action: &UiAction,
 ) -> Option<PendingClickCompletion> {
-    if !is_click_activation(action) {
+    if !is_effect_activation(action) {
         return None;
     }
     let token = parse_click_completion_token(target.value.as_deref()?)?;
+    let context_menu_effect = token.effect == "pane-header-context-menu";
+    if matches!(action, UiAction::ShowContextMenu) != context_menu_effect {
+        return None;
+    }
     if token.valid_same_target() && token.state != ClickCompletionState::Pending {
         return Some(PendingClickCompletion::SameTarget { baseline: token });
     }
@@ -1934,6 +1948,10 @@ fn acknowledge_set_value_completion(
         target.value.clone(),
         "SetValue completion did not make the exact target/generation/value transition",
     )
+}
+
+fn is_effect_activation(action: &UiAction) -> bool {
+    is_click_activation(action) || matches!(action, UiAction::ShowContextMenu)
 }
 
 fn is_click_activation(action: &UiAction) -> bool {

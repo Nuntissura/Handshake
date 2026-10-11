@@ -580,11 +580,17 @@ impl SplitLayoutWidget {
                 tab_responses.push((pane_id.clone(), resp));
             }
 
-            let factory = factory_for(&record.pane_type);
+            let mut effective_record = record.clone();
+            if let Some(active_tab) = tab_bars.get(&pane_id).and_then(|bar| bar.active()) {
+                effective_record.pane_type = active_tab.pane_type.clone();
+                effective_record.content_id = active_tab.content_id.clone();
+            }
+
+            let factory = factory_for(&effective_record.pane_type);
             let role = factory.accesskit_role();
-            let label = record.pane_type.label();
+            let label = effective_record.pane_type.label();
             let render_ctx = PaneRenderContext {
-                record,
+                record: &effective_record,
                 egui_id: pane_egui_id,
             };
 

@@ -135,22 +135,28 @@ macro_rules! params {
 pub mod ace;
 #[cfg(feature = "runtime-full")]
 pub mod ai_ready_data;
+#[cfg(feature = "runtime-full")]
+pub mod api;
 /// Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in): PostgreSQL/CRDT only.
 pub mod atelier;
 #[cfg(feature = "runtime-full")]
-pub mod api;
-#[cfg(feature = "runtime-full")]
 pub mod bundles;
+/// WP-1 live orchestration debug console: a NON-AUTHORITATIVE observability tee
+/// (broadcast + bounded replay) streamed over SSE at
+/// `GET /wp1/diagnostics/console/stream`. Never the durable authority.
+#[cfg(feature = "runtime-full")]
+pub mod console_stream;
+
 #[cfg(feature = "runtime-full")]
 pub mod capabilities;
 #[cfg(feature = "runtime-full")]
 pub mod capability_registry_workflow;
+pub mod debug_adapter;
 /// WP-KERNEL-009 NativeDependencyAndPackaging (MT-017..MT-032): runtime
 /// dependency allowlist, operator gates for external runtime inputs, and
 /// forbidden-dependency tripwires. Unconditional: the dependency policy
 /// applies to every feature configuration of the product.
 pub mod dependency_policy;
-pub mod debug_adapter;
 #[cfg(feature = "runtime-full")]
 pub mod diagnostics;
 #[cfg(feature = "runtime-full")]
@@ -309,4 +315,18 @@ pub struct AppState {
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
     pub session_registry: Arc<workflows::SessionRegistry>,
+}
+
+#[cfg(feature = "runtime-full")]
+impl AppState {
+    /// MT-014: the shared, enumerable, labeled [`model_runtime::ModelCatalog`]
+    /// reachable from `AppState`, when the configured LLM client exposes one
+    /// (the embedded local lane does). Returns `None` for providers without a
+    /// local model registry (external OpenAI-compat, disabled). This is the
+    /// enumeration/label surface MT-008 diagnostics labeling and the MT-012
+    /// operator model-picker MAY adopt to list the configured local model(s)
+    /// and resolve the stable cross-session anchor alongside the per-boot id.
+    pub fn model_catalog(&self) -> Option<Arc<model_runtime::ModelCatalog>> {
+        self.llm_client.model_catalog()
+    }
 }

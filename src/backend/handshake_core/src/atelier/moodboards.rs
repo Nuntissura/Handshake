@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
+use crate::storage::artifacts::sha256_hex;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
@@ -40,6 +40,10 @@ pub mod moodboard_event_family {
 pub struct NewMoodboardSnapshot {
     pub document_id: Uuid,
     pub raw_json_text: String,
+    /// WP-CKC MT-012 optimistic concurrency: when set, the snapshot is refused
+    /// with [`AtelierError::Conflict`] unless the moodboard document's current
+    /// version is exactly this id. `None` skips the check.
+    pub expected_document_version_id: Option<Uuid>,
     pub author: String,
 }
 
@@ -345,9 +349,7 @@ fn require_non_empty_trimmed(field: &str, value: &str) -> AtelierResult<String> 
     Ok(trimmed.to_string())
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
+
 
 fn uuid_schema() -> Value {
     serde_json::json!({
@@ -1169,29 +1171,33 @@ const FIND_SNAPSHOT_STATEMENT: &str = concat!(
       AND document_version_id = $document_version_id \
       AND content_sha256 = $content_sha256 LIMIT 1;"
 );
+/// The write returns the same projected column list every read uses: a bare
+/// `CREATE ... RETURN` hands back the stored record, whose `document_id` /
+/// `document_version_id` are record links, and `MoodboardSnapshotRow` reads
+/// them as uuids ("Expected uuid, got record").
 const RECORD_SNAPSHOT_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; ",
     atelier_event_sql!(),
-    " RETURN (CREATE $rid CONTENT { \
+    " CREATE $rid CONTENT { \
        snapshot_id: $domain.snapshot_id, document_id: $domain.document_id, \
        document_version_id: $domain.document_version_id, schema_id: $domain.schema_id, \
        schema_version: $domain.schema_version, raw_json_text: $domain.raw_json_text, \
        moodboard_json: $domain.moodboard_json, content_sha256: $domain.content_sha256, \
-       author: $domain.author } RETURN ",
+       author: $domain.author } RETURN NONE; RETURN (SELECT ",
     snapshot_columns!(),
-    ")[0]; };"
+    " FROM $rid)[0]; };"
 );
 const RECORD_OPERATION_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; ",
     atelier_event_sql!(),
-    " RETURN (CREATE $rid CONTENT { \
+    " CREATE $rid CONTENT { \
        operation_id: $domain.operation_id, snapshot_id: $domain.snapshot_id, \
        document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
        operation_kind: $domain.operation_kind, operation_payload: $domain.operation_payload, \
        operation_payload_sha256: $domain.operation_payload_sha256, \
-       receipt_json: $domain.receipt_json, actor: $domain.actor } RETURN ",
+       receipt_json: $domain.receipt_json, actor: $domain.actor } RETURN NONE; RETURN (SELECT ",
     operation_columns!(),
-    ")[0]; };"
+    " FROM $rid)[0]; };"
 );
 const LIST_OPERATIONS_STATEMENT: &str = concat!(
     "SELECT ",
@@ -1202,14 +1208,14 @@ const LIST_OPERATIONS_STATEMENT: &str = concat!(
 const RECORD_EXPORT_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; ",
     atelier_event_sql!(),
-    " LET $created = (CREATE $rid CONTENT { \
+    " CREATE $rid CONTENT { \
        export_id: $domain.export_id, snapshot_id: $domain.snapshot_id, \
        document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
        format: $domain.format, status: $domain.status, label: $domain.label, \
        manifest_json: $domain.manifest_json, receipt_json: $domain.receipt_json, \
-       requested_by: $domain.requested_by } RETURN ",
+       requested_by: $domain.requested_by } RETURN NONE; RETURN (SELECT ",
     export_columns!(),
-    ")[0]; RETURN $created; };"
+    " FROM $rid)[0]; };"
 );
 const FIND_EXPORT_STATEMENT: &str = concat!(
     "SELECT ",
@@ -1228,7 +1234,7 @@ impl AtelierStore {
     async fn jsonb_text_sha256(&self, value: &Value) -> AtelierResult<String> {
         let bytes = serde_json::to_vec(value)
             .map_err(|err| AtelierError::Validation(format!("invalid JSON payload: {err}")))?;
-        Ok(hex::encode(Sha256::digest(bytes)))
+        Ok(sha256_hex(&bytes))
     }
 
     async fn moodboard_snapshot_by_id(
@@ -1308,6 +1314,14 @@ impl AtelierStore {
             "atelier_character_document_version",
             SurrealUuid::from(document_version_id),
         );
+        if let Some(expected_document_version_id) = new.expected_document_version_id {
+            if document_version_id != expected_document_version_id {
+                return Err(AtelierError::Conflict(format!(
+                    "stale_moodboard_document_version: expected document version {:?}, current head {:?}",
+                    expected_document_version_id, document_version_id
+                )));
+            }
+        }
         #[derive(SurrealValue)]
         struct ExistingBinding {
             document_id: RecordId,

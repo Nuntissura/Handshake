@@ -318,3 +318,154 @@ mod tests {
         );
     }
 }
+
+/// Full v2 passive reader on the same current watcher owner. Never falls back to v1.
+pub struct PalmistryRingReaderV2 {
+    reader: handshake_diag_ring::ring::DiagRingReaderV2,
+    path: PathBuf,
+    expected_nonce: [u8; 16],
+}
+impl PalmistryRingReaderV2 {
+    pub fn open(path: &Path, expected_nonce: [u8; 16]) -> std::io::Result<Self> {
+        Ok(Self {
+            reader: handshake_diag_ring::ring::DiagRingReaderV2::open(path, expected_nonce)?,
+            path: path.to_path_buf(),
+            expected_nonce,
+        })
+    }
+    pub fn open_with_retry(
+        path: &Path,
+        expected_nonce: [u8; 16],
+        backoff: Duration,
+        deadline: Duration,
+        mut now: impl FnMut() -> Instant,
+        mut sleep: impl FnMut(Duration),
+    ) -> std::io::Result<Self> {
+        let start = now();
+        loop {
+            let last_error = match Self::open(path, expected_nonce) {
+                Ok(reader) => return Ok(reader),
+                Err(error) => error,
+            };
+            if now().duration_since(start) >= deadline {
+                return Err(last_error);
+            }
+            sleep(backoff.min(deadline.saturating_sub(now().duration_since(start))));
+        }
+    }
+    pub fn open_with_default_retry(path: &Path, expected_nonce: [u8; 16]) -> std::io::Result<Self> {
+        Self::open_with_retry(
+            path,
+            expected_nonce,
+            DEFAULT_OPEN_RETRY_BACKOFF,
+            DEFAULT_OPEN_RETRY_DEADLINE,
+            Instant::now,
+            std::thread::sleep,
+        )
+    }
+    pub fn reopen(&mut self) -> std::io::Result<()> {
+        let reader =
+            handshake_diag_ring::ring::DiagRingReaderV2::open(&self.path, self.expected_nonce)?;
+        self.reader = reader;
+        Ok(())
+    }
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+    pub fn capacity(&self) -> u32 {
+        self.reader.capacity()
+    }
+    pub fn read_heartbeat(&self) -> Option<Heartbeat> {
+        self.reader.read_heartbeat()
+    }
+    pub fn read_last_events(&self, n: u32) -> Vec<handshake_diag_ring::schema::DiagEventV2> {
+        self.reader.read_last_n(n)
+    }
+}
+
+#[cfg(test)]
+mod v2_tests {
+    use super::*;
+    use handshake_diag_ring::ring::{debug_corrupt_byte, DiagRingWriterV2};
+    use handshake_diag_ring::schema::DiagEventV2;
+    use std::cell::Cell;
+    fn path(tag: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "handshake-v2-{tag}-{}-{}.ring",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+    struct Guard(PathBuf);
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+    #[test]
+    fn v2_reads_full_provenance_and_reopen_keeps_original_nonce() {
+        let path = path("reopen");
+        let _guard = Guard(path.clone());
+        let nonce = [0x55; 16];
+        let writer = DiagRingWriterV2::create(&path, 4, nonce).unwrap();
+        let event = DiagEventV2::behavior_observation(12, 34, 56, nonce, [0xaa; 32]);
+        assert!(writer.write(event));
+        writer.write_heartbeat(78, 90);
+        let mut reader = PalmistryRingReaderV2::open(&path, nonce).unwrap();
+        assert_eq!(reader.capacity(), 4);
+        let events = reader.read_last_events(4);
+        assert_eq!(events.len(), 1);
+        assert!(events[0] == event);
+        assert_eq!(reader.read_heartbeat().unwrap().counter, 78);
+        assert!(PalmistryRingReader::open(&path).is_err());
+        assert!(PalmistryRingReaderV2::open(&path, [0x56; 16]).is_err());
+        let original = path.with_extension("held-original");
+        let _original_guard = Guard(original.clone());
+        std::fs::rename(&path, &original).unwrap();
+        let foreign = DiagRingWriterV2::create(&path, 4, [0x56; 16]).unwrap();
+        foreign.write_heartbeat(999, 999);
+        assert!(reader.reopen().is_err());
+        assert_eq!(reader.read_heartbeat().unwrap().counter, 78);
+        assert!(reader.read_last_events(1)[0] == event);
+        drop(foreign);
+        let replacement = DiagRingWriterV2::create(&path, 4, nonce).unwrap();
+        replacement.write_heartbeat(123, 456);
+        reader.reopen().unwrap();
+        assert_eq!(reader.read_heartbeat().unwrap().counter, 123);
+        drop(replacement);
+        drop(reader);
+        drop(writer);
+    }
+    #[test]
+    fn v2_open_retry_is_bounded_and_preserves_real_last_error() {
+        let path = path("missing");
+        let _guard = Guard(path.clone());
+        let start = Instant::now();
+        let ticks = Cell::new(0u64);
+        let result = PalmistryRingReaderV2::open_with_retry(
+            &path,
+            [0x55; 16],
+            Duration::from_millis(10),
+            Duration::from_millis(30),
+            || start + Duration::from_millis(ticks.get()),
+            |duration| ticks.set(ticks.get() + duration.as_millis() as u64),
+        );
+        assert!(matches!(result, Err(error) if error.kind() == std::io::ErrorKind::NotFound));
+        assert_eq!(ticks.get(), 30);
+        let writer = DiagRingWriterV2::create(&path, 4, [0x55; 16]).unwrap();
+        drop(writer);
+        debug_corrupt_byte(&path, 8, 1).unwrap();
+        assert!(PalmistryRingReaderV2::open_with_retry(
+            &path,
+            [0x55; 16],
+            Duration::ZERO,
+            Duration::ZERO,
+            Instant::now,
+            |_| {}
+        )
+        .is_err());
+    }
+}

@@ -141,6 +141,8 @@ fn model_runtime_trait_tests_object_safe_send_sync_and_calls_all_methods() {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: false,
+        supports_embedding: false,
+        embedding_dimension: None,
     };
 
     let sampling = SamplingParams {

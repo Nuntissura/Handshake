@@ -277,6 +277,359 @@ pub fn drain_palmistry_child_watch_commands(handle: &mut PalmistryHandle) -> usi
 // `palmistry`'s own `tagged_json_shape_is_explicit` test pins — so the two sides stay byte-compatible.
 // ----------------------------------------------------------------------------------------------------
 
+/// Public identity of the SAME native-owned watcher; not a durable process START receipt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignedWatcherIdentity {
+    pub protocol_version: u32,
+    pub session_id: uuid::Uuid,
+    pub process_instance_id: uuid::Uuid,
+    pub parent_pid: u32,
+    pub watcher_pid: u32,
+    pub ring_version: u32,
+    pub record_size: u32,
+    pub launch_nonce: [u8; 16],
+}
+
+/// Verified launch-local challenge evidence. Only PalmistryHandle's owned spawn can install it.
+#[derive(Debug, Clone)]
+pub struct SignedWatcherReady {
+    pub identity: SignedWatcherIdentity,
+    pub challenge: [u8; 32],
+    pub transport_public_key: [u8; 32],
+    pub public_verifier: [u8; 32],
+    pub signature: [u8; 64],
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+enum SignedWatcherRequest {
+    ProvenanceChallengeV1 {
+        identity: SignedWatcherIdentity,
+        challenge: [u8; 32],
+        transport_public_key: [u8; 32],
+    },
+}
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+enum SignedWatcherReply {
+    ProvenanceReadyV1 {
+        identity: SignedWatcherIdentity,
+        challenge: [u8; 32],
+        transport_public_key: [u8; 32],
+        public_verifier: [u8; 32],
+        signature: Vec<u8>,
+    },
+}
+
+fn signed_watcher_challenge_bytes(
+    identity: &SignedWatcherIdentity,
+    challenge: [u8; 32],
+    transport_public_key: [u8; 32],
+) -> io::Result<Vec<u8>> {
+    let mut bytes = b"handshake-current-watcher-provenance-v1\0".to_vec();
+    let identity_bytes = serde_json::to_vec(identity).map_err(io::Error::other)?;
+    bytes.extend_from_slice(&(identity_bytes.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(&identity_bytes);
+    bytes.extend_from_slice(&challenge);
+    bytes.extend_from_slice(&transport_public_key);
+    Ok(bytes)
+}
+
+fn perform_signed_watcher_handshake(
+    socket: &str,
+    identity: SignedWatcherIdentity,
+    verifier: [u8; 32],
+    transport_public_key: [u8; 32],
+) -> io::Result<(LocalStream, SignedWatcherReady)> {
+    use interprocess::local_socket::traits::Stream as _;
+    use rand::TryRngCore;
+    let deadline = Instant::now() + HANDSHAKE_OVERALL_DEADLINE;
+    let mut challenge = [0; 32];
+    rand::rngs::OsRng
+        .try_fill_bytes(&mut challenge)
+        .map_err(io::Error::other)?;
+    if challenge == [0; 32] {
+        return Err(io::Error::other("unusable fresh watcher challenge"));
+    }
+    let timeout_error =
+        || io::Error::new(io::ErrorKind::TimedOut, "signed watcher launch deadline");
+    let stream = loop {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        #[cfg(windows)]
+        let attempt = connect_control_once(socket, Duration::ZERO);
+        #[cfg(not(windows))]
+        let attempt = interprocess::local_socket::ConnectOptions::new()
+            .name(socket.to_ns_name::<GenericNamespaced>()?)
+            .wait_mode(interprocess::ConnectWaitMode::Timeout(Duration::ZERO))
+            .nonblocking_stream(true)
+            .connect_sync();
+        match attempt {
+            Ok(stream) => break stream,
+            Err(_) => std::thread::sleep(
+                Duration::from_millis(2).min(deadline.saturating_duration_since(Instant::now())),
+            ),
+        }
+    };
+    struct OwnedExchange(Option<LocalStream>);
+    impl Drop for OwnedExchange {
+        fn drop(&mut self) {
+            #[cfg(windows)]
+            if let Some(LocalStream::NamedPipe(stream)) = &self.0 {
+                stream.inner().assume_flushed();
+            }
+        }
+    }
+    let mut owned = OwnedExchange(Some(stream));
+    let stream = owned.0.as_mut().expect("owned exchange stream");
+    stream.set_nonblocking(true)?;
+    let mut request = serde_json::to_vec(&SignedWatcherRequest::ProvenanceChallengeV1 {
+        identity: identity.clone(),
+        challenge,
+        transport_public_key,
+    })
+    .map_err(io::Error::other)?;
+    request.push(b'\n');
+    let mut written = 0;
+    while written < request.len() {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        match stream.write(&request[written..]) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "signed watcher request closed",
+                ))
+            }
+            Ok(count) => written += count,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(2)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                )
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let mut reply = Vec::with_capacity(1024);
+    loop {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        let mut byte = [0; 1];
+        match stream.read(&mut byte) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "signed watcher reply closed",
+                ))
+            }
+            Ok(_) if byte[0] == b'\n' => break,
+            Ok(_) => {
+                reply.push(byte[0]);
+                if reply.len() > 16384 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "signed watcher reply too large",
+                    ));
+                }
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(2)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                )
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let evidence =
+        verify_signed_watcher_reply(&reply, &identity, verifier, challenge, transport_public_key)?;
+    stream.set_nonblocking(false)?;
+    Ok((
+        owned.0.take().expect("verified owned exchange stream"),
+        evidence,
+    ))
+}
+
+fn release_signed_stream(stream: LocalStream) {
+    #[cfg(windows)]
+    if let LocalStream::NamedPipe(pipe) = &stream {
+        pipe.inner().assume_flushed();
+    }
+    drop(stream);
+}
+
+/// Each signed operation verifies the SAME expected child/signer with a fresh challenge first.
+/// The operation then has its own bounded write+reply budget; no held idle connection or receipt swap.
+fn perform_signed_watcher_operation(
+    socket: &str,
+    identity: SignedWatcherIdentity,
+    verifier: [u8; 32],
+    transport: [u8; 32],
+    message: &LauncherControlMessage,
+) -> io::Result<()> {
+    use interprocess::local_socket::traits::Stream as _;
+    let (stream, _) = perform_signed_watcher_handshake(socket, identity, verifier, transport)?;
+    struct OwnedOperation(Option<LocalStream>);
+    impl Drop for OwnedOperation {
+        fn drop(&mut self) {
+            if let Some(stream) = self.0.take() {
+                release_signed_stream(stream);
+            }
+        }
+    }
+    let mut owned = OwnedOperation(Some(stream));
+    let stream = owned.0.as_mut().expect("verified owned operation stream");
+    stream.set_nonblocking(true)?;
+    let deadline = Instant::now() + HANDSHAKE_ACK_READ_DEADLINE;
+    let timed_out = || io::Error::new(io::ErrorKind::TimedOut, "signed watcher operation deadline");
+    let mut bytes = serde_json::to_vec(message).map_err(io::Error::other)?;
+    if bytes.len() >= 16384 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "signed operation frame too large",
+        ));
+    }
+    bytes.push(b'\n');
+    let mut written = 0;
+    while written < bytes.len() {
+        if Instant::now() >= deadline {
+            return Err(timed_out());
+        }
+        match stream.write(&bytes[written..]) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "signed operation closed",
+                ))
+            }
+            Ok(count) => written += count,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(2)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                )
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let mut bytes = Vec::with_capacity(64);
+    loop {
+        if Instant::now() >= deadline {
+            return Err(timed_out());
+        }
+        let mut byte = [0; 1];
+        match stream.read(&mut byte) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "signed operation reply closed",
+                ))
+            }
+            Ok(_) if byte[0] == b'\n' => break,
+            Ok(_) => {
+                bytes.push(byte[0]);
+                if bytes.len() > 16384 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "signed operation reply too large",
+                    ));
+                }
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(2)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                )
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let reply: LauncherControlReply = serde_json::from_slice(&bytes).map_err(io::Error::other)?;
+    match reply {
+        LauncherControlReply::Ack => Ok(()),
+        _ => Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "signed watcher operation not acknowledged",
+        )),
+    }
+}
+
+fn verify_signed_watcher_reply(
+    line: &[u8],
+    expected: &SignedWatcherIdentity,
+    verifier: [u8; 32],
+    challenge: [u8; 32],
+    transport_public_key: [u8; 32],
+) -> io::Result<SignedWatcherReady> {
+    let SignedWatcherReply::ProvenanceReadyV1 {
+        identity,
+        challenge: actual_challenge,
+        transport_public_key: actual_transport,
+        public_verifier,
+        signature,
+    } = serde_json::from_slice(line).map_err(io::Error::other)?;
+    if &identity != expected
+        || actual_challenge != challenge
+        || actual_transport != transport_public_key
+        || public_verifier != verifier
+        || challenge == [0; 32]
+        || transport_public_key == [0; 32]
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "signed watcher launch identity mismatch",
+        ));
+    }
+    let signature: [u8; 64] = signature.try_into().map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "signed watcher signature length",
+        )
+    })?;
+    let key = ed25519_dalek::VerifyingKey::from_bytes(&verifier).map_err(io::Error::other)?;
+    key.verify_strict(
+        &signed_watcher_challenge_bytes(expected, challenge, transport_public_key)?,
+        &ed25519_dalek::Signature::from_bytes(&signature),
+    )
+    .map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "invalid signed watcher launch evidence",
+        )
+    })?;
+    Ok(SignedWatcherReady {
+        identity,
+        challenge,
+        transport_public_key,
+        public_verifier,
+        signature,
+    })
+}
+
 /// The control messages THIS launcher sends (a strict subset of `palmistry::control::ControlMessage`).
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
@@ -609,6 +962,8 @@ pub enum ShutdownOutcome {
 /// the live control connection used to send `Shutdown` on a clean exit. Dropping the handle reaps the
 /// child (best-effort `Shutdown` then kill backstop) so a watcher never orphans.
 pub struct PalmistryHandle {
+    signed_expected: Option<(SignedWatcherIdentity, [u8; 32], [u8; 32])>,
+    signed_ready: Option<SignedWatcherReady>,
     child: Child,
     /// The live control connection, `Some` once the startup handshake acked (held for the later
     /// `Shutdown`), `None` if the handshake was unconfirmed (the watcher still runs; shutdown reconnects).
@@ -625,6 +980,10 @@ pub struct PalmistryHandle {
 }
 
 impl PalmistryHandle {
+    /// Launch-local signed evidence; not backend adoption/START/authenticated key delivery.
+    pub fn signed_ready(&self) -> Option<&SignedWatcherReady> {
+        self.signed_ready.as_ref()
+    }
     /// Whether the startup IPC handshake completed (Palmistry acked `HandshakeHello`). `true` is the
     /// AC-014-1 proof that a real handshake crossed the control socket.
     pub fn handshake_acked(&self) -> bool {
@@ -691,6 +1050,22 @@ impl PalmistryHandle {
         msg: &LauncherControlMessage,
         context: &str,
     ) -> io::Result<()> {
+        if let Some((identity, verifier, transport)) = self.signed_expected.as_ref() {
+            if identity.watcher_pid != self.child.id() || self.child.try_wait()?.is_some() {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "signed watcher owned child mismatch or exited",
+                ));
+            }
+            // Fresh proof on demand, never an expired held stream; original launch receipt stays immutable.
+            return perform_signed_watcher_operation(
+                &self.socket_name,
+                identity.clone(),
+                *verifier,
+                *transport,
+                msg,
+            );
+        }
         let Some(mut reader) = self.control.take() else {
             return Err(io::Error::new(
                 io::ErrorKind::NotConnected,
@@ -730,7 +1105,14 @@ impl PalmistryHandle {
         }
         self.shutdown_done = true;
 
-        if let Some(reader) = self.control.as_mut() {
+        if self.signed_expected.is_some() {
+            if let Err(error) = self.send_control_expect_ack(
+                &LauncherControlMessage::Shutdown,
+                "signed watcher shutdown",
+            ) {
+                tracing::warn!(%error, "signed watcher Shutdown not confirmed; retaining owned wait/reap outcome");
+            }
+        } else if let Some(reader) = self.control.as_mut() {
             if let Err(err) = write_message(reader.get_mut(), &LauncherControlMessage::Shutdown) {
                 tracing::warn!(
                     %err,
@@ -861,6 +1243,61 @@ pub fn launch_palmistry_at(
     ring_path: &Path,
     control_socket: &str,
 ) -> io::Result<PalmistryHandle> {
+    launch_palmistry_at_with_bootstrap(exe, session, ring_path, control_socket, None)
+}
+
+/// Explicit, non-default signed-current-child source seam. The seed is Ed25519 identity ONLY.
+/// Caller-provided original session/process/nonce are validated before spawn; no backend HMAC fallback.
+pub fn launch_palmistry_signed_at(
+    exe: &Path,
+    session: &DiagSession,
+    ring_path: &Path,
+    control_socket: &str,
+    process_instance_id: uuid::Uuid,
+    launch_nonce: [u8; 16],
+    signing_seed: zeroize::Zeroizing<Vec<u8>>,
+    transport_public_key: [u8; 32],
+) -> io::Result<PalmistryHandle> {
+    let original_session = uuid::Uuid::parse_str(&session.session_id).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid original watcher session",
+        )
+    })?;
+    if original_session.is_nil()
+        || process_instance_id.is_nil()
+        || launch_nonce == [0; 16]
+        || signing_seed.len() != 32
+        || transport_public_key == [0; 32]
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid signed watcher bootstrap",
+        ));
+    }
+    // Validate the actual existing ring, not a path/CLI assertion of version or nonce.
+    let _ring = handshake_diag_ring::ring::DiagRingReaderV2::open(ring_path, launch_nonce)?;
+    launch_palmistry_at_with_bootstrap(
+        exe,
+        session,
+        ring_path,
+        control_socket,
+        Some((
+            process_instance_id,
+            launch_nonce,
+            signing_seed,
+            transport_public_key,
+        )),
+    )
+}
+
+fn launch_palmistry_at_with_bootstrap(
+    exe: &Path,
+    session: &DiagSession,
+    ring_path: &Path,
+    control_socket: &str,
+    bootstrap: Option<(uuid::Uuid, [u8; 16], zeroize::Zeroizing<Vec<u8>>, [u8; 32])>,
+) -> io::Result<PalmistryHandle> {
     let parent_pid = std::process::id();
 
     // MT-092/MT-094 remediation — the launcher-side half of the §6.13.6 crash rendezvous: DERIVE the
@@ -892,7 +1329,43 @@ pub fn launch_palmistry_at(
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
+    if let Some((process_instance_id, nonce, _, _)) = bootstrap.as_ref() {
+        let nonce_hex: String = nonce.iter().map(|byte| format!("{byte:02x}")).collect();
+        command
+            .arg("--signing-process-instance")
+            .arg(process_instance_id.to_string())
+            .arg("--ring-version")
+            .arg("2")
+            .arg("--ring-nonce")
+            .arg(nonce_hex)
+            .stdin(Stdio::piped());
+    }
+    let expected_signer = bootstrap
+        .as_ref()
+        .map(|(instance, nonce, seed, transport)| {
+            let exact = zeroize::Zeroizing::new(
+                <[u8; 32]>::try_from(seed.as_slice()).expect("validated exact seed"),
+            );
+            let verifier = ed25519_dalek::SigningKey::from_bytes(&exact)
+                .verifying_key()
+                .to_bytes();
+            (*instance, *nonce, verifier, *transport)
+        });
     let mut child = command.spawn()?;
+    if let Some((_, _, seed, _)) = bootstrap {
+        // Only 32 bytes into our own freshly created private pipe. Drop closes EOF; no CLI/env/log key.
+        let result = child
+            .stdin
+            .take()
+            .ok_or_else(|| io::Error::other("missing owned bootstrap pipe"))
+            .and_then(|mut pipe| pipe.write_all(seed.as_slice()));
+        if let Err(error) = result {
+            // This session spawned this child; preserve existing reap-on-incomplete-launch ownership.
+            let _ = child.kill();
+            let _ = wait_for_exit(&mut child, Duration::from_secs(1));
+            return Err(error);
+        }
+    }
     tracing::info!(
         child_pid = child.id(),
         parent_pid,
@@ -902,6 +1375,47 @@ pub fn launch_palmistry_at(
         crash_socket = %crash_socket,
         "palmistry watcher spawned (Tier 3, §6.13.3 launched-with-Handshake); starting bounded handshake"
     );
+
+    if let Some((process_instance_id, launch_nonce, verifier, transport_public_key)) =
+        expected_signer
+    {
+        let identity = SignedWatcherIdentity {
+            protocol_version: 1,
+            session_id: uuid::Uuid::parse_str(&session.session_id)
+                .expect("validated original session"),
+            process_instance_id,
+            parent_pid,
+            watcher_pid: child.id(),
+            ring_version: 2,
+            record_size: 120,
+            launch_nonce,
+        };
+        let result = perform_signed_watcher_handshake(
+            control_socket,
+            identity.clone(),
+            verifier,
+            transport_public_key,
+        );
+        let (control, signed_ready, handshake_error) = match result {
+            Ok((stream, evidence)) => {
+                release_signed_stream(stream);
+                (None, Some(evidence), None)
+            }
+            Err(error) => (None, None, Some(error.to_string())),
+        };
+        // Failure retains THIS actual Child and reaper, without presenting a legacy ACK as signed proof.
+        return Ok(PalmistryHandle {
+            signed_expected: Some((identity, verifier, transport_public_key)),
+            child,
+            handshake_acked: signed_ready.is_some(),
+            control,
+            signed_ready,
+            handshake_error,
+            socket_name: control_socket.to_string(),
+            crash_socket,
+            shutdown_done: false,
+        });
+    }
 
     // BOUNDED handshake (AC-014-5): run connect+Hello+Ack on a worker thread and wait on it with an
     // explicit deadline so a slow/absent ack NEVER hangs startup. The worker returns the LIVE connection
@@ -971,6 +1485,8 @@ pub fn launch_palmistry_at(
     };
 
     Ok(PalmistryHandle {
+        signed_expected: None,
+        signed_ready: None,
         child,
         control,
         handshake_acked,
@@ -1329,5 +1845,103 @@ mod tests {
         // AC-014-3: the no-kill-on-job-close commitment is greppable + names the spec section.
         assert!(SPAWN_NOT_KILL_ON_JOB_CLOSE.contains("6.13.3"));
         assert!(SPAWN_NOT_KILL_ON_JOB_CLOSE.contains("free-standing"));
+    }
+}
+
+#[cfg(test)]
+mod signed_launch_evidence_tests {
+    use super::*;
+    #[test]
+    fn signed_launch_verifier_rejects_forgery_replay_and_legacy_ack() {
+        use ed25519_dalek::Signer;
+        let identity = SignedWatcherIdentity {
+            protocol_version: 1,
+            session_id: uuid::Uuid::from_u128(1),
+            process_instance_id: uuid::Uuid::from_u128(2),
+            parent_pid: 3,
+            watcher_pid: 4,
+            ring_version: 2,
+            record_size: 120,
+            launch_nonce: [5; 16],
+        };
+        let seed = zeroize::Zeroizing::new([7; 32]);
+        let signer = ed25519_dalek::SigningKey::from_bytes(&seed);
+        let verifier = signer.verifying_key().to_bytes();
+        let challenge = [8; 32];
+        let transport = [9; 32];
+        let watcher_identity = palmistry::control::WatcherSigningIdentity {
+            protocol_version: identity.protocol_version,
+            session_id: identity.session_id,
+            process_instance_id: identity.process_instance_id,
+            parent_pid: identity.parent_pid,
+            watcher_pid: identity.watcher_pid,
+            ring_version: identity.ring_version,
+            record_size: identity.record_size,
+            launch_nonce: identity.launch_nonce,
+        };
+        assert_eq!(
+            signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap(),
+            palmistry::control::watcher_challenge_bytes(&watcher_identity, challenge, transport)
+                .unwrap()
+        );
+        let signature = signer
+            .sign(&signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap())
+            .to_bytes();
+        let reply = serde_json::json!({"type":"ProvenanceReadyV1","identity":identity,"challenge":challenge,"transport_public_key":transport,"public_verifier":verifier,"signature":signature.to_vec()});
+        let bytes = serde_json::to_vec(&reply).unwrap();
+        assert_eq!(
+            verify_signed_watcher_reply(&bytes, &identity, verifier, challenge, transport)
+                .unwrap()
+                .identity,
+            identity
+        );
+        assert!(
+            verify_signed_watcher_reply(&bytes, &identity, verifier, [10; 32], transport).is_err()
+        );
+        assert!(
+            verify_signed_watcher_reply(&bytes, &identity, [11; 32], challenge, transport).is_err()
+        );
+        assert!(
+            verify_signed_watcher_reply(&bytes, &identity, verifier, challenge, [12; 32]).is_err()
+        );
+        for field in ["parent_pid", "watcher_pid", "ring_version", "record_size"] {
+            let mut forged = reply.clone();
+            forged["identity"][field] = serde_json::json!(99);
+            assert!(verify_signed_watcher_reply(
+                &serde_json::to_vec(&forged).unwrap(),
+                &identity,
+                verifier,
+                challenge,
+                transport
+            )
+            .is_err());
+        }
+        let mut forged = reply.clone();
+        forged["signature"] = serde_json::json!(vec![0; 64]);
+        assert!(verify_signed_watcher_reply(
+            &serde_json::to_vec(&forged).unwrap(),
+            &identity,
+            verifier,
+            challenge,
+            transport
+        )
+        .is_err());
+        forged["signature"] = serde_json::json!(vec![0; 63]);
+        assert!(verify_signed_watcher_reply(
+            &serde_json::to_vec(&forged).unwrap(),
+            &identity,
+            verifier,
+            challenge,
+            transport
+        )
+        .is_err());
+        assert!(verify_signed_watcher_reply(
+            br#"{"type":"Ack"}"#,
+            &identity,
+            verifier,
+            challenge,
+            transport
+        )
+        .is_err());
     }
 }

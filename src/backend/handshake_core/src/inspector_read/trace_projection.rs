@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::kernel::{KernelEvent, KernelEventType};
 
@@ -450,11 +449,7 @@ fn hash_value(value: &Value) -> String {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 pub fn trace_content_sha256(content: &str) -> String {
     sha256_hex(content.as_bytes())

@@ -346,8 +346,8 @@ fn validate_trimmed(field: &str, value: &str) -> AtelierResult<()> {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+    use crate::storage::artifacts::{format_sha256_ref, sha256_hex, Sha256RefFormat};
+    format_sha256_ref(&sha256_hex(bytes), Sha256RefFormat::ColonPrefixed)
 }
 
 fn surface_io(error: AtelierError) -> EditableSurfaceError {

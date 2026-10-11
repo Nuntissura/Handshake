@@ -45,6 +45,7 @@ pub enum PaneType {
     InferenceLab,
     ModelRuntime,
     Swarm,
+    SwarmLaneDiagnostics,
     Problems,
     Jobs,
     Timeline,
@@ -61,6 +62,12 @@ pub enum PaneType {
     FindInFiles,
     /// WP-KERNEL-012 MT-098: native Runtime Chat pane beside the editor work surface.
     RuntimeChat,
+    /// WP-1 MT-012: operator chat/launch work-surface (model+worktree picker,
+    /// prompt input, launch through spawn_session, captured transcript).
+    OperatorChatLaunch,
+    /// WP-1: live orchestration debug console — tails the backend SSE console
+    /// (`GET /wp1/diagnostics/console/stream`) and renders entries live.
+    Wp1OrchestrationConsole,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -80,6 +87,7 @@ impl PaneType {
             PaneType::InferenceLab => "Inference Lab".to_owned(),
             PaneType::ModelRuntime => "Model Runtime".to_owned(),
             PaneType::Swarm => "Swarm".to_owned(),
+            PaneType::SwarmLaneDiagnostics => "Swarm Lane Diagnostics".to_owned(),
             PaneType::Problems => "Problems".to_owned(),
             PaneType::Jobs => "Jobs".to_owned(),
             PaneType::Timeline => "Timeline".to_owned(),
@@ -93,6 +101,8 @@ impl PaneType {
             PaneType::LoomSearchV2 => "Notes Search".to_owned(),
             PaneType::FindInFiles => "Find in Files".to_owned(),
             PaneType::RuntimeChat => "Chat".to_owned(),
+            PaneType::OperatorChatLaunch => "Operator Chat / Launch".to_owned(),
+            PaneType::Wp1OrchestrationConsole => "WP-1 Orchestration Console".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -113,6 +123,7 @@ impl PaneType {
             PaneType::InferenceLab => "Inference Lab",
             PaneType::ModelRuntime => "Model Runtime",
             PaneType::Swarm => "Swarm",
+            PaneType::SwarmLaneDiagnostics => "Lane Diagnostics",
             PaneType::Problems => "Problems",
             PaneType::Jobs => "Jobs",
             PaneType::Timeline => "Timeline",
@@ -128,6 +139,8 @@ impl PaneType {
             PaneType::LoomSearchV2 => "Notes Search",
             PaneType::FindInFiles => "Find in Files",
             PaneType::RuntimeChat => "Chat",
+            PaneType::OperatorChatLaunch => "Operator Chat",
+            PaneType::Wp1OrchestrationConsole => "Console",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }
@@ -568,7 +581,18 @@ impl PaneFactory for PlaceholderPaneFactory {
             // ignoring it (the audited "WP/MT id ignored" drift class).
             if let Some(content_id) = ctx.record.content_id.as_deref() {
                 if !content_id.trim().is_empty() {
-                    ui.small(content_id);
+                    if self.pane_type == PaneType::FlightRecorder {
+                        ui.label("Process ownership target");
+                        let response = ui.monospace(content_id);
+                        ui.ctx().accesskit_node_builder(response.id, |node| {
+                            node.set_author_id(format!(
+                                "flight-recorder.{}.process-ownership-target",
+                                ctx.record.pane_id
+                            ));
+                        });
+                    } else {
+                        ui.small(content_id);
+                    }
                 }
             }
         });
@@ -865,6 +889,7 @@ mod tests {
             PaneType::InferenceLab,
             PaneType::ModelRuntime,
             PaneType::Swarm,
+            PaneType::SwarmLaneDiagnostics,
             PaneType::Problems,
             PaneType::Jobs,
             PaneType::Timeline,

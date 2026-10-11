@@ -5,21 +5,17 @@ use handshake_core::{
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
-    llm::{
-        guard::CloudEscalationGuard,
-        ollama::OllamaAdapter,
-        openai_compat::{ApiKey, OpenAiCompatAdapter},
-        registry::{ProviderKind, ProviderRegistry, RuntimeRole},
-        DisabledLlmClient, LlmClient, ModelTier,
-    },
+    llm::{boot::resolve_default_llm_client, LlmClient},
     logging,
+    model_runtime::{ModelRegistryStore, ScopedModelRegistryAuthority},
     models::HealthResponse,
     process_ledger::{
         restart_resume::{
-            RegistryStartupProcessCleanup, SurrealRestartOrphanReclaimer,
-            SurrealRestartResumeRunner,
+            BoundedRestartResumeOutcome, RegistryStartupProcessCleanup,
+            SurrealRestartOrphanReclaimer, SurrealRestartResumeRunner,
+            RESTART_RESUME_BOOT_TIMEOUT_DEFAULT,
         },
-        SurrealProcessLedgerStore,
+        LedgerBatcher, ProcessReclaimRuntime, ReclaimResourceScope, SurrealProcessLedgerStore,
     },
     sandbox::build_startup_recovery_registry_async,
     storage::{
@@ -39,6 +35,8 @@ use std::{
 };
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+
+const HTTP_CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Explicit equivalent of `#[tokio::main]` (multi-thread, all drivers) with a 10 MiB worker
 /// stack: the embedded SurrealDB 3.2.0 engine evaluates permission expressions recursively and its
@@ -61,6 +59,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let requested_addr = backend_listen_addr()?;
 
     logging::init_logging();
+    let product_local_scope = api::account_scope::ProductLocalResourceScope::from_env()?;
+    std::env::remove_var(api::account_scope::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV);
+    let reclaim_resource_scope = ReclaimResourceScope::from_exact(product_local_scope.exact())?;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -89,17 +90,34 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         process_store,
         startup_cleanup,
     ));
-    let restart_report =
-        SurrealRestartResumeRunner::new(control_plane.surreal.clone(), orphan_reclaimer)
-            .run()
-            .await?;
+    let restart_outcome = SurrealRestartResumeRunner::open(
+        control_plane.surreal.clone(),
+        reclaim_resource_scope.clone(),
+        orphan_reclaimer,
+    )
+    .await?
+    .run_with_bound(restart_resume_boot_timeout())
+    .await?;
+    let restart_report = match restart_outcome {
+        BoundedRestartResumeOutcome::Completed(report) => report,
+        BoundedRestartResumeOutcome::TimedOut {
+            timeout,
+            report,
+            evidence_persisted,
+        } => {
+            tracing::error!(target: "handshake_core::restart_resume",
+                report_id = %report.report_id, timeout_ms = timeout.as_millis() as u64,
+                evidence_persisted, "startup restart-resume timed out; incomplete report persistence is confirmed only when acknowledged");
+            report
+        }
+    };
     write_startup_recovery_report(&restart_report)?;
     tracing::info!(
         target: "handshake_core::restart_resume",
         sessions_examined = restart_report.sessions_examined,
         sessions_resumed = restart_report.sessions_resumed.len(),
         sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
-        "startup restart-resume pass completed against embedded SurrealDB"
+        "startup restart-resume outcome recorded against embedded SurrealDB"
     );
     if startup_recovery_only_requested() {
         control_plane.surreal.shutdown().await?;
@@ -109,46 +127,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-    let llm_client = init_llm_client(flight_recorder.clone()).await;
-    let capability_registry = Arc::new(CapabilityRegistry::new());
-    let session_registry = Arc::new(workflows::SessionRegistry::new(
-        workflows::SessionSchedulerConfig::from_env(),
-    ));
-
-    let state = AppState {
-        storage: storage.clone(),
-        surreal: control_plane.surreal.clone(),
-        flight_recorder: flight_recorder.clone(),
-        diagnostics,
-        llm_client,
-        capability_registry,
-        session_registry,
-    };
-
-    match workflows::repair_model_run_workflow_bindings(&state).await {
-        Ok(repaired) => tracing::info!(
-            target: "handshake_core::model_run_scheduler",
-            repaired,
-            "model_run workflow bindings repaired at startup"
-        ),
-        Err(err) => {
-            tracing::error!(
-                target: "handshake_core::model_run_scheduler",
-                error = %err,
-                "model_run workflow binding startup repair failed"
-            );
-            return Err(Box::new(err));
-        }
-    }
-
     // WP-KERNEL-012 MT-138: fail closed before serving Atelier routes unless
     // every canonical atelier_* table is present, then project the builtin CKC
     // command corpus into the same embedded authority. Both operations are
     // idempotent, so every restart converges without a compatibility store.
     let atelier = AtelierStore::with_observability(
-        state.surreal.clone(),
-        state.storage.clone(),
-        state.flight_recorder.clone(),
+        control_plane.surreal.clone(),
+        storage.clone(),
+        flight_recorder.clone(),
     );
     let atelier_schema = atelier.bootstrap_schema().await?;
     let atelier_corpus = atelier.bootstrap_builtin_command_corpus().await?;
@@ -186,12 +172,103 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         ),
     }
 
+    let listener = TcpListener::bind(requested_addr).await?;
+    let actual_addr = listener.local_addr()?;
+    write_backend_listen_report(actual_addr)?;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let signal_task = tokio::spawn(async move {
+        shutdown_signal().await;
+        let _ = shutdown_tx.send(true);
+    });
+    let runtime_host_scope_id =
+        handshake_core::process_ledger::resolve_embedded_runtime_host_scope()?;
+    let process_runtime = ProcessReclaimRuntime::production(
+        control_plane.surreal.clone(),
+        reclaim_resource_scope,
+        None,
+        handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
+        runtime_host_scope_id,
+        Duration::from_secs(30),
+    )
+    .await?;
+    let model_registry_authority = ScopedModelRegistryAuthority::new(
+        ModelRegistryStore::new(control_plane.surreal.clone()),
+        product_local_scope.exact().clone(),
+    );
+    let llm_client = init_llm_client(
+        flight_recorder.clone(),
+        Some(process_runtime.ledger().ledger()),
+        Some(model_registry_authority),
+        Some(process_runtime.runtime_instance().clone()),
+    )
+    .await;
+    let capability_registry = Arc::new(CapabilityRegistry::new());
+    let session_registry = Arc::new(workflows::SessionRegistry::new(
+        workflows::SessionSchedulerConfig::from_env(),
+    ));
+
+    let state = AppState {
+        storage: storage.clone(),
+        surreal: control_plane.surreal.clone(),
+        flight_recorder: flight_recorder.clone(),
+        diagnostics,
+        llm_client,
+        capability_registry,
+        session_registry,
+    };
+
+    match workflows::repair_model_run_workflow_bindings(&state).await {
+        Ok(repaired) => tracing::info!(
+            target: "handshake_core::model_run_scheduler",
+            repaired,
+            "model_run workflow bindings repaired at startup"
+        ),
+        Err(err) => {
+            tracing::error!(
+                target: "handshake_core::model_run_scheduler",
+                error = %err,
+                "model_run workflow binding startup repair failed"
+            );
+            // No HTTP/API/background owner has been created on this failure path.
+            drop(listener);
+            signal_task.abort();
+            let _ = signal_task.await;
+            let runtime_shutdown = state.llm_client.shutdown_gracefully().await;
+            let drain_report = process_runtime.shutdown_and_drain(Duration::from_secs(35)).await;
+            tracing::info!(target: "handshake_core::process_ledger",
+                lease_released = drain_report.lease_released,
+                lease_retained_reason = ?drain_report.lease_retained_reason,
+                "startup repair failure runtime drain lease disposition");
+            let ledger_flushed = matches!(
+                &drain_report.ledger,
+                handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                    | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+            );
+            if runtime_shutdown.is_err() || !drain_report.reclaim_task_quiesced || !ledger_flushed {
+                state.llm_client.leave_open_for_reconciliation();
+                tracing::error!(target: "handshake_core::process_ledger",
+                    runtime_shutdown = ?runtime_shutdown,
+                    reclaim_task_quiesced = drain_report.reclaim_task_quiesced,
+                    ledger = ?drain_report.ledger,
+                    "startup failure cleanup was not confirmed; exiting with retained owners");
+                std::process::exit(1);
+            }
+            drop(state);
+            drop(process_runtime);
+            if let Err(cleanup_error) = control_plane.surreal.shutdown().await {
+                tracing::error!(target: "handshake_core::storage", error = %cleanup_error,
+                    "embedded SurrealDB did not close after startup repair failure");
+            }
+            return Err(Box::new(err));
+        }
+    }
+
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
     // Executed non-blockingly but initiated before server start.
     workflows::enable_startup_recovery_gate();
     let recovery_state = state.clone();
-    tokio::spawn(async move {
+    let recovery_handle = tokio::spawn(async move {
         tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
         match workflows::mark_stalled_workflows(&recovery_state, 30, true).await {
             Ok(recovered) => {
@@ -217,9 +294,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         flight_recorder.clone(),
         janitor_config,
     ));
-    let _janitor_handle = janitor.spawn_background();
+    let janitor_handle = janitor.clone().spawn_background();
 
-    let api_routes = api::routes(state.clone());
+    let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
+        api::routes_with_process_reclaim_runtime(state.clone(), process_runtime, product_local_scope);
 
     let app = Router::new()
         .route("/health", get(health))
@@ -228,41 +306,206 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/api", api_routes)
         .layer(cors);
 
-    let listener = TcpListener::bind(requested_addr).await?;
-    let actual_addr = listener.local_addr()?;
-    write_backend_listen_report(actual_addr)?;
     tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
-    let serve_result = axum::serve(listener, app).await;
 
-    // Close the embedded store when the serve loop ends, so the database shuts
-    // down with Handshake rather than being left to process teardown. The close
-    // stops accepting new work, drains operations already in flight, and only
-    // then drops the sole engine handle; on Windows it additionally waits for
-    // RocksDB's LOCK file to be re-acquirable, which proves the prior handle is
-    // released and a restart can reopen the same directory.
-    //
-    let shutdown_result = control_plane.surreal.shutdown().await;
-    if let Err(err) = &shutdown_result {
+    // WP-1 MT-013 (F1 graceful shutdown): stop accepting after the OS signal and
+    // give already-accepted connections a bounded drain window. Dropping only
+    // Axum's outer serve future does not prove its spawned connection tasks have
+    // ended, so the timeout path still drives the model-runtime quiescence
+    // barrier below and exits the process after cleanup.
+    let server_shutdown_rx = shutdown_rx.clone();
+    let deadline_shutdown_rx = shutdown_rx;
+    let mut server = Box::pin(std::future::IntoFuture::into_future(
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(async move {
+            wait_for_shutdown_request(server_shutdown_rx).await;
+        }),
+    ));
+    let connection_drain_deadline = async move {
+        wait_for_shutdown_request(deadline_shutdown_rx).await;
+        tokio::time::sleep(HTTP_CONNECTION_DRAIN_TIMEOUT).await;
+    };
+    tokio::pin!(connection_drain_deadline);
+    let (serve_result, connection_drain_timed_out) = tokio::select! {
+        result = server.as_mut() => (Some(result), false),
+        _ = &mut connection_drain_deadline => (None, true),
+    };
+    // Release the Axum service graph before draining its AppState-owned runtime
+    // and storage clones. On the deadline branch, accepted connection tasks are
+    // still handled by the explicit fail-closed process-exit path below.
+    drop(server);
+    signal_task.abort();
+    let _ = signal_task.await;
+
+    // The one-shot recovery scan owns an AppState clone, and therefore an LLM
+    // runtime owner. Cancel and join it after Axum returns or reaches its
+    // bounded connection deadline. On the deadline path the still-live Axum
+    // connection owners force the explicit no-STOP process-exit branch below.
+    // Stop the janitor before draining durable runtime infrastructure.
+    recovery_handle.abort();
+    let _ = recovery_handle.await;
+    janitor_handle.abort();
+    let _ = janitor_handle.await;
+
+    // A timed-out Axum drain leaves spawned connection tasks alive with
+    // AppState clones. Pre-abandon STOP authority before quiescing so even a
+    // successful worker barrier cannot publish a false clean lifecycle while
+    // those accepted tasks still exist.
+    if connection_drain_timed_out {
         tracing::error!(
-            target: "handshake_core::storage",
-            error = %err,
-            "embedded SurrealDB store did not close cleanly at shutdown"
+            target: "handshake_core",
+            timeout_seconds = HTTP_CONNECTION_DRAIN_TIMEOUT.as_secs(),
+            "accepted HTTP connections missed the drain deadline; embedded START will remain open until process-death reconciliation"
         );
+        state.llm_client.leave_open_for_reconciliation();
+    }
+
+    // 1) Close runtime admission, cancel active workers, and wait for the
+    //    worker-owned quiescence guards. Only a proven idle result may emit the
+    //    embedded ProcessOwnershipLedger STOP. On failure the client releases
+    //    its reserved STOP permits without emitting rows, leaving START open
+    //    for next-boot reconciliation.
+    let runtime_shutdown = if connection_drain_timed_out {
+        Err(handshake_core::llm::LlmError::ProviderError(
+            "accepted HTTP connections still own AppState; runtime unload ownership is unproven"
+                .to_string(),
+        ))
     } else {
-        tracing::info!(
-            target: "handshake_core::storage",
-            "embedded SurrealDB store closed"
+        state.llm_client.shutdown_gracefully().await
+    };
+    if let Err(err) = &runtime_shutdown {
+        tracing::error!(
+            target: "handshake_core::process_ledger",
+            error = %err,
+            "embedded runtime did not prove quiescence; STOP remains open and shutdown will exit with the OS liveness lease held"
         );
     }
-    match (serve_result, shutdown_result) {
+
+    // Retain the final runtime-owning AppState on failed quiescence or an Axum
+    // connection-drain timeout. Only the fully-drained + quiesced path can drop
+    // the final owner. Lease release remains the shared runtime's own decision. The Option keeps both paths explicit
+    // without an accidental Drop during error unwinding.
+    let mut state_owner = Some(state);
+
+    // 2) Quiesce the single reclaimer before closing and draining the single
+    // process-ledger writer. The shared runtime releases its OS lease only after
+    // both boundaries are proven and its exact-scope open-row check permits release.
+    let api_drain_report = api_runtime
+        .drain_and_join(std::time::Duration::from_secs(35))
+        .await;
+    tracing::info!(
+        target: "handshake_core::process_ledger",
+        outcome = ?api_drain_report.operator_chat_process_ledger,
+        "operator-chat process ledger drain-and-join at shutdown"
+    );
+
+    let operator_chat_ledger_flushed = matches!(
+        &api_drain_report.operator_chat_process_ledger,
+        handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+            | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+    );
+
+    if connection_drain_timed_out
+        || runtime_shutdown.is_err()
+        || !api_drain_report.process_reclaim_quiesced
+        || !operator_chat_ledger_flushed
+    {
+        if let Err(err) = &runtime_shutdown {
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                error = %err,
+                "runtime shutdown did not reach a graceful terminal state"
+            );
+        }
+        tracing::error!(
+            target: "handshake_core::process_ledger",
+            connection_drain_timed_out,
+            process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
+            operator_chat_ledger_flushed,
+            "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
+        );
+        // Do not unwind `state_owner` or release the lease while a worker may
+        // or an accepted connection task does still exist. Process termination
+        // ends them and releases the OS socket atomically from another
+        // instance's point of view.
+        std::process::exit(1);
+    }
+
+    // Runtime quiescence and queue acceptance are not sufficient to release
+    // the final runtime owner. The process-ledger writer has now proved that
+    // every accepted START/STOP row reached embedded SurrealDB, so dropping
+    // AppState can no longer race durable lifecycle evidence.
+    drop(state_owner.take());
+
+    drop(api_runtime);
+    drop(janitor);
+    let shutdown_result = control_plane.surreal.shutdown().await;
+    if let Err(err) = &shutdown_result {
+        tracing::error!(target: "handshake_core::storage", error = %err,
+            "embedded SurrealDB store did not close cleanly at shutdown");
+    } else {
+        tracing::info!(target: "handshake_core::storage", "embedded SurrealDB store closed");
+    }
+    match (serve_result.unwrap_or(Ok(())), shutdown_result) {
         (Ok(()), Ok(())) => Ok(()),
         (Err(serve_error), Ok(())) => Err(serve_error.into()),
         (Ok(()), Err(shutdown_error)) => Err(shutdown_error.into()),
         (Err(serve_error), Err(shutdown_error)) => Err(format!(
             "serve loop failed: {serve_error}; embedded SurrealDB shutdown also failed: {shutdown_error}"
-        )
-        .into()),
+        ).into()),
     }
+}
+
+async fn wait_for_shutdown_request(mut shutdown_rx: tokio::sync::watch::Receiver<bool>) {
+    if *shutdown_rx.borrow() {
+        return;
+    }
+    while shutdown_rx.changed().await.is_ok() {
+        if *shutdown_rx.borrow() {
+            return;
+        }
+    }
+}
+
+/// WP-1 MT-013 (F1 graceful shutdown): resolves on the first OS shutdown signal
+/// so `axum::serve(...).with_graceful_shutdown(...)` returns cleanly, letting the
+/// ordered teardown (embedded-model STOP emit + ledger drain + lease release +
+/// embedded-storage shutdown) run instead of being OS-killed mid-flight. Awaits Ctrl-C on
+/// all platforms and SIGTERM additionally on Unix.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        if let Err(err) = tokio::signal::ctrl_c().await {
+            tracing::error!(target: "handshake_core", error = %err, "failed to install Ctrl-C handler");
+            // If the handler cannot be installed, never resolve on this arm.
+            std::future::pending::<()>().await;
+        }
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut sigterm) => {
+                sigterm.recv().await;
+            }
+            Err(err) => {
+                tracing::error!(target: "handshake_core", error = %err, "failed to install SIGTERM handler");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = terminate => {}
+    }
+
+    tracing::info!(target: "handshake_core", "shutdown signal received; beginning graceful shutdown");
 }
 
 fn backend_listen_addr() -> Result<SocketAddr, io::Error> {
@@ -414,130 +657,19 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
     Ok(Arc::new(recorder))
 }
 
-async fn init_llm_client(flight_recorder: Arc<dyn FlightRecorder>) -> Arc<dyn LlmClient> {
-    let registry = match ProviderRegistry::from_env() {
-        Ok(registry) => registry,
-        Err(err) => {
-            let reason = format!("LLM registry init failed: {err}");
-            tracing::warn!(
-                target: "handshake_core::llm",
-                error = %reason,
-                "LLM disabled (cannot load ProviderRegistry)"
-            );
-            return Arc::new(DisabledLlmClient::new("unknown".to_string(), reason));
-        }
-    };
-
-    let resolved = match registry.resolve(RuntimeRole::Orchestrator) {
-        Ok(resolved) => resolved,
-        Err(err) => {
-            let reason = format!("LLM provider resolution failed: {err}");
-            tracing::warn!(
-                target: "handshake_core::llm",
-                error = %reason,
-                "LLM disabled (cannot resolve provider)"
-            );
-            return Arc::new(DisabledLlmClient::new("unknown".to_string(), reason));
-        }
-    };
-
-    let client: Arc<dyn LlmClient> = match resolved.kind {
-        ProviderKind::Ollama => {
-            let detection_client = match reqwest::Client::builder()
-                .timeout(Duration::from_secs(2))
-                .build()
-            {
-                Ok(client) => client,
-                Err(err) => {
-                    let reason = format!("Ollama detection client init failed: {err}");
-                    tracing::warn!(
-                        target: "handshake_core::llm",
-                        error = %reason,
-                        base_url = %resolved.base_url,
-                        model = %resolved.model_id,
-                        "Ollama disabled (cannot build HTTP client)"
-                    );
-                    return Arc::new(DisabledLlmClient::new(resolved.model_id, reason));
-                }
-            };
-
-            let tags_url = format!("{}/api/tags", resolved.base_url);
-            match detection_client.get(&tags_url).send().await {
-                Ok(resp) if resp.status().is_success() => {
-                    tracing::info!(
-                        target: "handshake_core::llm",
-                        url = %resolved.base_url,
-                        model = %resolved.model_id,
-                        "Ollama available; enabling Ollama LLM adapter"
-                    );
-                    Arc::new(OllamaAdapter::new(
-                        resolved.base_url,
-                        resolved.model_id,
-                        8192,
-                        flight_recorder,
-                    ))
-                }
-                Ok(resp) => {
-                    let reason = format!(
-                        "Ollama detection failed: GET {tags_url} returned {}",
-                        resp.status()
-                    );
-                    tracing::warn!(
-                        target: "handshake_core::llm",
-                        error = %reason,
-                        url = %resolved.base_url,
-                        model = %resolved.model_id,
-                        "Ollama disabled (tags endpoint not healthy)"
-                    );
-                    Arc::new(DisabledLlmClient::new(resolved.model_id, reason))
-                }
-                Err(err) => {
-                    let reason = format!("Ollama detection failed: GET {tags_url} error: {err}");
-                    tracing::warn!(
-                        target: "handshake_core::llm",
-                        error = %reason,
-                        url = %resolved.base_url,
-                        model = %resolved.model_id,
-                        "Ollama disabled (tags endpoint unreachable)"
-                    );
-                    Arc::new(DisabledLlmClient::new(resolved.model_id, reason))
-                }
-            }
-        }
-        ProviderKind::OpenAiCompat => {
-            let api_key = resolved
-                .api_key_env
-                .as_deref()
-                .and_then(ApiKey::from_env)
-                .or_else(|| ApiKey::from_env("OPENAI_API_KEY"));
-
-            Arc::new(OpenAiCompatAdapter::new(
-                resolved.base_url,
-                resolved.model_id,
-                8192,
-                resolved.tier,
-                api_key,
-                flight_recorder,
-            ))
-        }
-    };
-
-    if client.profile().model_tier == ModelTier::Cloud {
-        match CloudEscalationGuard::from_env(client) {
-            Ok(guarded) => Arc::new(guarded),
-            Err(err) => {
-                let reason = format!("CloudEscalationGuard init failed: {err}");
-                tracing::warn!(
-                    target: "handshake_core::llm",
-                    error = %reason,
-                    "LLM disabled (cloud guard init failed)"
-                );
-                Arc::new(DisabledLlmClient::new("unknown".to_string(), reason))
-            }
-        }
-    } else {
-        client
-    }
+async fn init_llm_client(
+    flight_recorder: Arc<dyn FlightRecorder>,
+    ledger: Option<LedgerBatcher>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
+    runtime_instance: Option<handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor>,
+) -> Arc<dyn LlmClient> {
+    resolve_default_llm_client(
+        flight_recorder,
+        ledger,
+        model_registry_authority,
+        runtime_instance,
+    )
+    .await
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -599,4 +731,13 @@ mod tests {
         assert_eq!(response.db_status, "error");
         assert_eq!(response.migration_version, None);
     }
+}
+
+fn restart_resume_boot_timeout() -> Duration {
+    std::env::var("HANDSHAKE_RESTART_RESUME_BOOT_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|millis| *millis > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(RESTART_RESUME_BOOT_TIMEOUT_DEFAULT)
 }

@@ -12,8 +12,10 @@ use uuid::Uuid;
 
 use crate::kernel::action_catalog::kernel002_action_catalog;
 
+use super::model_lease::ModelLeaseRecord;
 use super::{
-    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, reject_legacy_runtime_ref, uuid_from_record_link, AtelierError,
+    AtelierResult, AtelierStore,
 };
 
 pub mod action_receipt_event_family {
@@ -57,6 +59,14 @@ pub struct NewActionReceipt {
     pub actor_kind: String,
     pub actor_id: String,
     pub session_id: String,
+    /// WP-CKC MT-022 model-operation lineage: the coordination thread the
+    /// receipt belongs to. Empty for legacy (non-model-operation) receipts;
+    /// required (non-empty token) when `lease_claim_id` is set.
+    pub thread_id: String,
+    /// WP-CKC MT-022: the `atelier_model_coordination_lease` claim this
+    /// receipt was produced under. When set, `actor_id`/`session_id`/`thread_id`
+    /// must equal the lease's.
+    pub lease_claim_id: Option<Uuid>,
     pub params: Value,
     pub started_at_utc: DateTime<Utc>,
     pub completed_at_utc: DateTime<Utc>,
@@ -76,6 +86,8 @@ pub struct ActionReceipt {
     pub actor_kind: String,
     pub actor_id: String,
     pub session_id: String,
+    pub thread_id: String,
+    pub lease_claim_id: Option<Uuid>,
     pub started_at_utc: DateTime<Utc>,
     pub completed_at_utc: DateTime<Utc>,
     pub status: ActionReceiptStatus,
@@ -96,6 +108,8 @@ struct ActionReceiptRow {
     actor_kind: String,
     actor_id: String,
     session_id: String,
+    thread_id: String,
+    lease_claim_id: Option<RecordId>,
     started_at_utc: Datetime,
     completed_at_utc: Datetime,
     status: String,
@@ -111,6 +125,11 @@ impl TryFrom<ActionReceiptRow> for ActionReceipt {
     type Error = AtelierError;
 
     fn try_from(row: ActionReceiptRow) -> AtelierResult<Self> {
+        let lease_claim_id = row
+            .lease_claim_id
+            .as_ref()
+            .map(|link| uuid_from_record_link("lease_claim_id", link))
+            .transpose()?;
         Ok(ActionReceipt {
             receipt_id: row.receipt_id.into(),
             action_id: row.action_id,
@@ -118,6 +137,8 @@ impl TryFrom<ActionReceiptRow> for ActionReceipt {
             actor_kind: row.actor_kind,
             actor_id: row.actor_id,
             session_id: row.session_id,
+            thread_id: row.thread_id,
+            lease_claim_id,
             started_at_utc: row.started_at_utc.into(),
             completed_at_utc: row.completed_at_utc.into(),
             status: ActionReceiptStatus::from_token(&row.status)?,
@@ -140,6 +161,8 @@ struct ActionReceiptBindings {
     actor_kind: String,
     actor_id: String,
     session_id: String,
+    thread_id: String,
+    lease_claim_id: Option<RecordId>,
     started_at_utc: Datetime,
     completed_at_utc: Datetime,
     status: String,
@@ -168,6 +191,8 @@ const RECORD_ACTION_RECEIPT_STATEMENT: &str = concat!(
          actor_kind: $domain.actor_kind, \
          actor_id: $domain.actor_id, \
          session_id: $domain.session_id, \
+         thread_id: $domain.thread_id, \
+         lease_claim_id: $domain.lease_claim_id, \
          started_at_utc: $domain.started_at_utc, \
          completed_at_utc: $domain.completed_at_utc, \
          status: $domain.status, \
@@ -181,6 +206,7 @@ const RECORD_ACTION_RECEIPT_STATEMENT: &str = concat!(
 
 const GET_ACTION_RECEIPT_STATEMENT: &str =
     "SELECT receipt_id, action_id, params_sha256, actor_kind, actor_id, session_id, \
+            thread_id, lease_claim_id, \
             started_at_utc, completed_at_utc, status, target_refs, evidence_refs, \
             result_refs, error_class, recovery_hint, created_at_utc \
      FROM atelier_action_receipt WHERE receipt_id = $receipt_id LIMIT 1;";
@@ -191,6 +217,10 @@ impl AtelierStore {
         input: &NewActionReceipt,
     ) -> AtelierResult<ActionReceipt> {
         validate_action_receipt(input)?;
+        if let Some(lease_claim_id) = input.lease_claim_id {
+            let lease = self.get_model_lease(lease_claim_id).await?;
+            validate_action_receipt_lease_lineage(input, &lease)?;
+        }
         let params_sha256 = params_sha256(&input.params)?;
         let receipt_id = Uuid::now_v7();
 
@@ -202,6 +232,13 @@ impl AtelierStore {
             actor_kind: input.actor_kind.clone(),
             actor_id: input.actor_id.clone(),
             session_id: input.session_id.clone(),
+            thread_id: input.thread_id.clone(),
+            lease_claim_id: input.lease_claim_id.map(|claim_id| {
+                RecordId::new(
+                    "atelier_model_coordination_lease",
+                    SurrealUuid::from(claim_id),
+                )
+            }),
             started_at_utc: Datetime::from(input.started_at_utc),
             completed_at_utc: Datetime::from(input.completed_at_utc),
             status: input.status.as_token().to_owned(),
@@ -225,6 +262,8 @@ impl AtelierStore {
                     "actor_kind": input.actor_kind,
                     "actor_id": input.actor_id,
                     "session_id": input.session_id,
+                    "thread_id": input.thread_id,
+                    "lease_claim_id": input.lease_claim_id,
                     "started_at_utc": input.started_at_utc,
                     "completed_at_utc": input.completed_at_utc,
                     "status": input.status.as_token(),
@@ -265,11 +304,59 @@ impl AtelierStore {
     }
 }
 
+/// A receipt that cites a model-operation lease must be attributable to that
+/// lease: actor, session, and thread must all agree, otherwise a model could
+/// launder work done under someone else's claim into its own receipt.
+fn validate_action_receipt_lease_lineage(
+    input: &NewActionReceipt,
+    lease: &ModelLeaseRecord,
+) -> AtelierResult<()> {
+    let mismatches = [
+        ("actor_id", input.actor_id.as_str(), lease.actor_id.as_str()),
+        (
+            "session_id",
+            input.session_id.as_str(),
+            lease.session_id.as_str(),
+        ),
+        (
+            "thread_id",
+            input.thread_id.as_str(),
+            lease.thread_id.as_str(),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(field, receipt, lease)| {
+        if receipt == lease {
+            None
+        } else {
+            Some(format!("{field} receipt={receipt} lease={lease}"))
+        }
+    })
+    .collect::<Vec<_>>();
+
+    if mismatches.is_empty() {
+        Ok(())
+    } else {
+        Err(AtelierError::Validation(format!(
+            "action receipt lease lineage mismatch for claim {}: {}",
+            lease.claim_id,
+            mismatches.join(", ")
+        )))
+    }
+}
+
 fn validate_action_receipt(input: &NewActionReceipt) -> AtelierResult<()> {
     validate_token("action_id", &input.action_id)?;
     validate_token("actor_kind", &input.actor_kind)?;
     validate_token("actor_id", &input.actor_id)?;
     validate_token("session_id", &input.session_id)?;
+    if input.lease_claim_id.is_some() {
+        validate_token("thread_id", &input.thread_id)?;
+    } else if input.thread_id.trim() != input.thread_id {
+        return Err(AtelierError::Validation(
+            "thread_id must not be padded".into(),
+        ));
+    }
     if input.completed_at_utc < input.started_at_utc {
         return Err(AtelierError::Validation(
             "completed_at_utc must be >= started_at_utc".into(),

@@ -8,12 +8,14 @@ use async_trait::async_trait;
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::model_runtime::WarmAgentTransport;
 use crate::process_ledger::{
     cap_metadata_jsonb, LedgerBatcher, ProcessEngineKind, ProcessStart, ProcessStop,
 };
 
 use super::{
-    AdapterCapabilities, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec,
+    AdapterCapabilities, AttachedNetworkMode, AttachedProcessSpec, AttachedSandboxProcess,
+    AttachedStdioContract, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec,
     ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef,
 };
 
@@ -157,6 +159,28 @@ impl SandboxAdapter for LedgerDecorator {
         Ok(handle)
     }
 
+    async fn spawn_attached(
+        &self,
+        spec: AttachedProcessSpec,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+        self.inner.spawn_attached(spec).await
+    }
+
+    async fn spawn_attached_with_stdio(
+        &self,
+        spec: AttachedProcessSpec,
+        stdio: AttachedStdioContract,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+        self.inner.spawn_attached_with_stdio(spec, stdio).await
+    }
+
+    fn validate_attached_network_mode(
+        &self,
+        mode: AttachedNetworkMode,
+    ) -> Result<(), SandboxAdapterError> {
+        self.inner.validate_attached_network_mode(mode)
+    }
+
     async fn exec(
         &self,
         handle: &ProcessHandle,
@@ -269,6 +293,13 @@ impl SandboxAdapter for LedgerDecorator {
 
     async fn delete_snapshot(&self, snapshot: &SnapshotRef) -> Result<(), SandboxAdapterError> {
         self.inner.delete_snapshot(snapshot).await
+    }
+
+    async fn warm_agent_transport(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<Arc<dyn WarmAgentTransport>, SandboxAdapterError> {
+        self.inner.warm_agent_transport(handle).await
     }
 
     fn capabilities(&self) -> AdapterCapabilities {

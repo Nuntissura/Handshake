@@ -29,6 +29,10 @@ use std::fmt;
 /// configured (the "refuse a partial start" invariant is enforced at construction, not later).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PalmistryConfig {
+    /// Optional private-seed bootstrap for the current owned child; never a native HMAC key.
+    pub signing_process_instance: Option<uuid::Uuid>,
+    /// Explicit wire choice; ordinary invocations retain v1. This is not authenticated admission.
+    pub ring_format: RingFormat,
     /// OS process id of the Handshake parent this watcher guards.
     pub parent_pid: u32,
     /// Diagnostic session id (used in logs + to correlate with the ring's session-scoped name).
@@ -38,6 +42,16 @@ pub struct PalmistryConfig {
     /// Local-socket name for the control channel (Shutdown/Ping/...).
     pub control_socket: String,
 }
+
+/// Explicit wire choice. V2 always carries the caller's immutable expected nonce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RingFormat {
+    V1,
+    V2 { expected_nonce: [u8; 16] },
+}
+
+pub const ENV_RING_VERSION: &str = "HANDSHAKE_RING_VERSION";
+pub const ENV_RING_NONCE: &str = "HANDSHAKE_RING_NONCE";
 
 /// Env var names (the primary input channel for a spawned sibling).
 pub const ENV_PARENT_PID: &str = "HANDSHAKE_PARENT_PID";
@@ -49,24 +63,45 @@ pub const ENV_CONTROL_SOCK: &str = "HANDSHAKE_CONTROL_SOCK";
 /// names exactly what was missing/invalid (AC-009-2: a clear error, not a silent half-start).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CliError {
+    BadSigningIdentity,
+    BadRingVersion,
+    BadRingNonce,
+    NonceWithV1,
     /// A required input was absent from both the CLI args and the environment.
     Missing {
         field: &'static str,
         env: &'static str,
     },
     /// A required input was present but empty / whitespace-only.
-    Empty { field: &'static str },
+    Empty {
+        field: &'static str,
+    },
     /// The parent PID was present but did not parse as a non-zero u32.
-    BadPid { value: String },
+    BadPid {
+        value: String,
+    },
     /// A CLI flag was given without a following value.
-    DanglingFlag { flag: String },
+    DanglingFlag {
+        flag: String,
+    },
     /// An unrecognized CLI argument was supplied.
-    UnknownArg { arg: String },
+    UnknownArg {
+        arg: String,
+    },
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            CliError::BadSigningIdentity => write!(
+                f,
+                "signing bootstrap requires v2 and non-nil original session/process UUIDs"
+            ),
+            CliError::BadRingVersion => write!(f, "ring version must be explicitly 1 or 2"),
+            CliError::BadRingNonce => {
+                write!(f, "v2 requires an exact nonzero 16-byte hexadecimal nonce")
+            }
+            CliError::NonceWithV1 => write!(f, "ring nonce is invalid with v1"),
             CliError::Missing { field, env } => write!(
                 f,
                 "missing required input '{field}' (set env {env} or pass the matching --flag); \
@@ -91,6 +126,9 @@ impl std::error::Error for CliError {}
 /// Raw, possibly-partial inputs gathered from CLI flags before the environment fallback + validation.
 #[derive(Default)]
 struct RawInputs {
+    signing_process_instance: Option<String>,
+    ring_version: Option<String>,
+    ring_nonce: Option<String>,
     parent_pid: Option<String>,
     session_id: Option<String>,
     ring_path: Option<String>,
@@ -122,6 +160,18 @@ impl PalmistryConfig {
                     .ok_or_else(|| CliError::DanglingFlag { flag: arg.clone() })
             };
             match arg.as_str() {
+                "--signing-process-instance" => {
+                    raw.signing_process_instance = Some(next(i)?);
+                    i += 2;
+                }
+                "--ring-version" => {
+                    raw.ring_version = Some(next(i)?);
+                    i += 2;
+                }
+                "--ring-nonce" => {
+                    raw.ring_nonce = Some(next(i)?);
+                    i += 2;
+                }
                 "--parent-pid" => {
                     raw.parent_pid = Some(next(i)?);
                     i += 2;
@@ -150,6 +200,28 @@ impl PalmistryConfig {
         let resolve = |cli: Option<String>, env_key: &'static str| -> Option<String> {
             cli.or_else(|| env(env_key))
         };
+        let version = resolve(raw.ring_version, ENV_RING_VERSION).unwrap_or_else(|| "1".into());
+        let nonce = resolve(raw.ring_nonce, ENV_RING_NONCE);
+        let ring_format = match version.as_str() {
+            "1" if nonce.is_none() => RingFormat::V1,
+            "1" => return Err(CliError::NonceWithV1),
+            "2" => {
+                let text = nonce.ok_or(CliError::BadRingNonce)?;
+                if text.len() != 32 || !text.bytes().all(|b| b.is_ascii_hexdigit()) {
+                    return Err(CliError::BadRingNonce);
+                }
+                let mut expected_nonce = [0; 16];
+                for (i, value) in expected_nonce.iter_mut().enumerate() {
+                    *value = u8::from_str_radix(&text[i * 2..i * 2 + 2], 16)
+                        .map_err(|_| CliError::BadRingNonce)?;
+                }
+                if expected_nonce == [0; 16] {
+                    return Err(CliError::BadRingNonce);
+                }
+                RingFormat::V2 { expected_nonce }
+            }
+            _ => return Err(CliError::BadRingVersion),
+        };
         let parent_pid_raw = resolve(raw.parent_pid, ENV_PARENT_PID);
         let session_id_raw = resolve(raw.session_id, ENV_SESSION_ID);
         let ring_path_raw = resolve(raw.ring_path, ENV_RING_PATH);
@@ -170,7 +242,25 @@ impl PalmistryConfig {
                 value: parent_pid_str.clone(),
             })?;
 
+        let signing_process_instance = raw
+            .signing_process_instance
+            .map(|text| {
+                let process =
+                    uuid::Uuid::parse_str(&text).map_err(|_| CliError::BadSigningIdentity)?;
+                let session =
+                    uuid::Uuid::parse_str(&session_id).map_err(|_| CliError::BadSigningIdentity)?;
+                if process.is_nil()
+                    || session.is_nil()
+                    || !matches!(ring_format, RingFormat::V2 { .. })
+                {
+                    return Err(CliError::BadSigningIdentity);
+                }
+                Ok(process)
+            })
+            .transpose()?;
         Ok(Self {
+            signing_process_instance,
+            ring_format,
             parent_pid,
             session_id,
             ring_path,
@@ -197,6 +287,48 @@ mod tests {
     use super::*;
 
     /// An env lookup that always returns None (forces the CLI-only / missing paths).
+    #[test]
+    fn signed_mode_preserves_default_and_requires_original_v2_identity() {
+        assert_eq!(
+            PalmistryConfig::parse(&full_args(), |_| None)
+                .unwrap()
+                .signing_process_instance,
+            None
+        );
+        let mut args = full_args();
+        args.extend([
+            "--signing-process-instance".into(),
+            uuid::Uuid::from_u128(2).to_string(),
+        ]);
+        assert_eq!(
+            PalmistryConfig::parse(&args, |_| None),
+            Err(CliError::BadSigningIdentity)
+        );
+        args[3] = uuid::Uuid::from_u128(1).to_string();
+        args.extend([
+            "--ring-version".into(),
+            "2".into(),
+            "--ring-nonce".into(),
+            "55555555555555555555555555555555".into(),
+        ]);
+        assert_eq!(
+            PalmistryConfig::parse(&args, |_| None)
+                .unwrap()
+                .signing_process_instance,
+            Some(uuid::Uuid::from_u128(2))
+        );
+        let index = args
+            .iter()
+            .position(|arg| arg == "--signing-process-instance")
+            .unwrap()
+            + 1;
+        args[index] = uuid::Uuid::nil().to_string();
+        assert_eq!(
+            PalmistryConfig::parse(&args, |_| None),
+            Err(CliError::BadSigningIdentity)
+        );
+    }
+
     fn no_env(_: &str) -> Option<String> {
         None
     }
@@ -369,6 +501,92 @@ mod tests {
             err,
             CliError::UnknownArg {
                 arg: "--bogus".into()
+            }
+        );
+    }
+}
+
+#[cfg(test)]
+mod wire_format_tests {
+    use super::*;
+    fn args(extra: &[&str]) -> Vec<String> {
+        [
+            "--parent-pid",
+            "42",
+            "--session-id",
+            "original",
+            "--ring-path",
+            "/tmp/original.ring",
+            "--control-socket",
+            "original-control",
+        ]
+        .into_iter()
+        .chain(extra.iter().copied())
+        .map(str::to_string)
+        .collect()
+    }
+    #[test]
+    fn explicit_v2_nonce_is_required_without_downgrade() {
+        assert_eq!(
+            PalmistryConfig::parse(&args(&[]), |_| None)
+                .unwrap()
+                .ring_format,
+            RingFormat::V1
+        );
+        let config = PalmistryConfig::parse(
+            &args(&[
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                "55555555555555555555555555555555",
+            ]),
+            |_| None,
+        )
+        .unwrap();
+        assert_eq!(
+            config.ring_format,
+            RingFormat::V2 {
+                expected_nonce: [0x55; 16]
+            }
+        );
+        for extra in [
+            vec!["--ring-version", "3"],
+            vec!["--ring-version", "2"],
+            vec![
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                "00000000000000000000000000000000",
+            ],
+            vec![
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                "zz555555555555555555555555555555",
+            ],
+            vec!["--ring-version", "2", "--ring-nonce", "55"],
+            vec!["--ring-nonce", "55555555555555555555555555555555"],
+        ] {
+            assert!(PalmistryConfig::parse(&args(&extra), |_| None).is_err());
+        }
+        let config = PalmistryConfig::parse(
+            &args(&[
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                "55555555555555555555555555555555",
+            ]),
+            |key| match key {
+                ENV_RING_VERSION => Some("9".into()),
+                ENV_RING_NONCE => Some("bad".into()),
+                _ => None,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            config.ring_format,
+            RingFormat::V2 {
+                expected_nonce: [0x55; 16]
             }
         );
     }

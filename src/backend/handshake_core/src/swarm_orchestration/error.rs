@@ -24,6 +24,7 @@ pub enum SwarmErrorClass {
     BreakerOpen,
     UnknownInstance,
     DuplicateInstance,
+    CheckoutLeaseUnavailable,
     InvalidStateTransition,
     FactoryFailed,
     ProviderNotConfigured,
@@ -43,6 +44,7 @@ impl SwarmErrorClass {
             Self::BreakerOpen => "breaker_open",
             Self::UnknownInstance => "unknown_instance",
             Self::DuplicateInstance => "duplicate_instance",
+            Self::CheckoutLeaseUnavailable => "checkout_lease_unavailable",
             Self::InvalidStateTransition => "invalid_state_transition",
             Self::FactoryFailed => "factory_failed",
             Self::ProviderNotConfigured => "provider_not_configured",
@@ -88,6 +90,12 @@ pub enum SwarmError {
 
     #[error("SWARM_DUPLICATE_INSTANCE: {0}")]
     DuplicateInstance(ModelInstanceId),
+
+    #[error("SWARM_CHECKOUT_LEASE_CONFLICT: {key_kind}={key}")]
+    CheckoutLeaseConflict { key_kind: String, key: String },
+
+    #[error("SWARM_CHECKOUT_LEASE_FAILED: {0}")]
+    CheckoutLeaseFailed(String),
 
     #[error("SWARM_INVALID_STATE_TRANSITION: {from:?} -> {to:?}")]
     InvalidStateTransition {
@@ -136,6 +144,9 @@ impl SwarmError {
             Self::BreakerOpen { .. } => SwarmErrorClass::BreakerOpen,
             Self::UnknownInstance(_) => SwarmErrorClass::UnknownInstance,
             Self::DuplicateInstance(_) => SwarmErrorClass::DuplicateInstance,
+            Self::CheckoutLeaseConflict { .. } | Self::CheckoutLeaseFailed(_) => {
+                SwarmErrorClass::CheckoutLeaseUnavailable
+            }
             Self::InvalidStateTransition { .. } => SwarmErrorClass::InvalidStateTransition,
             Self::FactoryFailed(_) => SwarmErrorClass::FactoryFailed,
             Self::ProviderNotConfigured { .. } => SwarmErrorClass::ProviderNotConfigured,
@@ -153,6 +164,7 @@ impl SwarmError {
     pub fn detail(&self) -> &str {
         match self {
             Self::FactoryFailed(m)
+            | Self::CheckoutLeaseFailed(m)
             | Self::ReclaimFailed(m)
             | Self::LedgerFailed(m)
             | Self::EventSinkFailed(m)
@@ -173,6 +185,7 @@ impl SwarmError {
                 | Self::LifetimeSpawnCeilingReached { .. }
                 | Self::BudgetExhausted { .. }
                 | Self::BreakerOpen { .. }
+                | Self::CheckoutLeaseConflict { .. }
         )
     }
 }

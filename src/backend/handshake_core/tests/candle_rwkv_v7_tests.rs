@@ -364,6 +364,8 @@ fn declared_caps() -> ModelCapabilities {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: true,
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 

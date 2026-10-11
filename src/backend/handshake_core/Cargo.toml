@@ -158,9 +158,18 @@ name = "focus-audit-probe"
 path = "src/bin/focus-audit-probe.rs"
 test = false
 
+[[bin]]
+name = "cwd-probe"
+path = "src/bin/cwd-probe.rs"
+test = false
+
 [dependencies]
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }
+# MT171 exact shared reader edge: explicit existing-watcher v2 validation; no native runtime owner.
+handshake-diag-ring = { path = "../../frontend/handshake_native/diag_ring" }
+# MT171 bounded current-owned watcher control exchange; no second process owner.
+interprocess = "2"
 argon2 = "=0.5.3"
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
@@ -168,7 +177,7 @@ serde_json = "1"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
 dirs = "5"
 dunce = "=1.0.5"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util", "signal"] }
 # MT-142: awaitable `CancellationToken` for the embedded SurrealDB retry loop
 # (storage/surreal/retry.rs). Already pinned transitively at 0.7.19 in
 # Cargo.lock; declared directly so product code can name it. tokio-util 0.7 has
@@ -188,6 +197,11 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 eventsource-stream = "0.2"
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 secrecy = { version = "0.10", features = ["serde"] }
+zeroize = "1"
+fs2 = "0.4"
+yrs = "0.26.0"
+ed25519-dalek = "3.0.0"
+curve25519-dalek = "5.0.0"
 tokio-tungstenite = "0.26"
 futures = "0.3"
 futures-util = "0.3"
@@ -223,8 +237,11 @@ idna = "1"
 caseless = "0.2"
 bytes = { version = "1", features = ["serde"] }
 globset = "0.4"
+# WP-CKC-posekit-overhaul Facial native lane: optional ONNX inference for facial identity /
+# quality plugins (feature `facial-onnx-runtime`); absent by default so the kernel build stays lean.
+tract-onnx = { version = "0.21", optional = true }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-tree-sitter = "0.24"
+tree-sitter = "0.25"
 tree-sitter-rust = "0.23"
 tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
@@ -234,6 +251,9 @@ llama-cpp-sys-2 = { version = "0.1.146", default-features = false, optional = tr
 candle-core = { version = "0.10.2", optional = true }
 candle-nn = { version = "0.10.2", optional = true }
 candle-transformers = { version = "0.10.2", optional = true }
+memmap2 = { version = "0.9", optional = true }
+tempfile = { version = "3", optional = true }
+libc = { version = "0.2", optional = true }
 tiktoken-rs = { version = "0.5", optional = true }
 # Disable the esaxx default feature to avoid static CRT conflicts on Windows.
 tokenizers = { version = "0.23.1", optional = true, default-features = false, features = ["onig", "progressbar"] }
@@ -257,6 +277,8 @@ tokio-cron-scheduler = "0.15.1"
 portable-pty = "0.9.0"
 
 [dev-dependencies]
+libc = "0.2"
+tower = { version = "0.5", features = ["util"] }
 handshake_storage_support = { path = "../handshake_storage_support", features = ["surreal-test-support"] }
 tempfile = "3"
 static_assertions = "1"
@@ -269,19 +291,26 @@ surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-mem"
 rappct = { version = "0.13.3", default-features = false }
 wineventhook = "0.11.0"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
-default = ["runtime-full", "os-keychain"]
+default = ["runtime-full", "os-keychain", "local-inference-default"]
 kernel-runtime = []
 runtime-full = ["kernel-runtime", "tokenization"]
 os-keychain = ["dep:keyring"]
 kernel-proof = ["runtime-full"]
 inspector = []
 swarm_ipc = []
-candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
-llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2"]
+local-inference-default = ["candle-runtime-engine"]
+candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:libc", "dep:memmap2", "dep:tempfile", "dep:tokenizers"]
+llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2", "dep:tempfile", "dep:libc"]
+candle-cuda = ["candle-runtime-engine", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+candle-metal = ["candle-runtime-engine", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+llama-cpp-cuda = ["llama-cpp-runtime-engine", "llama-cpp-2/cuda"]
+llama-cpp-metal = ["llama-cpp-runtime-engine", "llama-cpp-2/metal"]
+llama-cpp-vulkan = ["llama-cpp-runtime-engine", "llama-cpp-2/vulkan"]
 model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
+facial-onnx-runtime = ["dep:tract-onnx"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
@@ -799,4 +828,19 @@ required-features = ["surreal-test-support", "test-utils"]
 [[test]]
 name = "atelier_core_data_tests"
 path = "tests/atelier_core_data_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "atelier_media_bytes_api_tests"
+path = "tests/atelier_media_bytes_api_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "loom_artifact_migration_tests"
+path = "tests/loom_artifact_migration_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "loom_media_tiers_tests"
+path = "tests/loom_media_tiers_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]

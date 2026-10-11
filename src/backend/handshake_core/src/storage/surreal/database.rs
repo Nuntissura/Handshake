@@ -744,6 +744,71 @@ impl Database for SurrealDatabase {
             .map_err(StorageError::from)?
     }
 
+    async fn get_loom_artifact_binding(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<Option<LoomArtifactBinding>> {
+        let workspace_id = workspace_id.to_owned();
+        let asset_id = asset_id.to_owned();
+        self.storage
+            .with_storage_operation(move |database| {
+                Box::pin(async move {
+                    super::loom_store::get_loom_artifact_binding(
+                        &database,
+                        &workspace_id,
+                        &asset_id,
+                    )
+                    .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?
+    }
+
+    async fn reserve_loom_artifact_binding(
+        &self,
+        ctx: &WriteContext,
+        expected: &Asset,
+        retention_ttl_days: Option<u32>,
+    ) -> StorageResult<LoomArtifactBinding> {
+        let metadata = self.mutation_metadata(ctx, &expected.asset_id).await?;
+        let expected = expected.clone();
+        self.storage
+            .with_storage_operation(move |database| {
+                Box::pin(async move {
+                    super::loom_store::reserve_loom_artifact_binding(
+                        &database,
+                        &expected,
+                        retention_ttl_days,
+                        metadata,
+                    )
+                    .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?
+    }
+
+    async fn publish_loom_artifact_binding(
+        &self,
+        ctx: &WriteContext,
+        verified: VerifiedLoomArtifact,
+    ) -> StorageResult<LoomArtifactBinding> {
+        let metadata = self
+            .mutation_metadata(ctx, &verified.asset.asset_id)
+            .await?;
+        self.storage
+            .with_storage_operation(move |database| {
+                Box::pin(async move {
+                    super::loom_store::publish_loom_artifact_binding(&database, verified, metadata)
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?
+    }
+
     async fn get_asset(&self, workspace_id: &str, asset_id: &str) -> StorageResult<Asset> {
         let workspace_id = workspace_id.to_owned();
         let asset_id = asset_id.to_owned();
@@ -2991,7 +3056,7 @@ impl Database for SurrealDatabase {
     }
 
     async fn run_migrations(&self) -> StorageResult<()> {
-        super::bootstrap_schema(&self.storage)
+        super::bootstrap_production_schemas(&self.storage)
             .await
             .map(|_| ())
             .map_err(|error| StorageError::Migration(error.to_string()))
@@ -3182,7 +3247,7 @@ mod not_implemented_surface {
         let trait_methods = method_names(trait_source);
         assert_eq!(
             trait_methods.len(),
-            201,
+            204,
             "Database method count changed; re-audit the exact Surreal override surface"
         );
 
@@ -3197,7 +3262,7 @@ mod not_implemented_surface {
         let implemented = method_names(&module_impl_source[impl_start..impl_end]);
         assert_eq!(
             implemented.len(),
-            199,
+            202,
             "the exact `impl Database for SurrealDatabase` override count changed"
         );
 

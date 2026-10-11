@@ -222,6 +222,8 @@ pub enum KernelEventType {
     ContextBundleRecorded,
     ModelAdapterInvoked,
     ModelResponseRecorded,
+    ModelRuntimeSelectionRecorded,
+    ModelRuntimeSelectionRebound,
     ToolRequestRecorded,
     ToolDecisionRecorded,
     ToolResultRecorded,
@@ -309,6 +311,8 @@ pub enum KernelEventType {
     // every set/reset/import/migration of a PreferenceRecord appends this EventLedger receipt,
     // which is also the Flight-Recorder-backed durable change evidence (SET-EVT-003).
     PreferenceRecordChanged,
+    /// Parallel-swarm session checkpoint receipt (WP-1 state recovery).
+    SessionCheckpointed,
 }
 
 impl KernelEventType {
@@ -331,6 +335,8 @@ impl KernelEventType {
             Self::ContextBundleRecorded => "CONTEXT_BUNDLE_RECORDED",
             Self::ModelAdapterInvoked => "MODEL_ADAPTER_INVOKED",
             Self::ModelResponseRecorded => "MODEL_RESPONSE_RECORDED",
+            Self::ModelRuntimeSelectionRecorded => "MODEL_RUNTIME_SELECTION_RECORDED",
+            Self::ModelRuntimeSelectionRebound => "MODEL_RUNTIME_SELECTION_REBOUND",
             Self::ToolRequestRecorded => "TOOL_REQUEST_RECORDED",
             Self::ToolDecisionRecorded => "TOOL_DECISION_RECORDED",
             Self::ToolResultRecorded => "TOOL_RESULT_RECORDED",
@@ -404,6 +410,7 @@ impl KernelEventType {
             Self::KnowledgeLoomBlockMutated => "KNOWLEDGE_LOOM_BLOCK_MUTATED",
             Self::KnowledgeLoomWikiMutated => "KNOWLEDGE_LOOM_WIKI_MUTATED",
             Self::PreferenceRecordChanged => "PREFERENCE_RECORD_CHANGED",
+            Self::SessionCheckpointed => "SESSION_CHECKPOINTED",
         }
     }
 
@@ -426,6 +433,8 @@ impl KernelEventType {
             KernelEventType::ContextBundleRecorded,
             KernelEventType::ModelAdapterInvoked,
             KernelEventType::ModelResponseRecorded,
+            KernelEventType::ModelRuntimeSelectionRecorded,
+            KernelEventType::ModelRuntimeSelectionRebound,
             KernelEventType::ToolRequestRecorded,
             KernelEventType::ToolDecisionRecorded,
             KernelEventType::ToolResultRecorded,
@@ -487,7 +496,14 @@ impl KernelEventType {
             KernelEventType::KnowledgeLoomBlockMutated,
             KernelEventType::KnowledgeLoomWikiMutated,
             KernelEventType::PreferenceRecordChanged,
+            KernelEventType::SessionCheckpointed,
         ]
+    }
+}
+
+impl std::fmt::Display for KernelEventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

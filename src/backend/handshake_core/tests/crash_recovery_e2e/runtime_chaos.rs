@@ -11,13 +11,12 @@ use handshake_core::{
     flight_recorder::fr_event_registry::FrEventId,
     kernel::{KernelActor, KernelEventType, NewKernelEvent},
     process_ledger::restart_resume::{
-        RestartOrphanReclaimer, RestartResumeDbBackoffPolicy, RestartResumeRuntimeError,
-        SurrealRestartResumeRunner,
+        RestartOrphanReclaimer, RestartReclaimStore, RestartResumeDbBackoffPolicy,
+        RestartResumeRuntimeError, StartupProcessCleanup, SurrealRestartResumeRunner,
     },
     session_checkpoint::ResumeReport,
     storage::surreal::{
-        bootstrap_schema, RowFilter, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
-        SurrealStorageError,
+        bootstrap_schema, RowFilter, SurrealStorage, SurrealStorageConfig, SurrealStorageError,
     },
     storage::Database,
 };
@@ -64,7 +63,200 @@ const MT141_RUNTIME_CHAOS_NON_TEST_DISPOSITIONS: &[(&str, &str, &str)] = &[
     ),
 ];
 
-struct NoopOrphanReclaimer;
+// This fixture adapter observes only the child this test killed and awaited. It never kills a PID.
+struct OwnedReapedChildCleanup {
+    storage: SurrealStorage,
+    original_scope: handshake_core::process_ledger::ReclaimResourceScope,
+    ready: Option<crate::runtime_child::ChildReadyEvidence>,
+    reaped_failed: bool,
+}
+
+impl OwnedReapedChildCleanup {
+    fn from_killed_child(
+        storage: SurrealStorage,
+        original_scope: handshake_core::process_ledger::ReclaimResourceScope,
+        killed: &crate::runtime_child::KilledChildEvidence,
+    ) -> Self {
+        assert_eq!(
+            original_scope,
+            handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+                &killed.ready.original_scope
+            )
+        );
+        Self {
+            storage,
+            original_scope,
+            ready: Some(killed.ready.clone()),
+            reaped_failed: !killed.exit_status.success(),
+        }
+    }
+
+    fn no_owned_child(
+        storage: SurrealStorage,
+        original_scope: handshake_core::process_ledger::ReclaimResourceScope,
+    ) -> Self {
+        Self {
+            storage,
+            original_scope,
+            ready: None,
+            reaped_failed: false,
+        }
+    }
+
+    fn matches_reaped_identity(
+        &self,
+        process: &handshake_core::process_ledger::ReclaimableProcess,
+    ) -> bool {
+        self.reaped_failed
+            && self.ready.as_ref().is_some_and(|ready| {
+                process.process_uuid == ready.process_uuid
+                    && process.os_pid == Some(ready.os_pid)
+                    && ready.os_pid != 0
+                    && process.parent_session_id == format!("SR-{}", ready.session_id)
+                    && process.engine_kind
+                        == handshake_core::process_ledger::ProcessEngineKind::HelperSubprocess
+            })
+    }
+}
+
+#[derive(SurrealValue)]
+struct OwnedChildOriginRow {
+    process_uuid: uuid::Uuid,
+    os_pid: Option<i64>,
+    parent_session_id: Option<String>,
+    owner_account_id: Option<String>,
+    actor_principal_id: Option<String>,
+    authenticated_session_id: Option<String>,
+    access_space_id: Option<String>,
+    workspace_id: Option<String>,
+}
+
+#[async_trait]
+impl handshake_core::process_ledger::restart_resume::StartupProcessCleanup
+    for OwnedReapedChildCleanup
+{
+    async fn cleanup(
+        &self,
+        process: &handshake_core::process_ledger::ReclaimableProcess,
+    ) -> Result<(), String> {
+        if !self.matches_reaped_identity(process) {
+            return Err("child cleanup lacks exact owned kill-and-wait evidence".into());
+        }
+        let record_id = process.process_uuid.to_string();
+        let row = self
+            .storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .select_one::<OwnedChildOriginRow>("kernel_process_lifecycle", &record_id)
+                        .await
+                })
+            })
+            .await
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "owned child canonical process row missing".to_owned())?;
+        let scope = &self.original_scope;
+        if row.process_uuid != process.process_uuid
+            || row.os_pid != process.os_pid.map(i64::from)
+            || row.parent_session_id.as_deref() != Some(process.parent_session_id.as_str())
+            || row.owner_account_id != Some(scope.account_uuid.to_string())
+            || row.actor_principal_id != Some(scope.actor_uuid.to_string())
+            || row.authenticated_session_id != Some(scope.session_uuid.to_string())
+            || row.access_space_id != Some(scope.access_space_uuid.to_string())
+            || row.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+        {
+            return Err("owned child canonical identity or original scope mismatch".into());
+        }
+        Ok(())
+    }
+}
+
+fn owned_reclaimer(
+    storage: SurrealStorage,
+    killed: &crate::runtime_child::KilledChildEvidence,
+) -> Arc<dyn RestartOrphanReclaimer> {
+    let scope = handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+        &killed.ready.original_scope,
+    );
+    Arc::new(
+        handshake_core::process_ledger::restart_resume::SurrealRestartOrphanReclaimer::new(
+            Arc::new(ObservedReclaimStore {
+                inner: handshake_core::process_ledger::SurrealProcessLedgerStore::new(
+                    storage.clone(),
+                ),
+                storage: storage.clone(),
+            }),
+            Arc::new(OwnedReapedChildCleanup::from_killed_child(
+                storage, scope, killed,
+            )),
+        ),
+    )
+}
+
+struct ObservedReclaimStore {
+    inner: handshake_core::process_ledger::SurrealProcessLedgerStore,
+    storage: SurrealStorage,
+}
+
+#[async_trait]
+impl RestartReclaimStore for ObservedReclaimStore {
+    async fn claim_active(
+        &self,
+        session: &str,
+    ) -> Result<
+        Vec<handshake_core::process_ledger::ReclaimableProcess>,
+        handshake_core::process_ledger::ProcessLedgerError,
+    > {
+        self.inner.claim_active(session).await
+    }
+    async fn mark_cleanup_completed(
+        &self,
+        process: &handshake_core::process_ledger::ReclaimableProcess,
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        self.inner.mark_cleanup_completed(process).await?;
+        let row: ProcessProofRow = select_one(
+            &self.storage,
+            "kernel_process_lifecycle",
+            process.process_uuid.to_string(),
+        )
+        .await
+        .expect("canonical cleanup marker row");
+        assert_eq!(row.stopped_at, Some(process.reclaim_claimed_at));
+        assert_eq!(
+            row.stop_reason.as_deref(),
+            Some(process.reclaim_expected_killed_reason.as_str())
+        );
+        Ok(())
+    }
+    async fn write_reclaim_stop(
+        &self,
+        process: &handshake_core::process_ledger::ReclaimableProcess,
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        self.inner.write_reclaim_stop(process).await?;
+        let row: ProcessProofRow = select_one(
+            &self.storage,
+            "kernel_process_lifecycle",
+            process.process_uuid.to_string(),
+        )
+        .await
+        .expect("canonical terminal STOP row");
+        assert!(row.stopped_at.is_some());
+        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
+        assert_eq!(row.exit_code, Some(-1));
+        Ok(())
+    }
+    async fn abandon(
+        &self,
+        processes: &[handshake_core::process_ledger::ReclaimableProcess],
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        self.inner.abandon(processes).await
+    }
+}
+
+struct DeferredOwnedReclaimer {
+    retained: Arc<Mutex<Option<SurrealStorage>>>,
+    killed: crate::runtime_child::KilledChildEvidence,
+}
 
 #[derive(SurrealValue)]
 struct CheckpointProofRow {
@@ -77,6 +269,8 @@ struct CheckpointProofRow {
 struct ProcessProofRow {
     process_uuid: uuid::Uuid,
     stopped_at: Option<chrono::DateTime<chrono::Utc>>,
+    stop_reason: Option<String>,
+    exit_code: Option<i64>,
 }
 
 #[derive(SurrealValue)]
@@ -107,12 +301,25 @@ async fn select_one<R: SurrealValue + Send + 'static>(
 }
 
 #[async_trait]
-impl RestartOrphanReclaimer for NoopOrphanReclaimer {
+impl RestartOrphanReclaimer for DeferredOwnedReclaimer {
     async fn reclaim_session(
         &self,
-        _session_run_id: &str,
+        session_run_id: &str,
     ) -> Result<u32, RestartResumeRuntimeError> {
-        Ok(0)
+        let storage = self
+            .retained
+            .lock()
+            .map_err(|_| {
+                RestartResumeRuntimeError::Store("reopened fixture handle poisoned".into())
+            })?
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| {
+                RestartResumeRuntimeError::Store("successful original-store reopen absent".into())
+            })?;
+        owned_reclaimer(storage, &self.killed)
+            .reclaim_session(session_run_id)
+            .await
     }
 }
 
@@ -250,6 +457,14 @@ async fn mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_pro
     bootstrap_schema(&storage)
         .await
         .expect("bootstrap killed-child reopened schema");
+    crate::runtime_child::verify_original_seed_rows(
+        &storage,
+        &killed.ready.original_scope,
+        killed.ready.session_id,
+        killed.ready.checkpoint_id,
+        Some(killed.ready.process_uuid),
+    )
+    .await;
     let checkpoint: CheckpointProofRow = select_one(
         &storage,
         "kernel_session_checkpoint",
@@ -271,10 +486,53 @@ async fn mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_pro
     assert_eq!(process.process_uuid, killed.ready.process_uuid);
     assert!(process.stopped_at.is_none());
 
-    let report = SurrealRestartResumeRunner::new(storage.clone(), Arc::new(NoopOrphanReclaimer))
-        .run()
+    let process_store =
+        handshake_core::process_ledger::SurrealProcessLedgerStore::new(storage.clone());
+    let claimed = process_store
+        .claim_active(&format!("SR-{}", killed.ready.session_id))
         .await
-        .expect("run recovery against killed-child store");
+        .expect("claim original owned process for evidence rejection");
+    assert_eq!(claimed.len(), 1);
+    let scope = handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+        &killed.ready.original_scope,
+    );
+    let cleanup =
+        OwnedReapedChildCleanup::from_killed_child(storage.clone(), scope.clone(), &killed);
+    let mut mismatch = claimed[0].clone();
+    mismatch.process_uuid = uuid::Uuid::now_v7();
+    assert!(
+        cleanup.cleanup(&mismatch).await.is_err(),
+        "unmatched process must be denied without killing a PID"
+    );
+    mismatch = claimed[0].clone();
+    mismatch.os_pid = Some(killed.ready.os_pid.saturating_add(1));
+    assert!(
+        cleanup.cleanup(&mismatch).await.is_err(),
+        "unmatched PID must be denied"
+    );
+    let unowned = OwnedReapedChildCleanup::no_owned_child(storage.clone(), scope);
+    assert!(
+        unowned.cleanup(&claimed[0]).await.is_err(),
+        "no owned kill-and-wait receipt must be denied"
+    );
+    process_store
+        .abandon(&claimed)
+        .await
+        .expect("restore exact claim after negative evidence assertions");
+    drop(process_store);
+    drop(cleanup);
+    drop(unowned);
+
+    let report = SurrealRestartResumeRunner::new(
+        storage.clone(),
+        handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+            &killed.ready.original_scope,
+        ),
+        owned_reclaimer(storage.clone(), &killed),
+    )
+    .run()
+    .await
+    .expect("run recovery against killed-child store");
     assert_eq!(report.sessions_examined, 1);
     assert_eq!(report.sessions_resumed.len(), 1);
     assert!(report.sessions_recovery_failed.is_empty());
@@ -352,8 +610,11 @@ async fn mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_pers
     let root = tempfile::tempdir().expect("create real-binary recovery root");
     let data_dir = root.path().join("real-binary-store");
     let seeded = crate::runtime_child::seed_closed_recovery_store(&data_dir).await;
-    let process =
-        crate::runtime_child::run_real_handshake_core_startup_recovery(root.path(), &data_dir);
+    let process = crate::runtime_child::run_real_handshake_core_startup_recovery(
+        root.path(),
+        &data_dir,
+        &seeded,
+    );
     assert!(
         process.status.success(),
         "real handshake_core startup recovery"
@@ -376,6 +637,14 @@ async fn mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_pers
     bootstrap_schema(&storage)
         .await
         .expect("bootstrap product-recovered store");
+    crate::runtime_child::verify_original_seed_rows(
+        &storage,
+        &seeded.original_scope,
+        seeded.session_id,
+        seeded.checkpoint_id,
+        None,
+    )
+    .await;
     let report_id = report_file["report_id"]
         .as_str()
         .expect("product report id")
@@ -463,7 +732,21 @@ async fn mt195_runtime_event_gap_persists_failed_report_and_decision_evidence() 
     bootstrap_schema(&storage)
         .await
         .expect("bootstrap event-gap store");
-    let runner = SurrealRestartResumeRunner::new(storage.clone(), Arc::new(NoopOrphanReclaimer));
+    crate::runtime_child::verify_original_seed_rows(
+        &storage,
+        &killed.ready.original_scope,
+        killed.ready.session_id,
+        killed.ready.checkpoint_id,
+        Some(killed.ready.process_uuid),
+    )
+    .await;
+    let runner = SurrealRestartResumeRunner::new(
+        storage.clone(),
+        handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+            &killed.ready.original_scope,
+        ),
+        owned_reclaimer(storage.clone(), &killed),
+    );
     assert_eq!(runner.consume_event_sequence_for_test().await.unwrap(), 2);
     let session_run_id = format!("SR-{}", killed.ready.session_id);
     let gap_tail = NewKernelEvent::builder(
@@ -478,11 +761,13 @@ async fn mt195_runtime_event_gap_persists_failed_report_and_decision_evidence() 
     .payload(serde_json::json!({"by": 4}))
     .build()
     .expect("build event-gap tail event");
-    let tail = SurrealDatabase::new(storage.clone())
-        .append_kernel_event(gap_tail)
-        .await
-        .expect("persist event-gap tail event");
-    assert_eq!(tail.event_sequence, 3);
+    let tail_sequence = crate::runtime_child::seed_original_replay_event(
+        &storage,
+        &killed.ready.original_scope,
+        gap_tail,
+    )
+    .await;
+    assert_eq!(tail_sequence, 3);
     let report = runner.run().await.expect("run event-gap recovery");
     assert_failed_recovery_evidence(&storage, &report, killed.ready.session_id).await;
     storage.shutdown().await.expect("close event-gap store");
@@ -502,7 +787,21 @@ async fn mt195_runtime_operator_cancel_persists_failed_report_and_decision_evide
     bootstrap_schema(&storage)
         .await
         .expect("bootstrap operator-cancel store");
-    let runner = SurrealRestartResumeRunner::new(storage.clone(), Arc::new(NoopOrphanReclaimer));
+    crate::runtime_child::verify_original_seed_rows(
+        &storage,
+        &killed.ready.original_scope,
+        killed.ready.session_id,
+        killed.ready.checkpoint_id,
+        Some(killed.ready.process_uuid),
+    )
+    .await;
+    let runner = SurrealRestartResumeRunner::new(
+        storage.clone(),
+        handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+            &killed.ready.original_scope,
+        ),
+        owned_reclaimer(storage.clone(), &killed),
+    );
     runner.arm_operator_cancel_before_resume();
     let report = runner.run().await.expect("run operator-cancel recovery");
     assert_failed_recovery_evidence(&storage, &report, killed.ready.session_id).await;
@@ -528,7 +827,9 @@ async fn mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_afte
         {
             let attempts = Arc::clone(&attempts);
             let retained = Arc::clone(&retained);
+            let original = killed.ready.clone();
             move || {
+                let origin = original.clone();
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 let data_dir = data_dir.clone();
                 let retained = Arc::clone(&retained);
@@ -545,13 +846,27 @@ async fn mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_afte
                     )
                     .await?;
                     bootstrap_schema(&storage).await?;
+                    crate::runtime_child::verify_original_seed_rows(
+                        &storage,
+                        &origin.original_scope,
+                        origin.session_id,
+                        origin.checkpoint_id,
+                        Some(origin.process_uuid),
+                    )
+                    .await;
                     *retained.lock().expect("retain reopened storage") = Some(storage.clone());
                     Ok(storage)
                 }
             }
         },
         RestartResumeDbBackoffPolicy::new(2, Duration::from_millis(1)),
-        Arc::new(NoopOrphanReclaimer),
+        handshake_core::process_ledger::ReclaimResourceScope::from_exact(
+            &killed.ready.original_scope,
+        ),
+        Arc::new(DeferredOwnedReclaimer {
+            retained: Arc::clone(&retained),
+            killed: killed.clone(),
+        }),
     )
     .await
     .expect("resume after transient embedded unavailability");

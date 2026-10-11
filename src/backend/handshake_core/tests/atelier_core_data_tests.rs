@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 mod atelier_surreal_support;
 
@@ -37,8 +38,10 @@ use handshake_core::atelier::exports::{
     WEB_PORTFOLIO_MANIFEST_SCHEMA_ID,
 };
 use handshake_core::atelier::intake::{
-    intake_event_family, ApplyIntakeClassificationRequest, AtelierResetMode, AtelierResetRequest,
-    BatchStatus, IntakeBatchMode, IntakeLane, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
+    intake_event_family, ApplyIntakeBatchClassificationOverride,
+    ApplyIntakeBatchClassificationsRequest, ApplyIntakeClassificationRequest, AtelierResetMode,
+    AtelierResetRequest, BatchStatus, IntakeBatchMode, IntakeClassificationContactSheetMetadata,
+    IntakeClassificationMetadata, IntakeLane, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
     OrphanAdoptionRequest, OrphanAdoptionStatus,
 };
 use handshake_core::atelier::links::{links_event_family, BracketLinkTargetKind};
@@ -69,11 +72,37 @@ use handshake_core::atelier::{
     NewSheetVersion, SetMediaSourceProvenanceRefs, SheetFieldEdit, SheetFieldEditRequest,
 };
 use handshake_core::storage::surreal::{TestFieldMutation, TestMutationValue};
-use handshake_core::storage::Database;
 use uuid::Uuid;
 
 fn embedded_backend_marker() -> Option<String> {
     Some("embedded-surreal".to_owned())
+}
+
+/// One ArtifactStore workspace root for the whole test binary.
+///
+/// `storage::artifacts::resolve_workspace_root()` reads the process-global
+/// `HANDSHAKE_WORKSPACE_ROOT`, so every fixture artifact this binary writes must land under the
+/// same root or `materialize_media_asset` cannot read back the manifest it is asked to verify.
+/// Artifacts are UUID-addressed, so sharing the root keeps every fixture isolated while the
+/// filesystem-health proofs (which assert membership, never a total finding count) stay valid.
+fn shared_workspace_root() -> &'static PathBuf {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        assert!(
+            std::env::var("HANDSHAKE_WORKSPACE_ROOT").is_ok_and(|value| !value.trim().is_empty()),
+            "core-data fixtures require isolated configured HANDSHAKE_WORKSPACE_ROOT"
+        );
+        handshake_core::storage::artifacts::resolve_workspace_root()
+            .expect("resolve configured core-data workspace root")
+    })
+}
+
+/// Write a native ArtifactStore fixture into the binary-wide workspace root.
+fn native_artifact(payload: &[u8]) -> atelier_surreal_support::NativeMediaArtifact {
+    atelier_surreal_support::write_native_media_artifact_in_workspace(
+        shared_workspace_root(),
+        payload,
+    )
 }
 
 /// Open the shared embedded test authority; the marker argument preserves the
@@ -111,6 +140,24 @@ async fn embedded_event_payload(
         .expect("embedded EventLedger event payload exists")
 }
 
+async fn embedded_event_payloads(
+    connected: &atelier_surreal_support::ConnectedAtelier,
+    aggregate_type: &str,
+    aggregate_id: &str,
+    family: &str,
+) -> Vec<serde_json::Value> {
+    connected
+        .harness
+        .database
+        .list_kernel_events_for_aggregate(aggregate_type, aggregate_id)
+        .await
+        .expect("read embedded EventLedger rows")
+        .into_iter()
+        .filter(|event| event.payload["event_family"] == family)
+        .filter_map(|event| event.payload.get("atelier_payload").cloned())
+        .collect()
+}
+
 fn assert_portable_artifact_handle(field: &str, value: &str) {
     assert!(
         value.starts_with("artifact://.handshake/artifacts/"),
@@ -128,7 +175,8 @@ fn assert_portable_artifact_handle(field: &str, value: &str) {
 
 /// Materialize a fresh, run-unique media asset and return its `asset_id`.
 async fn fresh_asset(store: &AtelierStore) -> Uuid {
-    let artifact = atelier_surreal_support::write_native_media_artifact(b"core-data-test-media");
+    let payload = format!("core-data-test-media:{}", Uuid::now_v7());
+    let artifact = native_artifact(payload.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -148,7 +196,7 @@ async fn fresh_asset(store: &AtelierStore) -> Uuid {
 /// SAME asset; tests that need distinct assets use this helper (MT-141 R10/R11).
 async fn fresh_asset_tagged(store: &AtelierStore, tag: &str) -> Uuid {
     let payload = format!("core-data-test-media-{tag}-{}", Uuid::now_v7());
-    let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+    let artifact = native_artifact(payload.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -228,7 +276,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
 
     let parent_seed = format!("mt-023-health-parent-{}", Uuid::new_v4());
     let parent_artifact =
-        atelier_surreal_support::write_native_media_artifact(parent_seed.as_bytes());
+        native_artifact(parent_seed.as_bytes());
     let parent = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: parent_artifact.content_hash.clone(),
@@ -241,7 +289,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
         .expect("materialize health-check parent asset");
     let sidecar_seed = format!("mt-023-health-sidecar-{}", Uuid::new_v4());
     let sidecar_artifact =
-        atelier_surreal_support::write_native_media_artifact(sidecar_seed.as_bytes());
+        native_artifact(sidecar_seed.as_bytes());
     let sidecar = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: sidecar_artifact.content_hash.clone(),
@@ -292,7 +340,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
 
     let missing_seed = format!("mt-023-health-missing-{}", Uuid::new_v4());
     let missing_artifact =
-        atelier_surreal_support::write_native_media_artifact(missing_seed.as_bytes());
+        native_artifact(missing_seed.as_bytes());
     let missing_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_artifact.content_hash.clone(),
@@ -557,7 +605,7 @@ async fn atelier_filesystem_health_detects_missing_artifactstore_original_payloa
     let store = connected_store(&url).await;
 
     let missing_payload_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-missing-payload-original");
+        native_artifact(b"mt-023-missing-payload-original");
     let missing_payload_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_payload_artifact.content_hash.clone(),
@@ -572,7 +620,7 @@ async fn atelier_filesystem_health_detects_missing_artifactstore_original_payloa
     fs::remove_file(&payload_path).expect("remove ArtifactStore payload fixture");
 
     let missing_manifest_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-missing-manifest-original");
+        native_artifact(b"mt-023-missing-manifest-original");
     let missing_manifest_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_manifest_artifact.content_hash.clone(),
@@ -638,7 +686,7 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
     let store = connected_store(&url).await;
 
     let original_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-thumbnail-original");
+        native_artifact(b"mt-023-thumbnail-original");
     let original = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: original_artifact.content_hash.clone(),
@@ -665,7 +713,7 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
         .await
         .expect("mark thumbnail generating");
     let thumbnail_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-thumbnail-payload");
+        native_artifact(b"mt-023-thumbnail-payload");
     let generated = store
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
@@ -719,7 +767,7 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
     let store = connected_store(&url).await;
 
     let original_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-healthy-thumbnail-original");
+        native_artifact(b"mt-023-healthy-thumbnail-original");
     let original = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: original_artifact.content_hash.clone(),
@@ -749,7 +797,7 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
         .await
         .expect("mark healthy thumbnail generating");
     let thumbnail_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-healthy-thumbnail-payload");
+        native_artifact(b"mt-023-healthy-thumbnail-payload");
     store
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
@@ -791,7 +839,7 @@ async fn atelier_filesystem_health_detects_untracked_artifactstore_original_payl
     };
     let store = connected_store(&url).await;
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-untracked-original");
+        native_artifact(b"mt-023-untracked-original");
 
     let catalog_rows = store
         .harness
@@ -859,7 +907,7 @@ async fn atelier_media_source_provenance_refs_survive_export_pending_archive_and
         .await
         .expect("append sheet version for provenance proof");
     let artifact_seed = format!("mt-027-provenance-media-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(artifact_seed.as_bytes());
+    let artifact = native_artifact(artifact_seed.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -1144,7 +1192,7 @@ async fn atelier_media_source_provenance_refs_reject_invalid_refs() {
     };
     let store = connected_store(&url).await;
     let artifact_seed = format!("mt-027-invalid-provenance-media-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(artifact_seed.as_bytes());
+    let artifact = native_artifact(artifact_seed.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -1893,7 +1941,7 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
         })
         .await
         .expect("create target collection");
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("mt-031-media-{}", Uuid::new_v4()).as_bytes(),
     );
     let asset = store
@@ -1939,6 +1987,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted classification to media target");
@@ -1962,6 +2012,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("reapply accepted classification idempotently");
@@ -1971,6 +2023,136 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
     assert!(
         !applied_again.collection_inserted,
         "reapplying accepted classification must not duplicate target collection membership"
+    );
+
+    let event_count_before_metadata_apply = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events before metadata retry");
+    let metadata_request_id = format!("mt-031-ingest-request-{}", Uuid::new_v4());
+    let metadata = IntakeClassificationMetadata {
+        request_id: Some(metadata_request_id.clone()),
+        batch_id: Some(batch.batch_id.to_string()),
+        dataset_ref: Some("dataset://mt-031/loaded-rows".to_string()),
+        character_ref: Some(format!("atelier://character/{}", character.public_id)),
+        link_passed: true,
+        tags: vec!["event".to_string(), "identity".to_string()],
+        note: Some("same-state metadata retry proof".to_string()),
+        event: Some("mt-031".to_string()),
+        date: Some("2026-06-30".to_string()),
+        location: Some("test".to_string()),
+        facial_profile: Some("quality+dedupe+identity".to_string()),
+        loaded_item_count: Some(1),
+        contact_sheet: Some(IntakeClassificationContactSheetMetadata {
+            rows: Some(3),
+            columns: Some(4),
+            dpi: Some(300),
+            cells: Some(12),
+        }),
+    };
+    let metadata_applied = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Accepted,
+            reason: Some("accepted into target collection".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect("same-state metadata apply records recovery event");
+    assert_eq!(metadata_applied.item, applied.item);
+    let event_count_after_metadata_apply = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after first metadata apply");
+    assert_eq!(
+        event_count_after_metadata_apply,
+        event_count_before_metadata_apply + 1,
+        "same-state metadata apply should write one recovery event"
+    );
+    // PG read `atelier_event.payload->'metadata'->>'request_id'` with sqlx; the
+    // embedded store exposes the same atelier payload through the EventLedger.
+    let metadata_event_payload = embedded_event_payloads(
+        &store,
+        "atelier_intake_item",
+        &accepted_item.item_id.to_string(),
+        intake_event_family::INTAKE_ITEM_CLASSIFIED,
+    )
+    .await
+    .into_iter()
+    .rev()
+    .find(|payload| payload["metadata"]["request_id"] == serde_json::json!(metadata_request_id))
+    .expect("metadata request_id event payload should be stored directly on the atelier event");
+    assert_eq!(
+        metadata_event_payload["metadata"]["request_id"],
+        serde_json::json!(metadata_request_id),
+        "request_id lookup must use the atelier event payload.metadata, not kernel wrapper payload"
+    );
+    store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Accepted,
+            reason: Some("accepted into target collection".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect("same request_id retry is idempotent");
+    let event_count_after_metadata_retry = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after metadata retry");
+    assert_eq!(
+        event_count_after_metadata_retry, event_count_after_metadata_apply,
+        "repeating the same metadata.request_id must not duplicate classification events"
+    );
+    let conflicting_retry = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Rejected,
+            reason: Some("conflicting duplicate request".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect_err("same request_id with a different lane/reason must be rejected");
+    assert!(
+        conflicting_retry.to_string().contains("request_id"),
+        "duplicate conflict should name request_id, got {conflicting_retry}"
+    );
+    let event_count_after_conflicting_retry = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after conflicting retry");
+    assert_eq!(
+        event_count_after_conflicting_retry, event_count_after_metadata_apply,
+        "conflicting request_id retry must not write another classification event"
+    );
+    let accepted_after_conflict = store
+        .get_intake_item(batch.batch_id, &accepted_item.source_path)
+        .await
+        .expect("reload item after conflicting retry")
+        .expect("accepted item still exists");
+    assert_eq!(
+        accepted_after_conflict.lane,
+        IntakeLane::Accepted,
+        "conflicting duplicate request must not mutate the persisted lane"
     );
 
     let rejected_item = store
@@ -1990,6 +2172,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: rejected_item.item_id,
             lane: IntakeLane::Rejected,
             reason: Some("operator rejected".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply rejected classification");
@@ -2030,6 +2214,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: invalid_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("invalid target should rollback".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect_err("accepted apply with missing target media asset must reject");
@@ -2046,6 +2232,832 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
         persisted_invalid.lane,
         IntakeLane::Pending,
         "invalid target must roll back the lane change"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_applies_canonical_items_and_links_passed_media() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_applies_canonical_items_and_links_passed_media: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-batch-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Batch Character".to_string(),
+        })
+        .await
+        .expect("create character for batch apply");
+    let sheet = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: "mt-017 batch sheet".to_string(),
+            author: "mt-017".to_string(),
+            tool: Some("mt-017-test".to_string()),
+        })
+        .await
+        .expect("append sheet for batch apply");
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-batch-target-{}", Uuid::new_v4()),
+            notes: "target collection for canonical batch apply".to_string(),
+            tags: vec!["mt-017".to_string(), "dataset".to_string()],
+            character_internal_id: Some(character.internal_id),
+            sheet_version_id: Some(sheet.version_id),
+        })
+        .await
+        .expect("create target collection for batch apply");
+
+    let artifact_a = native_artifact(
+        format!("mt-017-batch-a-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let artifact_b = native_artifact(
+        format!("mt-017-batch-b-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset_a = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact_a.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact_a.byte_len,
+            source_provenance: Some("mt-017-batch-source-a".to_string()),
+            artifact_ref: artifact_a.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize batch asset a");
+    let asset_b = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact_b.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact_b.byte_len,
+            source_provenance: Some("mt-017-batch-source-b".to_string()),
+            artifact_ref: artifact_b.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize batch asset b");
+
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-batch-apply-{}", Uuid::new_v4()),
+            source_label: "mt-017 canonical batch apply".to_string(),
+            source_ref: Some(format!("dataset://mt-017/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(character.internal_id),
+            target_character_id: Some(character.internal_id),
+            target_sheet_version_id: Some(sheet.version_id),
+            target_collection_id: Some(collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open linked batch");
+    let item_a = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/a/{}", Uuid::new_v4()),
+                file_name: "batch-a.png".to_string(),
+                byte_len: artifact_a.byte_len,
+                content_hash: Some(asset_a.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add item a");
+    let item_b = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/b/{}", Uuid::new_v4()),
+                file_name: "batch-b.png".to_string(),
+                byte_len: artifact_b.byte_len,
+                content_hash: Some(asset_b.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add item b");
+    let rejected_item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/reject/{}", Uuid::new_v4()),
+                file_name: "batch-reject.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add reject override item");
+
+    let request_id = format!("mt-017-batch-request-{}", Uuid::new_v4());
+    let result = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted canonical batch default".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/canonical-batch".to_string()),
+                character_ref: Some(format!("atelier://character/{}", character.internal_id)),
+                link_passed: true,
+                tags: vec!["event".to_string(), "location".to_string()],
+                note: Some("batch apply should cover canonical item set".to_string()),
+                event: Some("mt-017".to_string()),
+                date: Some("2026-06-30".to_string()),
+                location: Some("test studio".to_string()),
+                facial_profile: Some("quality+dedupe+identity".to_string()),
+                loaded_item_count: Some(1),
+                contact_sheet: Some(IntakeClassificationContactSheetMetadata {
+                    rows: Some(3),
+                    columns: Some(4),
+                    dpi: Some(300),
+                    cells: Some(12),
+                }),
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: rejected_item.item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("visible override reject".to_string()),
+            }],
+        })
+        .await
+        .expect("apply canonical batch classifications");
+
+    assert_eq!(result.batch_id, batch.batch_id);
+    assert_eq!(result.total_item_count, 3);
+    assert_eq!(result.applied.len(), 3);
+    assert_eq!(result.failed, None);
+    assert_eq!(
+        result
+            .applied
+            .iter()
+            .filter(|row| row.collection_id == Some(collection.collection_id))
+            .count(),
+        2,
+        "both canonical accepted rows should link into the CKC target collection"
+    );
+
+    let persisted_items = store
+        .list_intake_items(batch.batch_id, None)
+        .await
+        .expect("reload canonical batch items");
+    let lane_by_item: HashMap<_, _> = persisted_items
+        .iter()
+        .map(|item| (item.item_id, item.lane))
+        .collect();
+    assert_eq!(
+        lane_by_item.get(&item_a.item_id),
+        Some(&IntakeLane::Accepted)
+    );
+    assert_eq!(
+        lane_by_item.get(&item_b.item_id),
+        Some(&IntakeLane::Accepted)
+    );
+    assert_eq!(
+        lane_by_item.get(&rejected_item.item_id),
+        Some(&IntakeLane::Rejected)
+    );
+
+    let members = store
+        .list_collection_images(collection.collection_id)
+        .await
+        .expect("list collection members after canonical batch apply");
+    assert_eq!(members.len(), 2);
+    assert!(
+        members
+            .iter()
+            .any(|member| member.asset_id == asset_a.asset_id)
+            && members
+                .iter()
+                .any(|member| member.asset_id == asset_b.asset_id),
+        "accepted batch rows must materialize CKC collection links"
+    );
+
+    // PG counted `atelier_event` rows whose payload.metadata carried the batch
+    // request_id and the canonical total; the embedded store exposes the same
+    // atelier payload per item aggregate through the EventLedger.
+    let mut payload_count = 0usize;
+    for item_id in [item_a.item_id, item_b.item_id, rejected_item.item_id] {
+        payload_count += embedded_event_payloads(
+            &store,
+            "atelier_intake_item",
+            &item_id.to_string(),
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+        )
+        .await
+        .iter()
+        .filter(|payload| {
+            payload["metadata"]["request_id"] == serde_json::json!(request_id)
+                && payload["metadata"]["loaded_item_count"] == serde_json::json!(3)
+        })
+        .count();
+    }
+    assert_eq!(
+        payload_count, 3,
+        "batch apply metadata must record canonical batch total, not visible preview count"
+    );
+
+    let mut durable_metadata_count = 0usize;
+    for item_id in [item_a.item_id, item_b.item_id, rejected_item.item_id] {
+        let metadata = store
+            .get_intake_item_metadata(item_id)
+            .await
+            .expect("read durable item metadata")
+            .unwrap_or_else(|| panic!("durable metadata row exists for item {item_id}"));
+        if metadata.batch_id == batch.batch_id
+            && metadata.request_id == request_id
+            && metadata.requested_by == "ingest-agent-017"
+            && metadata.tags.iter().any(|tag| tag == "event")
+            && metadata.tags.iter().any(|tag| tag == "location")
+            && metadata.event_label.as_deref() == Some("mt-017")
+            && metadata.location.as_deref() == Some("test studio")
+            && metadata.loaded_item_count == Some(3)
+        {
+            durable_metadata_count += 1;
+        }
+    }
+    assert_eq!(
+        durable_metadata_count, 3,
+        "batch metadata must be durable and queryable for every canonical item"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_foreign_override_before_writes() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_foreign_override_before_writes: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch_a = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-foreign-a-{}", Uuid::new_v4()),
+            source_label: "mt-017 foreign override a".to_string(),
+            source_ref: Some(format!("dataset://mt-017/foreign/a/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open batch a");
+    let batch_b = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-foreign-b-{}", Uuid::new_v4()),
+            source_label: "mt-017 foreign override b".to_string(),
+            source_ref: Some(format!("dataset://mt-017/foreign/b/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open batch b");
+    let target_item = store
+        .add_intake_item(
+            batch_a.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/foreign/a/{}", Uuid::new_v4()),
+                file_name: "target.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add target item");
+    let foreign_item = store
+        .add_intake_item(
+            batch_b.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/foreign/b/{}", Uuid::new_v4()),
+                file_name: "foreign.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add foreign item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_a.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("default defer should not write".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-foreign-{}", Uuid::new_v4())),
+                batch_id: Some(batch_a.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/foreign".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["foreign-override".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: Some(1),
+                contact_sheet: None,
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: foreign_item.item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("foreign override".to_string()),
+            }],
+        })
+        .await
+        .expect_err("foreign override must reject before writes");
+    assert!(
+        error.to_string().contains("does not belong to batch"),
+        "foreign override error should name batch membership, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch_a.batch_id, &target_item.source_path)
+        .await
+        .expect("reload target item")
+        .expect("target item exists");
+    assert_eq!(
+        persisted.lane,
+        IntakeLane::Pending,
+        "foreign override validation must happen before default lane writes"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rolls_back_when_later_item_fails() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rolls_back_when_later_item_fails: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-rollback-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Rollback Character".to_string(),
+        })
+        .await
+        .expect("create rollback character");
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-rollback-target-{}", Uuid::new_v4()),
+            notes: "target collection must stay empty after rollback".to_string(),
+            tags: vec!["mt-017".to_string()],
+            character_internal_id: Some(character.internal_id),
+            sheet_version_id: None,
+        })
+        .await
+        .expect("create rollback collection");
+    let artifact = native_artifact(
+        format!("mt-017-rollback-a-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some("mt-017-rollback-source".to_string()),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize rollback asset");
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-rollback-{}", Uuid::new_v4()),
+            source_label: "mt-017 rollback batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/rollback/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(character.internal_id),
+            target_character_id: Some(character.internal_id),
+            target_sheet_version_id: None,
+            target_collection_id: Some(collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open rollback batch");
+    let item_a = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/rollback/a/{}", Uuid::new_v4()),
+                file_name: "rollback-a.png".to_string(),
+                byte_len: artifact.byte_len,
+                content_hash: Some(asset.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add rollback item a");
+    let item_b = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/rollback/b/{}", Uuid::new_v4()),
+                file_name: "rollback-b.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add rollback item b");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted batch should roll back".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-rollback-{}", Uuid::new_v4())),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/rollback".to_string()),
+                character_ref: Some(format!("atelier://character/{}", character.internal_id)),
+                link_passed: true,
+                tags: vec!["rollback".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("second accepted item without content_hash must abort the batch");
+    assert!(
+        error
+            .to_string()
+            .contains("accepted intake item requires target media asset content_hash"),
+        "rollback error should name missing content_hash, got {error}"
+    );
+
+    let persisted_items = store
+        .list_intake_items(batch.batch_id, None)
+        .await
+        .expect("reload rollback items");
+    let lane_by_item: HashMap<_, _> = persisted_items
+        .iter()
+        .map(|item| (item.item_id, item.lane))
+        .collect();
+    assert_eq!(
+        lane_by_item.get(&item_a.item_id),
+        Some(&IntakeLane::Pending)
+    );
+    assert_eq!(
+        lane_by_item.get(&item_b.item_id),
+        Some(&IntakeLane::Pending)
+    );
+    let members = store
+        .list_collection_images(collection.collection_id)
+        .await
+        .expect("list rollback collection");
+    assert!(
+        members.is_empty(),
+        "atomic batch failure must not leave the first accepted item linked"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_requires_request_id_before_writes() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_requires_request_id_before_writes: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-id-{}", Uuid::new_v4()),
+            source_label: "mt-017 request id batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/request-id/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request-id batch");
+    let item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-id/{}", Uuid::new_v4()),
+                file_name: "request-id.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request-id item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("defer should not write without request id".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: None,
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("batch apply must require request_id metadata");
+    assert!(
+        error.to_string().contains("metadata with request_id"),
+        "request-id error should be explicit, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch.batch_id, &item.source_path)
+        .await
+        .expect("reload request-id item")
+        .expect("request-id item exists");
+    assert_eq!(persisted.lane, IntakeLane::Pending);
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_cross_batch_request_id_reuse() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_cross_batch_request_id_reuse: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch_a = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-reuse-a-{}", Uuid::new_v4()),
+            source_label: "mt-017 request reuse a".to_string(),
+            source_ref: Some(format!(
+                "dataset://mt-017/request-reuse/a/{}",
+                Uuid::new_v4()
+            )),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request reuse batch a");
+    let batch_b = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-reuse-b-{}", Uuid::new_v4()),
+            source_label: "mt-017 request reuse b".to_string(),
+            source_ref: Some(format!(
+                "dataset://mt-017/request-reuse/b/{}",
+                Uuid::new_v4()
+            )),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request reuse batch b");
+    let item_a = store
+        .add_intake_item(
+            batch_a.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-reuse/a/{}", Uuid::new_v4()),
+                file_name: "reuse-a.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request reuse item a");
+    let item_b = store
+        .add_intake_item(
+            batch_b.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-reuse/b/{}", Uuid::new_v4()),
+                file_name: "reuse-b.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request reuse item b");
+    let request_id = format!("mt-017-reused-request-{}", Uuid::new_v4());
+
+    store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_a.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("first batch defer".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch_a.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/request-reuse/a".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["reuse-a".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect("first batch request id apply");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_b.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("second batch should not write".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch_b.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/request-reuse/b".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["reuse-b".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("request_id reuse across batches must reject");
+    assert!(
+        error.to_string().contains("already bound"),
+        "cross-batch request_id error should be explicit, got {error}"
+    );
+
+    let persisted_a = store
+        .get_intake_item(batch_a.batch_id, &item_a.source_path)
+        .await
+        .expect("reload request reuse item a")
+        .expect("item a exists");
+    let persisted_b = store
+        .get_intake_item(batch_b.batch_id, &item_b.source_path)
+        .await
+        .expect("reload request reuse item b")
+        .expect("item b exists");
+    assert_eq!(persisted_a.lane, IntakeLane::Deferred);
+    assert_eq!(
+        persisted_b.lane,
+        IntakeLane::Pending,
+        "cross-batch request_id rejection must happen before second batch writes"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_mismatched_target_collection() {
+    let Some(url) = embedded_backend_marker() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_mismatched_target_collection: embedded backend marker unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let target_character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-target-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Target Character".to_string(),
+        })
+        .await
+        .expect("create target character");
+    let other_character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-other-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Other Character".to_string(),
+        })
+        .await
+        .expect("create other character");
+    let wrong_collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-wrong-target-{}", Uuid::new_v4()),
+            notes: "collection belongs to another character".to_string(),
+            tags: vec!["mt-017".to_string()],
+            character_internal_id: Some(other_character.internal_id),
+            sheet_version_id: None,
+        })
+        .await
+        .expect("create wrong collection");
+    let artifact = native_artifact(
+        format!("mt-017-target-mismatch-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some("mt-017-target-mismatch-source".to_string()),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize mismatch asset");
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-target-mismatch-{}", Uuid::new_v4()),
+            source_label: "mt-017 target mismatch batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/target/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(target_character.internal_id),
+            target_character_id: Some(target_character.internal_id),
+            target_sheet_version_id: None,
+            target_collection_id: Some(wrong_collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open mismatch batch");
+    let item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/target/{}", Uuid::new_v4()),
+                file_name: "target-mismatch.png".to_string(),
+                byte_len: artifact.byte_len,
+                content_hash: Some(asset.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add mismatch item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted should reject wrong collection".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-target-mismatch-{}", Uuid::new_v4())),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/target".to_string()),
+                character_ref: Some(format!(
+                    "atelier://character/{}",
+                    target_character.internal_id
+                )),
+                link_passed: true,
+                tags: vec!["target-mismatch".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("wrong target collection must reject before linking");
+    assert!(
+        error.to_string().contains("target_character_id"),
+        "collection ownership error should name target_character_id, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch.batch_id, &item.source_path)
+        .await
+        .expect("reload mismatch item")
+        .expect("mismatch item exists");
+    assert_eq!(persisted.lane, IntakeLane::Pending);
+    let members = store
+        .list_collection_images(wrong_collection.collection_id)
+        .await
+        .expect("list wrong collection members");
+    assert!(
+        members.is_empty(),
+        "wrong collection must not receive links"
     );
 }
 
@@ -3654,6 +4666,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
     let snapshot = store
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: raw_moodboard_json.clone(),
             author: "mt-042-author".to_string(),
         })
@@ -3692,6 +4705,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
     let duplicate = reconnected
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: snapshot.raw_json_text.clone(),
             author: "mt-042-author".to_string(),
         })
@@ -3747,6 +4761,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
     let invalid_missing_history = reconnected
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: serde_json::to_string(&missing_history).expect("serialize invalid"),
             author: "mt-042-author".to_string(),
         })
@@ -3762,6 +4777,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
     let invalid_layer_ref = reconnected
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: serde_json::to_string(&bad_layer_ref).expect("serialize invalid"),
             author: "mt-042-author".to_string(),
         })
@@ -3774,6 +4790,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
     let wrong_doc_type = reconnected
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: note_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: snapshot.raw_json_text.clone(),
             author: "mt-042-author".to_string(),
         })
@@ -3881,6 +4898,7 @@ async fn atelier_moodboard_operations_and_export_hooks_produce_receipts_without_
     let snapshot = store
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: minimal_moodboard_fixture(layer_id, text_id),
             author: "mt-043-author".to_string(),
         })
@@ -4221,7 +5239,8 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
         "bracket projection rebuild must not alter source text"
     );
 
-    let reconnected = reopen_store(store).await;
+    let store = reopen_store(store).await;
+    let reconnected = &store;
     let outbound = reconnected
         .list_bracket_links_from_document(note.document_id)
         .await
@@ -5083,13 +6102,14 @@ async fn atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_
     let moodboard = store
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
+            expected_document_version_id: None,
             raw_json_text: moodboard_json,
             author: "mt-045-author".to_string(),
         })
         .await
         .expect("record searchable moodboard snapshot");
     let image_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("mt-045-{needle}").as_bytes());
+        native_artifact(format!("mt-045-{needle}").as_bytes());
     let image = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: image_artifact.content_hash.clone(),
@@ -5439,16 +6459,16 @@ async fn atelier_saved_searches_reproduce_filters_and_retrieval_projection() {
     let store = connected_store(&url).await;
     let marker = format!("saved-search-{}", Uuid::new_v4());
     let keep_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-keep").as_bytes());
-    let excluded_artifact = atelier_surreal_support::write_native_media_artifact(
+        native_artifact(format!("{marker}-keep").as_bytes());
+    let excluded_artifact = native_artifact(
         format!("{marker}-excluded").as_bytes(),
     );
     let adult_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-adult").as_bytes());
-    let wrong_color_artifact = atelier_surreal_support::write_native_media_artifact(
+        native_artifact(format!("{marker}-adult").as_bytes());
+    let wrong_color_artifact = native_artifact(
         format!("{marker}-wrong-color").as_bytes(),
     );
-    let outside_scope_artifact = atelier_surreal_support::write_native_media_artifact(
+    let outside_scope_artifact = native_artifact(
         format!("{marker}-outside").as_bytes(),
     );
 
@@ -6111,6 +7131,28 @@ async fn atelier_exports_request_result_idempotency_and_manifest() {
         "re-recording identical (export_id, content_hash) returns the same result"
     );
 
+    let canonical = store
+        .get_export_result(request.export_id)
+        .await
+        .expect("reload canonical export result")
+        .expect("canonical export result exists");
+    assert_eq!(canonical.result_id, result1.result_id);
+    let rendered_events = embedded_event_payloads(
+        &store,
+        "atelier_export_request",
+        &request.export_id.to_string(),
+        export_event_family::EXPORT_RENDERED,
+    )
+    .await;
+    assert_eq!(rendered_events.len(), 2, "both render calls append an event");
+    for event in rendered_events {
+        assert_eq!(
+            event["result_id"],
+            serde_json::json!(canonical.result_id),
+            "render events must reference the persisted result, including replay"
+        );
+    }
+
     // --- add_manifest_entry seq increments ---
     let entry1 = store
         .add_manifest_entry(
@@ -6186,7 +7228,7 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         .expect("request share-pack export");
 
     let sheet_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-sheet").as_bytes());
+        native_artifact(format!("{marker}-sheet").as_bytes());
     store
         .record_export_result(
             export.export_id,
@@ -6197,10 +7239,10 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         .await
         .expect("record share-pack sheet result");
 
-    let selected_artifact = atelier_surreal_support::write_native_media_artifact(
+    let selected_artifact = native_artifact(
         format!("{marker}-selected").as_bytes(),
     );
-    let unselected_artifact = atelier_surreal_support::write_native_media_artifact(
+    let unselected_artifact = native_artifact(
         format!("{marker}-unselected").as_bytes(),
     );
     let selected = store
@@ -6223,7 +7265,7 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         })
         .await
         .expect("materialize unselected media");
-    let readme_artifact = atelier_surreal_support::write_native_media_artifact(
+    let readme_artifact = native_artifact(
         format!("{marker}-usage-readme").as_bytes(),
     );
 
@@ -6321,7 +7363,7 @@ fn llm_evidence_file(
     redaction_required: bool,
     redacted: bool,
 ) -> LlmEvidencePackFile {
-    let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+    let artifact = native_artifact(payload.as_bytes());
     LlmEvidencePackFile {
         kind,
         pack_path: pack_path.to_string(),
@@ -6467,9 +7509,9 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
     let marker = format!("web-portfolio-{}", Uuid::new_v4());
 
     let hero_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-hero").as_bytes());
+        native_artifact(format!("{marker}-hero").as_bytes());
     let detail_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-detail").as_bytes());
+        native_artifact(format!("{marker}-detail").as_bytes());
 
     let hero = store
         .materialize_media_asset(&NewMediaAsset {
@@ -6521,29 +7563,30 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
     assert_eq!(request.slug, slug, "slug is trimmed to its portable token");
 
     let manifest_payload = format!("{marker}-manifest").into_bytes();
-    let manifest_artifact = atelier_surreal_support::write_native_media_artifact(&manifest_payload);
+    let manifest_artifact = native_artifact(&manifest_payload);
+    let manifest_items = [
+        WebPortfolioManifestItem {
+            asset_id: hero.asset_id,
+            artifact_ref: hero_artifact.artifact_ref.clone(),
+            pack_path: format!("images/{}-hero.png", hero.asset_id),
+            content_hash: hero_artifact.content_hash.clone(),
+            byte_len: hero_artifact.byte_len,
+        },
+        WebPortfolioManifestItem {
+            asset_id: detail.asset_id,
+            artifact_ref: detail_artifact.artifact_ref.clone(),
+            pack_path: format!("images/{}-detail.png", detail.asset_id),
+            content_hash: detail_artifact.content_hash.clone(),
+            byte_len: detail_artifact.byte_len,
+        },
+    ];
     let result = store
         .record_web_portfolio_export_result(
             request.portfolio_export_id,
             &manifest_artifact.artifact_ref,
             &manifest_artifact.content_hash,
             manifest_artifact.byte_len,
-            &[
-                WebPortfolioManifestItem {
-                    asset_id: hero.asset_id,
-                    artifact_ref: hero_artifact.artifact_ref.clone(),
-                    pack_path: format!("images/{}-hero.png", hero.asset_id),
-                    content_hash: hero_artifact.content_hash.clone(),
-                    byte_len: hero_artifact.byte_len,
-                },
-                WebPortfolioManifestItem {
-                    asset_id: detail.asset_id,
-                    artifact_ref: detail_artifact.artifact_ref.clone(),
-                    pack_path: format!("images/{}-detail.png", detail.asset_id),
-                    content_hash: detail_artifact.content_hash.clone(),
-                    byte_len: detail_artifact.byte_len,
-                },
-            ],
+            &manifest_items,
         )
         .await
         .expect("record web portfolio ArtifactStore result and manifest");
@@ -6681,6 +7724,40 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
             .expect("count web portfolio rendered event"),
         1
     );
+
+    let repeated = store
+        .record_web_portfolio_export_result(
+            request.portfolio_export_id,
+            &manifest_artifact.artifact_ref,
+            &manifest_artifact.content_hash,
+            manifest_artifact.byte_len,
+            &manifest_items,
+        )
+        .await
+        .expect("re-record identical web portfolio result");
+    let canonical = store
+        .get_web_portfolio_export_result(request.portfolio_export_id)
+        .await
+        .expect("reload canonical web portfolio result")
+        .expect("canonical web portfolio result exists");
+    assert_eq!(repeated.result_id, result.result_id);
+    assert_eq!(canonical.result_id, result.result_id);
+    assert_eq!(canonical.manifest_json, result.manifest_json);
+    let rendered_events = embedded_event_payloads(
+        &store,
+        "atelier_web_portfolio_export_request",
+        &request.portfolio_export_id.to_string(),
+        export_event_family::WEB_PORTFOLIO_EXPORT_RENDERED,
+    )
+    .await;
+    assert_eq!(rendered_events.len(), 2, "both render calls append an event");
+    for event in rendered_events {
+        assert_eq!(
+            event["result_id"],
+            serde_json::json!(canonical.result_id),
+            "portfolio render events must reference the persisted result, including replay"
+        );
+    }
 }
 
 #[tokio::test]
@@ -6694,7 +7771,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
     let store = connected_store(&url).await;
     let marker = format!("backup-manifest-{}", Uuid::new_v4());
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-backup").as_bytes());
+        native_artifact(format!("{marker}-backup").as_bytes());
 
     let backup = store
         .record_backup_manifest(&NewBackupManifest {
@@ -6763,7 +7840,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
     assert_eq!(accepted.status, BackupRestorePreflightStatus::Accepted);
     assert!(accepted.refusal_reason.is_none());
 
-    let newer_app_artifact = atelier_surreal_support::write_native_media_artifact(
+    let newer_app_artifact = native_artifact(
         format!("{marker}-newer-app-backup").as_bytes(),
     );
     let newer_app_backup = store
@@ -6802,7 +7879,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
         "newer app backups are refused before restore"
     );
 
-    let newer_schema_artifact = atelier_surreal_support::write_native_media_artifact(
+    let newer_schema_artifact = native_artifact(
         format!("{marker}-newer-schema-backup").as_bytes(),
     );
     let newer_schema_backup = store
@@ -6964,7 +8041,7 @@ async fn atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest()
     };
     let store = connected_store(&url).await;
     let marker = format!("reset-orphan-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("{marker}-original").as_bytes(),
     );
     let asset = store
@@ -7552,7 +8629,7 @@ async fn mt067_core_data_integration_smoke_path() {
 
     // 3) materialize a real media asset from a native artifact payload
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-media").as_bytes());
+        native_artifact(format!("{marker}-media").as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -7614,6 +8691,8 @@ async fn mt067_core_data_integration_smoke_path() {
             item_id: item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("mt-067 accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted intake classification");
@@ -7696,7 +8775,7 @@ async fn mt067_core_data_integration_smoke_path() {
         .expect("request sheet export");
     assert_eq!(export.sheet_version_id, sheet.version_id);
     let export_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-export").as_bytes());
+        native_artifact(format!("{marker}-export").as_bytes());
     store
         .record_export_result(
             export.export_id,
@@ -7856,7 +8935,7 @@ CHAR-ID-003 — Alias: <string>
         })
         .await
         .expect("append original sheet version");
-    let parsed = store
+    let _parsed = store
         .parse_sheet_template_version(original.version_id, &template_id, None)
         .await
         .expect("parse sheet template version");
@@ -7963,7 +9042,7 @@ async fn mt069_export_manifest_rejects_gov_and_machine_paths() {
         .await
         .expect("request sheet export");
     // a real, portable artifact ref to pair with rejected pack paths
-    let portable = atelier_surreal_support::write_native_media_artifact(
+    let portable = native_artifact(
         format!("{marker}-portable").as_bytes(),
     );
 

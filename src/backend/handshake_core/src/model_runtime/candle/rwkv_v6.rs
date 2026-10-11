@@ -852,6 +852,17 @@ pub fn config_value_declares_rwkv_v6(value: &Value) -> bool {
     model_type || architecture
 }
 
+pub(super) fn decode_rwkv_v6_config_value(
+    value: &Value,
+) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
+    let config = serde_json::from_value::<Config>(value.clone()).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to decode captured Candle RWKV v6 config: {error}"
+        ))
+    })?;
+    Ok((config, rwkv_v5::eos_token_ids(value)))
+}
+
 #[cfg(test)]
 mod tests {
     //! MT-115 / MT-116 (INF-9) load-bearing proofs for the OWNED RWKV v6 forward:

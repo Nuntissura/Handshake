@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 #[cfg(feature = "test-utils")]
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::{future::Future, sync::Arc, time::Duration};
 use surrealdb::types::SurrealValue;
 use thiserror::Error;
@@ -18,8 +18,8 @@ use uuid::Uuid;
 use crate::{
     flight_recorder::fr_event_registry::FrEventId,
     process_ledger::{
-        LedgerEvent, ProcessLedgerStore, ReclaimProcessStore, ReclaimableProcess,
-        SurrealProcessLedgerStore,
+        LedgerEvent, ProcessLedgerStore, ReclaimProcessStore, ReclaimResourceScope,
+        ReclaimableProcess, SurrealProcessLedgerStore,
     },
     role_mailbox::RoleId,
     role_mailbox_v1::{
@@ -41,6 +41,31 @@ pub use crate::session_checkpoint::{
     ResumeError, ResumeReport, ResumedSessionInfo,
 };
 
+pub const RESTART_RESUME_BOOT_TIMEOUT_DEFAULT: Duration = Duration::from_secs(30);
+const RESTART_RESUME_ABORT_REPORT_GRACE: Duration = Duration::from_secs(1);
+
+#[derive(Debug)]
+pub enum BoundedRestartResumeOutcome {
+    Completed(ResumeReport),
+    TimedOut {
+        timeout: Duration,
+        report: ResumeReport,
+        evidence_persisted: bool,
+    },
+}
+
+impl BoundedRestartResumeOutcome {
+    pub fn report(&self) -> &ResumeReport {
+        match self {
+            Self::Completed(report) | Self::TimedOut { report, .. } => report,
+        }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        matches!(self, Self::TimedOut { .. })
+    }
+}
+
 const RESUMABLE_STATES: &[&str] = &[
     "CLAIMED",
     "RUNNING",
@@ -58,6 +83,8 @@ fn resumable_states() -> Vec<String> {
 
 #[derive(Debug, Error)]
 pub enum RestartResumeRuntimeError {
+    #[error("restart-resume store error: {0}")]
+    Store(String),
     #[error("restart-resume storage error: {0}")]
     Storage(#[from] SurrealStorageError),
     #[error("restart-resume serialization error: {0}")]
@@ -332,24 +359,103 @@ pub struct RestartResumeDbBackoffEvidence {
     pub report: ResumeReport,
 }
 
+#[cfg(feature = "test-utils")]
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum AbortReportFault {
+    Block = 1,
+    PersistenceFailure = 2,
+    AcknowledgementMismatch = 3,
+}
+
 #[derive(Clone)]
 pub struct SurrealRestartResumeRunner {
     storage: SurrealStorage,
+    resource_scope: ReclaimResourceScope,
     idempotency: Arc<IdempotencyLedger>,
     orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
     #[cfg(feature = "test-utils")]
     cancel_before_resume: Arc<AtomicBool>,
+    #[cfg(feature = "test-utils")]
+    abort_report_fault: Arc<AtomicU8>,
 }
 
+const PERSIST_RESUME_REPORT: &str = r#"
+LET $existing = SELECT * FROM ONLY $report_record
+WHERE owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+    AND report_id = <uuid>$report.report_id
+    AND sessions_examined = $report.sessions_examined
+    AND total_replay_events = $report.total_replay_events;
+IF $existing = NONE {
+    IF record::exists($report_record) {
+        THROW 'RESTART_RESUME_REPORT_IDEMPOTENCY_CONFLICT';
+    };
+    CREATE $report_record CONTENT {
+        report_id: <uuid>$report.report_id,
+        sessions_examined: $report.sessions_examined,
+        sessions_resumed: $report.sessions_resumed,
+        sessions_recovery_failed: $report.sessions_recovery_failed,
+        total_replay_events: $report.total_replay_events,
+        total_duration_ms: $report.total_duration_ms,
+        started_at_utc: <datetime>$report.started_at_utc,
+        completed_at_utc: <datetime>$report.completed_at_utc,
+        orphan_reclaims: $report.orphan_reclaims,
+        operator_decision_requests: $report.operator_decision_requests,
+        fr_events_emitted: $report.fr_events_emitted,
+        schema_version: $report.schema_version,
+        owner_account_id: $owner_account_id,
+        actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id,
+        access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
+};
+-- `FROM $report_record`, not `FROM ONLY`: `ONLY` yields the bare record (or
+-- NONE), so `array::len` would receive a record/NONE instead of an array and the
+-- acknowledgement could never be read back as an int.
+RETURN array::len(SELECT VALUE id FROM $report_record
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id);
+"#;
+
 impl SurrealRestartResumeRunner {
-    pub fn new(storage: SurrealStorage, orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>) -> Self {
+    pub fn new(
+        storage: SurrealStorage,
+        resource_scope: ReclaimResourceScope,
+        orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
+    ) -> Self {
         Self {
+            resource_scope,
             idempotency: Arc::new(IdempotencyLedger::new(storage.clone())),
             storage,
             orphan_reclaimer,
             #[cfg(feature = "test-utils")]
             cancel_before_resume: Arc::new(AtomicBool::new(false)),
+            #[cfg(feature = "test-utils")]
+            abort_report_fault: Arc::new(AtomicU8::new(0)),
         }
+    }
+
+    pub async fn open(
+        storage: SurrealStorage,
+        resource_scope: ReclaimResourceScope,
+        orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
+    ) -> Result<Self, RestartResumeRuntimeError> {
+        // The caller supplies the actual cleanup owner; opening never substitutes a no-op.
+        Ok(Self::new(storage, resource_scope, orphan_reclaimer))
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub fn arm_abort_report_fault_for_test(&self, fault: AbortReportFault) {
+        self.abort_report_fault
+            .store(fault as u8, Ordering::Release);
     }
 
     #[cfg(feature = "test-utils")]
@@ -384,9 +490,51 @@ impl SurrealRestartResumeRunner {
         self.run_with_preface_events(&[]).await
     }
 
+    pub async fn run_with_bound(
+        &self,
+        timeout: Duration,
+    ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
+        let started_at_utc = Utc::now();
+        let started = std::time::Instant::now();
+        match tokio::time::timeout(timeout, self.run()).await {
+            Ok(Ok(report)) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+            Ok(Err(error)) => Err(error),
+            Err(_) => {
+                let mut report = empty_report(started_at_utc, started.elapsed());
+                emit_report_event(&mut report, FrEventId::RestartResumeStarted);
+                let evidence_persisted = match tokio::time::timeout(
+                    RESTART_RESUME_ABORT_REPORT_GRACE,
+                    self.persist_report(&report),
+                )
+                .await
+                {
+                    Ok(Ok(())) => true,
+                    Ok(Err(error)) => {
+                        tracing::error!(report_id = %report.report_id,
+                            grace_ms = RESTART_RESUME_ABORT_REPORT_GRACE.as_millis() as u64,
+                            error = %error, "incomplete restart report persistence unconfirmed");
+                        false
+                    }
+                    Err(_) => {
+                        tracing::error!(report_id = %report.report_id,
+                            grace_ms = RESTART_RESUME_ABORT_REPORT_GRACE.as_millis() as u64,
+                            "incomplete restart report write deadline elapsed; acknowledgement unconfirmed");
+                        false
+                    }
+                };
+                Ok(BoundedRestartResumeOutcome::TimedOut {
+                    timeout,
+                    report,
+                    evidence_persisted,
+                })
+            }
+        }
+    }
+
     pub async fn run_with_db_backoff<F, Fut>(
         mut storage_factory: F,
         policy: RestartResumeDbBackoffPolicy,
+        resource_scope: ReclaimResourceScope,
         orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
     ) -> Result<RestartResumeDbBackoffEvidence, RestartResumeRuntimeError>
     where
@@ -416,7 +564,11 @@ impl SurrealRestartResumeRunner {
                 Err(error) => return Err(error),
             };
 
-            let runner = Self::new(storage, Arc::clone(&orphan_reclaimer));
+            let runner = Self::new(
+                storage,
+                resource_scope.clone(),
+                Arc::clone(&orphan_reclaimer),
+            );
             match runner.run_with_preface_events(&preface_events).await {
                 Ok(report) => {
                     return Ok(RestartResumeDbBackoffEvidence {
@@ -552,8 +704,14 @@ impl SurrealRestartResumeRunner {
         #[derive(SurrealValue)]
         struct CandidatesBindings {
             states: Vec<String>,
+            owner_account_id: String,
+            actor_principal_id: String,
+            authenticated_session_id: String,
+            access_space_id: String,
+            workspace_id: String,
         }
 
+        let scope = self.resource_scope.clone();
         let rows: Vec<CandidateRow> = self
             .storage
             .with_data_operation(move |database| {
@@ -562,9 +720,20 @@ impl SurrealRestartResumeRunner {
                         .query_values(
                             "SELECT session_run_id, kernel_task_run_id, adapter_id, state, attempt_count, created_at \
                              FROM kernel_session_queue WHERE state IN $states \
+                             AND owner_account_id = $owner_account_id \
+                             AND actor_principal_id = $actor_principal_id \
+                             AND authenticated_session_id = $authenticated_session_id \
+                             AND access_space_id = $access_space_id \
+                             AND workspace_id = $workspace_id \
                              ORDER BY created_at, session_run_id;",
                             CandidatesBindings {
                                 states: resumable_states(),
+                                owner_account_id: scope.account_uuid.to_string(),
+                                actor_principal_id: scope.actor_uuid.to_string(),
+                                authenticated_session_id: scope.session_uuid.to_string(),
+                                access_space_id: scope.access_space_uuid.to_string(),
+                                workspace_id: scope.workspace_id,
+
                             },
                         )
                         .await
@@ -596,8 +765,14 @@ impl SurrealRestartResumeRunner {
         #[derive(SurrealValue)]
         struct LatestCheckpointBindings {
             session_id: Uuid,
+            owner_account_id: String,
+            actor_principal_id: String,
+            authenticated_session_id: String,
+            access_space_id: String,
+            workspace_id: String,
         }
 
+        let scope = self.resource_scope.clone();
         let row: Option<CheckpointRow> = self
             .storage
             .with_data_operation(move |database| {
@@ -609,8 +784,20 @@ impl SurrealRestartResumeRunner {
                              pending_artifacts, created_at_utc, created_by_process, \
                              schema_version \
                              FROM kernel_session_checkpoint WHERE session_id = $session_id \
+                             AND owner_account_id = $owner_account_id \
+                             AND actor_principal_id = $actor_principal_id \
+                             AND authenticated_session_id = $authenticated_session_id \
+                             AND access_space_id = $access_space_id \
+                             AND workspace_id = $workspace_id \
                              ORDER BY created_at_utc DESC LIMIT 1;",
-                            LatestCheckpointBindings { session_id },
+                            LatestCheckpointBindings {
+                                session_id,
+                                owner_account_id: scope.account_uuid.to_string(),
+                                actor_principal_id: scope.actor_uuid.to_string(),
+                                authenticated_session_id: scope.session_uuid.to_string(),
+                                access_space_id: scope.access_space_uuid.to_string(),
+                                workspace_id: scope.workspace_id,
+                            },
                         )
                         .await
                 })
@@ -630,11 +817,22 @@ impl SurrealRestartResumeRunner {
         struct EventsBindings {
             session_run_id: String,
             after_seq: i64,
+            owner_account_id: String,
+            actor_principal_id: String,
+            authenticated_session_id: String,
+            access_space_id: String,
+            workspace_id: String,
         }
 
+        let scope = self.resource_scope.clone();
         let bindings = EventsBindings {
             session_run_id: session_run_id.to_owned(),
             after_seq: last_event_ledger_seq,
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id,
         };
         let rows: Vec<LedgerEventRow> = self
             .storage
@@ -644,7 +842,12 @@ impl SurrealRestartResumeRunner {
                         .query_values(
                             "SELECT event_id, event_sequence, event_type, payload, created_at \
                              FROM kernel_event_ledger WHERE session_run_id = $session_run_id \
-                             AND event_sequence > $after_seq ORDER BY event_sequence;",
+                             AND event_sequence > $after_seq AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+ ORDER BY event_sequence;",
                             bindings,
                         )
                         .await
@@ -730,6 +933,11 @@ impl SurrealRestartResumeRunner {
             recovery_store_write_key(candidate, final_seq, "kernel_session_checkpoint");
         let new_checkpoint_id = Uuid::now_v7();
         let bindings = ResumeCandidateBindings {
+            owner_account_id: self.resource_scope.account_uuid.to_string(),
+            actor_principal_id: self.resource_scope.actor_uuid.to_string(),
+            authenticated_session_id: self.resource_scope.session_uuid.to_string(),
+            access_space_id: self.resource_scope.access_space_uuid.to_string(),
+            workspace_id: self.resource_scope.workspace_id.clone(),
             queue_claim_id: queue_claim.ledger_record_id(),
             queue_side_effect_kind: queue_claim.side_effect_storage_key(),
             checkpoint_claim_id: checkpoint_claim.ledger_record_id(),
@@ -776,14 +984,29 @@ impl SurrealRestartResumeRunner {
                                  }; \
                                  UPDATE kernel_session_queue SET \
                                      state = 'FAILED', updated_at = time::now() \
-                                 WHERE session_run_id = $session_run_id AND state IN $states; \
+                                 WHERE session_run_id = $session_run_id AND state IN $states AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+; \
                                  UPDATE kernel_session_queue SET \
                                      state = 'RETRY_SCHEDULED', claimed_by = NONE, \
                                      lease_expires_at = NONE, available_at = time::now(), \
                                      updated_at = time::now() \
-                                 WHERE session_run_id = $session_run_id AND state = 'FAILED'; \
+                                 WHERE session_run_id = $session_run_id AND state = 'FAILED' AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+; \
                                  CREATE type::record('kernel_session_checkpoint', $new_checkpoint_id) CONTENT { \
                                      checkpoint_id: $new_checkpoint_uuid, \
+                                     owner_account_id: $owner_account_id, \
+                                     actor_principal_id: $actor_principal_id, \
+                                     authenticated_session_id: $authenticated_session_id, \
+                                     access_space_id: $access_space_id, \
+                                     workspace_id: $workspace_id, \
                                      session_id: $session_id, \
                                      model_session_id: $model_session_id, \
                                      last_event_ledger_seq: $event_seq, \
@@ -837,6 +1060,11 @@ impl SurrealRestartResumeRunner {
                 };
                 let checkpoint_id = Uuid::now_v7();
                 let bindings = RecoveryFailedCheckpointBindings {
+                    owner_account_id: self.resource_scope.account_uuid.to_string(),
+                    actor_principal_id: self.resource_scope.actor_uuid.to_string(),
+                    authenticated_session_id: self.resource_scope.session_uuid.to_string(),
+                    access_space_id: self.resource_scope.access_space_uuid.to_string(),
+                    workspace_id: self.resource_scope.workspace_id.clone(),
                     record: surrealdb::types::RecordId::new(
                         "kernel_session_checkpoint",
                         checkpoint_id.to_string(),
@@ -857,6 +1085,11 @@ impl SurrealRestartResumeRunner {
                                 .execute_returning(
                                     "CREATE $record CONTENT { \
                                      checkpoint_id: $checkpoint_id, session_id: $session_id, \
+                                     owner_account_id: $owner_account_id, \
+                                     actor_principal_id: $actor_principal_id, \
+                                     authenticated_session_id: $authenticated_session_id, \
+                                     access_space_id: $access_space_id, \
+                                     workspace_id: $workspace_id, \
                                      model_session_id: $model_session_id, \
                                      last_event_ledger_seq: $last_event_ledger_seq, \
                                      compact_state: $compact_state, \
@@ -884,10 +1117,20 @@ impl SurrealRestartResumeRunner {
             || async {
                 #[derive(SurrealValue)]
                 struct FailSessionBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
                     session_run_id: String,
                 }
 
                 let bindings = FailSessionBindings {
+            owner_account_id: self.resource_scope.account_uuid.to_string(),
+            actor_principal_id: self.resource_scope.actor_uuid.to_string(),
+            authenticated_session_id: self.resource_scope.session_uuid.to_string(),
+            access_space_id: self.resource_scope.access_space_uuid.to_string(),
+            workspace_id: self.resource_scope.workspace_id.clone(),
                     session_run_id: candidate.session_run_id.clone(),
                 };
                 self.storage
@@ -898,7 +1141,12 @@ impl SurrealRestartResumeRunner {
                                     "UPDATE kernel_session_queue SET \
                                      state = 'FAILED', claimed_by = NONE, \
                                      lease_expires_at = NONE, updated_at = time::now() \
-                                     WHERE session_run_id = $session_run_id;",
+                                     WHERE session_run_id = $session_run_id AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+;",
                                     bindings,
                                 )
                                 .await
@@ -1062,37 +1310,85 @@ impl SurrealRestartResumeRunner {
     }
 
     async fn persist_report(&self, report: &ResumeReport) -> Result<(), RestartResumeRuntimeError> {
-        let record_id = report.report_id.to_string();
-        let row = RestartResumeReportRow {
-            report_id: report.report_id,
-            sessions_examined: i64::from(report.sessions_examined),
-            sessions_resumed: serde_json::to_value(&report.sessions_resumed)?,
-            sessions_recovery_failed: serde_json::to_value(&report.sessions_recovery_failed)?,
-            orphan_reclaims: serde_json::to_value(&report.orphan_reclaims)?,
-            operator_decision_requests: serde_json::to_value(&report.operator_decision_requests)?,
-            fr_events_emitted: report.fr_events_emitted.clone(),
-            total_replay_events: i64::try_from(report.total_replay_events).unwrap_or(i64::MAX),
-            total_duration_ms: i64::try_from(report.total_duration_ms).unwrap_or(i64::MAX),
-            started_at_utc: report.started_at_utc,
-            completed_at_utc: report.completed_at_utc,
-            schema_version: 2,
+        #[cfg(feature = "test-utils")]
+        match self.abort_report_fault.swap(0, Ordering::AcqRel) {
+            1 => std::future::pending::<()>().await,
+            2 => {
+                return Err(RestartResumeRuntimeError::Store(
+                    "injected report persistence failure".to_owned(),
+                ))
+            }
+            3 => {
+                return Err(RestartResumeRuntimeError::Store(
+                    "injected report acknowledgement mismatch: []".to_owned(),
+                ))
+            }
+            _ => {}
+        }
+        #[derive(SurrealValue)]
+        struct ReportBindings {
+            report_record: surrealdb::types::RecordId,
+            owner_account_id: String,
+            actor_principal_id: String,
+            authenticated_session_id: String,
+            access_space_id: String,
+            workspace_id: String,
+            report: Value,
+        }
+        let scope = &self.resource_scope;
+        let mut report_value = serde_json::to_value(report)?;
+        let object = report_value.as_object_mut().ok_or_else(|| {
+            RestartResumeRuntimeError::Store("typed report must serialize as an object".to_owned())
+        })?;
+        object.insert("schema_version".to_owned(), Value::from(2));
+        for (key, value) in [
+            ("owner_account_id", scope.account_uuid.to_string()),
+            ("actor_principal_id", scope.actor_uuid.to_string()),
+            ("authenticated_session_id", scope.session_uuid.to_string()),
+            ("access_space_id", scope.access_space_uuid.to_string()),
+            ("workspace_id", scope.workspace_id.clone()),
+        ] {
+            object.insert(key.to_owned(), Value::String(value));
+        }
+        let bindings = ReportBindings {
+            report_record: surrealdb::types::RecordId::new(
+                "kernel_restart_resume_report",
+                report.report_id.to_string(),
+            ),
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+            report: report_value,
         };
-        let _: Option<RestartResumeReportRow> = self
+        let acknowledgements = self
             .storage
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .upsert_one("kernel_restart_resume_report", &record_id, row)
+                        .query_values_at::<i64, _>(PERSIST_RESUME_REPORT, bindings, 2)
                         .await
                 })
             })
-            .await?;
+            .await
+            .map_err(|error| RestartResumeRuntimeError::Store(error.to_string()))?;
+        if acknowledgements.as_slice() != [1] {
+            return Err(RestartResumeRuntimeError::Store(format!(
+                "restart-resume report acknowledgement mismatch: {acknowledgements:?}"
+            )));
+        }
         Ok(())
     }
 }
 
 #[derive(SurrealValue)]
 struct ResumeCandidateBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
     queue_claim_id: String,
     queue_side_effect_kind: String,
     checkpoint_claim_id: String,
@@ -1112,6 +1408,11 @@ struct ResumeCandidateBindings {
 
 #[derive(SurrealValue)]
 struct RecoveryFailedCheckpointBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
     record: surrealdb::types::RecordId,
     checkpoint_id: Uuid,
     session_id: Uuid,
@@ -1179,8 +1480,14 @@ struct LedgerEventRow {
 }
 
 /// One `kernel_restart_resume_report` record; mirrors the `SCHEMAFULL` table.
-#[derive(SurrealValue)]
+#[derive(Clone, PartialEq, SurrealValue)]
 struct RestartResumeReportRow {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+
     report_id: Uuid,
     sessions_examined: i64,
     sessions_resumed: Value,
@@ -1301,6 +1608,22 @@ fn recovery_store_write_key(
 ) -> IdempotencyKey {
     let target = format!("{table}@recovery-attempt:{}", candidate.attempt_count);
     store_write_key(candidate.session_id, event_seq, &target)
+}
+
+fn empty_report(started_at_utc: DateTime<Utc>, elapsed: Duration) -> ResumeReport {
+    ResumeReport {
+        report_id: Uuid::now_v7(),
+        sessions_examined: 0,
+        sessions_resumed: Vec::new(),
+        sessions_recovery_failed: Vec::new(),
+        orphan_reclaims: Vec::new(),
+        operator_decision_requests: Vec::new(),
+        fr_events_emitted: Vec::new(),
+        total_replay_events: 0,
+        total_duration_ms: u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
+        started_at_utc,
+        completed_at_utc: Utc::now(),
+    }
 }
 
 fn parse_session_uuid(session_run_id: &str) -> Result<Uuid, RestartResumeRuntimeError> {
@@ -1562,13 +1885,23 @@ mod tests {
             .is_err());
     }
 
+    fn test_scope() -> ReclaimResourceScope {
+        ReclaimResourceScope {
+            account_uuid: Uuid::from_u128(13701),
+            actor_uuid: Uuid::from_u128(13702),
+            session_uuid: Uuid::from_u128(13703),
+            access_space_uuid: Uuid::from_u128(13704),
+            workspace_id: "mt137-restart-proof".to_owned(),
+        }
+    }
+
     fn test_runner(
         storage: SurrealStorage,
         kill: Arc<RecordingStartupKill>,
     ) -> SurrealRestartResumeRunner {
         let store = Arc::new(SurrealProcessLedgerStore::new(storage.clone()));
         let reclaimer = Arc::new(SurrealRestartOrphanReclaimer::new(store, kill));
-        SurrealRestartResumeRunner::new(storage, reclaimer)
+        SurrealRestartResumeRunner::new(storage, test_scope(), reclaimer)
     }
 
     #[derive(Clone, SurrealValue)]
@@ -1632,9 +1965,9 @@ mod tests {
         )
         .await
         .expect("open embedded restart-resume store");
-        bootstrap_schema(&storage)
+        crate::storage::surreal::bootstrap_production_schemas(&storage)
             .await
-            .expect("bootstrap restart-resume schema");
+            .expect("bootstrap restart-resume production schema bindings");
         storage
     }
 
@@ -1706,6 +2039,19 @@ mod tests {
                     let _: Option<TestProcessRow> = database
                         .upsert_one("kernel_process_lifecycle", &process_record_id, process)
                         .await?;
+                    #[derive(SurrealValue)]
+                    struct FixtureScopeBindings {
+                        session_run_id: String, session_id: Uuid,
+                        owner_account_id: String, actor_principal_id: String,
+                        authenticated_session_id: String, access_space_id: String, workspace_id: String,
+                    }
+                    let scope = test_scope();
+                    database.execute_returning(
+                        "UPDATE kernel_session_queue SET owner_account_id=$owner_account_id, actor_principal_id=$actor_principal_id, authenticated_session_id=$authenticated_session_id, access_space_id=$access_space_id, workspace_id=$workspace_id WHERE session_run_id=$session_run_id; UPDATE kernel_session_checkpoint SET owner_account_id=$owner_account_id, actor_principal_id=$actor_principal_id, authenticated_session_id=$authenticated_session_id, access_space_id=$access_space_id, workspace_id=$workspace_id WHERE session_id=$session_id;",
+                        FixtureScopeBindings { session_run_id, session_id,
+                            owner_account_id: scope.account_uuid.to_string(), actor_principal_id: scope.actor_uuid.to_string(),
+                            authenticated_session_id: scope.session_uuid.to_string(), access_space_id: scope.access_space_uuid.to_string(), workspace_id: scope.workspace_id },
+                    ).await?;
                     Ok(())
                 })
             })

@@ -42,7 +42,67 @@ use std::{
     time::Instant,
 };
 
-use serde_json::json;
+use serde_json::{json, Value};
+
+/// Executes ModelLane conformance calls with a genuinely authorized record user.
+/// The fixture supplies credentials and the expected canonical tuple, never a grant.
+#[cfg(feature = "test-utils")]
+#[derive(Clone)]
+pub struct AuthenticatedModelLaneTestOperation {
+    storage: crate::storage::surreal::SurrealStorage,
+    request: crate::storage::surreal::resource_authority::AuthorizationRequest,
+    exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+}
+
+#[cfg(feature = "test-utils")]
+impl AuthenticatedModelLaneTestOperation {
+    pub async fn authorize(
+        storage: crate::storage::surreal::SurrealStorage,
+        request: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<Self> {
+        let operation = Self { storage, request, exact };
+        operation.decision().await?;
+        Ok(operation)
+    }
+
+    async fn decision(&self) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::storage::surreal::resource_authority::AuthorizationDecision> {
+        use crate::swarm_orchestration::model_lane::ModelLaneError;
+        let decision = self.storage.authorize_protected_resource(self.request.clone()).await
+            .map_err(|error| ModelLaneError::AuthorityDenied(error.to_string()))?;
+        if decision.account_id != self.exact.owner_account_id.to_string()
+            || decision.principal_id != self.exact.actor_principal_id.to_string()
+            || decision.session_id != self.exact.authenticated_session_id.to_string()
+            || decision.access_space_id != self.exact.access_space_id.to_string()
+            || self.exact.workspace_id.as_str().trim().is_empty() {
+            return Err(ModelLaneError::AuthorityDenied("authenticated operation differs from canonical five-field fixture".into()));
+        }
+        Ok(decision)
+    }
+
+    pub async fn run<T, F>(&self, operation: F) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        // Reauthorize each invocation so revocation cannot reuse the fixture's first decision.
+        let decision = self.decision().await?;
+        let scope = crate::storage::surreal::resource_authority::RecordUserScope {
+            grant_id: Some(decision.grant_id), workspace_id: Some(self.exact.workspace_id.as_str().to_owned()),
+            session_token: self.request.session_token.clone(), channel_binding_hash: self.request.channel_binding_hash.clone(),
+            resource_id: decision.resource_id, session_id: decision.session_id,
+            capability_id: self.request.capability_id.clone(), action: self.request.action,
+        };
+        let subject = crate::storage::surreal::ModelLaneOperationSubject {
+            kind: self.request.resource_kind, external_id: self.request.external_resource_id.clone(),
+        };
+        self.storage.with_record_user_scope(scope,
+            crate::storage::surreal::with_model_lane_subject(subject, operation)).await
+    }
+}
+
+
+#[cfg(feature = "test-utils")]
+use yrs::updates::decoder::Decode;
+#[cfg(feature = "test-utils")]
+use yrs::{Doc, ReadTxn, StateVector, Text, Transact, Update};
 
 use crate::kernel::{
     crdt::{
@@ -57,6 +117,24 @@ use crate::kernel::{
         },
     },
     KernelEventType,
+};
+
+#[cfg(feature = "test-utils")]
+use crate::{
+    kernel::crdt::{
+        actor_site::{derive_knowledge_site_id, KnowledgeActorIdV1, KnowledgeActorKind},
+        state_vector::KnowledgeStateVectorV1,
+    },
+    swarm_orchestration::model_lane::{
+        LaunchAuthority, ModelLaneAuthority, ModelLaneCrdtLeaseClaimOutcome,
+        ModelLaneCrdtLeaseRecord, ModelLaneCrdtProposalDecision, ModelLaneCrdtProposalRecord,
+        ModelLaneCrdtSnapshotRecord, ModelLaneCrdtUpdateAppendOutcome, ModelLaneCrdtUpdateRecord,
+        ModelLaneError, ModelLaneKind, ModelLaneLocusBinding, ModelLaneMessageKind,
+        ModelLaneProviderKind, ModelLaneRecoveryState, ModelLaneResult, ModelLaneStatus,
+        ModelLaneStore, ModelLaneTarget, NewModelLane, NewModelLaneCrdtLease,
+        NewModelLaneCrdtProposal, NewModelLaneCrdtSnapshot, NewModelLaneCrdtUpdate,
+        NewModelLaneMessage, NewModelLaneRun, RuntimeBinding,
+    },
 };
 
 const WORKSPACE_ID: &str = "workspace-swarm-n8";
@@ -789,4 +867,583 @@ fn real_update_record(
         },
         event_ledger_event_id: &format!("evt-{}", update.update_id),
     })
+}
+
+/// Reusable embedded-SurrealDB CRDT posture used by WP-1 ModelLane proofs.
+/// Every positive row is created through `ModelLaneStore`; the helper exposes
+/// no storage client or arbitrary query capability.
+#[cfg(feature = "test-utils")]
+#[derive(Clone, Debug)]
+pub struct SurrealAdmissibleCrdtPosture {
+    pub run_id: String,
+    pub lane_id: String,
+    pub session_id: String,
+    pub model_session_id: String,
+    pub document_id: String,
+    pub crdt_document_id: String,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub trace_id: String,
+    pub lease: ModelLaneCrdtLeaseRecord,
+    pub snapshot: ModelLaneCrdtSnapshotRecord,
+    pub update: ModelLaneCrdtUpdateRecord,
+    pub proposal: ModelLaneCrdtProposalRecord,
+    pub approved_diff_sha256: String,
+    pub approved_diff_bytes: Vec<u8>,
+    pub yjs_update_sha256: String,
+    pub yjs_update_bytes: Vec<u8>,
+    canonical_yjs_state: Vec<u8>,
+    yjs_client_id: u64,
+    pub message: NewModelLaneMessage,
+}
+
+#[cfg(feature = "test-utils")]
+impl SurrealAdmissibleCrdtPosture {
+    /// Produce a causally new Yjs v1 update from the exact state persisted by
+    /// this posture without exposing storage or an arbitrary query surface.
+    pub fn next_yjs_update_bytes(&self, text: &str) -> ModelLaneResult<Vec<u8>> {
+        let canonical = Doc::new();
+        canonical
+            .transact_mut()
+            .apply_update(
+                Update::decode_v1(&self.canonical_yjs_state).map_err(|error| {
+                    ModelLaneError::IntegrityViolation(format!(
+                        "captured canonical Yjs state is invalid: {error}"
+                    ))
+                })?,
+            )
+            .map_err(|error| {
+                ModelLaneError::IntegrityViolation(format!(
+                    "captured canonical Yjs state cannot be applied: {error}"
+                ))
+            })?;
+        Ok(surreal_append_yjs_text_update(
+            &canonical,
+            self.yjs_client_id,
+            text,
+        ))
+    }
+}
+
+/// Build a complete Proposal-kind authority posture in one injected
+/// `SurrealStorage` namespace/database. The proposal hash covers canonical
+/// approved-diff bytes; the update hash covers persisted Yjs v1 bytes.
+#[cfg(feature = "test-utils")]
+pub async fn build_surreal_admissible_crdt_posture(
+    store: &ModelLaneStore,
+    workspace_id: &str,
+    label: &str,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    build_surreal_admissible_crdt_posture_with_model(
+        store,
+        workspace_id,
+        label,
+        "model://local/mt018",
+    )
+    .await
+}
+
+#[cfg(feature = "test-utils")]
+pub async fn build_surreal_admissible_crdt_posture_with_model(
+    store: &ModelLaneStore,
+    workspace_id: &str,
+    label: &str,
+    model_id: &str,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id, None, None, None).await
+}
+
+/// Uses separately authorized original workspace creation and document editing operations.
+#[cfg(feature = "test-utils")]
+#[allow(clippy::too_many_arguments)]
+pub async fn build_surreal_admissible_crdt_posture_authenticated(
+    store: &ModelLaneStore, workspace_id: &str, label: &str, model_id: &str, document_id: &str,
+    workspace_create: &AuthenticatedModelLaneTestOperation,
+    document_update: &AuthenticatedModelLaneTestOperation,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id,
+        Some(document_id), Some((workspace_create, document_update)), None).await
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(Clone, Copy)]
+pub enum CrdtProposalRealizationCounterfactual { WrongRoot, WrongValue, ExtraRoot }
+
+/// Produces genuine next-update bytes that contradict a previously persisted approved operation.
+#[cfg(feature = "test-utils")]
+#[allow(clippy::too_many_arguments)]
+pub async fn build_surreal_crdt_realization_counterfactual_authenticated(
+    store: &ModelLaneStore, workspace_id: &str, label: &str, model_id: &str, document_id: &str,
+    workspace_create: &AuthenticatedModelLaneTestOperation, document_update: &AuthenticatedModelLaneTestOperation,
+    counterfactual: CrdtProposalRealizationCounterfactual,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id,
+        Some(document_id), Some((workspace_create, document_update)), Some(counterfactual)).await
+}
+
+#[cfg(feature = "test-utils")]
+async fn run_crdt_fixture_operation<T>(
+    operation: Option<&AuthenticatedModelLaneTestOperation>,
+    future: impl std::future::Future<Output = ModelLaneResult<T>>,
+) -> ModelLaneResult<T> {
+    match operation { Some(operation) => operation.run(future).await, None => future.await }
+}
+
+#[cfg(feature = "test-utils")]
+async fn build_surreal_admissible_crdt_posture_with_operations(
+    store: &ModelLaneStore, workspace_id: &str, label: &str, model_id: &str,
+    authenticated_document_id: Option<&str>,
+    operations: Option<(&AuthenticatedModelLaneTestOperation, &AuthenticatedModelLaneTestOperation)>,
+    realization_counterfactual: Option<CrdtProposalRealizationCounterfactual>,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    let bound_workspace_id = store
+        .write_scope()
+        .and_then(|scope| scope.workspace.as_ref())
+        .map(|workspace| workspace.as_str())
+        .ok_or_else(|| {
+            ModelLaneError::InvalidInput(
+                "Surreal admissible CRDT posture requires an exact workspace-bound store".into(),
+            )
+        })?;
+    if bound_workspace_id != workspace_id {
+        return Err(ModelLaneError::InvalidInput(
+            "Surreal admissible CRDT posture workspace must match the store write scope".into(),
+        ));
+    }
+    let run_id = format!("run-mt018-{label}");
+    let lane_id = format!("lane-mt018-{label}");
+    let session_id = format!("session-mt018-{label}");
+    let model_session_id = format!("model-session-mt018-{label}");
+    let document_id = authenticated_document_id.map(str::to_owned).unwrap_or_else(|| format!("document-mt018-{label}"));
+    let crdt_document_id = format!("crdt-document-mt018-{label}");
+    let trace_id = format!("trace-mt018-{label}");
+    let stream_id = format!("model-lane://mt018/{label}");
+    let owner_session = format!("owner-mt018-{label}");
+    let coordinator_session_id = format!("coordinator-mt018-{label}");
+    let locus = ModelLaneLocusBinding {
+        work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into(),
+        micro_task_id: "MT-018".into(),
+        task_board_id: Some("task-board://wp-1".into()),
+        coordinator_session_id: coordinator_session_id.clone(),
+        session_id: session_id.clone(),
+        model_session_id: model_session_id.clone(),
+        owner_session: owner_session.clone(),
+        locus_binding_ref: format!("locus://wp1/mt018/{label}"),
+    };
+    run_crdt_fixture_operation(operations.map(|(workspace, _)| workspace), store
+        .record_run(NewModelLaneRun {
+            run_id: run_id.clone(),
+            trace_id: trace_id.clone(),
+            run_span_id: format!("run-span-mt018-{label}"),
+            coordinator_session_id: coordinator_session_id.clone(),
+            routing_policy: "local_first".into(),
+            context_bundle_id: format!("context-bundle-mt018-{label}"),
+            lane_ids: vec![lane_id.clone()],
+            event_ledger_stream_id: stream_id.clone(),
+            artifact_namespace: format!("artifact://mt018/{label}"),
+            projection_plan_ref: None,
+            consent_receipt_ref: None,
+            work_packet_id: Some(locus.work_packet_id.clone()),
+            micro_task_id: Some(locus.micro_task_id.clone()),
+            task_board_id: locus.task_board_id.clone(),
+            owner_session: owner_session.clone(),
+            idempotency_key: format!("mt018-run-{label}"),
+            replay_order_key: format!("0001-{label}"),
+            replay_after_event_ledger_seq: None,
+            recovery_state: ModelLaneRecoveryState::Restartable,
+            failstate_code: None,
+            reason_ref: None,
+            recovery_hint_ref: Some("usermanual://model-lane/crdt-recovery".into()),
+            locus_binding: Some(locus.clone()),
+            memory_pack_ref: format!("memory-pack://mt018/{label}"),
+            memory_pack_hash: "1".repeat(64),
+            determinism_mode: "strict".into(),
+            budget_summary_ref: format!("budget://mt018/{label}"),
+            selected_model_id: Some(model_id.into()),
+            candidate_model_ids: vec![model_id.into()],
+            procedural_review_status: "approved".into(),
+            truncation_warning_ref: None,
+            rejection_reason_refs: Vec::new(),
+        })).await?;
+    run_crdt_fixture_operation(operations.map(|(workspace, _)| workspace), store
+        .record_lane(NewModelLane {
+            lane_id: lane_id.clone(),
+            run_id: run_id.clone(),
+            trace_id: trace_id.clone(),
+            lane_span_id: format!("lane-span-mt018-{label}"),
+            event_ledger_stream_id: stream_id.clone(),
+            kind: ModelLaneKind::LocalModel,
+            role: "knowledge-crdt-proposer".into(),
+            backend: "embedded-model-runtime".into(),
+            model_id: Some(model_id.into()),
+            session_id: session_id.clone(),
+            model_session_id: model_session_id.clone(),
+            adapter_id: "local-runtime".into(),
+            runtime_binding: RuntimeBinding::Local,
+            launch_authority: LaunchAuthority::ModelRuntime,
+            provider_kind: ModelLaneProviderKind::LocalRuntime,
+            capability_token_ids: vec!["capability://mt018/knowledge-crdt".into()],
+            effective_capability_snapshot_ref: Some(format!("capability://mt018/{label}")),
+            capability_negotiation_ref: Some(format!("negotiation://mt018/{label}")),
+            provider_feature_profile_ref: Some("provider-profile://mt018/local".into()),
+            requested_execution_policy_ref: Some("execution-policy://mt018/requested".into()),
+            effective_execution_policy_ref: Some("execution-policy://mt018/effective".into()),
+            projection_plan_ref: None,
+            consent_receipt_ref: None,
+            tool_gate_decision_refs: vec!["tool-gate://mt018/crdt-write".into()],
+            status: ModelLaneStatus::Ready,
+            recovery_state: ModelLaneRecoveryState::Restartable,
+            heartbeat_at_utc: Some("2026-09-01T00:00:00Z".into()),
+            lease_expires_at_utc: Some("2099-09-01T00:00:00Z".into()),
+            reclaim_after_utc: Some("2099-09-01T00:01:00Z".into()),
+            restart_generation: 0,
+            cancellation_ref: Some(format!("cancellation://mt018/{label}")),
+            reclaim_policy_ref: Some("reclaim-policy://mt018".into()),
+            terminal_status_mapping_ref: Some("terminal-status://mt018".into()),
+            process_ownership_ref: Some(format!("process-ledger://mt018/{label}")),
+            no_os_process_reason_ref: None,
+            backpressure_ref: None,
+            loop_counter_ref: Some("loop-counter://mt018".into()),
+            last_runtime_status_ref: Some("runtime-status://mt018/ready".into()),
+            last_recovery_event_ref: None,
+            failstate_code: None,
+            startup_failure_ref: None,
+            reason_ref: None,
+            recovery_hint_ref: Some("usermanual://model-lane/crdt-recovery".into()),
+            work_packet_id: Some(locus.work_packet_id.clone()),
+            micro_task_id: Some(locus.micro_task_id.clone()),
+            task_board_id: locus.task_board_id.clone(),
+            owner_session: owner_session.clone(),
+            locus_binding: Some(locus),
+        })).await?;
+
+    let actor = KnowledgeActorIdV1::new(
+        KnowledgeActorKind::LocalModel,
+        format!("mt018-{label}-local"),
+    )
+    .map_err(|error| ModelLaneError::InvalidInput(error.to_string()))?;
+    let actor_id = actor.canonical();
+    let actor_kind = actor.kind().as_str().to_owned();
+    let site = derive_knowledge_site_id(workspace_id, &crdt_document_id, &actor);
+    let yjs_client_id = u64::from(site.yjs_client_id);
+    let mut vector = KnowledgeStateVectorV1::new();
+    let canonical = Doc::new();
+
+    let pre_update_id = format!("update-mt018-{label}-pre");
+    let pre_bytes =
+        surreal_append_yjs_text_update(&canonical, yjs_client_id, &format!("[{label}-base]"));
+    let pre_before = vector.encode();
+    vector.increment(&site.site_id);
+    let pre_after = vector.encode();
+    expect_stored_update(
+        run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+            .append_crdt_update(NewModelLaneCrdtUpdate {
+                schema_id: "hsk.kernel.crdt_update@1".into(),
+                document_id: document_id.clone(),
+                crdt_document_id: crdt_document_id.clone(),
+                update_id: pre_update_id.clone(),
+                update_seq: 1,
+                update_bytes: pre_bytes,
+                actor_id: actor_id.clone(),
+                actor_kind: actor_kind.clone(),
+                session_id: session_id.clone(),
+                trace_id: trace_id.clone(),
+                state_vector_before: pre_before,
+                state_vector_after: pre_after.clone(),
+                replay_order_key: format!("0001-{label}"),
+                dependency_update_ids: Vec::new(),
+                site_id: site.site_id.clone(),
+                kernel_task_run_id: run_id.clone(),
+                idempotency_key: format!("mt018-update-pre-{label}"),
+            })).await?,
+    )?;
+
+    let snapshot_bytes = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let snapshot = run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+        .append_crdt_snapshot(NewModelLaneCrdtSnapshot {
+            schema_id: "hsk.kernel.crdt_snapshot@1".into(),
+            snapshot_id: format!("snapshot-mt018-{label}"),
+            document_id: document_id.clone(),
+            crdt_document_id: crdt_document_id.clone(),
+            covered_update_seq: 1,
+            state_vector: pre_after.clone(),
+            snapshot_bytes,
+            actor_id: actor_id.clone(),
+            actor_kind: actor_kind.clone(),
+            promotion_evidence_update_ids: vec![pre_update_id],
+            session_id: session_id.clone(),
+            kernel_task_run_id: run_id.clone(),
+            idempotency_key: format!("mt018-snapshot-{label}"),
+        })).await?;
+
+    let lease = match run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+        .claim_crdt_lease(NewModelLaneCrdtLease {
+            lease_id: format!("lease-mt018-{label}"),
+            lane_id: lane_id.clone(),
+            document_id: document_id.clone(),
+            crdt_document_id: crdt_document_id.clone(),
+            actor_id: actor_id.clone(),
+            actor_kind: actor_kind.clone(),
+            session_id: session_id.clone(),
+            correlation_id: trace_id.clone(),
+            ttl_seconds: 3600,
+            kernel_task_run_id: run_id.clone(),
+            idempotency_key: format!("mt018-lease-{label}"),
+        })).await?
+    {
+        ModelLaneCrdtLeaseClaimOutcome::Claimed(lease)
+        | ModelLaneCrdtLeaseClaimOutcome::AlreadyClaimed(lease) => lease,
+        ModelLaneCrdtLeaseClaimOutcome::ScopeHeld(_) => {
+            return Err(ModelLaneError::IntegrityViolation(
+                "MT-018 helper document lease is held by another authority".into(),
+            ));
+        }
+    };
+    let proposed_diff = json!({
+        "op": "append_text",
+        "path": ["mt018-shared-document"],
+        "value": format!("[{label}-approved]"),
+    });
+    let approved_diff_bytes = crate::kernel::context_bundle::canonical_json_bytes(&proposed_diff);
+    let proposal_id = format!("proposal-mt018-{label}");
+    let recorded = run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+        .record_crdt_proposal(NewModelLaneCrdtProposal {
+            proposal_id: proposal_id.clone(),
+            document_id: document_id.clone(),
+            crdt_document_id: crdt_document_id.clone(),
+            base_update_seq: 1,
+            base_state_vector: pre_after.clone(),
+            proposed_diff,
+            source_span_citations: vec![format!("span://mt018/{label}/source")],
+            actor_id: actor_id.clone(),
+            actor_kind: actor_kind.clone(),
+            session_id: session_id.clone(),
+            correlation_id: trace_id.clone(),
+            lease_id: lease.lease_id.clone(),
+            kernel_task_run_id: run_id.clone(),
+            idempotency_key: format!("mt018-proposal-record-{label}"),
+        })).await?;
+    let (reviewer_actor_id, reviewer_authenticated_session_id) = run_crdt_fixture_operation(operations.map(|(_, document)| document), store.authenticated_crdt_proposal_reviewer()).await?;
+    let approved = run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+        .decide_crdt_proposal(
+            &proposal_id,
+            ModelLaneCrdtProposalDecision::Approved,
+            &reviewer_actor_id,
+            Some("approved for exact Yjs application".into()),
+            &run_id,
+            &reviewer_authenticated_session_id,
+            &format!("mt018-proposal-approve-{label}"),
+        )).await?
+        .ok_or_else(|| ModelLaneError::NotFound(proposal_id.clone()))?;
+    if approved.diff_sha256 != recorded.diff_sha256 {
+        return Err(ModelLaneError::IntegrityViolation(
+            "proposal decision changed the canonical approved-diff hash".into(),
+        ));
+    }
+    let update_id = format!("update-mt018-{label}-applied");
+    let approved_operation = approved.proposed_diff.as_object().ok_or_else(||
+        ModelLaneError::IntegrityViolation("approved operation is not an object".into()))?;
+    let approved_path = approved_operation.get("path").and_then(Value::as_array).ok_or_else(||
+        ModelLaneError::IntegrityViolation("approved literal root is missing".into()))?;
+    let approved_root = approved_path.first().and_then(Value::as_str).ok_or_else(||
+        ModelLaneError::IntegrityViolation("approved literal root is not text".into()))?;
+    let approved_text = approved_operation.get("value").and_then(Value::as_str).ok_or_else(||
+        ModelLaneError::IntegrityViolation("approved append value is not text".into()))?;
+    if approved_operation.len() != 3 || approved_operation.get("op").and_then(Value::as_str) != Some("append_text")
+        || approved_path.len() != 1 || approved_root != "mt018-shared-document" {
+        return Err(ModelLaneError::IntegrityViolation("unsupported approved operation or literal root".into()));
+    }
+    let yjs_bytes = match realization_counterfactual {
+        None => surreal_append_yjs_text_update_at_root(&canonical, yjs_client_id, approved_root, approved_text),
+        Some(CrdtProposalRealizationCounterfactual::WrongRoot) =>
+            surreal_append_yjs_text_update_at_root(&canonical, yjs_client_id, "unapproved-root", approved_text),
+        Some(CrdtProposalRealizationCounterfactual::WrongValue) =>
+            surreal_append_yjs_text_update_at_root(&canonical, yjs_client_id, approved_root, "[unapproved-value]"),
+        Some(CrdtProposalRealizationCounterfactual::ExtraRoot) =>
+            surreal_append_yjs_text_update_with_extra_root(&canonical, yjs_client_id, approved_root, approved_text,
+                Some(("unapproved-extra-root", "[unapproved-extra-change]"))),
+    };
+    let canonical_yjs_state = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let yjs_update_sha256 = surreal_sha256_hex(&yjs_bytes);
+    let persisted_yjs_update_bytes = yjs_bytes.clone();
+    vector.increment(&site.site_id);
+    let post_after = vector.encode();
+    let update = expect_stored_update(
+        run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+            .append_crdt_update(NewModelLaneCrdtUpdate {
+                schema_id: "hsk.kernel.crdt_update@1".into(),
+                document_id: document_id.clone(),
+                crdt_document_id: crdt_document_id.clone(),
+                update_id: update_id.clone(),
+                update_seq: 2,
+                update_bytes: yjs_bytes,
+                actor_id: actor_id.clone(),
+                actor_kind: actor_kind.clone(),
+                session_id: session_id.clone(),
+                trace_id: trace_id.clone(),
+                state_vector_before: pre_after.clone(),
+                state_vector_after: post_after.clone(),
+                replay_order_key: format!("0002-{label}"),
+                dependency_update_ids: vec![format!("update-mt018-{label}-pre")],
+                site_id: site.site_id,
+                kernel_task_run_id: run_id.clone(),
+                idempotency_key: format!("mt018-update-applied-{label}"),
+            })).await?,
+    )?;
+
+    let proposal = run_crdt_fixture_operation(operations.map(|(_, document)| document), store
+        .bind_crdt_proposal_update(
+            &proposal_id,
+            &update.update_id,
+            &run_id,
+            &format!("mt018-proposal-apply-{label}"),
+        )).await?
+        .ok_or_else(|| ModelLaneError::NotFound(proposal_id.clone()))?;
+    if proposal.diff_sha256 == yjs_update_sha256 {
+        return Err(ModelLaneError::IntegrityViolation(
+            "approved-diff and Yjs update hashes unexpectedly collapsed".into(),
+        ));
+    }
+    let message = NewModelLaneMessage {
+        message_id: format!("message-mt018-{label}"),
+        run_id: run_id.clone(),
+        trace_id: trace_id.clone(),
+        message_span_id: format!("message-span-mt018-{label}"),
+        parent_span_id: Some(format!("lane-span-mt018-{label}")),
+        linked_span_contexts: vec![trace_id.clone()],
+        from_lane_id: lane_id.clone(),
+        to_lane: ModelLaneTarget::Coordinator,
+        routing: None,
+        kind: ModelLaneMessageKind::Proposal,
+        payload_ref: format!("artifact://mt018/{label}/proposal"),
+        payload_sha256: "2".repeat(64),
+        event_ledger_stream_id: stream_id,
+        summary: "approved CRDT proposal bound to persisted Yjs v1 update".into(),
+        authority: ModelLaneAuthority::PromotionCandidate,
+        promotion_decision_id: None,
+        promotion_gate_ref: None,
+        promotion_receipt_ref: None,
+        validator_verdict_ref: None,
+        operator_decision_ref: None,
+        promoted_artifact_ref: None,
+        promoted_artifact_sha256: None,
+        promoted_artifact_version: None,
+        tool_gate_decision_refs: vec!["tool-gate://mt018/crdt-write".into()],
+        coordinator_session_id,
+        work_packet_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into()),
+        micro_task_id: Some("MT-018".into()),
+        task_board_id: Some("task-board://wp-1".into()),
+        owner_session,
+        locus_binding: None,
+        idempotency_key: format!("mt018-message-{label}"),
+        replay_order_key: format!("0003-{label}"),
+        replay_after_event_ledger_seq: None,
+        proposal_ref: Some(format!("proposal://mt018/{label}")),
+        crdt_update_ref: Some(update.update_bytes_ref.clone()),
+        crdt_base_snapshot_ref: Some(snapshot.snapshot_bytes_ref.clone()),
+        crdt_state_vector: Some(post_after),
+        crdt_proposal_ref: Some(format!("crdt-proposal://{proposal_id}")),
+        crdt_stale_base_ref: None,
+        failstate_code: None,
+        reason_ref: None,
+        recovery_hint_ref: Some("usermanual://model-lane/crdt-recovery".into()),
+        created_at_utc: "2026-09-01T00:00:00Z".into(),
+        diagnostic_payload: json!({
+            "diff_sha256": &proposal.diff_sha256,
+            "yjs_update_sha256": &yjs_update_sha256,
+        }),
+    };
+    Ok(SurrealAdmissibleCrdtPosture {
+        run_id,
+        lane_id,
+        session_id,
+        model_session_id,
+        document_id,
+        crdt_document_id,
+        actor_id,
+        actor_kind,
+        trace_id,
+        lease,
+        snapshot,
+        update,
+        approved_diff_sha256: proposal.diff_sha256.clone(),
+        approved_diff_bytes,
+        yjs_update_sha256,
+        yjs_update_bytes: persisted_yjs_update_bytes,
+        canonical_yjs_state,
+        yjs_client_id,
+        proposal,
+        message,
+    })
+}
+
+#[cfg(feature = "test-utils")]
+fn expect_stored_update(
+    outcome: ModelLaneCrdtUpdateAppendOutcome,
+) -> ModelLaneResult<ModelLaneCrdtUpdateRecord> {
+    match outcome {
+        ModelLaneCrdtUpdateAppendOutcome::Stored(update)
+        | ModelLaneCrdtUpdateAppendOutcome::AlreadyStored(update) => Ok(update),
+        ModelLaneCrdtUpdateAppendOutcome::ContentMismatch { update_id } => {
+            Err(ModelLaneError::IntegrityViolation(format!(
+                "CRDT update {update_id} has conflicting immutable content"
+            )))
+        }
+        ModelLaneCrdtUpdateAppendOutcome::StaleHead { .. } => Err(
+            ModelLaneError::IntegrityViolation("CRDT update append observed a stale head".into()),
+        ),
+    }
+}
+
+#[cfg(feature = "test-utils")]
+fn surreal_append_yjs_text_update(canonical: &Doc, client_id: u64, text: &str) -> Vec<u8> {
+    surreal_append_yjs_text_update_at_root(canonical, client_id, "mt018-shared-document", text)
+}
+
+#[cfg(feature = "test-utils")]
+fn surreal_append_yjs_text_update_at_root(canonical: &Doc, client_id: u64, root: &str, text: &str) -> Vec<u8> {
+    surreal_append_yjs_text_update_with_extra_root(canonical, client_id, root, text, None)
+}
+
+#[cfg(feature = "test-utils")]
+fn surreal_append_yjs_text_update_with_extra_root(canonical: &Doc, client_id: u64, root: &str, text: &str,
+    extra: Option<(&str, &str)>,
+) -> Vec<u8> {
+    let canonical_state = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let author = Doc::with_client_id(client_id);
+    let author_text = author.get_or_insert_text(root);
+    if !canonical_state.is_empty() {
+        author
+            .transact_mut()
+            .apply_update(Update::decode_v1(&canonical_state).expect("decode canonical Yjs state"))
+            .expect("apply canonical Yjs state");
+    }
+    let before = author.transact().state_vector();
+    let extra_root = extra.map(|(root, text)| (author.get_or_insert_text(root), text));
+    {
+        let mut transaction = author.transact_mut();
+        let offset = author_text.len(&transaction);
+        author_text.insert(&mut transaction, offset, text);
+        if let Some((extra_root, extra_text)) = &extra_root {
+            extra_root.insert(&mut transaction, 0, extra_text);
+        }
+    }
+    let update = author.transact().encode_diff_v1(&before);
+    canonical
+        .transact_mut()
+        .apply_update(Update::decode_v1(&update).expect("decode generated Yjs update"))
+        .expect("apply generated Yjs update");
+    update
+}
+
+#[cfg(feature = "test-utils")]
+fn surreal_sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(bytes))
 }

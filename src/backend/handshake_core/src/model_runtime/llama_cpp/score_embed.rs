@@ -1,4 +1,6 @@
-use crate::model_runtime::{Embedding, KvQuantSupport, ModelRuntimeError, Score};
+use crate::model_runtime::{
+    Embedding, KvQuantSupport, ModelRuntimeError, RuntimeActivityGuard, Score,
+};
 
 use super::context::LlamaCppContext;
 
@@ -12,16 +14,17 @@ pub(super) async fn score(
     context: &LlamaCppContext,
     quantization: KvQuantSupport,
     sequence: Vec<u32>,
+    activity_guard: RuntimeActivityGuard,
 ) -> Result<Score, ModelRuntimeError> {
     #[cfg(feature = "llama-cpp-runtime-engine")]
     {
         let native = context.native_backend();
-        return score_native_blocking(native, quantization, sequence).await;
+        return score_native_blocking(native, quantization, sequence, activity_guard).await;
     }
 
     #[cfg(not(feature = "llama-cpp-runtime-engine"))]
     {
-        let _ = (context, quantization, sequence);
+        let _ = (context, quantization, sequence, activity_guard);
         Err(ModelRuntimeError::ScoreError(
             LLAMA_CPP_NATIVE_FEATURE_DISABLED.to_string(),
         ))
@@ -32,17 +35,18 @@ pub(super) async fn embed(
     context: &LlamaCppContext,
     quantization: KvQuantSupport,
     text: &str,
+    activity_guard: RuntimeActivityGuard,
 ) -> Result<Embedding, ModelRuntimeError> {
     #[cfg(feature = "llama-cpp-runtime-engine")]
     {
         let native = context.native_backend();
         let text = text.to_string();
-        return embed_native_blocking(native, quantization, text).await;
+        return embed_native_blocking(native, quantization, text, activity_guard).await;
     }
 
     #[cfg(not(feature = "llama-cpp-runtime-engine"))]
     {
-        let _ = (context, quantization, text);
+        let _ = (context, quantization, text, activity_guard);
         Err(ModelRuntimeError::EmbedError(
             LLAMA_CPP_NATIVE_FEATURE_DISABLED.to_string(),
         ))
@@ -54,16 +58,19 @@ async fn score_native_blocking(
     native: std::sync::Arc<super::context::NativeLlamaCppBackend>,
     quantization: KvQuantSupport,
     sequence: Vec<u32>,
+    activity_guard: RuntimeActivityGuard,
 ) -> Result<Score, ModelRuntimeError> {
     if tokio::runtime::Handle::try_current().is_ok() {
-        tokio::task::spawn_blocking(move || score_native(native, quantization, sequence))
-            .await
-            .map_err(|error| {
-                ModelRuntimeError::ScoreError(format!(
-                    "llama.cpp score worker failed to join: {error}"
-                ))
-            })?
+        tokio::task::spawn_blocking(move || {
+            let _activity_guard = activity_guard;
+            score_native(native, quantization, sequence)
+        })
+        .await
+        .map_err(|error| {
+            ModelRuntimeError::ScoreError(format!("llama.cpp score worker failed to join: {error}"))
+        })?
     } else {
+        let _activity_guard = activity_guard;
         score_native(native, quantization, sequence)
     }
 }
@@ -73,16 +80,21 @@ async fn embed_native_blocking(
     native: std::sync::Arc<super::context::NativeLlamaCppBackend>,
     quantization: KvQuantSupport,
     text: String,
+    activity_guard: RuntimeActivityGuard,
 ) -> Result<Embedding, ModelRuntimeError> {
     if tokio::runtime::Handle::try_current().is_ok() {
-        tokio::task::spawn_blocking(move || embed_native(native, quantization, &text))
-            .await
-            .map_err(|error| {
-                ModelRuntimeError::EmbedError(format!(
-                    "llama.cpp embedding worker failed to join: {error}"
-                ))
-            })?
+        tokio::task::spawn_blocking(move || {
+            let _activity_guard = activity_guard;
+            embed_native(native, quantization, &text)
+        })
+        .await
+        .map_err(|error| {
+            ModelRuntimeError::EmbedError(format!(
+                "llama.cpp embedding worker failed to join: {error}"
+            ))
+        })?
     } else {
+        let _activity_guard = activity_guard;
         embed_native(native, quantization, &text)
     }
 }

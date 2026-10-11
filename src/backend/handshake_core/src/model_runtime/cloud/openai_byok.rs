@@ -28,22 +28,26 @@
 //!   un-approved OpenAI model cannot be invoked.
 //! - Every call writes a [`CloudInvocationAuditRow`] through the
 //!   [`CloudInvocationAuditSink`] trait (Started / Succeeded /
-//!   Failed / Cancelled). The concrete Postgres
-//!   `cloud_invocations` table wiring is the sink impl, not the
-//!   runtime.
+//!   Failed / Cancelled). Durable production sinks must append through the
+//!   embedded SurrealDB/EventLedger authority; this runtime remains
+//!   sink-agnostic and has no SQL compatibility path.
 //! - No [`crate::process_ledger`] row is written: BYOK invocations
 //!   do not spawn a Handshake-owned process, so there is no PID to
 //!   register (per MT-066 ExternalCompat semantics extended to
 //!   ByokCloud).
 
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
+use std::task::{Context, Poll};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::{stream, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 use crate::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
@@ -69,6 +73,23 @@ pub const DEFAULT_OPENAI_MODEL_ALLOWLIST: &[&str] = &[
     "gpt-3.5-turbo",
 ];
 
+#[derive(Clone, Copy, Debug)]
+pub struct ByokInvocationTimeouts {
+    pub whole_invocation: Duration,
+    pub connect: Duration,
+    pub idle: Duration,
+}
+
+impl Default for ByokInvocationTimeouts {
+    fn default() -> Self {
+        Self {
+            whole_invocation: Duration::from_secs(300),
+            connect: Duration::from_secs(15),
+            idle: Duration::from_secs(30),
+        }
+    }
+}
+
 /// Default chat-completions path appended to the runtime's
 /// `api_base`. Exposed so tests can compare against the wiremock
 /// expectation.
@@ -80,13 +101,50 @@ pub const OPENAI_EMBEDDINGS_PATH: &str = "/embeddings";
 /// SSE "DONE" sentinel that terminates an OpenAI streaming response.
 const OPENAI_SSE_DONE_SENTINEL: &str = "[DONE]";
 
-/// Boundary trait for the operator-managed API key. The runtime
-/// holds an `Arc<dyn ApiKeyProvider>`; the secret string never
-/// surfaces in struct Debug / Display / FR event payloads. The
-/// production impl reads from `OperatorSecretsVault`; the test
-/// impl returns a literal string for mock-server verification.
+/// Provider-controlled error bodies can echo request data, including secrets,
+/// and can be arbitrarily large. ModelRuntimeError receives only this bounded,
+/// metadata-only diagnostic; raw provider body bytes are never surfaced.
+const PROVIDER_ERROR_BODY_DIAGNOSTIC_MAX_BYTES: usize = 160;
+
+fn redacted_provider_response_body(response: &reqwest::Response) -> String {
+    let diagnostic = match response.content_length() {
+        Some(declared_bytes) => {
+            format!("<redacted provider response body; declared_bytes={declared_bytes}>")
+        }
+        None => "<redacted provider response body; declared_bytes=unknown>".to_string(),
+    };
+    debug_assert!(diagnostic.len() <= PROVIDER_ERROR_BODY_DIAGNOSTIC_MAX_BYTES);
+    diagnostic
+}
+
+/// Opaque, zeroizing ownership for an operator-managed API key.
+///
+/// The inner allocation is never cloneable and Debug is always redacted.
+pub struct TransientApiKey(Zeroizing<String>);
+
+impl TransientApiKey {
+    /// Construct a transient key at an external secret-ingress boundary.
+    pub fn from_secret(secret: String) -> Self {
+        Self(Zeroizing::new(secret))
+    }
+
+    pub(crate) fn from_zeroizing(secret: Zeroizing<String>) -> Self {
+        Self(secret)
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl std::fmt::Debug for TransientApiKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("TransientApiKey([REDACTED])")
+    }
+}
+
 pub trait ApiKeyProvider: Send + Sync {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError>;
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError>;
 }
 
 /// Per-registered-model handle. Maps the Handshake `ModelId` (UUID
@@ -99,9 +157,9 @@ pub struct OpenAiModelHandle {
 }
 
 /// Audit row written for every cloud call per MT-125 red_team
-/// minimum_controls. The concrete Postgres `cloud_invocations`
-/// table wiring is the [`CloudInvocationAuditSink`] impl; the
-/// runtime is sink-agnostic.
+/// minimum_controls. Durable production wiring belongs behind
+/// [`CloudInvocationAuditSink`] and must use embedded SurrealDB/EventLedger;
+/// the runtime itself is sink-agnostic.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CloudInvocationAuditRow {
     pub model_id: ModelId,
@@ -131,6 +189,116 @@ pub trait CloudInvocationAuditSink: Send + Sync {
     fn record(&self, row: CloudInvocationAuditRow) -> Result<(), OpenAiByokError>;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApiKeyFetchCode {
+    VaultEmptyLaneId,
+    VaultEmptySecretValue,
+    VaultNoSecretForLane,
+    VaultLockPoisoned,
+    VaultKeychainBackend,
+    ProviderFailure,
+}
+
+impl ApiKeyFetchCode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::VaultEmptyLaneId => "vault_empty_lane_id",
+            Self::VaultEmptySecretValue => "vault_empty_secret_value",
+            Self::VaultNoSecretForLane => "vault_no_secret_for_lane",
+            Self::VaultLockPoisoned => "vault_lock_poisoned",
+            Self::VaultKeychainBackend => "vault_keychain_backend",
+            Self::ProviderFailure => "provider_failure",
+        }
+    }
+}
+
+impl std::fmt::Display for ApiKeyFetchCode {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProviderBodyMetadata {
+    pub declared_bytes: Option<u64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SseFailureKind {
+    Framing,
+    InvalidJson,
+    MissingTerminal,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderResponseKind {
+    OpenAiChatCompletions,
+    OpenAiEmbeddings,
+    AnthropicMessages,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransportErrorCode {
+    Timeout,
+    Connect,
+    Request,
+    Body,
+    Decode,
+    Unknown,
+}
+
+impl TransportErrorCode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Timeout => "timeout",
+            Self::Connect => "connect",
+            Self::Request => "request",
+            Self::Body => "body",
+            Self::Decode => "decode",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+impl std::fmt::Display for TransportErrorCode {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderOperation {
+    Generate,
+    Score,
+    Embed,
+}
+
+impl std::fmt::Display for ProviderOperation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Generate => "generate",
+            Self::Score => "score",
+            Self::Embed => "embed",
+        })
+    }
+}
+
+fn classify_transport_error(error: &reqwest::Error) -> TransportErrorCode {
+    if error.is_timeout() {
+        TransportErrorCode::Timeout
+    } else if error.is_connect() {
+        TransportErrorCode::Connect
+    } else if error.is_request() {
+        TransportErrorCode::Request
+    } else if error.is_body() {
+        TransportErrorCode::Body
+    } else if error.is_decode() {
+        TransportErrorCode::Decode
+    } else {
+        TransportErrorCode::Unknown
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum OpenAiByokError {
     #[error("OpenAI model name {0} is not in the BYOK allowlist (extend via register_model_name)")]
@@ -139,22 +307,31 @@ pub enum OpenAiByokError {
     EmptyModelName,
     #[error("model_id {0} is not registered with the BYOK runtime")]
     ModelNotRegistered(ModelId),
-    #[error("API key fetch failed: {0}")]
-    ApiKeyFetch(String),
+    #[error("API key fetch failed; code={code}")]
+    ApiKeyFetch { code: ApiKeyFetchCode },
     #[error("audit row persistence failed: {0}")]
     AuditPersist(String),
     #[error("internal lock poisoned: {0}")]
     LockPoisoned(String),
     #[error("only ByokCloud provider is supported by OpenAiByokRuntime (got {0:?})")]
     ProviderKindNotSupported(ProviderKind),
-    #[error("HTTP request to {url} failed: {source}")]
-    RequestFailed { url: String, source: reqwest::Error },
-    #[error("HTTP response status {status} body {body}")]
-    HttpStatus { status: u16, body: String },
-    #[error("SSE stream parse failed: {0}")]
-    StreamParseFailed(String),
-    #[error("JSON (de)serialisation failed: {0}")]
-    JsonFailed(String),
+    #[error("provider transport failed; operation={operation}; code={code}")]
+    RequestFailed {
+        operation: ProviderOperation,
+        code: TransportErrorCode,
+    },
+    #[error("HTTP response status {status}; provider body redacted; metadata={metadata:?}")]
+    HttpStatus {
+        status: u16,
+        metadata: ProviderBodyMetadata,
+    },
+    #[error("SSE stream failed; kind={kind:?}; payload_bytes={payload_bytes:?}")]
+    StreamParseFailed {
+        kind: SseFailureKind,
+        payload_bytes: Option<usize>,
+    },
+    #[error("JSON processing failed; response_kind={response_kind:?}")]
+    JsonFailed { response_kind: ProviderResponseKind },
     #[error("call cancelled before completion")]
     Cancelled,
 }
@@ -267,6 +444,7 @@ pub struct OpenAiByokRuntime {
     models: RwLock<HashMap<ModelId, OpenAiModelHandle>>,
     declared_capabilities: ModelCapabilities,
     runtime_cancel: CancellationToken,
+    timeouts: ByokInvocationTimeouts,
     /// MT-125 remediation: optional shared cloud-lane observability.
     /// When `Some`, the runtime (1) consults the [`ConsentGate`]
     /// before issuing the live HTTP call and (2) emits
@@ -296,9 +474,13 @@ impl OpenAiByokRuntime {
         api_key_provider: Arc<dyn ApiKeyProvider>,
         audit_sink: Arc<dyn CloudInvocationAuditSink>,
     ) -> Self {
+        let timeouts = ByokInvocationTimeouts::default();
         Self::with_client(
             api_base,
-            reqwest::Client::new(),
+            reqwest::Client::builder()
+                .connect_timeout(timeouts.connect)
+                .build()
+                .expect("build bounded OpenAI BYOK HTTP client"),
             api_key_provider,
             audit_sink,
         )
@@ -326,8 +508,17 @@ impl OpenAiByokRuntime {
             models: RwLock::new(HashMap::new()),
             declared_capabilities: Self::cloud_capabilities(),
             runtime_cancel: CancellationToken::new(),
+            timeouts: ByokInvocationTimeouts::default(),
             lane_obs: None,
         }
+    }
+
+    pub fn with_timeouts(mut self, timeouts: ByokInvocationTimeouts) -> Self {
+        assert!(!timeouts.whole_invocation.is_zero());
+        assert!(!timeouts.connect.is_zero());
+        assert!(!timeouts.idle.is_zero());
+        self.timeouts = timeouts;
+        self
     }
 
     /// MT-125 remediation: attach a shared
@@ -417,6 +608,7 @@ impl OpenAiByokRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            ..Default::default()
         }
     }
 
@@ -432,13 +624,17 @@ impl OpenAiByokRuntime {
             .ok_or(OpenAiByokError::ModelNotRegistered(model_id))
     }
 
-    /// Convenience: fetch the secret from the provider. The key is
-    /// returned by value to the caller; ensure it is dropped quickly
-    /// and never logged.
-    pub fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+    /// Fetch the secret into zeroizing ownership. The runtime never exposes a
+    /// plain owned key after this boundary.
+    pub fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
         self.api_key_provider
             .fetch_api_key()
-            .map_err(|err| OpenAiByokError::ApiKeyFetch(format!("{err}")))
+            .map_err(|err| OpenAiByokError::ApiKeyFetch {
+                code: match err {
+                    OpenAiByokError::ApiKeyFetch { code } => code,
+                    _ => ApiKeyFetchCode::ProviderFailure,
+                },
+            })
     }
 
     /// Records an audit row through the sink. Tests use this to
@@ -580,6 +776,7 @@ impl OpenAiByokRuntime {
                 request_id,
                 prompt_tokens_estimate,
             },
+            self.timeouts,
         )
     }
 }
@@ -615,18 +812,19 @@ fn single_error_stream(err: ModelRuntimeError) -> TokenStream {
 fn async_token_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
     audit_sink: Arc<dyn CloudInvocationAuditSink>,
     audit_template: CloudInvocationAuditRow,
     fr_ctx: LaneFrContext,
+    timeouts: ByokInvocationTimeouts,
 ) -> Pin<Box<dyn Stream<Item = Result<GeneratedToken, ModelRuntimeError>> + Send>> {
     let (sender, receiver) =
         tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
-
-    tokio::spawn(run_live_stream(
+    let owner_cancel = CancellationToken::new();
+    let task = tokio::spawn(run_live_stream(
         client,
         url,
         api_key,
@@ -637,11 +835,93 @@ fn async_token_stream(
         audit_template,
         fr_ctx,
         sender,
+        owner_cancel.clone(),
+        timeouts,
     ));
+    Box::pin(OwnedCloudTokenStream {
+        receiver,
+        task: Some(task),
+        owner_cancel,
+    })
+}
 
-    Box::pin(stream::unfold(receiver, |mut receiver| async {
-        receiver.recv().await.map(|item| (item, receiver))
-    }))
+struct OwnedCloudTokenStream {
+    receiver: tokio::sync::mpsc::UnboundedReceiver<Result<GeneratedToken, ModelRuntimeError>>,
+    task: Option<tokio::task::JoinHandle<()>>,
+    owner_cancel: CancellationToken,
+}
+
+enum ProviderWaitFailure {
+    Cancelled,
+    Deadline,
+}
+
+async fn await_provider_step<F, T>(
+    future: F,
+    cancel_req: &CancellationToken,
+    cancel_runtime: &CancellationToken,
+    owner_cancel: &CancellationToken,
+    deadline: tokio::time::Instant,
+) -> Result<T, ProviderWaitFailure>
+where
+    F: Future<Output = T>,
+{
+    tokio::select! {
+        biased;
+        _ = cancel_req.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        _ = cancel_runtime.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        _ = owner_cancel.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        result = tokio::time::timeout_at(deadline, future) => {
+            result.map_err(|_| ProviderWaitFailure::Deadline)
+        }
+    }
+}
+
+async fn await_runtime_step<F, T>(
+    future: F,
+    cancel_runtime: &CancellationToken,
+    deadline: tokio::time::Instant,
+) -> Result<T, ProviderWaitFailure>
+where
+    F: Future<Output = T>,
+{
+    tokio::select! {
+        biased;
+        _ = cancel_runtime.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        result = tokio::time::timeout_at(deadline, future) => {
+            result.map_err(|_| ProviderWaitFailure::Deadline)
+        }
+    }
+}
+
+impl Stream for OwnedCloudTokenStream {
+    type Item = Result<GeneratedToken, ModelRuntimeError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
+    }
+}
+
+impl Drop for OwnedCloudTokenStream {
+    fn drop(&mut self) {
+        self.owner_cancel.cancel();
+        let Some(mut task) = self.task.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                if tokio::time::timeout(Duration::from_millis(250), &mut task)
+                    .await
+                    .is_err()
+                {
+                    task.abort();
+                    let _ = task.await;
+                }
+            });
+        } else {
+            task.abort();
+        }
+    }
 }
 
 /// Async driver. Sends one `Result<GeneratedToken, _>` per
@@ -651,7 +931,7 @@ fn async_token_stream(
 async fn run_live_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
@@ -659,10 +939,13 @@ async fn run_live_stream(
     audit_template: CloudInvocationAuditRow,
     fr_ctx: LaneFrContext,
     sender: tokio::sync::mpsc::UnboundedSender<Result<GeneratedToken, ModelRuntimeError>>,
+    owner_cancel: CancellationToken,
+    timeouts: ByokInvocationTimeouts,
 ) {
     use eventsource_stream::Eventsource;
 
     let start_instant = std::time::Instant::now();
+    let invocation_deadline = tokio::time::Instant::now() + timeouts.whole_invocation;
     let mut last_token_instant = start_instant;
 
     // MT-125 remediation: emit FR-EVT-LLM-INFER-START once at the
@@ -690,33 +973,51 @@ async fn run_live_stream(
         return;
     }
 
-    let response = match client
+    let connect_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.connect);
+    let request = client
         .post(&url)
-        .bearer_auth(&api_key)
+        .bearer_auth(api_key.expose_secret())
         .header("Content-Type", "application/json")
-        .body(body_json)
-        .send()
-        .await
+        .body(body_json);
+    drop(api_key);
+    let response = match await_provider_step(
+        request.send(),
+        &cancel_req,
+        &cancel_runtime,
+        &owner_cancel,
+        connect_deadline,
+    )
+    .await
     {
-        Ok(resp) => resp,
-        Err(err) => {
+        Ok(Ok(resp)) => resp,
+        Ok(Err(err)) => {
+            let code = classify_transport_error(&err);
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
             emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
             let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                "OpenAI BYOK request to {url} failed: {err}"
+                "OpenAI BYOK transport failed; operation=generate; code={code}"
             ))));
+            return;
+        }
+        Err(ProviderWaitFailure::Cancelled) => {
+            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+            emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Cancelled).await;
+            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+            return;
+        }
+        Err(ProviderWaitFailure::Deadline) => {
+            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+            emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
+            let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+                "OpenAI BYOK connect/request deadline elapsed".to_string(),
+            )));
             return;
         }
     };
 
-    // Drop the api_key as soon as the request has been sent;
-    // it lives in the Authorization header on the wire, but the
-    // local memory copy is no longer needed.
-    drop(api_key);
-
     if !response.status().is_success() {
         let status = response.status().as_u16();
-        let body = response.text().await.unwrap_or_default();
+        let body = redacted_provider_response_body(&response);
         record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
         emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
         let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
@@ -728,29 +1029,59 @@ async fn run_live_stream(
     let mut sse = response.bytes_stream().eventsource();
     let mut token_index: u32 = 0;
     let mut hit_done = false;
+    let mut pending_finish: Option<FinishReason> = None;
+    let mut saw_usable_result = false;
 
-    while let Some(event) = sse.next().await {
-        if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
-            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
-            emit_fr_end(
-                &fr_ctx,
-                token_index,
-                &start_instant,
-                FinishReason::Cancelled,
-            )
-            .await;
-            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
-            return;
-        }
+    loop {
+        let idle_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.idle);
+        let next_event = await_provider_step(
+            sse.next(),
+            &cancel_req,
+            &cancel_runtime,
+            &owner_cancel,
+            idle_deadline,
+        )
+        .await;
+        let event = match next_event {
+            Ok(Some(event)) => event,
+            Ok(None) => break,
+            Err(ProviderWaitFailure::Cancelled) => {
+                record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+                emit_fr_end(
+                    &fr_ctx,
+                    token_index,
+                    &start_instant,
+                    FinishReason::Cancelled,
+                )
+                .await;
+                let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+                return;
+            }
+            Err(ProviderWaitFailure::Deadline) => {
+                let detail = if tokio::time::Instant::now() >= invocation_deadline {
+                    "whole invocation"
+                } else {
+                    "SSE idle"
+                };
+                record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+                emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+                let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
+                    "OpenAI BYOK {detail} deadline elapsed"
+                ))));
+                return;
+            }
+        };
 
         let event = match event {
             Ok(event) => event,
             Err(err) => {
+                let _ = err;
                 record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
                 emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
-                let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                    "OpenAI BYOK SSE parse failure: {err}"
-                ))));
+                let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+                    "OpenAI BYOK SSE framing failure; event_kind=unavailable; payload_bytes=unavailable; provider_payload=<redacted>"
+                        .to_string(),
+                )));
                 return;
             }
         };
@@ -763,20 +1094,35 @@ async fn run_live_stream(
         let chunk: ChatStreamChunk = match serde_json::from_str(&event.data) {
             Ok(chunk) => chunk,
             Err(err) => {
+                let _ = err;
+                let payload_bytes = event.data.len();
                 record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
                 emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
                 let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                    "OpenAI BYOK SSE chunk JSON parse failure: {err}; payload={}",
-                    event.data
+                    "OpenAI BYOK SSE JSON parse failure; event_kind=chat_chunk; payload_bytes={payload_bytes}; provider_payload=<redacted>"
                 ))));
                 return;
             }
         };
 
+        if chunk.choices.is_empty() {
+            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+            emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+            let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
+                "OpenAI BYOK SSE response unusable; event_kind=chat_chunk; reason=empty_choices; payload_bytes={}; provider_payload=<redacted>",
+                event.data.len()
+            ))));
+            return;
+        }
+
         if let Some(choice) = chunk.choices.into_iter().next() {
             let finish_mapped = choice.finish_reason.as_deref().and_then(map_finish_reason);
+            if let Some(finish) = finish_mapped {
+                pending_finish = Some(finish);
+            }
             if let Some(text) = choice.delta.content {
                 if !text.is_empty() {
+                    saw_usable_result = true;
                     token_index = token_index.saturating_add(1);
                     // MT-125 remediation: emit a sampled
                     // FR-EVT-LLM-INFER-TOKEN. token_id is 0 for the
@@ -805,7 +1151,7 @@ async fn run_live_stream(
                             token_id: token_index,
                             text,
                             logprob: None,
-                            finish_reason: finish_mapped,
+                            finish_reason: None,
                         }))
                         .is_err()
                     {
@@ -824,22 +1170,33 @@ async fn run_live_stream(
                         .await;
                         return;
                     }
-                } else if let Some(finish) = finish_mapped {
-                    let _ = sender.send(Ok(terminal_token(finish)));
                 }
-            } else if let Some(finish) = finish_mapped {
-                let _ = sender.send(Ok(terminal_token(finish)));
             }
         }
     }
 
-    // Whether the stream ended via `[DONE]` or via clean
-    // server-side close, we treat both as Succeeded; a truly broken
-    // response would have produced an error item above and returned.
-    let _ = hit_done;
+    if !hit_done {
+        record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+        emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+        let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+            "OpenAI BYOK SSE terminal missing; event_kind=done; provider_payload=<redacted>"
+                .to_string(),
+        )));
+        return;
+    }
+    if !saw_usable_result {
+        record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+        emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+        let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+            "OpenAI BYOK SSE response unusable; event_kind=done; reason=no_usable_result; provider_payload=<redacted>"
+                .to_string(),
+        )));
+        return;
+    }
     record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Succeeded);
-    emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Stop).await;
-    let _ = sender.send(Ok(terminal_token(FinishReason::Stop)));
+    let finish = pending_finish.unwrap_or(FinishReason::Stop);
+    emit_fr_end(&fr_ctx, token_index, &start_instant, finish).await;
+    let _ = sender.send(Ok(terminal_token(finish)));
 }
 
 /// MT-125 remediation: emit a single FR event through the attached
@@ -968,6 +1325,7 @@ impl ModelRuntime for OpenAiByokRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            ..Default::default()
         };
         self.declared_capabilities = normalised;
         Ok(handle.model_id)
@@ -1000,6 +1358,7 @@ impl ModelRuntime for OpenAiByokRuntime {
     }
 
     async fn score(&self, id: ModelId, sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        let invocation_deadline = tokio::time::Instant::now() + self.timeouts.whole_invocation;
         let handle = self
             .handle_for(id)
             .map_err(|err| ModelRuntimeError::ScoreError(format!("{err}")))?;
@@ -1034,29 +1393,42 @@ impl ModelRuntime for OpenAiByokRuntime {
             finished_at_utc: None,
             status: CloudCallStatus::Started,
         });
-        let response = self
+        let request = self
             .client
             .post(&url)
-            .bearer_auth(&api_key)
+            .bearer_auth(api_key.expose_secret())
             .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|err| {
-                let _ = self.audit_sink.record(CloudInvocationAuditRow {
-                    model_id: handle.model_id,
-                    openai_model_name: handle.openai_model_name.clone(),
-                    call_kind: CloudCallKind::Score,
-                    started_at_utc: started_at_utc.clone(),
-                    finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
-                    status: CloudCallStatus::Failed,
-                });
-                ModelRuntimeError::ScoreError(format!("score POST {url} failed: {err}"))
-            })?;
+            .json(&body);
         drop(api_key);
+        let response = await_runtime_step(
+            request.send(),
+            &self.runtime_cancel,
+            invocation_deadline.min(tokio::time::Instant::now() + self.timeouts.connect),
+        )
+        .await
+        .map_err(|failure| match failure {
+            ProviderWaitFailure::Cancelled => ModelRuntimeError::Cancelled,
+            ProviderWaitFailure::Deadline => ModelRuntimeError::ScoreError(
+                "OpenAI BYOK score connect/request deadline elapsed".to_string(),
+            ),
+        })?
+        .map_err(|err| {
+            let code = classify_transport_error(&err);
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Score,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            ModelRuntimeError::ScoreError(format!(
+                "OpenAI BYOK transport failed; operation=score; code={code}"
+            ))
+        })?;
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let body = response.text().await.unwrap_or_default();
+            let body = redacted_provider_response_body(&response);
             let _ = self.audit_sink.record(CloudInvocationAuditRow {
                 model_id: handle.model_id,
                 openai_model_name: handle.openai_model_name.clone(),
@@ -1069,8 +1441,32 @@ impl ModelRuntime for OpenAiByokRuntime {
                 "score HTTP {status}: {body}"
             )));
         }
-        let parsed: ChatCompletionsResponse = response.json().await.map_err(|err| {
-            ModelRuntimeError::ScoreError(format!("score JSON parse failed: {err}"))
+        let parsed: ChatCompletionsResponse = await_runtime_step(
+            response.json(),
+            &self.runtime_cancel,
+            invocation_deadline,
+        )
+        .await
+        .map_err(|failure| match failure {
+            ProviderWaitFailure::Cancelled => ModelRuntimeError::Cancelled,
+            ProviderWaitFailure::Deadline => {
+                ModelRuntimeError::ScoreError("OpenAI BYOK score body deadline elapsed".to_string())
+            }
+        })?
+        .map_err(|err| {
+            let _ = err;
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Score,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            ModelRuntimeError::ScoreError(
+                "score response JSON parse failed; response_kind=chat_completions; provider_payload=<redacted>"
+                    .to_string(),
+            )
         })?;
         let token_logprobs: Vec<f32> = parsed
             .choices
@@ -1087,6 +1483,20 @@ impl ModelRuntime for OpenAiByokRuntime {
                     .unwrap_or_default()
             })
             .collect();
+        if token_logprobs.is_empty() {
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Score,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            return Err(ModelRuntimeError::ScoreError(
+                "score response unusable; response_kind=chat_completions; reason=empty_logprobs; provider_payload=<redacted>"
+                    .to_string(),
+            ));
+        }
         let mean_logprob = if token_logprobs.is_empty() {
             0.0
         } else {
@@ -1107,6 +1517,7 @@ impl ModelRuntime for OpenAiByokRuntime {
     }
 
     async fn embed(&self, id: ModelId, text: &str) -> Result<Embedding, ModelRuntimeError> {
+        let invocation_deadline = tokio::time::Instant::now() + self.timeouts.whole_invocation;
         let handle = self
             .handle_for(id)
             .map_err(|err| ModelRuntimeError::EmbedError(format!("{err}")))?;
@@ -1127,29 +1538,42 @@ impl ModelRuntime for OpenAiByokRuntime {
             finished_at_utc: None,
             status: CloudCallStatus::Started,
         });
-        let response = self
+        let request = self
             .client
             .post(&url)
-            .bearer_auth(&api_key)
+            .bearer_auth(api_key.expose_secret())
             .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|err| {
-                let _ = self.audit_sink.record(CloudInvocationAuditRow {
-                    model_id: handle.model_id,
-                    openai_model_name: handle.openai_model_name.clone(),
-                    call_kind: CloudCallKind::Embeddings,
-                    started_at_utc: started_at_utc.clone(),
-                    finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
-                    status: CloudCallStatus::Failed,
-                });
-                ModelRuntimeError::EmbedError(format!("embed POST {url} failed: {err}"))
-            })?;
+            .json(&body);
         drop(api_key);
+        let response = await_runtime_step(
+            request.send(),
+            &self.runtime_cancel,
+            invocation_deadline.min(tokio::time::Instant::now() + self.timeouts.connect),
+        )
+        .await
+        .map_err(|failure| match failure {
+            ProviderWaitFailure::Cancelled => ModelRuntimeError::Cancelled,
+            ProviderWaitFailure::Deadline => ModelRuntimeError::EmbedError(
+                "OpenAI BYOK embed connect/request deadline elapsed".to_string(),
+            ),
+        })?
+        .map_err(|err| {
+            let code = classify_transport_error(&err);
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Embeddings,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            ModelRuntimeError::EmbedError(format!(
+                "OpenAI BYOK transport failed; operation=embed; code={code}"
+            ))
+        })?;
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let body = response.text().await.unwrap_or_default();
+            let body = redacted_provider_response_body(&response);
             let _ = self.audit_sink.record(CloudInvocationAuditRow {
                 model_id: handle.model_id,
                 openai_model_name: handle.openai_model_name.clone(),
@@ -1162,8 +1586,32 @@ impl ModelRuntime for OpenAiByokRuntime {
                 "embed HTTP {status}: {body}"
             )));
         }
-        let parsed: EmbeddingsResponse = response.json().await.map_err(|err| {
-            ModelRuntimeError::EmbedError(format!("embed JSON parse failed: {err}"))
+        let parsed: EmbeddingsResponse = await_runtime_step(
+            response.json(),
+            &self.runtime_cancel,
+            invocation_deadline,
+        )
+        .await
+        .map_err(|failure| match failure {
+            ProviderWaitFailure::Cancelled => ModelRuntimeError::Cancelled,
+            ProviderWaitFailure::Deadline => {
+                ModelRuntimeError::EmbedError("OpenAI BYOK embed body deadline elapsed".to_string())
+            }
+        })?
+        .map_err(|err| {
+            let _ = err;
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Embeddings,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            ModelRuntimeError::EmbedError(
+                "embed response JSON parse failed; response_kind=embeddings; provider_payload=<redacted>"
+                    .to_string(),
+            )
         })?;
         let vector = parsed
             .data
@@ -1171,6 +1619,20 @@ impl ModelRuntime for OpenAiByokRuntime {
             .next()
             .map(|datum| datum.embedding)
             .unwrap_or_default();
+        if vector.is_empty() {
+            let _ = self.audit_sink.record(CloudInvocationAuditRow {
+                model_id: handle.model_id,
+                openai_model_name: handle.openai_model_name.clone(),
+                call_kind: CloudCallKind::Embeddings,
+                started_at_utc: started_at_utc.clone(),
+                finished_at_utc: Some(chrono::Utc::now().to_rfc3339()),
+                status: CloudCallStatus::Failed,
+            });
+            return Err(ModelRuntimeError::EmbedError(
+                "embed response unusable; response_kind=embeddings; reason=empty_data; provider_payload=<redacted>"
+                    .to_string(),
+            ));
+        }
         let _ = self.audit_sink.record(CloudInvocationAuditRow {
             model_id: handle.model_id,
             openai_model_name: handle.openai_model_name.clone(),
@@ -1227,8 +1689,8 @@ mod tests {
         key: String,
     }
     impl ApiKeyProvider for StaticKeyProvider {
-        fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-            Ok(self.key.clone())
+        fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+            Ok(TransientApiKey::from_secret(self.key.clone()))
         }
     }
 
@@ -1335,7 +1797,8 @@ mod tests {
     fn fetch_api_key_returns_provider_value_and_does_not_log_it() {
         let runtime = fixture_runtime();
         let key = runtime.fetch_api_key().expect("fetch");
-        assert!(key.starts_with("sk-"));
+        assert!(key.expose_secret().starts_with("sk-"));
+        assert_eq!(format!("{key:?}"), "TransientApiKey([REDACTED])");
     }
 
     #[test]
@@ -1361,5 +1824,72 @@ mod tests {
         runtime.cancel(outer.clone());
         assert!(outer.is_cancelled());
         assert!(runtime.runtime_cancel.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn provider_wait_is_bounded_and_cancellation_sensitive() {
+        let request_cancel = CancellationToken::new();
+        let runtime_cancel = CancellationToken::new();
+        let owner_cancel = CancellationToken::new();
+        let timeout = await_provider_step(
+            std::future::pending::<()>(),
+            &request_cancel,
+            &runtime_cancel,
+            &owner_cancel,
+            tokio::time::Instant::now() + Duration::from_millis(1),
+        )
+        .await;
+        assert!(matches!(timeout, Err(ProviderWaitFailure::Deadline)));
+
+        request_cancel.cancel();
+        let cancelled = await_provider_step(
+            std::future::pending::<()>(),
+            &request_cancel,
+            &runtime_cancel,
+            &owner_cancel,
+            tokio::time::Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+        assert!(matches!(cancelled, Err(ProviderWaitFailure::Cancelled)));
+    }
+
+    #[tokio::test]
+    async fn dropping_cloud_stream_aborts_owned_pipeline_task() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        struct DropMark(Arc<AtomicBool>);
+        impl Drop for DropMark {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Release);
+            }
+        }
+
+        let dropped = Arc::new(AtomicBool::new(false));
+        let task_dropped = dropped.clone();
+        let (sender, receiver) =
+            tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
+        let task = tokio::spawn(async move {
+            let _mark = DropMark(task_dropped);
+            let _sender = sender;
+            std::future::pending::<()>().await;
+        });
+        tokio::task::yield_now().await;
+        let stream = OwnedCloudTokenStream {
+            receiver,
+            task: Some(task),
+            owner_cancel: CancellationToken::new(),
+        };
+        drop(stream);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !dropped.load(Ordering::Acquire) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("owned provider task must be released within the teardown bound");
+        assert!(
+            dropped.load(Ordering::Acquire),
+            "stream Drop must abort and release the owned provider task"
+        );
     }
 }

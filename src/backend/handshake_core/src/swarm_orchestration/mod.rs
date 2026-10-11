@@ -43,12 +43,16 @@
 //! - [`crate::flight_recorder`]: `FlightRecorderEvent` for the production sink.
 
 pub mod breaker;
+pub(crate) mod checkout_lease;
 pub mod coordinator;
 pub mod error;
 pub mod events;
 pub mod factory;
 pub mod ids;
+pub mod model_lane;
+pub mod operator_chat;
 pub mod production_factory;
+pub mod resource_scope;
 pub mod routing;
 pub mod schedule;
 pub mod state;
@@ -62,25 +66,43 @@ pub use breaker::{
     AdmitDecision, BreakerConfig, BreakerState, FailureFingerprint, FailureFingerprintBreaker,
 };
 pub use coordinator::{
-    ClaimLease, SessionHandle, SwarmConfig, SwarmCoordinator, DEFAULT_MAX_RESPAWNS_PER_INSTANCE,
+    ClaimLease, DexterityNoOsLaunchCaller, OperatorSubagentManagerLane, SessionHandle, SwarmConfig,
+    SwarmCoordinator, DEFAULT_MAX_RESPAWNS_PER_INSTANCE,
 };
 pub use error::{SwarmError, SwarmErrorClass, SwarmResult};
 pub use events::{
     BroadcastSwarmSink, DurableSwarmFrBridge, FanoutSwarmSink, FlightRecorderSwarmSink,
     RecordingSwarmSink, SwarmEvent, SwarmEventSink, SwarmFrEventId,
 };
-pub use factory::{LiveSession, ModelSessionFactory, SessionTeardown};
-pub use ids::{BudgetRemaining, ByokCloudProvider, ModelInstanceId, RunBudget, SpawnRequest};
+pub use factory::{LiveSession, ModelSessionFactory, SessionReadyHook, SessionTeardown};
+pub use ids::{
+    BudgetRemaining, ByokCloudProvider, CheckoutLeaseRef, ModelInstanceId, RoutingAttemptIdentity,
+    RunBudget, SpawnRequest,
+};
+pub use operator_chat::{
+    build_spawn_request as build_operator_chat_spawn_request, force_json_stream_output,
+    ModelLaneCaptureRecorder, OperatorChatCloudRow, OperatorChatError, OperatorChatLaneKind,
+    OperatorChatLaunchService, OperatorChatLaunched, OperatorChatModelInventory,
+    OperatorChatModelRow, OperatorChatSelection, OperatorChatSubagentRow,
+    OPERATOR_CHAT_CLI_ADAPTER, OPERATOR_CHAT_SURFACE_ID,
+};
 pub use production_factory::{
-    build_production_swarm_coordinator, default_swarm_concurrency, CloudLaneFactoryConfig,
-    CloudLiveRuntime, CloudProviderFlavor, CloudRuntimeBuilder, ProductionModelSessionFactory,
-    VaultCloudRuntimeBuilder,
+    build_production_swarm_coordinator, build_production_swarm_coordinator_with_sandbox_registry,
+    default_swarm_concurrency, CloudLaneFactoryConfig, CloudLiveRuntime, CloudProviderFlavor,
+    CloudRuntimeBuilder, ProductionModelSessionFactory, VaultCloudRuntimeBuilder,
 };
 pub use routing::{
-    RoutingDecision, RoutingPolicy, RoutingPolicyConfig, SwarmRoutingError, TaskClass, TaskTier,
+    ModelLaneRoutingAuthority, ModelLaneRoutingAuthorityGate, ModelLaneRoutingDispatchTarget,
+    ModelLaneRoutingGraph, ModelLaneRoutingStage, ModelLaneRoutingStageActivation,
+    ModelLaneRoutingStageOutcome, RoutingDecision, RoutingPolicy, RoutingPolicyConfig,
+    SwarmRoutingError, TaskClass, TaskTier,
 };
 pub use schedule::{
     schedules_to_ics, ScheduledAction, ScheduledFire, SwarmSchedule, SwarmScheduler,
 };
 pub use state::ModelSessionState;
-pub use worktree_vm_registry::{WorktreeVmError, WorktreeVmRegistry};
+pub use worktree_vm_registry::{
+    WorktreeVmBindingRecord, WorktreeVmBindingState, WorktreeVmError, WorktreeVmRegistry,
+};
+
+pub mod routing_execution;

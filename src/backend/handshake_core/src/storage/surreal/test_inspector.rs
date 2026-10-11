@@ -377,10 +377,32 @@ struct RecordPatchBindings {
     patch: SurrealValueData,
 }
 
+#[derive(Debug, SurrealValue)]
+struct FixedScopeSentinel { value: String }
+
+fn scope_catalog_names(info: SurrealValueData, field: &str) -> Result<BTreeSet<String>, SurrealTestInspectorError> {
+    let SurrealValueData::Object(info) = info else {
+        return Err(SurrealTestInspectorError::InvalidCatalog("scope catalog is not an object".to_owned()));
+    };
+    let Some(SurrealValueData::Object(entries)) = info.get(field) else {
+        return Err(SurrealTestInspectorError::InvalidCatalog(format!("scope catalog omitted object field {field}")));
+    };
+    Ok(entries.keys().cloned().collect())
+}
+
 impl SurrealTestInspector {
     pub(super) fn new(storage: SurrealStorage) -> Self {
         Self { storage }
     }
+
+    pub async fn foreign_survival_sentinel_exists(&self) -> Result<bool, SurrealTestInspectorError> {
+        let rows: Vec<FixedScopeSentinel> = self.storage.with_admin_operation(|database| Box::pin(async move {
+            let mut response = database.query("SELECT value FROM mt024_scope_sentinel:foreign_survival;").await?.check()?;
+            Ok(response.take(0)?)
+        })).await?;
+        Ok(rows.len() == 1 && rows[0].value == "survives-earlier-cleanup")
+    }
+
 
     pub async fn schema_catalog(&self) -> Result<SchemaCatalogSnapshot, SurrealTestInspectorError> {
         let database_info: SurrealValueData = self
@@ -718,6 +740,112 @@ impl SurrealTestInspector {
 impl SurrealTestMutator {
     pub(super) fn new(storage: SurrealStorage) -> Self {
         Self { storage }
+    }
+
+    pub async fn open_root_catalog(config: super::SurrealStorageConfig) -> Result<Self, SurrealTestInspectorError> {
+        Ok(Self::new(SurrealStorage::open_test_root_catalog(config).await?))
+    }
+
+    pub async fn close_catalog(&self) -> Result<(), SurrealTestInspectorError> {
+        self.storage.shutdown().await?;
+        Ok(())
+    }
+
+    pub async fn root_namespaces(&self) -> Result<BTreeSet<String>, SurrealTestInspectorError> {
+        let info: SurrealValueData = self.storage.with_admin_operation(|database| Box::pin(async move {
+            let mut response = database.query("INFO FOR ROOT;").await?.check()?;
+            Ok(response.take(0)?)
+        })).await?;
+        scope_catalog_names(info, "namespaces")
+    }
+
+    pub async fn namespace_databases(&self) -> Result<BTreeSet<String>, SurrealTestInspectorError> {
+        let namespace = self.storage.config().namespace().to_owned();
+        if !super::valid_test_scope_name(&namespace, "hs_test_ns_") {
+            return Err(SurrealTestInspectorError::InvalidCatalog("invalid exact test namespace".to_owned()));
+        }
+        if !self.root_namespaces().await?.contains(&namespace) { return Ok(BTreeSet::new()); }
+        let info: SurrealValueData = self.storage.with_admin_operation(|database| Box::pin(async move {
+            let mut response = database.query(format!("USE NS `{namespace}`; INFO FOR NS;")).await?.check()?;
+            Ok(response.take(1)?)
+        })).await?;
+        scope_catalog_names(info, "databases")
+    }
+
+    pub async fn remove_owned_test_catalog(&self) -> Result<bool, SurrealTestInspectorError> {
+        let namespace = self.storage.config().namespace().to_owned();
+        let name = self.storage.config().database().to_owned();
+        if !super::valid_test_scope_name(&namespace, "hs_test_ns_") || !super::valid_test_scope_name(&name, "hs_test_db_") {
+            return Err(SurrealTestInspectorError::InvalidCatalog("invalid exact test catalog removal scope".to_owned()));
+        }
+        if !self.root_namespaces().await?.contains(&namespace) { return Ok(true); }
+        let namespace_for_remove = namespace.clone();
+        let name_for_remove = name.clone();
+        self.storage.with_admin_operation(|database| Box::pin(async move {
+            database.query(format!("USE NS `{namespace_for_remove}`; REMOVE DATABASE IF EXISTS `{name_for_remove}`;")).await?.check()?;
+            Ok(())
+        })).await?;
+        if self.namespace_databases().await?.contains(&name) {
+            return Err(SurrealTestInspectorError::InvalidCatalog("exact database survived removal".to_owned()));
+        }
+        self.storage.with_admin_operation(|database| Box::pin(async move {
+            database.query(format!("REMOVE NAMESPACE IF EXISTS `{namespace}`;")).await?.check()?;
+            Ok(())
+        })).await?;
+        Ok(true)
+    }
+
+    pub async fn write_foreign_survival_sentinel(&self) -> Result<(), SurrealTestInspectorError> {
+        let rows: Vec<FixedScopeSentinel> = self.storage.with_admin_operation(|database| Box::pin(async move {
+            let mut response = database.query_bound("UPSERT mt024_scope_sentinel:foreign_survival SET value = $value RETURN AFTER;",
+                ("value", "survives-earlier-cleanup")).await?.check()?;
+            Ok(response.take(0)?)
+        })).await?;
+        if rows.len() != 1 || rows[0].value != "survives-earlier-cleanup" {
+            return Err(SurrealTestInspectorError::InvalidRow("fixed foreign-survival sentinel was not stored".to_owned()));
+        }
+        Ok(())
+    }
+
+
+    /// Attempts the original immutable-update counterfactual through the current
+    /// authenticated Document Update connection, never the administrative client.
+    pub async fn attempt_record_user_crdt_update_mutation(&self, update_id: &str)
+        -> Result<bool, SurrealTestInspectorError>
+    {
+        self.attempt_record_user_crdt_mutation(update_id, false).await
+    }
+
+    /// Attempts the original immutable-snapshot counterfactual under the same
+    /// real record-user authorization as the document producer.
+    pub async fn attempt_record_user_crdt_snapshot_mutation(&self, snapshot_id: &str)
+        -> Result<bool, SurrealTestInspectorError>
+    {
+        self.attempt_record_user_crdt_mutation(snapshot_id, true).await
+    }
+
+    async fn attempt_record_user_crdt_mutation(&self, identity: &str, snapshot: bool)
+        -> Result<bool, SurrealTestInspectorError>
+    {
+        use super::current_record_user_scope;
+        use super::resource_authority::ResourceAction;
+        let scope = current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if scope.action != ResourceAction::Update || identity.trim().is_empty() {
+            return Err(SurrealStorageError::TransactionAuthorityRequired.into());
+        }
+        #[derive(SurrealValue)]
+        struct Bindings { identity: String, resource: RecordId }
+        let bindings = Bindings { identity: identity.to_owned(),
+            resource: RecordId::new("protected_resources", scope.resource_id) };
+        let statement = if snapshot {
+            "UPDATE kernel_crdt_snapshots SET actor_kind = 'system' WHERE snapshot_id = $identity AND $resource.resource_kind = 'rich_document' AND document_id = $resource.external_resource_id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND workspace_id = $resource.parent_resource_id.external_resource_id RETURN VALUE id;"
+        } else {
+            "UPDATE kernel_crdt_updates SET trace_id += '-forged-immutable-probe' WHERE update_id = $identity AND $resource.resource_kind = 'rich_document' AND document_id = $resource.external_resource_id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND workspace_id = $resource.parent_resource_id.external_resource_id RETURN VALUE id;"
+        };
+        let rows: Vec<RecordId> = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values(statement, bindings).await
+        })).await?;
+        Ok(!rows.is_empty())
     }
 
     /// Attempt a schema-governed row creation. Invalid rows surface the live

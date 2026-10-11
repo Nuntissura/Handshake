@@ -496,3 +496,417 @@ fn refuses_malformed_pid_nonzero_exit() {
     );
     kill_child(&mut child);
 }
+
+#[test]
+fn explicit_v2_binary_uses_real_default_reader_and_rejects_wrong_nonce() {
+    use handshake_diag_ring::ring::DiagRingWriterV2;
+    use handshake_diag_ring::schema::DiagEventV2;
+    let tag = unique_tag("v2-default");
+    let path = std::env::temp_dir().join(format!("handshake-diag-{tag}.ring"));
+    let _ring = RingGuard(path.clone());
+    let nonce = [0x55; 16];
+    let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, nonce).unwrap();
+    writer.write_heartbeat(12, 34);
+    assert!(writer.write(DiagEventV2::behavior_observation(
+        1, 12, 56, nonce, [0xaa; 32]
+    )));
+    let _survivor = SurvivorGuard(survivor_path(&path, &tag));
+    let socket = format!("hsk-palm-{tag}");
+    let spawn = |expected_nonce: &str, socket: &str| {
+        let mut command = Command::new(palmistry_bin());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x0800_0000);
+        }
+        command
+            .args([
+                "--parent-pid",
+                &std::process::id().to_string(),
+                "--session-id",
+                &tag,
+                "--ring-path",
+                path.to_str().unwrap(),
+                "--control-socket",
+                socket,
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                expected_nonce,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap()
+    };
+    struct OwnedWatcher(Child);
+    impl Drop for OwnedWatcher {
+        fn drop(&mut self) {
+            kill_child(&mut self.0);
+        }
+    }
+    let mut watcher = OwnedWatcher(spawn("55555555555555555555555555555555", &socket));
+    let pong = send_v2_control_with_complete_deadline(
+        &socket,
+        r#"{"type":"Ping"}"#,
+        Duration::from_secs(3),
+    )
+    .unwrap();
+    assert!(pong.contains("Pong"));
+    assert!(still_running(&mut watcher.0));
+    let ack = send_v2_control_with_complete_deadline(
+        &socket,
+        r#"{"type":"Shutdown"}"#,
+        Duration::from_secs(3),
+    )
+    .unwrap();
+    assert!(ack.contains("Ack"));
+    assert_eq!(
+        wait_for_exit(&mut watcher.0, Duration::from_secs(5)),
+        Some(0)
+    );
+    let mut wrong = OwnedWatcher(spawn(
+        "56565656565656565656565656565656",
+        &format!("{socket}-wrong"),
+    ));
+    assert_eq!(wait_for_exit(&mut wrong.0, Duration::from_secs(5)), Some(2));
+    drop(wrong);
+    drop(watcher);
+    drop(writer);
+}
+
+/// Only the new v2 fixture uses this complete exchange deadline; legacy helpers stay unchanged.
+fn send_v2_control_with_complete_deadline(
+    socket: &str,
+    message_json: &str,
+    timeout: Duration,
+) -> std::io::Result<String> {
+    use interprocess::local_socket::traits::Stream as _;
+    use interprocess::local_socket::{GenericNamespaced, Stream, ToNsName};
+    use std::io::{self, Read};
+    const MAX_FRAME: usize = 16 * 1024;
+    if message_json.len() >= MAX_FRAME {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "v2 control request exceeds bound",
+        ));
+    }
+    let deadline = Instant::now() + timeout;
+    let timeout_error = || {
+        io::Error::new(
+            io::ErrorKind::TimedOut,
+            "v2 control exchange deadline elapsed",
+        )
+    };
+    #[cfg(unix)]
+    let name = socket.to_ns_name::<GenericNamespaced>()?;
+    #[cfg(windows)]
+    let _validated_name = socket.to_ns_name::<GenericNamespaced>()?;
+    let stream = loop {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        #[cfg(windows)]
+        let attempt = {
+            use interprocess::os::windows::named_pipe::local_socket::Stream as WindowsStream;
+            use interprocess::os::windows::named_pipe::{pipe_mode::Bytes, DuplexPipeStream};
+            use interprocess::ConnectWaitMode;
+            use std::os::windows::io::OwnedHandle;
+            // GenericNamespaced maps this exact socket to the local \\.\pipe\ prefix.
+            // The ordinary local Stream::connect does not forward wait_mode on Windows.
+            let path = format!(r"\\.\pipe\{socket}");
+            DuplexPipeStream::<Bytes>::connect_by_path_with_wait_mode(
+                path.as_str(),
+                ConnectWaitMode::Timeout(Duration::ZERO),
+            )
+            .and_then(|pipe| {
+                let handle: OwnedHandle = pipe.try_into().map_err(|_| {
+                    io::Error::other(
+                        "v2 control acquisition unexpectedly lost exclusive pipe ownership",
+                    )
+                })?;
+                WindowsStream::try_from(handle)
+                    .map(Stream::NamedPipe)
+                    .map_err(|error| io::Error::other(error.to_string()))
+            })
+        };
+        #[cfg(unix)]
+        let attempt = {
+            use interprocess::{local_socket::ConnectOptions, ConnectWaitMode};
+            // Verified Unix implementation creates the nonblocking fd BEFORE connect for Timeout,
+            // then waits at most the specified duration. Zero plus the outer deadline never blocks.
+            ConnectOptions::new()
+                .name(name.clone())
+                .wait_mode(ConnectWaitMode::Timeout(Duration::ZERO))
+                .nonblocking_stream(true)
+                .connect_sync()
+        };
+        match attempt {
+            Ok(stream) => break stream,
+            Err(error) => {
+                if Instant::now() >= deadline {
+                    return Err(error);
+                }
+                std::thread::sleep(
+                    Duration::from_millis(5)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+        }
+    };
+    // Windows pipe-drop normally sends dirty streams to a background flushing limbo. This owned
+    // fixture exchange instead cancels/releases its actual handle on every return, including timeout.
+    struct OwnedConnection(Stream);
+    impl Drop for OwnedConnection {
+        fn drop(&mut self) {
+            #[cfg(windows)]
+            {
+                let Stream::NamedPipe(stream) = &self.0;
+                stream.inner().assume_flushed();
+            }
+        }
+    }
+    let mut connection = OwnedConnection(stream);
+    connection.0.set_nonblocking(true)?;
+    let mut request = message_json.as_bytes().to_vec();
+    request.push(b'\n');
+    let mut written = 0;
+    while written < request.len() {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        match connection.0.write(&request[written..]) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "v2 control write made no progress",
+                ))
+            }
+            Ok(count) => written += count,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(5)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    // interprocess::local_socket::Stream::flush is an unconditional no-op on both platforms.
+    // Do not use the underlying named-pipe FlushFileBuffers, which waits for the peer to consume.
+    connection.0.flush()?;
+    let mut reply = Vec::with_capacity(64);
+    let mut byte = [0; 1];
+    loop {
+        if Instant::now() >= deadline {
+            return Err(timeout_error());
+        }
+        match connection.0.read(&mut byte) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "v2 control peer closed before reply",
+                ))
+            }
+            Ok(_) => {
+                if byte[0] == b'\n' {
+                    return String::from_utf8(reply)
+                        .map(|line| line.trim_end_matches('\r').to_string())
+                        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error));
+                }
+                if reply.len() == MAX_FRAME {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "v2 control reply exceeds bound",
+                    ));
+                }
+                reply.push(byte[0]);
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(5)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[test]
+fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() {
+    use handshake_diag_ring::ring::DiagRingWriterV2;
+    use palmistry::control::{
+        watcher_challenge_bytes, ControlMessage, ControlReply, WatcherSigningIdentity,
+    };
+    let session = uuid::Uuid::now_v7();
+    let instance = uuid::Uuid::now_v7();
+    let nonce = [0x66; 16];
+    let path = std::env::temp_dir().join(format!("handshake-diag-signed-{session}.ring"));
+    let _ring_guard = RingGuard(path.clone());
+    let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, nonce).unwrap();
+    writer.write_heartbeat(1, 2);
+    let _survivor = SurvivorGuard(survivor_path(&path, &session.to_string()));
+    struct OwnedWatcher(Child);
+    impl Drop for OwnedWatcher {
+        fn drop(&mut self) {
+            kill_child(&mut self.0);
+        }
+    }
+    let spawn = |suffix: &str| {
+        let socket = format!("hsk-palm-signed-{session}-{suffix}");
+        let mut command = Command::new(palmistry_bin());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x0800_0000);
+        }
+        let child = command
+            .args([
+                "--parent-pid",
+                &std::process::id().to_string(),
+                "--session-id",
+                &session.to_string(),
+                "--ring-path",
+                path.to_str().unwrap(),
+                "--control-socket",
+                &socket,
+                "--ring-version",
+                "2",
+                "--ring-nonce",
+                "66666666666666666666666666666666",
+                "--signing-process-instance",
+                &instance.to_string(),
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        (OwnedWatcher(child), socket)
+    };
+    let seed = zeroize::Zeroizing::new(vec![0x77; 32]);
+    let (mut watcher, socket) = spawn("valid");
+    let mut stdin = watcher.0.stdin.take().unwrap();
+    stdin.write_all(&seed).unwrap();
+    drop(stdin);
+    let identity = WatcherSigningIdentity {
+        protocol_version: 1,
+        session_id: session,
+        process_instance_id: instance,
+        parent_pid: std::process::id(),
+        watcher_pid: watcher.0.id(),
+        ring_version: 2,
+        record_size: 120,
+        launch_nonce: nonce,
+    };
+    let request = ControlMessage::ProvenanceChallengeV1 {
+        identity: identity.clone(),
+        challenge: [8; 32],
+        transport_public_key: [9; 32],
+    };
+    let response = send_v2_control_with_complete_deadline(
+        &socket,
+        &serde_json::to_string(&request).unwrap(),
+        Duration::from_secs(3),
+    )
+    .unwrap();
+    let ControlReply::ProvenanceReadyV1 {
+        identity: signed_identity,
+        challenge,
+        transport_public_key,
+        public_verifier,
+        signature,
+    } = serde_json::from_str(&response).unwrap()
+    else {
+        panic!("typed signed readiness required");
+    };
+    assert_eq!(signed_identity, identity);
+    assert_eq!(challenge, [8; 32]);
+    assert_eq!(transport_public_key, [9; 32]);
+    assert_eq!(
+        public_verifier,
+        ed25519_dalek::SigningKey::from_bytes(&<[u8; 32]>::try_from(seed.as_slice()).unwrap())
+            .verifying_key()
+            .to_bytes()
+    );
+    let verifier = ed25519_dalek::VerifyingKey::from_bytes(&public_verifier).unwrap();
+    let signature = ed25519_dalek::Signature::from_slice(&signature).unwrap();
+    verifier
+        .verify_strict(
+            &watcher_challenge_bytes(&identity, challenge, transport_public_key).unwrap(),
+            &signature,
+        )
+        .unwrap();
+    assert!(verifier
+        .verify_strict(
+            &watcher_challenge_bytes(&identity, [10; 32], transport_public_key).unwrap(),
+            &signature
+        )
+        .is_err());
+    let mut foreign = identity.clone();
+    foreign.watcher_pid += 1;
+    let forged = ControlMessage::ProvenanceChallengeV1 {
+        identity: foreign,
+        challenge: [8; 32],
+        transport_public_key: [9; 32],
+    };
+    let denied = send_v2_control_with_complete_deadline(
+        &socket,
+        &serde_json::to_string(&forged).unwrap(),
+        Duration::from_secs(3),
+    )
+    .unwrap();
+    assert!(matches!(
+        serde_json::from_str::<ControlReply>(&denied).unwrap(),
+        ControlReply::Error {
+            code: palmistry::control::ControlErrorCode::SigningIdentityMismatch
+        }
+    ));
+    assert!(send_v2_control_with_complete_deadline(
+        &socket,
+        r#"{"type":"Ping"}"#,
+        Duration::from_secs(3)
+    )
+    .unwrap()
+    .contains("Pong"));
+    assert!(still_running(&mut watcher.0));
+    assert!(send_v2_control_with_complete_deadline(
+        &socket,
+        r#"{"type":"Shutdown"}"#,
+        Duration::from_secs(3)
+    )
+    .unwrap()
+    .contains("Ack"));
+    assert_eq!(
+        wait_for_exit(&mut watcher.0, Duration::from_secs(5)),
+        Some(0)
+    );
+    for size in [31, 33] {
+        let (mut invalid, _) = spawn(&format!("invalid-{size}"));
+        let mut stdin = invalid.0.stdin.take().unwrap();
+        let invalid_seed = zeroize::Zeroizing::new(vec![0x77; size]);
+        stdin.write_all(&invalid_seed).unwrap();
+        drop(stdin);
+        assert_eq!(
+            wait_for_exit(&mut invalid.0, Duration::from_secs(5)),
+            Some(2)
+        );
+    }
+    let (mut quiet, _) = spawn("quiet");
+    let held_pipe = quiet.0.stdin.take().unwrap();
+    assert_eq!(wait_for_exit(&mut quiet.0, Duration::from_secs(5)), Some(2));
+    drop(held_pipe);
+    drop(writer);
+}

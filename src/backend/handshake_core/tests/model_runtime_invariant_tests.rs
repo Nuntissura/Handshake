@@ -52,6 +52,8 @@ impl ModelRuntime for NoopRuntime {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         };
         Ok(&CAPABILITIES)
     }

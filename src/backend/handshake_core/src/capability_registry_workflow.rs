@@ -6,7 +6,6 @@ use jsonschema::{Draft, JSONSchema};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -172,11 +171,7 @@ struct CapabilityRegistryReview {
     capability_registry_version: String,
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 pub fn repo_root_from_manifest_dir() -> CapabilityRegistryWorkflowResult<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

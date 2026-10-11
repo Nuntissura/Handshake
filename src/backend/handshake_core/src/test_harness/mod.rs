@@ -2,6 +2,8 @@ pub mod crdt_workspace;
 pub mod cross_adapter;
 pub mod escape_attempts;
 pub mod invariants;
+#[cfg(all(feature = "test-utils", feature = "legacy-postgres-superseded"))]
+pub mod model_runtime_selection;
 pub mod scenarios;
 pub mod session;
 pub mod swarm;

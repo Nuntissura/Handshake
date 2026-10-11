@@ -133,3 +133,55 @@ fn reader_refuses_too_small_file() {
         Err(err) => assert_eq!(err.kind(), std::io::ErrorKind::InvalidData),
     }
 }
+
+#[test]
+fn additive_v2_roundtrip_preserves_v1_and_refuses_mixed_layouts() {
+    use handshake_diag_ring::ring::{DiagRingReaderV2, DiagRingWriterV2};
+    use handshake_diag_ring::schema::DiagEventV2;
+    let path = temp_ring_path("v2-roundtrip");
+    let _guard = PathGuard(path.clone());
+    let nonce = [0x55; 16];
+    let writer = DiagRingWriterV2::create(&path, 2, nonce).unwrap();
+    assert!(DiagRingReader::open(&path).is_err());
+    assert!(DiagRingReaderV2::open(&path, [0x56; 16]).is_err());
+    let header = std::fs::read(&path).unwrap();
+    assert_eq!(&header[8..12], &2u32.to_ne_bytes());
+    assert_eq!(&header[12..16], &120u32.to_ne_bytes());
+    assert_eq!(&header[48..64], &nonce);
+    assert_eq!(header.len(), 64 + 2 * 128);
+    let reader = DiagRingReaderV2::open(&path, nonce).unwrap();
+    for sequence in 1..=3 {
+        assert!(writer.write(DiagEventV2::behavior_observation(
+            sequence,
+            sequence + 10,
+            sequence + 20,
+            nonce,
+            [0xaa; 32]
+        )));
+    }
+    let records = reader.read_last_n(2);
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].event.sequence_id, 3);
+    assert_eq!(records[1].event.sequence_id, 2);
+    assert_eq!(records[0].correlation_hmac, [0xaa; 32]);
+    assert_eq!(records[0].observation_heartbeat_counter, 13);
+    assert!(!writer.write(DiagEventV2::behavior_observation(
+        4, 14, 24, [0x56; 16], [0xaa; 32]
+    )));
+    assert_eq!(reader.read_last_n(1)[0].event.sequence_id, 3);
+    writer.write_heartbeat(100, 200);
+    let heartbeat = reader.read_heartbeat().unwrap();
+    assert_eq!(heartbeat.counter, 100);
+    assert_eq!(heartbeat.timestamp_nanos, 200);
+    drop(reader);
+    drop(writer);
+    debug_corrupt_byte(&path, 12, 56).unwrap();
+    assert!(DiagRingReaderV2::open(&path, nonce).is_err());
+    let v1path = temp_ring_path("v1-preserved");
+    let _v1guard = PathGuard(v1path.clone());
+    let v1writer = DiagRingWriter::create(&v1path, 2).unwrap();
+    assert!(DiagRingReaderV2::open(&v1path, nonce).is_err());
+    let v1reader = DiagRingReader::open(&v1path).unwrap();
+    v1writer.write(DiagEvent::heartbeat(1, 2, 3, 4));
+    assert_eq!(v1reader.read_last_n(1)[0].counter_a, 3);
+}

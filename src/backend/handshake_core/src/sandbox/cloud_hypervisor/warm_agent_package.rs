@@ -172,16 +172,27 @@ pub fn package_warm_agent_with_wsl(
     let wsl_manifest = windows_path_to_wsl(&options.distro, &manifest_path)?;
     let wsl_output_dir = windows_path_to_wsl(&options.distro, &options.output_dir)?;
     let wsl_target_dir = windows_path_to_wsl(&options.distro, &options.cargo_target_dir)?;
+    // A Windows linked worktree stores a Windows-native absolute path in its
+    // `.git` pointer. Git inside WSL cannot resolve that pointer on its own: it
+    // appends `D:/...` below the checkout and build.rs then fails at
+    // `git ls-files`. Resolve the authoritative worktree metadata with host Git
+    // and pass both translated paths explicitly to every Cargo/build-script
+    // child. A normal checkout follows the same path and remains a no-op in
+    // semantics; only path resolution changes.
+    let git_dir = git_absolute_dir(&options.repo_root)?;
+    let wsl_git_dir = windows_path_to_wsl(&options.distro, &git_dir)?;
+    let wsl_git_work_tree = windows_path_to_wsl(&options.distro, &options.repo_root)?;
     let wsl_llama_server = options
         .llama_server_host_path
         .as_deref()
         .map(|path| windows_path_to_wsl(&options.distro, path))
         .transpose()?;
-    let script = build_wsl_static_musl_package_script(
+    let script = build_wsl_static_musl_package_script_with_git_worktree(
         &wsl_manifest,
         &wsl_output_dir,
         &wsl_target_dir,
         wsl_llama_server.as_deref(),
+        Some((&wsl_git_dir, &wsl_git_work_tree)),
     );
     let output = Command::new("wsl.exe")
         .arg("-d")
@@ -453,6 +464,22 @@ pub fn build_wsl_static_musl_package_script(
     wsl_target_dir: &str,
     wsl_llama_server_source_path: Option<&str>,
 ) -> String {
+    build_wsl_static_musl_package_script_with_git_worktree(
+        wsl_manifest_path,
+        wsl_output_dir,
+        wsl_target_dir,
+        wsl_llama_server_source_path,
+        None,
+    )
+}
+
+fn build_wsl_static_musl_package_script_with_git_worktree(
+    wsl_manifest_path: &str,
+    wsl_output_dir: &str,
+    wsl_target_dir: &str,
+    wsl_llama_server_source_path: Option<&str>,
+    git_worktree: Option<(&str, &str)>,
+) -> String {
     let artifact = format!("{wsl_output_dir}/{WARM_AGENT_PACKAGE_BINARY_NAME}");
     let llama_server = format!("{wsl_output_dir}/{CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE}");
     let built = format!(
@@ -469,8 +496,33 @@ pub fn build_wsl_static_musl_package_script(
             name = CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE
         ),
     };
+    let git_environment = git_worktree
+        .map(|(git_dir, work_tree)| {
+            // Product worktrees expose the governance checkout as a Windows
+            // `.GOV` junction. Host Git correctly reports no untracked entry,
+            // while WSL sees the junction itself as one untracked symlink to a
+            // directory, which `git hash-object --stdin-paths` cannot hash.
+            // Ignore only that untracked junction; indexed `.GOV/**` members
+            // remain in `ls-files --cached` and therefore in the manifest.
+            let excludes = format!(
+                "{}/hsk-wsl-worktree-excludes",
+                wsl_target_dir.trim_end_matches('/')
+            );
+            format!(
+                "mkdir -p {target}; printf '%s\\n' '/.GOV' > {excludes}; \
+                 export GIT_DIR={git_dir}; export GIT_WORK_TREE={work_tree}; \
+                 export GIT_CONFIG_COUNT=1; export GIT_CONFIG_KEY_0=core.excludesFile; \
+                 export GIT_CONFIG_VALUE_0={excludes}",
+                target = sh_quote(wsl_target_dir),
+                excludes = sh_quote(&excludes),
+                git_dir = sh_quote(git_dir),
+                work_tree = sh_quote(work_tree),
+            )
+        })
+        .unwrap_or_else(|| ":".to_string());
     [
         "set -euo pipefail".to_string(),
+        git_environment,
         "command -v cargo >/dev/null || { echo 'missing cargo in WSL; install Rust in the WSL distro' >&2; exit 86; }".to_string(),
         "command -v rustup >/dev/null || { echo 'missing rustup in WSL; install Rust with rustup' >&2; exit 86; }".to_string(),
         "command -v x86_64-linux-musl-gcc >/dev/null || { echo 'missing x86_64-linux-musl-gcc in WSL; install musl-tools' >&2; exit 86; }".to_string(),
@@ -498,6 +550,38 @@ pub fn build_wsl_static_musl_package_script(
         "echo HSK_WARM_AGENT_PACKAGE_OK".to_string(),
     ]
     .join("; ")
+}
+
+fn git_absolute_dir(repo_root: &Path) -> Result<PathBuf, WarmAgentPackageError> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["rev-parse", "--absolute-git-dir"])
+        .output()
+        .map_err(|error| {
+            WarmAgentPackageError::Path(format!(
+                "failed to launch host git for warm-agent worktree metadata: {error}"
+            ))
+        })?;
+    if !output.status.success() {
+        return Err(WarmAgentPackageError::Path(format!(
+            "host git could not resolve warm-agent worktree metadata for {}: {}",
+            repo_root.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    let path = String::from_utf8(output.stdout).map_err(|error| {
+        WarmAgentPackageError::Path(format!(
+            "host git returned a non-UTF-8 worktree metadata path: {error}"
+        ))
+    })?;
+    let path = path.trim();
+    if path.is_empty() {
+        return Err(WarmAgentPackageError::Path(
+            "host git returned an empty worktree metadata path".to_string(),
+        ));
+    }
+    Ok(PathBuf::from(path))
 }
 
 pub fn package_manifest_path_for_agent(
@@ -770,6 +854,23 @@ mod tests {
         assert!(script.contains("cp '/tooling/llama-server' '/out/llama-server'"));
         assert!(script.contains("\"type\":\"ping\""));
         assert!(script.contains("\"request_id\":\"package-probe\""));
+    }
+
+    #[test]
+    fn wsl_package_script_exports_translated_linked_worktree_git_paths() {
+        let script = build_wsl_static_musl_package_script_with_git_worktree(
+            "/repo path/src/backend/handshake_core/Cargo.toml",
+            "/out path",
+            "/target path",
+            Some("/tooling path/llama-server"),
+            Some(("/git common/.git/worktrees/wtc-model-lane", "/repo path")),
+        );
+        assert!(script.contains(
+            "export GIT_DIR='/git common/.git/worktrees/wtc-model-lane'; export GIT_WORK_TREE='/repo path'"
+        ));
+        assert!(script.contains("printf '%s\\n' '/.GOV'"));
+        assert!(script.contains("export GIT_CONFIG_KEY_0=core.excludesFile"));
+        assert!(script.find("export GIT_DIR=").unwrap() < script.find("cargo build").unwrap());
     }
 
     #[test]

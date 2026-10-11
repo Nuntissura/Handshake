@@ -609,3 +609,139 @@ mod tests {
         }
     }
 }
+
+// Same typed crash envelope for the actual record count from either explicit ring format.
+impl CrashRecord {
+    pub fn post_mortem_with_event_count(
+        session_id: &str,
+        process_id: u32,
+        exit_code: Option<u32>,
+        last_heartbeat: Option<Heartbeat>,
+        last_event_count: u32,
+    ) -> Self {
+        let (hb_counter, hb_ts) = match last_heartbeat {
+            Some(hb) => (hb.counter, hb.timestamp_nanos),
+            None => (0, 0),
+        };
+        Self {
+            session_id: session_id.to_string(),
+            detection: CrashDetection::PostMortemNoContext,
+            crash_event_code: DiagEventCode::CrashDetected.as_u16(),
+            process_id,
+            faulting_thread_id: 0,
+            exit_code,
+            last_heartbeat_counter: hb_counter,
+            last_heartbeat_ts_nanos: hb_ts,
+            last_event_count,
+            minidump_path: None,
+            recorded_at_unix_ms: now_unix_ms(),
+        }
+    }
+
+    pub fn with_minidump_with_event_count(
+        session_id: &str,
+        process_id: u32,
+        faulting_thread_id: u64,
+        minidump_path: PathBuf,
+        last_heartbeat: Option<Heartbeat>,
+        last_event_count: u32,
+    ) -> Self {
+        let (hb_counter, hb_ts) = match last_heartbeat {
+            Some(hb) => (hb.counter, hb.timestamp_nanos),
+            None => (0, 0),
+        };
+        Self {
+            session_id: session_id.to_string(),
+            detection: CrashDetection::CrashContextMinidump,
+            crash_event_code: DiagEventCode::CrashDetected.as_u16(),
+            process_id,
+            faulting_thread_id,
+            exit_code: None,
+            last_heartbeat_counter: hb_counter,
+            last_heartbeat_ts_nanos: hb_ts,
+            last_event_count,
+            minidump_path: Some(minidump_path),
+            recorded_at_unix_ms: now_unix_ms(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod explicit_record_count_tests {
+    use super::*;
+    #[test]
+    fn v2_real_vector_count_preserves_rich_and_floor_envelopes() {
+        let events = [
+            DiagEvent::heartbeat(1, 2, 3, 4),
+            DiagEvent::heartbeat(5, 6, 7, 8),
+        ];
+        let heartbeat = Some(Heartbeat {
+            counter: 12,
+            timestamp_nanos: 34,
+        });
+        let old_floor = CrashRecord::post_mortem("original", 42, Some(9), heartbeat, &events);
+        let new_floor = CrashRecord::post_mortem_with_event_count(
+            "original",
+            42,
+            Some(9),
+            heartbeat,
+            events.len() as u32,
+        );
+        let old_rich = CrashRecord::with_minidump(
+            "original",
+            42,
+            56,
+            PathBuf::from("local.dmp"),
+            heartbeat,
+            &events,
+        );
+        let new_rich = CrashRecord::with_minidump_with_event_count(
+            "original",
+            42,
+            56,
+            PathBuf::from("local.dmp"),
+            heartbeat,
+            events.len() as u32,
+        );
+        for (old, new) in [(old_floor, new_floor), (old_rich, new_rich)] {
+            let mut old_json = serde_json::to_value(old).unwrap();
+            let mut new_json = serde_json::to_value(new).unwrap();
+            // Each constructor samples its own clock; all durable envelope fields otherwise agree.
+            old_json
+                .as_object_mut()
+                .unwrap()
+                .remove("recorded_at_unix_ms");
+            new_json
+                .as_object_mut()
+                .unwrap()
+                .remove("recorded_at_unix_ms");
+            assert_eq!(old_json, new_json);
+        }
+        let v2 = vec![
+            handshake_diag_ring::schema::DiagEventV2::behavior_observation(
+                1, 12, 56, [0x55; 16], [0xaa; 32],
+            ),
+        ];
+        let floor = CrashRecord::post_mortem_with_event_count(
+            "original",
+            42,
+            Some(9),
+            heartbeat,
+            v2.len() as u32,
+        );
+        let rich = CrashRecord::with_minidump_with_event_count(
+            "original",
+            42,
+            56,
+            PathBuf::from("local.dmp"),
+            heartbeat,
+            v2.len() as u32,
+        );
+        assert_eq!(floor.last_event_count, 1);
+        assert_eq!(rich.last_event_count, 1);
+        assert_eq!(floor.last_heartbeat_counter, 12);
+        assert_eq!(rich.last_heartbeat_ts_nanos, 34);
+        assert_eq!(v2[0].correlation_hmac, [0xaa; 32]);
+        assert_eq!(v2[0].launch_nonce, [0x55; 16]);
+    }
+}

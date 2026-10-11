@@ -81,6 +81,8 @@ pub enum DiagEventCode {
     Shutdown = 10,
     /// A deadline-bounded in-app operation stopped making progress (MT-105 operation watchdog).
     StalledOperation = 11,
+    /// Authenticated model-lane behavior digest, available only in the v2 record layout.
+    ModelLaneBehaviorObservation = 12,
     /// Escape hatch for an event that does not fit a named code. Still carries NO text — only the
     /// numeric counters — so it cannot become a free-text smuggling channel.
     Other = 65535,
@@ -377,5 +379,65 @@ impl DiagEvent {
             metric_micros,
             timestamp_nanos,
         )
+    }
+}
+
+/// Additive v2 wire record. The first 56 bytes retain the exact v1 record layout.
+/// The extension contains only mechanical provenance and a full authentication digest;
+/// behavior, run and lane identifiers never enter the shared ring.
+#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
+pub struct DiagEventV2 {
+    pub event: DiagEvent,
+    pub observation_heartbeat_counter: u64,
+    pub observed_at_unix_ms: u64,
+    pub launch_nonce: [u8; 16],
+    pub correlation_hmac: [u8; 32],
+}
+
+pub const DIAG_EVENT_V2_SIZE: usize = 120;
+const _: [(); DIAG_EVENT_V2_SIZE] = [(); std::mem::size_of::<DiagEventV2>()];
+
+impl DiagEventV2 {
+    /// Ordinary v1 events have an entirely zero v2 extension. Code 12 needs explicit provenance.
+    pub fn ordinary(event: DiagEvent) -> Option<Self> {
+        if event.event_code == DiagEventCode::ModelLaneBehaviorObservation.as_u16() {
+            return None;
+        }
+        Some(Self {
+            event,
+            observation_heartbeat_counter: 0,
+            observed_at_unix_ms: 0,
+            launch_nonce: [0; 16],
+            correlation_hmac: [0; 32],
+        })
+    }
+
+    /// Shapes already-provisioned observation provenance; this function does not authenticate it.
+    /// Provisioning and publication remain the responsibility of the original recorder owner.
+    pub fn behavior_observation(
+        sequence_id: u64,
+        observation_heartbeat_counter: u64,
+        observed_at_unix_ms: u64,
+        launch_nonce: [u8; 16],
+        correlation_hmac: [u8; 32],
+    ) -> Self {
+        Self {
+            event: DiagEvent::generic(
+                DiagEventCode::ModelLaneBehaviorObservation,
+                DiagPhase::Tick,
+                DiagSeverity::Info,
+                0,
+                sequence_id,
+                0,
+                0,
+                0,
+                0,
+            ),
+            observation_heartbeat_counter,
+            observed_at_unix_ms,
+            launch_nonce,
+            correlation_hmac,
+        }
     }
 }

@@ -1,8 +1,87 @@
+use std::sync::Arc;
+use account_scope::ProductLocalResourceScope;
+
+pub struct ApiRoutes {
+    pub router: Router,
+    pub runtime: ApiRouteRuntime,
+}
+
+#[derive(Clone)]
+pub struct ApiRouteRuntime {
+    shared_process_runtime: Option<crate::process_ledger::ProcessReclaimRuntime>,
+    operator_chat_process_ledger: Option<crate::process_ledger::RetainedLedgerBatcher>,
+    process_reclaim_task: Option<crate::process_ledger::ManagedStalenessReclaimTask>,
+    swarm_event_drain: Option<crate::swarm_orchestration::events::DurableSwarmFrDrain>,
+    _standalone_runtime_lease: Option<Arc<crate::process_ledger::EmbeddedRuntimeInstanceLease>>,
+}
+
+#[derive(Debug)]
+pub struct ApiRouteRuntimeDrainReport {
+    pub operator_chat_process_ledger: crate::process_ledger::LedgerDrainJoinOutcome,
+    pub process_reclaim_quiesced: bool,
+    pub swarm_events_flushed: bool,
+}
+
+impl ApiRouteRuntime {
+    pub async fn drain_and_join(&self, timeout: std::time::Duration) -> ApiRouteRuntimeDrainReport {
+        let swarm_events_flushed = match &self.swarm_event_drain {
+            Some(drain) => drain.drain_and_join(timeout).await,
+            None => true,
+        };
+        if let Some(runtime) = &self.shared_process_runtime {
+            let report = runtime.shutdown_and_drain(timeout).await;
+            return ApiRouteRuntimeDrainReport {
+                process_reclaim_quiesced: report.reclaim_task_quiesced,
+                operator_chat_process_ledger: report.ledger,
+                swarm_events_flushed,
+            };
+        }
+        let process_reclaim_quiesced = match &self.process_reclaim_task {
+            Some(task) => task.shutdown_and_join(timeout).await,
+            None => true,
+        };
+        ApiRouteRuntimeDrainReport {
+            process_reclaim_quiesced,
+            swarm_events_flushed,
+            operator_chat_process_ledger: self
+                .operator_chat_process_ledger
+                .as_ref()
+                .map(|ledger| ledger.clone())
+                .expect("standalone API runtime must retain its process ledger")
+                .drain_and_join(timeout)
+                .await,
+        }
+    }
+}
+
+pub fn routes_with_process_reclaim_runtime(
+    state: AppState,
+    process_runtime: crate::process_ledger::ProcessReclaimRuntime,
+    _product_scope: ProductLocalResourceScope,
+) -> ApiRoutes {
+    ApiRoutes {
+        router: routes(state),
+        runtime: ApiRouteRuntime {
+            shared_process_runtime: Some(process_runtime),
+            operator_chat_process_ledger: None,
+            process_reclaim_task: None,
+            swarm_event_drain: None,
+            _standalone_runtime_lease: None,
+        },
+    }
+}
+
 use axum::{routing::get, Router};
 
 use crate::AppState;
 
+pub mod account_scope;
 pub mod atelier;
+pub mod atelier_ckc_intake_facial;
+pub mod atelier_ckc_media;
+pub mod atelier_ckc_prompt_feedback;
+pub mod atelier_ckc_ops;
+pub mod atelier_ckc_sheets;
 pub mod authority;
 pub mod bundles;
 pub mod calendar;
@@ -24,6 +103,9 @@ pub mod locus;
 pub mod logs;
 pub mod loom;
 pub mod memory;
+pub mod model_access;
+pub mod model_runtime_registry;
+pub mod operator_chat;
 pub mod paths;
 pub mod preferences;
 pub mod role_mailbox;
@@ -56,7 +138,11 @@ pub fn routes(state: AppState) -> Router {
     let knowledge_retrieval_routes = knowledge_retrieval::routes(state.clone());
     let memory_routes = memory::routes(state.clone());
     let user_manual_routes = user_manual::routes(state.clone());
-    let atelier_routes = atelier::routes(state.clone());
+    let atelier_routes = atelier::routes(state.clone())
+        .merge(atelier_ckc_media::routes(state.clone()))
+        .merge(atelier_ckc_prompt_feedback::routes(state.clone()))
+        .merge(atelier_ckc_ops::routes(state.clone()))
+        .merge(atelier_ckc_sheets::routes(state.clone()));
     let source_control_routes = source_control::routes(state.clone());
     let stage_routes = stage::routes(state.clone());
     let debug_adapter_routes = debug_adapter::routes(state.clone());

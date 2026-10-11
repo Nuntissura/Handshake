@@ -215,6 +215,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::InferenceLab,
             PaneType::ModelRuntime,
             PaneType::Swarm,
+            PaneType::SwarmLaneDiagnostics,
             PaneType::FontManager,
             PaneType::KernelDcc,
             PaneType::UserManual,
@@ -228,6 +229,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
         tabs: &[
             PaneType::ModelRuntime,
             PaneType::Swarm,
+            PaneType::SwarmLaneDiagnostics,
             PaneType::InferenceLab,
             PaneType::FontManager,
             PaneType::KernelDcc,
@@ -413,6 +415,7 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::InferenceLab => "inference-lab",
         PaneType::ModelRuntime => "model-runtime",
         PaneType::Swarm => "swarm",
+        PaneType::SwarmLaneDiagnostics => "swarm-lane-diagnostics",
         PaneType::Problems => "problems",
         PaneType::Jobs => "jobs",
         PaneType::Timeline => "timeline",
@@ -433,6 +436,8 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::FindInFiles => "find-in-files",
         // WP-KERNEL-012 MT-098: Runtime Chat is a native addition, not part of the React tab list.
         PaneType::RuntimeChat => "runtime-chat",
+        PaneType::OperatorChatLaunch => "operator-chat",
+        PaneType::Wp1OrchestrationConsole => "wp1-orchestration-console",
         // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
         PaneType::Placeholder(_) => "placeholder",
     }
@@ -570,6 +575,7 @@ mod tests {
                 PaneType::InferenceLab,
                 PaneType::ModelRuntime,
                 PaneType::Swarm,
+                PaneType::SwarmLaneDiagnostics,
                 PaneType::FontManager,
                 PaneType::KernelDcc,
                 PaneType::UserManual,

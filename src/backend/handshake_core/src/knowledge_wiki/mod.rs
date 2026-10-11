@@ -41,7 +41,6 @@ pub mod fanout;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 use crate::storage::knowledge::KnowledgeRichDocument;
 use crate::storage::knowledge::KnowledgeEntity;
@@ -298,11 +297,7 @@ impl WikiStalenessVerdict {
 // recompute MUST be the same functions — single source of truth).
 // ---------------------------------------------------------------------------
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 /// Content hash of a knowledge entity citation. Folds the entity's identity,
 /// display surface, lifecycle, and — dominantly — the owning source's content

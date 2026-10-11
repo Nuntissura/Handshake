@@ -72,14 +72,15 @@ fn os_keychain_vault_round_trips_against_windows_credential_manager() {
 
     // put -> get round trip against Windows Credential Manager.
     vault
-        .put(lane, secret.clone())
+        .put(lane, &secret)
         .expect("put against Windows Credential Manager must succeed");
 
     let retrieved = vault
         .get(lane)
         .expect("get must return the secret just stored");
     assert_eq!(
-        retrieved, secret,
+        retrieved.as_str(),
+        secret,
         "Windows Credential Manager must return the exact secret stored",
     );
 
@@ -125,7 +126,7 @@ fn os_keychain_vault_supports_multiple_lanes_under_same_namespace() {
     // Store each lane under the same service namespace.
     for (lane, secret) in lanes.iter().zip(secrets.iter()) {
         vault
-            .put(lane, secret.clone())
+            .put(lane, secret)
             .unwrap_or_else(|err| panic!("put for lane {lane} failed: {err:?}"));
     }
 
@@ -137,7 +138,8 @@ fn os_keychain_vault_supports_multiple_lanes_under_same_namespace() {
             .get(lane)
             .unwrap_or_else(|err| panic!("get for lane {lane} failed: {err:?}"));
         assert_eq!(
-            &retrieved, expected,
+            retrieved.as_str(),
+            expected.as_str(),
             "lane {lane} returned the wrong secret",
         );
     }
@@ -170,15 +172,15 @@ fn os_keychain_vault_rejects_empty_lane_and_secret_before_touching_keychain() {
     let vault = OsKeychainSecretsVault::new(&namespace);
 
     assert!(matches!(
-        vault.put("", "value".to_string()).unwrap_err(),
+        vault.put("", "value").unwrap_err(),
         SecretsVaultError::EmptyLaneId
     ));
     assert!(matches!(
-        vault.put("   ", "value".to_string()).unwrap_err(),
+        vault.put("   ", "value").unwrap_err(),
         SecretsVaultError::EmptyLaneId
     ));
     assert!(matches!(
-        vault.put("openai", "".to_string()).unwrap_err(),
+        vault.put("openai", "").unwrap_err(),
         SecretsVaultError::EmptySecretValue
     ));
     assert!(matches!(
@@ -211,8 +213,8 @@ fn os_keychain_vault_round_trips_against_apple_keychain() {
     let secret = format!("sk-apple-keychain-{}", Uuid::now_v7());
 
     cleanup_lane(&vault, lane);
-    vault.put(lane, secret.clone()).expect("put");
-    assert_eq!(vault.get(lane).expect("get"), secret);
+    vault.put(lane, &secret).expect("put");
+    assert_eq!(vault.get(lane).expect("get").as_str(), secret);
     vault.delete(lane).expect("delete");
     assert!(matches!(
         vault.get(lane).unwrap_err(),
@@ -233,8 +235,8 @@ fn os_keychain_vault_round_trips_against_linux_secret_service() {
     let secret = format!("sk-linux-secret-service-{}", Uuid::now_v7());
 
     cleanup_lane(&vault, lane);
-    vault.put(lane, secret.clone()).expect("put");
-    assert_eq!(vault.get(lane).expect("get"), secret);
+    vault.put(lane, &secret).expect("put");
+    assert_eq!(vault.get(lane).expect("get").as_str(), secret);
     vault.delete(lane).expect("delete");
     assert!(matches!(
         vault.get(lane).unwrap_err(),

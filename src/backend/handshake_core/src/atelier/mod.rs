@@ -62,6 +62,13 @@ use thiserror::Error;
 use uuid::Uuid;
 
 pub mod acceptance;
+pub mod contact_sheet;
+pub mod facial;
+pub mod facial_native;
+pub mod prompt_feedback;
+pub mod refs;
+pub mod sheet_artifacts;
+pub mod sheet_templates;
 pub mod action_receipt;
 pub mod annotation;
 pub mod bulk;
@@ -82,6 +89,7 @@ pub mod media;
 pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
+pub mod persistence;
 pub mod pose;
 pub mod relationships;
 pub mod scripts;
@@ -110,7 +118,7 @@ pub use self::image_import::{
     ClipboardImageImportRequest, ImageImportRecord, UrlImageImportRequest,
 };
 pub use self::media::{
-    BulkMediaReviewMetadataResult, MediaAsset, MediaDerivative, MediaDerivativeFailure,
+    BulkMediaReviewMetadataResult, MediaAsset, MediaAssetBytesError, MediaDerivative, MediaDerivativeFailure,
     MediaDerivativeGenerated, MediaDerivativeKind, MediaDerivativeRequest, MediaDerivativeStatus,
     MediaReviewMetadata, MediaReviewMetadataUpdate, MediaSidecar, MediaSidecarRelationKind,
     MediaSourceProvenanceRefs, NewMediaAsset, NewMediaSidecarRelation,

@@ -1,13 +1,17 @@
+pub mod activity;
 pub mod candle;
 pub mod capabilities;
+pub mod catalog;
 pub mod cloud;
 pub mod error;
 pub mod invariant;
 pub mod kv_cache;
 pub mod llama_cpp;
 pub mod lora;
+pub mod perf;
 pub mod process_ledger_integration;
 pub mod registry;
+pub mod registry_persistence;
 pub mod sandbox_binding;
 pub mod sandbox_runtime;
 pub mod steering;
@@ -17,14 +21,18 @@ pub mod types;
 pub mod warm_agent_protocol;
 pub mod warm_vm_runtime;
 
+pub use activity::*;
 pub use capabilities::*;
+pub use catalog::*;
 pub use error::*;
 pub use invariant::*;
 pub use kv_cache::*;
 pub use lora::*;
+pub use perf::*;
 pub use process_ledger_integration::*;
 pub use r#trait::*;
 pub use registry::*;
+pub use registry_persistence::*;
 pub use sandbox_binding::*;
 pub use sandbox_runtime::{
     inference_command, inference_process_spec, try_inference_process_spec, SandboxModelConfig,

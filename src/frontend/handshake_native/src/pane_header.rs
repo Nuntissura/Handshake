@@ -291,6 +291,32 @@ impl PaneHeader {
             node.set_author_id(pane_header_author_id(pane_id));
             node.set_label(format!("Pane header {pane_id}"));
         });
+        let effect_context = format!(
+            "{:?}:{pane_id}:{active_tab_label}:{locked}:{is_last_pane}:{pop_out_enabled}",
+            ui.id()
+        );
+        let effect_state_id = header_id.with(("argus-context-menu", &effect_context));
+        let (mut generation, mut pending_open) = ui.ctx().data_mut(|data| {
+            data.get_temp::<(u64, bool)>(effect_state_id)
+                .unwrap_or_default()
+        });
+        let requested = ui.input(|input| {
+            input
+                .accesskit_action_requests(header_id, accesskit::Action::ShowContextMenu)
+                .next()
+                .is_some()
+        });
+        if requested && !crate::context_menu::is_open(ui.ctx(), header_resp.id) {
+            if let Some(next) = generation.checked_add(1) {
+                generation = next;
+                pending_open = true;
+                crate::context_menu::request_open(
+                    ui.ctx(),
+                    header_resp.id,
+                    header_resp.rect.left_bottom(),
+                );
+            }
+        }
         // Build + show the header context menu on the strip's response. CLOSED by default (so the
         // MT-025 default snapshot only grows by the four header TARGET nodes, not menu items).
         let menu = ContextMenu::new("pane").items(pane_header_context_items_with_popout(
@@ -298,7 +324,8 @@ impl PaneHeader {
             is_last_pane,
             pop_out_enabled,
         ));
-        if let Some(confirmed_id) = menu.show_on(&header_resp) {
+        let (confirmed_id, menu_rendered) = menu.show_on_with_render_observation(&header_resp);
+        if let Some(confirmed_id) = confirmed_id {
             if let Some(action) = pane_header_action_for_id(confirmed_id) {
                 match action {
                     PaneHeaderMenuAction::ToggleLock => {
@@ -312,6 +339,31 @@ impl PaneHeader {
                 }
             }
         }
+        let menu_open = crate::context_menu::is_open(ui.ctx(), header_resp.id);
+        let effect_state = if pending_open && menu_rendered && menu_open {
+            pending_open = false;
+            crate::mcp::action::ClickCompletionState::Applied
+        } else if pending_open {
+            crate::mcp::action::ClickCompletionState::Pending
+        } else if menu_rendered && menu_open && generation > 0 {
+            crate::mcp::action::ClickCompletionState::Applied
+        } else {
+            crate::mcp::action::ClickCompletionState::Ready
+        };
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(effect_state_id, (generation, pending_open)));
+        let effect_value = crate::mcp::action::serialize_same_target_click_completion(
+            "pane-header-context-menu",
+            &effect_context,
+            generation,
+            effect_state,
+        );
+        ui.ctx().accesskit_node_builder(header_id, |node| {
+            node.add_action(accesskit::Action::ShowContextMenu);
+            if let Some(value) = effect_value {
+                node.set_value(value);
+            }
+        });
         // Shift+F10 opens the header menu when the strip is focused (keyboard parity; gate on focus so
         // it never leaks to global shortcuts — red-team control).
         if header_resp.has_focus()

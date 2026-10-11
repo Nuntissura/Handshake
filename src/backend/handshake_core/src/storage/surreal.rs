@@ -1,11 +1,12 @@
 use std::{
+    collections::{BTreeMap, BTreeSet},
     env,
     future::Future,
     io,
     path::{Path, PathBuf},
     pin::Pin,
     sync::{
-        atomic::{AtomicU8, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
         Arc, Mutex as StdMutex,
     },
     time::{Duration, Instant},
@@ -23,6 +24,16 @@ use tokio::sync::{oneshot, watch, Mutex, RwLock, RwLockWriteGuard};
 use tokio_util::sync::CancellationToken;
 
 use super::{DefaultStorageGuard, StorageGuard, StorageResult};
+
+mod cloud_model_lane;
+mod loom_search;
+mod model_lane;
+mod model_registry;
+mod palmistry;
+mod process_ledger;
+mod swarm_outbox;
+mod user_manual_knowledge;
+mod workspace_settings;
 
 mod ai_job_store;
 mod ai_ready_store;
@@ -83,7 +94,74 @@ mod workspaces;
 #[cfg(test)]
 mod resource_authority_tests;
 
+pub(crate) use cloud_model_lane::{
+    bootstrap_cloud_model_lane_schema, CloudModelLaneRecordKind, CloudModelLaneScope,
+    CloudModelLaneStore, CloudModelLaneStoredRow,
+};
 pub use database::SurrealDatabase;
+pub use loom_search::{
+    bootstrap_loom_search_schema, SurrealEmbeddingRegistration, SurrealLoomIndexMutation,
+    SurrealLoomSearchEvidence, SurrealLoomSearchStore,
+};
+#[cfg(feature = "test-utils")]
+pub use model_lane::{ContextCompletionTestControl, ContextCoordinationBusy, ContextCoordinationTestHolder, ContextAdmissionTestControl, ContextAdmissionTestObservation, observe_context_coordination_busy_for_test};
+pub(crate) use model_lane::{
+    bootstrap_model_lane_schema, ContextCoordinationPurpose, ModelLaneRecordKind, ModelLaneScope, SurrealCrdtLeaseClaimOutcome,
+    SurrealCrdtUpdateAppendOutcome, SurrealModelLaneCrdtEventWrite, SurrealModelLaneCrdtGuard,
+    SurrealModelLaneCrdtLease, SurrealModelLaneCrdtLeaseHistory, SurrealModelLaneCrdtLeaseWrite,
+    SurrealModelLaneCrdtProposal, SurrealModelLaneCrdtProposalRecord,
+    SurrealModelLaneCrdtProposalWrite, SurrealModelLaneCrdtSnapshot, SurrealModelLaneCrdtUpdate,
+    SurrealModelLaneMessageGuard, SurrealModelLaneRecord, SurrealModelLaneRoutingAttemptRow,
+    SurrealModelLaneRoutingAttemptWrite, SurrealModelLaneRoutingClaim,
+    SurrealModelLaneRoutingCommit, SurrealModelLaneRoutingEventWrite,
+    SurrealModelLaneRoutingExecutionRow, SurrealModelLaneRoutingExecutionWrite,
+    SurrealModelLaneRoutingOutboxRow, SurrealModelLaneRoutingOutboxWrite,
+    SurrealModelLaneSchemaRow, SurrealModelLaneStore, SurrealModelLaneWrite,
+};
+pub use model_registry::{bootstrap_model_registry_schema, SurrealModelRegistryStore};
+pub use palmistry::{
+    bootstrap_palmistry_schema, SurrealPalmistryError, SurrealPalmistryStore,
+    SurrealPalmistryVerifier,
+};
+pub use process_ledger::{
+    ProcessOwnershipInspection, SurrealModelLaneStaleSessionSource, SurrealProcessLedgerStore,
+};
+pub use swarm_outbox::{
+    bootstrap_swarm_outbox_schema, SurrealSwarmOutboxError, SurrealSwarmOutboxEvent,
+    SurrealSwarmOutboxStore,
+};
+pub use user_manual_knowledge::{
+    bootstrap_user_manual_knowledge_schema, SurrealUserManualKnowledgeStore,
+    UserManualKnowledgeEntityMutation,
+};
+pub use workspace_settings::{
+    bootstrap_workspace_settings_schema, SurrealWorkspaceSettingsError,
+    SurrealWorkspaceSettingsState, SurrealWorkspaceSettingsStore, SurrealWorkspaceSettingsWrite,
+};
+#[cfg(feature = "surreal-test-support")]
+pub use workspace_settings::{
+    workspace_settings_test_event_count, workspace_settings_test_seed_legacy_unscoped_row,
+};
+
+/// Bootstrap every production schema against the one process-owned embedded
+/// store. Dedicated schemas are ordered after the shared substrate and after
+/// any authority they reference; consumers receive clones of this same handle.
+pub async fn bootstrap_production_schemas(
+    storage: &SurrealStorage,
+) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+    let report = schema::bootstrap_schema(storage).await?;
+    model_registry::bootstrap_model_registry_schema(storage).await?;
+    loom_search::bootstrap_loom_search_schema(storage).await?;
+    model_lane::bootstrap_model_lane_schema(storage).await?;
+    cloud_model_lane::bootstrap_cloud_model_lane_schema(storage).await?;
+    process_ledger::bootstrap_process_ledger_schema(storage).await?;
+    palmistry::bootstrap_palmistry_schema(storage).await?;
+    swarm_outbox::bootstrap_swarm_outbox_schema(storage).await?;
+    user_manual_knowledge::bootstrap_user_manual_knowledge_schema(storage).await?;
+    workspace_settings::bootstrap_workspace_settings_schema(storage).await?;
+    Ok(report)
+}
+
 #[cfg(feature = "surreal-test-support")]
 pub fn loom_folder_sibling_key_for_test(
     workspace_id: &str,
@@ -207,6 +285,11 @@ const LIFECYCLE_CLOSED: u8 = 2;
 
 #[derive(Debug, Error)]
 pub enum SurrealStorageError {
+    #[error("invalid model-lane authority record: {reason}")]
+    InvalidModelLaneRecord { reason: &'static str },
+    #[error("embedded cloud model-lane record has an invalid shape: {reason}")]
+    InvalidCloudModelLaneRecord { reason: &'static str },
+
     #[error("failed to prepare embedded database path {path}: {source}")]
     Io {
         path: PathBuf,
@@ -219,6 +302,10 @@ pub enum SurrealStorageError {
     TransactionCommit(surrealdb::Error),
     #[error("embedded transaction cancellation failed: {0}")]
     TransactionCancel(surrealdb::Error),
+    #[error("protected transaction requires an authenticated record-user envelope")]
+    TransactionAuthorityRequired,
+    #[error("protected transaction {operation_id} has an unresolved settlement; retry is forbidden")]
+    TransactionSettlementPending { operation_id: uuid::Uuid },
     #[error("embedded transaction caller was cancelled")]
     TransactionCancelled,
     #[error("embedded transaction callback panicked")]
@@ -321,6 +408,12 @@ pub struct SurrealStorageConfig {
 #[cfg(any(test, feature = "surreal-test-support"))]
 pub const HANDSHAKE_TEST_SURREAL_SYNC_ENV: &str = "HANDSHAKE_TEST_SURREAL_SYNC";
 
+#[cfg(feature = "surreal-test-support")]
+fn valid_test_scope_name(name: &str, prefix: &str) -> bool {
+    name.strip_prefix(prefix).is_some_and(|suffix| suffix.len() == 32
+        && suffix.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+}
+
 impl SurrealStorageConfig {
     pub fn from_env() -> Result<Self, SurrealStorageError> {
         let data_dir = match env::var_os(HANDSHAKE_DATA_DIR_ENV) {
@@ -364,6 +457,19 @@ impl SurrealStorageConfig {
             test_datastore_sync_never: false,
             test_datastore_sync_durable: false,
         })
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    pub fn for_test_scope(
+        store_path: impl Into<PathBuf>, namespace: &str, database: &str, shutdown_wait: Duration,
+    ) -> Result<Self, SurrealStorageError> {
+        if !valid_test_scope_name(namespace, "hs_test_ns_") || !valid_test_scope_name(database, "hs_test_db_") {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "test catalog scope must use strict generated identifiers" });
+        }
+        let mut config = Self::for_store_path(store_path)?;
+        config.namespace = namespace.to_owned();
+        config.database = database.to_owned();
+        config.with_shutdown_wait_timeout(shutdown_wait)
     }
 
     /// TEST-ONLY: the embedded engine never reads `SURREAL_DATASTORE_SYNC` (surrealdb-3.2.0
@@ -509,6 +615,14 @@ pub struct SurrealStorage {
     inner: Arc<SurrealStorageInner>,
 }
 
+impl std::fmt::Debug for SurrealStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SurrealStorage")
+            .field("config", &self.inner.config)
+            .finish_non_exhaustive()
+    }
+}
+
 pub type SurrealOperation<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, SurrealStorageError>> + Send + 'a>>;
 pub(crate) type SurrealStorageOperation<'a, T> =
@@ -519,6 +633,11 @@ pub(crate) type SurrealTransactionOperation<'a, T, E> =
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
     static RECORD_USER_SCOPE: resource_authority::RecordUserScope;
+    static PROTECTED_TRANSACTION: ProtectedTransaction;
+    static MODEL_LANE_OPERATION_PURPOSE: model_lane::ContextCoordinationPurpose;
+    static MODEL_LANE_OPERATION_SUBJECT: ModelLaneOperationSubject;
+    static MODEL_LANE_FENCES: Vec<model_lane::ContextFenceProof>;
+    static MODEL_LANE_CURRENT_GUARDS: Arc<StdMutex<Vec<model_lane::ContextCoordinationGuard>>>;
     /// MT-142: deadline for one logical (possibly retried) storage operation.
     /// Set by [`SurrealStorage::with_operation_deadline`]; every data operation
     /// underneath clamps its own bound to the remaining budget so a retry loop
@@ -530,6 +649,30 @@ pub(crate) fn current_record_user_scope() -> Option<resource_authority::RecordUs
     RECORD_USER_SCOPE.try_with(Clone::clone).ok()
 }
 
+pub(crate) struct ContextOperationCancellation {
+    cancelled: AtomicBool,
+    notification: tokio::sync::Notify,
+}
+impl ContextOperationCancellation {
+    pub(crate) fn new() -> Arc<Self> {
+        Arc::new(Self { cancelled: AtomicBool::new(false), notification: tokio::sync::Notify::new() })
+    }
+    pub(crate) fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        self.notification.notify_waiters();
+    }
+    pub(crate) fn is_cancelled(&self) -> bool { self.cancelled.load(Ordering::Acquire) }
+    async fn cancelled(&self) {
+        loop {
+            let notified = self.notification.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.is_cancelled() { return; }
+            notified.await;
+        }
+    }
+}
+
 /// A sealed, lease-bound view for ordinary typed data operations.
 ///
 /// This facade deliberately has no raw SurrealQL, `Clone`, `Deref`, or
@@ -539,6 +682,76 @@ pub(crate) fn current_record_user_scope() -> Option<resource_authority::RecordUs
 /// the lifecycle lease held by [`SurrealStorage::with_data_operation`].
 pub struct SurrealDataContext<'a> {
     client: &'a SurrealClient,
+    transaction: Option<&'a surrealdb::method::Transaction<Db>>,
+}
+
+#[derive(Clone)]
+struct ProtectedTransaction {
+    transaction: Arc<surrealdb::method::Transaction<Db>>,
+    client: SurrealClient,
+    storage: SurrealStorage,
+    authority: resource_authority::RecordUserScope,
+}
+
+
+#[derive(Clone)]
+enum TransactionInvocation {
+    Existing,
+    Authenticated {
+        scope: resource_authority::RecordUserScope,
+        deadline: Instant,
+        operation_id: uuid::Uuid,
+    },
+}
+
+// Reserved authority bindings come from the captured original operation, never
+// from caller-supplied query values. Database predicates still validate the live
+// canonical grant/session/resource; these bindings alone confer no permission.
+#[derive(Clone)]
+pub(crate) struct ModelLaneOperationSubject {
+    pub(crate) kind: resource_authority::ResourceKind,
+    pub(crate) external_id: String,
+}
+
+pub(crate) async fn with_model_lane_subject<T>(
+    subject: ModelLaneOperationSubject,
+    operation: impl Future<Output = T>,
+) -> T {
+    MODEL_LANE_OPERATION_SUBJECT.scope(subject, operation).await
+}
+
+pub(crate) fn current_model_lane_subject() -> Option<ModelLaneOperationSubject> {
+    MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok()
+}
+
+pub(crate) async fn with_model_lane_operation<T>(
+    purpose: model_lane::ContextCoordinationPurpose,
+    operation: impl Future<Output = T>,
+) -> T {
+    MODEL_LANE_OPERATION_PURPOSE.scope(purpose, operation).await
+}
+
+fn original_operation_bindings(mut bindings: surrealdb::types::Value) -> surrealdb::types::Value {
+    if let Some(scope) = current_record_user_scope() {
+        if matches!(bindings, surrealdb::types::Value::None) {
+            bindings = surrealdb::types::Value::Object(surrealdb::types::Object::new());
+        }
+        if let surrealdb::types::Value::Object(object) = &mut bindings {
+            object.insert("wp012_original_resource", scope.resource_id);
+            object.insert("wp012_original_grant", scope.grant_id);
+            object.insert("wp012_original_session", scope.session_id);
+            object.insert("wp012_original_workspace", scope.workspace_id);
+            object.insert("wp012_original_capability", scope.capability_id);
+            object.insert("wp012_original_action", scope.action.as_str().to_owned());
+            object.insert("wp012_original_purpose", MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| purpose.as_str().to_owned()).ok());
+            let subject = MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok();
+            object.insert("wp012_original_subject_kind", subject.as_ref().map(|subject| subject.kind.as_str().to_owned()));
+            object.insert("wp012_original_subject_id", subject.map(|subject| subject.external_id));
+            let proofs = MODEL_LANE_CURRENT_GUARDS.try_with(|guards| guards.lock().expect("coordination guard state poisoned").iter().map(model_lane::ContextCoordinationGuard::proof).collect::<Vec<_>>()).unwrap_or_else(|_| MODEL_LANE_FENCES.try_with(Clone::clone).unwrap_or_default());
+            object.insert("wp012_fences", proofs.into_iter().map(model_lane::ContextFenceProof::into_binding).collect::<Vec<_>>());
+        }
+    }
+    bindings
 }
 
 /// A borrowed query facade owned by the storage transaction controller.
@@ -556,14 +769,27 @@ impl SurrealTransactionContext<'_> {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
+        decode_first_value(self.query_values_at(statement, bindings, 0).await?)
+    }
+
+    pub(crate) async fn query_values_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        statement_index: usize,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let bindings = original_operation_bindings(surrealdb::types::SurrealValue::into_value(bindings));
         let query = self.transaction.query(statement);
         let response = if matches!(bindings, surrealdb::types::Value::None) {
             query.await?
         } else {
             query.bind(bindings).await?
         };
-        decode_first_value(decode_query_values(response, 0)?)
+        decode_query_values(response, statement_index)
     }
 }
 
@@ -664,11 +890,9 @@ pub(crate) async fn query_with_document_stats(
     }))
 }
 
-fn decode_query_values<R: surrealdb::types::SurrealValue>(
-    response: impl Into<ObservedQueryResults>,
-    index: usize,
-) -> Result<Vec<R>, SurrealStorageError> {
-    let mut response = response.into();
+fn check_query_response(
+    response: &mut ObservedQueryResults,
+) -> Result<(), SurrealStorageError> {
     let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
     errors.sort_by_key(|(statement_index, _)| *statement_index);
     if !errors.is_empty() {
@@ -683,6 +907,15 @@ fn decode_query_values<R: surrealdb::types::SurrealValue>(
             .unwrap_or(0);
         return Err(errors.swap_remove(meaningful).1.into());
     }
+    Ok(())
+}
+
+fn decode_query_values<R: surrealdb::types::SurrealValue>(
+    response: impl Into<ObservedQueryResults>,
+    index: usize,
+) -> Result<Vec<R>, SurrealStorageError> {
+    let mut response = response.into();
+    check_query_response(&mut response)?;
     Ok(response.take(index)?)
 }
 
@@ -745,7 +978,7 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         D: surrealdb::types::SurrealValue,
     {
-        Ok(self.client.create((table, id)).content(content).await?)
+        Ok(match self.transaction { Some(transaction) => transaction.create((table, id)).content(content).await?, None => self.client.create((table, id)).content(content).await? })
     }
 
     pub(crate) async fn upsert_one<R, D>(
@@ -758,7 +991,7 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         D: surrealdb::types::SurrealValue,
     {
-        Ok(self.client.upsert((table, id)).content(content).await?)
+        Ok(match self.transaction { Some(transaction) => transaction.upsert((table, id)).content(content).await?, None => self.client.upsert((table, id)).content(content).await? })
     }
 
     pub async fn select_one<R>(
@@ -769,7 +1002,7 @@ impl SurrealDataContext<'_> {
     where
         R: surrealdb::types::SurrealValue,
     {
-        Ok(self.client.select((table, id)).await?)
+        Ok(match self.transaction { Some(transaction) => transaction.select((table, id)).await?, None => self.client.select((table, id)).await? })
     }
 
     /// Every row of `table`.
@@ -777,7 +1010,7 @@ impl SurrealDataContext<'_> {
     where
         R: surrealdb::types::SurrealValue,
     {
-        Ok(self.client.select(table).await?)
+        Ok(match self.transaction { Some(transaction) => transaction.select(table).await?, None => self.client.select(table).await? })
     }
 
     /// Deletes one record, returning it when it existed.
@@ -789,7 +1022,7 @@ impl SurrealDataContext<'_> {
     where
         R: surrealdb::types::SurrealValue,
     {
-        Ok(self.client.delete((table, id)).await?)
+        Ok(match self.transaction { Some(transaction) => transaction.delete((table, id)).await?, None => self.client.delete((table, id)).await? })
     }
 
     /// Runs a parameterized SurrealQL statement and returns the rows of the
@@ -831,8 +1064,8 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
-        let query = self.client.query(statement);
+        let bindings = original_operation_bindings(surrealdb::types::SurrealValue::into_value(bindings));
+        let query = match self.transaction { Some(transaction) => transaction.query(statement), None => self.client.query(statement) };
         let response = if matches!(bindings, surrealdb::types::Value::None) {
             observe_result("storage_query", query_with_document_stats(query)).await?
         } else {
@@ -844,6 +1077,36 @@ impl SurrealDataContext<'_> {
         };
         observe_result("storage_response_decode", async {
             decode_query_values(response, index)
+        })
+        .await
+    }
+
+    /// Runs a bound effect-only query, checking every statement before discarding
+    /// its observed response inside the current data-operation lease.
+    pub(crate) async fn query_bound<B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<(), SurrealStorageError>
+    where
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let bindings = original_operation_bindings(surrealdb::types::SurrealValue::into_value(bindings));
+        let query = match self.transaction { Some(transaction) => transaction.query(statement), None => self.client.query(statement) };
+        let response = if matches!(bindings, surrealdb::types::Value::None) {
+            observe_result("storage_query", query_with_document_stats(query)).await?
+        } else {
+            observe_result(
+                "storage_query",
+                query_with_document_stats(query.bind(bindings)),
+            )
+            .await?
+        };
+        observe_result("storage_response_decode", async {
+            let mut response = response;
+            let result = check_query_response(&mut response);
+            drop(response);
+            result
         })
         .await
     }
@@ -862,8 +1125,8 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
-        let query = self.client.query(statement);
+        let bindings = original_operation_bindings(surrealdb::types::SurrealValue::into_value(bindings));
+        let query = match self.transaction { Some(transaction) => transaction.query(statement), None => self.client.query(statement) };
         let mut response = if matches!(bindings, surrealdb::types::Value::None) {
             query.await?
         } else {
@@ -1054,6 +1317,9 @@ struct SurrealStorageInner {
     /// tokens are handed out by [`SurrealStorage::cancellation_token`].
     cancel: StdMutex<CancellationToken>,
     shutdown_report: StdMutex<Option<ShutdownReport>>,
+    transaction_settlements: StdMutex<BTreeSet<uuid::Uuid>>,
+    pending_context_guards: StdMutex<BTreeMap<uuid::Uuid, Vec<model_lane::ContextCoordinationGuard>>>,
+    pending_context_acquisitions: StdMutex<BTreeMap<uuid::Uuid, model_lane::PendingContextAcquisition>>,
     /// Leases held right now and the high-water mark since the last reset:
     /// the engine-window concurrency gauge (review R2-1-3) that a hidden
     /// global mutex cannot inflate, unlike a call-boundary counter.
@@ -1145,8 +1411,21 @@ impl SurrealStorage {
     }
 
     pub async fn open_with_guard(
-        mut config: SurrealStorageConfig,
-        guard: Arc<dyn StorageGuard>,
+        config: SurrealStorageConfig, guard: Arc<dyn StorageGuard>,
+    ) -> Result<Self, SurrealStorageError> {
+        Self::open_with_context(config, guard, true).await
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    async fn open_test_root_catalog(config: SurrealStorageConfig) -> Result<Self, SurrealStorageError> {
+        if !valid_test_scope_name(config.namespace(), "hs_test_ns_") || !valid_test_scope_name(config.database(), "hs_test_db_") {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "test catalog scope must use strict generated identifiers" });
+        }
+        Self::open_with_context(config, Arc::new(DefaultStorageGuard), false).await
+    }
+
+    async fn open_with_context(
+        mut config: SurrealStorageConfig, guard: Arc<dyn StorageGuard>, select_context: bool,
     ) -> Result<Self, SurrealStorageError> {
         validate_supported_storage_path(config.path())?;
         std::fs::create_dir_all(config.path()).map_err(|source| SurrealStorageError::Io {
@@ -1180,6 +1459,7 @@ impl SurrealStorage {
         } else {
             Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?
         };
+        if select_context {
         client
             .use_ns(config.namespace())
             .use_db(config.database())
@@ -1202,6 +1482,8 @@ impl SurrealStorage {
             });
         }
 
+        }
+
         Ok(Self {
             inner: Arc::new(SurrealStorageInner {
                 config,
@@ -1211,6 +1493,9 @@ impl SurrealStorage {
                 shutdown: Mutex::new(ShutdownCoordinatorState::Open),
                 cancel: StdMutex::new(CancellationToken::new()),
                 shutdown_report: StdMutex::new(None),
+                transaction_settlements: StdMutex::new(BTreeSet::new()),
+                pending_context_guards: StdMutex::new(BTreeMap::new()),
+                pending_context_acquisitions: StdMutex::new(BTreeMap::new()),
                 leases_in_flight: AtomicUsize::new(0),
                 lease_high_water: AtomicUsize::new(0),
             }),
@@ -1238,8 +1523,8 @@ impl SurrealStorage {
     /// [`SurrealStorageError::StatementTimeout`] is returned; the engine may
     /// still apply the statement, so the outcome is unknown and never retried.
     /// Paths that remain unbounded by design: `with_admin_operation` (schema
-    /// bootstrap, test inspector/mutator) and `with_transaction` (no product
-    /// callers).
+    /// bootstrap, test inspector/mutator) and the existing `with_transaction`
+    /// Atelier mirror path. Protected transactions use the authenticated entrypoint.
     pub async fn with_data_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
     where
         T: Send,
@@ -1253,6 +1538,26 @@ impl SurrealStorage {
             return Err(SurrealStorageError::StatementBudgetExhausted {
                 budget_ms: self.inner.config.statement_timeout.as_millis(),
             });
+        }
+        if let Ok(protected) = PROTECTED_TRANSACTION.try_with(Clone::clone) {
+            let scope = current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            if !Arc::ptr_eq(&self.inner, &protected.storage.inner)
+                || scope.resource_id != protected.authority.resource_id
+                || scope.grant_id != protected.authority.grant_id
+                || scope.session_id != protected.authority.session_id
+                || scope.workspace_id != protected.authority.workspace_id
+                || scope.capability_id != protected.authority.capability_id
+                || scope.action != protected.authority.action
+                || scope.channel_binding_hash != protected.authority.channel_binding_hash
+                || scope.session_token != protected.authority.session_token
+            {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            // The outer controller owns cancellation, settlement, and the lifecycle
+            // lease. Dropping a nested timeout must not drop that transaction.
+            return operation(SurrealDataContext {
+                client: &protected.client, transaction: Some(&protected.transaction),
+            }).await;
         }
         let record_user_scope = current_record_user_scope();
         let namespace = self.config().namespace().to_owned();
@@ -1293,13 +1598,13 @@ impl SurrealStorage {
                         .await?;
                         observe_result(
                             "storage_operation",
-                            operation(SurrealDataContext { client: &scoped }),
+                            operation(SurrealDataContext { client: &scoped, transaction: None }),
                         )
                         .await
                     } else {
                         observe_result(
                             "storage_operation",
-                            operation(SurrealDataContext { client }),
+                            operation(SurrealDataContext { client, transaction: None }),
                         )
                         .await
                     }
@@ -1321,42 +1626,195 @@ impl SurrealStorage {
         T: Send + 'static,
         E: From<SurrealStorageError> + Send + 'static,
         F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
-            + Send
-            + 'static,
+            + Send + 'static,
+    {
+        self.transaction_worker(TransactionInvocation::Existing, None, None, operation).await
+    }
+
+    pub(crate) async fn with_authenticated_transaction<T, E, F>(
+        &self, operation_id: uuid::Uuid, operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        self.authenticated_transaction(operation_id, None, operation).await
+    }
+
+    pub(crate) async fn with_owned_authenticated_transaction<T, E, F>(
+        &self, operation_id: uuid::Uuid, cancellation: Arc<ContextOperationCancellation>, operation: F,
+    ) -> Result<T, E>
+    where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
+    {
+        self.authenticated_transaction(operation_id, Some(cancellation), operation).await
+    }
+
+    async fn authenticated_transaction<T, E, F>(
+        &self, operation_id: uuid::Uuid, cancellation: Option<Arc<ContextOperationCancellation>>, operation: F,
+    ) -> Result<T, E>
+    where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
+    {
+        let scope = current_record_user_scope()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let budget = self.effective_statement_timeout();
+        if budget.is_zero() {
+            return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
+        }
+        if !self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()).insert(operation_id) {
+            return Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id }));
+        }
+        self.transaction_worker(TransactionInvocation::Authenticated {
+            scope, deadline: Instant::now() + budget, operation_id,
+        }, Some(operation_id), cancellation, operation).await
+    }
+
+    pub(crate) fn context_reconciliation_pending(&self, operation_id: uuid::Uuid) -> bool {
+        self.inner.pending_context_guards.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).contains_key(&operation_id)
+            || self.inner.pending_context_acquisitions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).contains_key(&operation_id)
+    }
+
+    pub(crate) fn retain_context_acquisition(&self, operation_id: uuid::Uuid, acquisition: model_lane::PendingContextAcquisition) {
+        self.inner.pending_context_acquisitions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(operation_id, acquisition);
+        tracing::error!(%operation_id, "owned ContextBundle acquisition requires canonical reconciliation");
+    }
+
+    pub(crate) fn retain_context_reconciliation(
+        &self, operation_id: uuid::Uuid, guards: Vec<model_lane::ContextCoordinationGuard>,
+    ) {
+        self.inner.pending_context_guards.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(operation_id, guards);
+        tracing::error!(%operation_id, "owned ContextBundle coordination requires canonical reconciliation");
+    }
+
+    pub(crate) fn transaction_settlement_pending(&self, operation_id: uuid::Uuid) -> bool {
+        self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()).contains(&operation_id)
+    }
+
+    async fn transaction_worker<T, E, F>(
+        &self, invocation: TransactionInvocation, settlement_id: Option<uuid::Uuid>, owned_cancellation: Option<Arc<ContextOperationCancellation>>, operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
     {
         use futures::FutureExt;
 
         let storage = self.clone();
+        let worker_invocation = invocation.clone();
+        let operation_purpose = MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose).ok();
+        let operation_subject = MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok();
         let (cancel_sender, mut cancelled) = oneshot::channel::<()>();
-        let worker = tokio::spawn(async move {
+        let owned_settlement = owned_cancellation.is_some();
+        let mut worker = tokio::spawn(async move {
+            let transaction_storage = storage.clone();
             let result = storage
                 .with_lease(move |client| {
                     Box::pin(async move {
                         // Begin must complete even if the caller disappears before the
                         // SDK has returned the transaction identifier needed to cancel.
-                        let transaction = (*client).clone().begin().await?;
+                        let scoped = (*client).clone();
+                        if let TransactionInvocation::Authenticated { scope, .. } = &worker_invocation {
+                            observe_result("transaction_namespace",
+                                scoped.use_ns(transaction_storage.config().namespace()).use_db(transaction_storage.config().database())).await?;
+                            observe_result("transaction_signin", scoped.signin(RecordSignin {
+                                namespace: transaction_storage.config().namespace().to_owned(),
+                                database: transaction_storage.config().database().to_owned(),
+                                access: resource_authority::AUTHORITY_ACCESS_METHOD.to_owned(),
+                                params: resource_authority::SigninParams {
+                                    token_hash: hex::encode(sha2::Sha256::digest(scope.session_token.as_bytes())),
+                                    channel_binding_hash: scope.channel_binding_hash.clone(),
+                                },
+                            })).await?;
+                        }
+                        let callback_client = scoped.clone();
+                        let transaction = Arc::new(observe_result("transaction_begin", scoped.begin()).await?);
+                        let callback_deadline = match &worker_invocation {
+                            TransactionInvocation::Existing => None,
+                            TransactionInvocation::Authenticated { deadline, .. } => Some(*deadline),
+                        };
                         let outcome = {
                             let context = SurrealTransactionContext {
                                 transaction: &transaction,
                             };
+                            let callback_transaction = transaction.clone();
+                            let callback_storage = transaction_storage.clone();
                             let callback =
                                 std::panic::AssertUnwindSafe(
-                                    async move { operation(context).await },
+                                    async move {
+                                        match &worker_invocation {
+                                            TransactionInvocation::Existing => operation(context).await,
+                                            TransactionInvocation::Authenticated { scope, deadline, .. } => {
+                                                let protected = ProtectedTransaction {
+                                                    transaction: callback_transaction, client: callback_client,
+                                                    storage: callback_storage, authority: scope.clone(),
+                                                };
+                                                let callback = PROTECTED_TRANSACTION.scope(protected,
+                                                    RECORD_USER_SCOPE.scope(scope.clone(), OPERATION_DEADLINE.scope(*deadline,
+                                                        operation(context))));
+                                                let scoped_callback = async move {
+                                                    if let Some(subject) = operation_subject {
+                                                        MODEL_LANE_OPERATION_SUBJECT.scope(subject, callback).await
+                                                    } else {
+                                                        callback.await
+                                                    }
+                                                };
+                                                if let Some(purpose) = operation_purpose {
+                                                    MODEL_LANE_OPERATION_PURPOSE.scope(purpose, scoped_callback).await
+                                                } else {
+                                                    scoped_callback.await
+                                                }
+                                            }
+                                        }
+                                    },
                                 )
                                 .catch_unwind();
                             tokio::pin!(callback);
-                            tokio::select! {
-                                biased;
-                                _ = &mut cancelled => None,
-                                result = &mut callback => Some(result),
+                            if let Some(deadline) = callback_deadline {
+                                tokio::select! {
+                                    biased;
+                                    _ = &mut cancelled => None,
+                                    _ = async {
+                                        if let Some(cancellation) = &owned_cancellation { cancellation.cancelled().await; }
+                                        else { std::future::pending::<()>().await; }
+                                    } => None,
+                                    _ = tokio::time::sleep_until(deadline.into()) => None,
+                                    result = &mut callback => Some(result),
+                                }
+                            } else {
+                                tokio::select! {
+                                    biased;
+                                    _ = &mut cancelled => None,
+                                    result = &mut callback => Some(result),
+                                }
                             }
                         };
+                        // All callback-owned facades have now dropped. Keep the worker
+                        // and its lease until any internal outstanding query borrow settles.
+                        let mut owned_transaction = transaction;
+                        let transaction = loop {
+                            match Arc::try_unwrap(owned_transaction) {
+                                Ok(transaction) => break transaction,
+                                Err(transaction) => {
+                                    owned_transaction = transaction;
+                                    tokio::task::yield_now().await;
+                                }
+                            }
+                        };
+                        let budget_expired = callback_deadline.is_some_and(|deadline| Instant::now() >= deadline);
                         match outcome {
                             Some(Ok(Ok(value))) => {
                                 if !matches!(
                                     cancelled.try_recv(),
                                     Err(oneshot::error::TryRecvError::Empty)
-                                ) {
+                                ) || budget_expired || owned_cancellation.as_ref().is_some_and(|state| state.is_cancelled()) {
                                     transaction
                                         .cancel()
                                         .await
@@ -1394,7 +1852,12 @@ impl SurrealStorage {
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
-                                Ok(Err(E::from(SurrealStorageError::TransactionCancelled)))
+                                let error = if budget_expired {
+                                    SurrealStorageError::StatementTimeout {
+                                        waited_ms: transaction_storage.config().statement_timeout().as_millis(),
+                                    }
+                                } else { SurrealStorageError::TransactionCancelled };
+                                Ok(Err(E::from(error)))
                             }
                         }
                     })
@@ -1403,13 +1866,44 @@ impl SurrealStorage {
             if let Err(error) = &result {
                 tracing::error!(error = %error, "embedded transaction controller failed");
             }
+            if let Some(operation_id) = settlement_id {
+                // A failed commit/cancel observation cannot certify that the engine
+                // will never publish. Keep the operation unavailable for reuse.
+                if result.is_ok() {
+                    storage.inner.transaction_settlements.lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner()).remove(&operation_id);
+                    tracing::info!(%operation_id, "authenticated transaction settlement observed");
+                } else {
+                    tracing::error!(%operation_id, "authenticated transaction settlement requires canonical resolution");
+                }
+            }
             result.map_err(E::from)?
         });
-        let result = worker
-            .await
-            .map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
-        drop(cancel_sender);
-        result
+        if owned_settlement {
+            // The completion supervisor retains the worker, transaction lease and
+            // final guards until the actual engine outcome is observed.
+            let result = worker.await.map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
+            drop(cancel_sender);
+            result
+        } else if let TransactionInvocation::Authenticated { deadline, operation_id, .. } = invocation {
+            match tokio::time::timeout_at((deadline + self.config().statement_timeout()).into(), &mut worker).await {
+                Ok(result) => {
+                    drop(cancel_sender);
+                    result.map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?
+                }
+                Err(_) => {
+                    // Dropping only the caller-side cancellation sender requests cancellation.
+                    // The worker retains its lease and observes begin/cancel/commit settlement.
+                    drop(cancel_sender);
+                    Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id }))
+                }
+            }
+        } else {
+            let result = worker.await
+                .map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
+            drop(cancel_sender);
+            result
+        }
     }
 
     /// Runs a domain storage operation under the same lifecycle lease while

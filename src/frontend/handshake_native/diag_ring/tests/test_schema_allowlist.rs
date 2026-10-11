@@ -147,3 +147,41 @@ fn schema_source_declares_no_content_field_in_diag_event() {
         );
     }
 }
+
+#[test]
+fn additive_v2_layout_preserves_v1_and_full_digest() {
+    use handshake_diag_ring::schema::{DiagEventV2, DIAG_EVENT_V2_SIZE};
+    assert_eq!(DIAG_EVENT_SIZE, 56);
+    assert_eq!(std::mem::size_of::<DiagEventV2>(), 120);
+    assert_eq!(DIAG_EVENT_V2_SIZE, 120);
+    assert_eq!(std::mem::align_of::<DiagEventV2>(), 8);
+    assert_eq!(std::mem::offset_of!(DiagEventV2, event), 0);
+    assert_eq!(
+        std::mem::offset_of!(DiagEventV2, observation_heartbeat_counter),
+        56
+    );
+    assert_eq!(std::mem::offset_of!(DiagEventV2, observed_at_unix_ms), 64);
+    assert_eq!(std::mem::offset_of!(DiagEventV2, launch_nonce), 72);
+    assert_eq!(std::mem::offset_of!(DiagEventV2, correlation_hmac), 88);
+    let ordinary = DiagEventV2::ordinary(DiagEvent::heartbeat(1, 2, 3, 4)).unwrap();
+    assert_eq!(&bytemuck::bytes_of(&ordinary)[56..], &[0; 64]);
+    assert_eq!(
+        &bytemuck::bytes_of(&ordinary)[..56],
+        bytemuck::bytes_of(&ordinary.event)
+    );
+    let observation = DiagEventV2::behavior_observation(2, 3, 4, [0x55; 16], [0xaa; 32]);
+    let bytes = bytemuck::bytes_of(&observation);
+    assert_eq!(&bytes[0..2], &12u16.to_ne_bytes());
+    assert_eq!(&bytes[56..64], &3u64.to_ne_bytes());
+    assert_eq!(&bytes[64..72], &4u64.to_ne_bytes());
+    assert_eq!(&bytes[72..88], &[0x55; 16]);
+    assert_eq!(&bytes[88..120], &[0xaa; 32]);
+    assert!(DiagEventV2::ordinary(observation.event).is_none());
+    let restored: DiagEventV2 = *bytemuck::from_bytes(bytes);
+    assert!(restored == observation);
+    assert_eq!(observation.event.thread_id, 0);
+    assert_eq!(observation.event.counter_a, 0);
+    assert_eq!(observation.event.counter_b, 0);
+    assert_eq!(observation.event.metric_micros, 0);
+    assert_eq!(observation.event.timestamp_nanos, 0);
+}

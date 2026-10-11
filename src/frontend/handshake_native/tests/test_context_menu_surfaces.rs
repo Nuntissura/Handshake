@@ -773,13 +773,16 @@ fn mt070_author_nodes(harness: &Harness<'_>) -> Vec<(String, String, Option<Stri
 
 /// Project the mounted kittest surface into the same full-tree shape the canonical Argus tools read.
 /// This deliberately uses the live AccessKit nodes instead of rebuilding menu state from the builder.
-fn mt070_argus_snapshot(harness: &Harness<'_>) -> handshake_native::accessibility::UiTreeSnapshot {
+fn mt070_argus_snapshot<S>(
+    harness: &Harness<'_, S>,
+) -> handshake_native::accessibility::UiTreeSnapshot {
     use handshake_native::accessibility::{UiTreeNode, UiTreeSnapshot};
 
     let actions = [
         egui::accesskit::Action::Click,
         egui::accesskit::Action::Focus,
         egui::accesskit::Action::SetValue,
+        egui::accesskit::Action::ShowContextMenu,
     ];
     let children: Vec<_> = harness
         .root()
@@ -3158,5 +3161,92 @@ fn mt070_every_canonical_argus_action_is_terminally_bound_before_finish() {
     println!(
         "PASS MT-070 static gate: {action_count} canonical actions, {finish_count} driver finishes, \
          every action terminally bound before its finish"
+    );
+}
+
+#[test]
+fn argus_show_context_menu_completes_only_after_mounted_header_popup_render() {
+    use handshake_native::mcp::{
+        dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
+    };
+    let mut harness = harness_for(app_three_tab_pane_a());
+    let target = "pane-pane-a-header";
+    let before = mt070_argus_snapshot(&harness);
+    assert!(before
+        .find_unique_by_author_id(target)
+        .expect("mounted header")
+        .actions
+        .iter()
+        .any(|a| a == "ShowContextMenu"));
+    assert!(
+        before.find_by_author_id("ctx-menu.pane.lock").is_none(),
+        "menu starts closed"
+    );
+    let request = McpRequest {
+        id: serde_json::json!(1),
+        method: "argus.show_context_menu".to_owned(),
+        params: serde_json::json!({"target": target}),
+        session_token: "header-context-test".to_owned(),
+    };
+    let token = SessionToken::from_hex("header-context-test");
+    let mut channel = ActionChannel::new();
+    let queued = dispatch_request(&request, &token, &before, &mut channel, || {
+        Err(ScreenshotError("not requested".to_owned()))
+    })
+    .to_json();
+    assert_eq!(queued["result"]["queued"], true);
+    let receipt_id = queued["result"]["receipt_id"].as_u64().unwrap();
+    let busy = dispatch_request(&request, &token, &before, &mut channel, || {
+        Err(ScreenshotError("not requested".to_owned()))
+    })
+    .to_json();
+    assert!(busy.get("error").is_some(), "one canonical target lease");
+    for event in channel.drain_revalidated_into_events(&before) {
+        harness.event(event);
+    }
+    assert!(channel.receipts().iter().any(|r| r.receipt_id == receipt_id
+        && r.status == handshake_native::mcp::ActionReceiptStatus::Dispatched));
+    harness.run_steps(3);
+    let after = mt070_argus_snapshot(&harness);
+    assert!(
+        after.find_by_author_id("ctx-menu.pane.lock").is_some(),
+        "real popup items rendered"
+    );
+    channel.acknowledge_after_render(&after);
+    let receipts = channel.receipts();
+    assert_eq!(
+        receipts
+            .iter()
+            .filter(|r| r.receipt_id == receipt_id)
+            .count(),
+        1
+    );
+    assert_eq!(
+        receipts
+            .iter()
+            .find(|r| r.receipt_id == receipt_id)
+            .unwrap()
+            .status,
+        handshake_native::mcp::ActionReceiptStatus::Applied
+    );
+    let again = dispatch_request(&request, &token, &after, &mut channel, || {
+        Err(ScreenshotError("not requested".to_owned()))
+    })
+    .to_json();
+    let again_id = again["result"]["receipt_id"].as_u64().unwrap();
+    for event in channel.drain_revalidated_into_events(&after) {
+        harness.event(event);
+    }
+    harness.run_steps(3);
+    channel.acknowledge_after_render(&mt070_argus_snapshot(&harness));
+    assert_ne!(
+        channel
+            .receipts()
+            .iter()
+            .find(|r| r.receipt_id == again_id)
+            .unwrap()
+            .status,
+        handshake_native::mcp::ActionReceiptStatus::Applied,
+        "already-open menu is no new effect"
     );
 }

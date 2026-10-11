@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::flight_recorder::FlightRecorder;
 
+pub mod access_config;
 pub mod agent_activity;
 pub mod anthropic_byok;
 pub mod cli_bridge_runtime;
@@ -38,6 +39,17 @@ pub struct CloudLaneObservability {
     pub consent: Option<CloudConsentContext>,
 }
 
+pub use access_config::{
+    enumerate as enumerate_cloud_access, enumerate_byok, enumerate_cli_bridge,
+    enumerate_cli_bridge_with_probe, enumerate_with_cli_auth_probe, AccessConfigError,
+    ByokAccessRow, ByokProvider, CliBridgeAccessRow, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeLoginSessionRegistry,
+    CliBridgeProvider, CliLoginSessionError, CliLoginSessionSnapshot, CliLoginSessionStatus,
+    CloudAccessEnumeration, CloudModelAccess, InMemoryAccessRegistry, OfficialAuthStatusCommand,
+    OfficialLoginCommand, ProductionCliBridgeAuthStatusProbe, ProviderAccessRegistry,
+    ProviderAccessStatus, VaultBackedAccessRegistry, CLI_LOGIN_SESSION_MAX_LIFETIME,
+    CLI_LOGIN_TRANSCRIPT_TAIL_BYTES,
+};
 pub use agent_activity::{
     parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind,
 };
@@ -46,17 +58,26 @@ pub use anthropic_byok::{
     ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
     DEFAULT_ANTHROPIC_MODEL_ALLOWLIST,
 };
-pub use cli_bridge_runtime::CliBridgeModelRuntime;
+pub use cli_bridge_runtime::{
+    AllowlistedCliBridgeConfig, CliBridgeModelRuntime, CliModelAllowlist,
+};
 pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider};
 pub use official_cli_bridge::{
-    CliBridgeConfig, CliBridgeHandle, CliInvocationReceipt, CliKind, CliOutputFormat,
-    CliSubprocessSpawner, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
+    validate_cli_executable_path, CliBridgeConfig, CliBridgeHandle, CliCancellationContext,
+    CliInvocationContext, CliInvocationReceipt, CliKind, CliOutputFormat, CliSubprocessSpawner,
+    InteractiveLoginTransport, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
 };
+#[cfg(target_os = "windows")]
+pub use official_cli_bridge::InteractiveLoginPty;
 pub use openai_byok::{
-    ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
+    ApiKeyFetchCode, ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
     CloudInvocationAuditSink, OpenAiByokError, OpenAiByokRuntime, OpenAiModelHandle,
-    DEFAULT_OPENAI_MODEL_ALLOWLIST, OPENAI_CHAT_COMPLETIONS_PATH, OPENAI_EMBEDDINGS_PATH,
+    ProviderBodyMetadata, ProviderOperation, ProviderResponseKind, SseFailureKind,
+    TransientApiKey, TransportErrorCode, DEFAULT_OPENAI_MODEL_ALLOWLIST, OPENAI_CHAT_COMPLETIONS_PATH,
+    OPENAI_EMBEDDINGS_PATH,
 };
 pub use secrets_vault::{
     InMemorySecretsVault, SecretsVault, SecretsVaultError, VaultApiKeyProvider,
 };
+#[cfg(feature = "os-keychain")]
+pub use secrets_vault::{OsKeychainSecretsVault, HANDSHAKE_KEYCHAIN_SERVICE};

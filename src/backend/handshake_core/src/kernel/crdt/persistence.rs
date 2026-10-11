@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use super::identity::CrdtWorkspaceIdentityV1;
 
@@ -156,11 +155,7 @@ pub fn new_crdt_update_record(input: CrdtUpdateRecordInputV1<'_>) -> CrdtUpdateR
     }
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+pub use crate::storage::artifacts::sha256_hex;
 
 pub fn kernel_crdt_surreal_update_log_contract() -> CrdtSurrealUpdateLogContractV1 {
     CrdtSurrealUpdateLogContractV1 {
@@ -272,13 +267,13 @@ pub fn validate_crdt_update_record(
     if !record.update_bytes_ref.starts_with("surreal://") {
         errors.push(CrdtUpdateRecordValidationError {
             field: "update_bytes_ref",
-            message: "CRDT update bytes must be referenced from SurrealDB storage",
+            message: "CRDT update bytes must be referenced from embedded SurrealDB storage",
         });
     }
     if record.storage_authority != CrdtStorageAuthorityPosture::SurrealEventLedger {
         errors.push(CrdtUpdateRecordValidationError {
             field: "storage_authority",
-            message: "CRDT update authority must be SurrealDB plus EventLedger",
+            message: "CRDT update authority must be embedded SurrealDB plus EventLedger",
         });
     }
 

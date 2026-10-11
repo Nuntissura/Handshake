@@ -19,4 +19,8 @@ pub struct ModelCapabilities {
     pub supports_subquadratic: bool,
     pub supports_speculative_draft: bool,
     pub supports_eagle3: bool,
+    #[serde(default)]
+    pub supports_embedding: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_dimension: Option<usize>,
 }

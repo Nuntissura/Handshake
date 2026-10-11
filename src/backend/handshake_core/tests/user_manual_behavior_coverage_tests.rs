@@ -1,0 +1,2478 @@
+//! WP-1 MT-009: UserManual behavior coverage must be backed by Rust
+//! coverage matrix/contract entries, real UserManual rows, and the
+//! ModelLane schema registry.
+
+mod surreal_test_store_support;
+
+use handshake_core::process_ledger::{
+    StalenessReclaimConfig, RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+};
+use handshake_core::swarm_orchestration::model_lane::{
+    ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneLocusBinding,
+    ModelLaneRecoveryState, ModelLaneStore, NewModelLaneDiagnosticTierStatus, NewModelLaneRun,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
+    WorkspaceScopeRef,
+};
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
+use handshake_core::user_manual::seed::{
+    ensure_seeded, projected_manual_pages, seed_corpus, seeded_page_content_hash,
+};
+use handshake_core::user_manual::store::{
+    sha256_hex, NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualPage,
+    UserManualStore, UserManualToolEntry,
+};
+use handshake_core::user_manual::{
+    canonical_model_lane_schema_registry, cloud_model_access_behavior_coverage_matrix,
+    dedicated_embedding_model_behavior_coverage_matrix, diagnostic_tier_owning_evidence_uri_scheme,
+    embedded_model_behavior_coverage_matrix, manual_literal_claims,
+    model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
+    operator_chat_launch_behavior_coverage_matrix, user_manual_behavior_coverage_matrix,
+    verify_diagnostic_tier_evidence_uri, verify_embedded_model_behavior_coverage,
+    verify_manual_literal_claims, verify_manual_named_surface_existence,
+    verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
+    verify_model_runtime_registry_behavior_coverage, verify_user_manual_behavior_coverage_matrix,
+    BehaviorCoverageError, BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation,
+    DiagnosticTierPosture, ManualClaimClass, ModelRuntimeProofExecutionStatus,
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+    MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
+    USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID, USER_MANUAL_VERSION,
+};
+use handshake_core::{
+    api::model_runtime_registry::{
+        MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE, MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
+        MODEL_RUNTIME_REGISTRY_ROUTE, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+        MODEL_RUNTIME_SELECTION_INVALID_CODE, MODEL_RUNTIME_SELECTION_REJECTED_CODE,
+        MODEL_RUNTIME_SELECTION_ROUTE,
+    },
+    kernel::KernelEventType,
+    model_runtime::MODEL_RUNTIME_REGISTRY_SCHEMA_ID,
+};
+use serde_json::json;
+use std::collections::BTreeSet;
+
+use surreal_test_store_support::IsolatedSurrealTestStore;
+
+fn canonical_manual_rows() -> (Vec<UserManualPage>, Vec<UserManualToolEntry>) {
+    let corpus = seed_corpus();
+    let pages = projected_manual_pages(&corpus);
+    (pages, corpus.tools)
+}
+
+async fn embedded_model_lane_store() -> (IsolatedSurrealTestStore, ModelLaneStore) {
+    let mut scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate isolated embedded SurrealDB behavior-proof scope");
+    let storage = scope.storage().clone();
+    let owner_scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new(format!("manual-proof-{}", uuid::Uuid::now_v7()))
+                .expect("valid behavior-proof workspace id"),
+        );
+    let store = ModelLaneStore::new_scoped(storage, owner_scope);
+    (scope, store)
+}
+
+#[tokio::test]
+async fn canonical_manual_seeds_and_resyncs_in_embedded_surreal_scope() {
+    let mut scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate exact embedded SurrealDB UserManual scope");
+    let storage = scope.storage().clone();
+    let database = SurrealDatabase::new(storage.clone());
+
+    let first = ensure_seeded(&database)
+        .await
+        .expect("seed canonical UserManual into embedded SurrealDB");
+    assert_eq!(first.pages_changed, first.pages_total);
+    assert_eq!(
+        seeded_page_content_hash(&storage, "external-compat-engine-import")
+            .await
+            .expect("read ExternalEngineImport page hash from embedded SurrealDB"),
+        seed_corpus()
+            .pages
+            .iter()
+            .find(|page| page.slug == "external-compat-engine-import")
+            .map(NewUserManualPage::content_hash)
+    );
+
+    let second = ensure_seeded(&database)
+        .await
+        .expect("idempotently resync canonical UserManual");
+    assert_eq!(second.pages_changed, 0);
+    assert_eq!(second.tools_changed, 0);
+    assert_eq!(second.features_changed, 0);
+    assert_eq!(second.aliases_changed, 0);
+
+    drop(database);
+    drop(storage);
+    scope
+        .cleanup()
+        .await
+        .expect("clean exact embedded SurrealDB UserManual scope");
+}
+
+#[tokio::test]
+async fn product_global_store_preserves_ids_receipts_and_idempotent_resync() {
+    let mut scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate exact embedded SurrealDB UserManual store scope");
+    let storage = scope.storage().clone();
+    let database = SurrealDatabase::new(storage.clone());
+    let store = UserManualStore::new(&database);
+
+    let first = store
+        .ensure_seeded()
+        .await
+        .expect("seed canonical UserManual through the production store");
+    let version_receipt = first
+        .version_receipt_event_id
+        .as_deref()
+        .expect("changed corpus records a version receipt");
+    let (page, sections, anchors) = store
+        .get_page_by_slug("external-compat-engine-import")
+        .await
+        .expect("read canonical page")
+        .expect("canonical page exists");
+    assert_eq!(page.page_id, page.slug, "page id is the stable slug");
+    assert!(
+        page.ledger_event_id.is_some(),
+        "changed page links a receipt"
+    );
+    assert_eq!(
+        sections[0].section_id,
+        sha256_hex(&format!("{}:section:0", page.page_id)),
+        "section id is deterministic"
+    );
+    assert!(
+        sections
+            .iter()
+            .all(|section| section.page_id == page.page_id)
+            && anchors.iter().all(|anchor| anchor.page_id == page.page_id),
+        "normalized rows retain the canonical page link"
+    );
+    let version = store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("read canonical version")
+        .expect("canonical version exists");
+    assert_eq!(version.ledger_event_id.as_deref(), Some(version_receipt));
+    assert!(
+        store
+            .search("ExternalEngineImport", 20)
+            .await
+            .expect("search canonical manual")
+            .iter()
+            .any(|hit| hit.result_ref == "external-compat-engine-import"),
+        "bounded search finds canonical ExternalEngineImport coverage"
+    );
+
+    let second = store
+        .ensure_seeded()
+        .await
+        .expect("idempotently resync through the production store");
+    assert_eq!(second.pages_changed, 0);
+    assert_eq!(second.tools_changed, 0);
+    assert_eq!(second.features_changed, 0);
+    assert_eq!(second.aliases_changed, 0);
+    assert_eq!(second.version_receipt_event_id, None);
+
+    drop(store);
+    drop(database);
+    drop(storage);
+    scope
+        .cleanup()
+        .await
+        .expect("clean exact embedded SurrealDB UserManual store scope");
+}
+
+#[tokio::test]
+async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
+
+    let manual_text = pages
+        .iter()
+        .map(|page| page.body.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    // MT-019 / HBR-MAN-003: the reclaim entry must describe the CURRENT
+    // restart-orphan reconcile and its compiled bounds. The former pid-less
+    // cyclic-cursor sweep (`PIDLESS_RECLAIM_INSTANCE_CAP`) no longer exists and
+    // the manual must not claim it.
+    let periodic = StalenessReclaimConfig::default().normalized();
+    assert!(
+        manual_text.contains(&format!(
+            "examines at most {RECLAIM_IN_PROGRESS_RECOVERY_LIMIT} crash-left `reclaim_kill_in_progress` rows per session per pass"
+        )),
+        "UserManual in-progress recovery bound must match RECLAIM_IN_PROGRESS_RECOVERY_LIMIT"
+    );
+    assert!(
+        manual_text.contains(&format!(
+            "the periodic restart tick every {}s",
+            periodic.scan_interval.as_secs()
+        )),
+        "UserManual periodic restart tick must match StalenessReclaimConfig::default().scan_interval"
+    );
+    assert!(
+        manual_text.contains("`reconcile_restart_orphans_at_boot`")
+            && manual_text.contains("`restart_session_process_sets`")
+            && manual_text.contains("`RECLAIM_IN_PROGRESS_RECOVERY_LIMIT`"),
+        "UserManual must name the current restart-orphan reconcile surfaces"
+    );
+    assert!(
+        !manual_text.contains("reclaim_pidless_embedded_orphans")
+            && !manual_text.contains("cyclic keyset cursor")
+            && !manual_text.contains("orphan_reclaim_pidless_embedded_boot"),
+        "UserManual must not describe the retired pid-less cyclic-cursor sweep as current behavior"
+    );
+    assert!(
+        manual_text.contains("kill_succeeded_pending_stop")
+            && manual_text.contains("reclaim_kill_in_progress")
+            && manual_text.contains("UUIDv7-plus-generation fenced claim")
+            && manual_text.contains("embedded SurrealDB store acknowledgement")
+            && manual_text.contains("kill_operation_uuid")
+            && manual_text.contains("bounded session recovery sweep")
+            && manual_text.contains("typed per-operation outcomes")
+            && manual_text.contains("never panic or poison later rows")
+            && manual_text.contains("never fabricate STOP from unknown evidence"),
+        "UserManual must explain lossless fenced reclaim and pending-STOP recovery"
+    );
+    assert!(
+        manual_text.contains("STALE_RECLAIM_OWNER_SCOPE_REQUIRED")
+            && manual_text.contains("owner_runtime_instance_id")
+            && manual_text.contains("owner_host_scope_id")
+            && manual_text.contains("sandbox_adapter_id IS NOT NULL")
+            && manual_text.contains("STALE_RECLAIM_PROCESS_SET_REQUIRED")
+            && manual_text.contains("sorted authorized process-UUID set")
+            && manual_text.contains("rejects the whole snapshot")
+            && manual_text.contains("re-scan rather than widening")
+            && manual_text.contains("rather than falling back to a session-wide reclaim")
+            && manual_text
+                .contains("non-sandbox row that merely shares the session remains unclaimed")
+            && manual_text.contains("receives no STOP"),
+        "UserManual must explain stale selection-to-claim scope and missing-scope recovery"
+    );
+
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+    let registry_schema_ids = schema_registry
+        .iter()
+        .map(|row| row.schema_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let coverage_schema_ids = matrix
+        .iter()
+        .filter_map(|row| row.schema_id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        coverage_schema_ids, registry_schema_ids,
+        "MT-011 coverage matrix must be generated against every ModelLane schema registry row"
+    );
+    for row in &matrix {
+        assert!(
+            !row.runtime_surface_id.trim().is_empty(),
+            "{} must name the implemented command/API/IPC/runtime surface",
+            row.behavior_id
+        );
+        let proof = row
+            .self_consistency_result(&schema_registry, &pages, &tools)
+            .unwrap_or_else(|errors| panic!("{} consistency errors: {errors:?}", row.behavior_id));
+        assert!(proof
+            .checked_authorities
+            .contains("compiled_internal_symbol"));
+    }
+
+    verify_model_lane_behavior_coverage(&matrix, &schema_registry, &pages, &tools).unwrap_or_else(
+        |errors| {
+            panic!(
+                "model-lane behavior coverage gaps:\n{}",
+                errors
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        },
+    );
+}
+
+#[tokio::test]
+async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route() {
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
+    let baseline = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+
+    let mut missing_manual = baseline.clone();
+    missing_manual[0].user_manual_slug = "missing-model-lane-manual-page";
+    let errors =
+        verify_model_lane_behavior_coverage(&missing_manual, &schema_registry, &pages, &tools)
+            .expect_err("missing manual page must fail MT-011 coverage proof");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "UserManual page");
+
+    let mut missing_diagnostic = baseline.clone();
+    // Inject a REAL fault: a model_lane behavior whose internal_diagnostics tier
+    // is downgraded away from the run-level HBR-INT-009 declaration must fail the
+    // MT-011 coverage proof. The run-level posture is RUN_LEVEL_WIRED; any other
+    // value (here DeferredWithReason) is rejected by the structural declaration
+    // check. This is the static declaration guard; liveness is proven separately
+    // by the run-level evidence gate (verify_model_lane_behavior_evidence).
+    missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
+    let errors =
+        verify_model_lane_behavior_coverage(&missing_diagnostic, &schema_registry, &pages, &tools)
+            .expect_err(
+                "non-RUN_LEVEL_WIRED internal_diagnostics posture must fail MT-011 coverage proof",
+            );
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "must be RUN_LEVEL_WIRED");
+
+    let mut missing_runtime = baseline.clone();
+    missing_runtime[0].runtime_surface_id = "";
+    let errors =
+        verify_model_lane_behavior_coverage(&missing_runtime, &schema_registry, &pages, &tools)
+            .expect_err("missing runtime surface id must fail MT-011 coverage proof");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "runtime_surface_id missing");
+
+    let mut renamed_symbol = baseline.clone();
+    renamed_symbol[0].runtime_surface_id = "ModelLaneStore::deleted_record_run";
+    let errors =
+        verify_model_lane_behavior_coverage(&renamed_symbol, &schema_registry, &pages, &tools)
+            .expect_err("a nonempty but nonexistent Rust symbol must fail");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "compile-anchored symbol");
+
+    let mut missing_tool = baseline;
+    missing_tool[0].tool_id = "missing_runtime_route_tool";
+    let errors =
+        verify_model_lane_behavior_coverage(&missing_tool, &schema_registry, &pages, &tools)
+            .expect_err("missing runtime/tool proof target must fail MT-011 coverage proof");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "UserManual tool");
+}
+
+fn assert_coverage_error_contains(
+    errors: &[BehaviorCoverageError],
+    behavior_id: &str,
+    needle: &str,
+) {
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.behavior_id == behavior_id && error.reason.contains(needle) }),
+        "expected {behavior_id} coverage error containing `{needle}`; got {:?}",
+        errors
+    );
+}
+
+#[tokio::test]
+async fn mixed_model_lane_behaviors_have_manual_coverage() {
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
+
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+    let behavior_ids = matrix
+        .iter()
+        .map(|row| row.behavior_id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        behavior_ids,
+        BTreeSet::from([
+            "wp1.model_lane.run",
+            "wp1.model_lane.launch",
+            "wp1.model_lane.official_cli_spawn",
+            "wp1.model_lane.official_cli_attached_sandbox",
+            "wp1.model_lane.message",
+            "wp1.model_lane.terminal",
+            "wp1.model_lane.promotion",
+            "wp1.model_lane.context_bundle_artifact",
+            "wp1.model_lane.context_bundle",
+            "wp1.model_lane.cloud_projection_plan",
+            "wp1.model_lane.cloud_projection_plan_v2",
+            "wp1.model_lane.cloud_consent",
+            "wp1.model_lane.cloud_consent_v2",
+            "wp1.model_lane.cloud_consent_denial",
+            "wp1.model_lane.recovery",
+            "wp1.model_lane.recovery_event",
+            "wp1.model_lane.recovery_event_v2",
+            "wp1.model_lane.lease",
+            "wp1.model_lane.diagnostics",
+            "wp1.model_lane.mixed_validation",
+            "wp1.model_lane.routing_execution",
+            "wp1.model_lane.routing_outbox",
+            "wp1.model_lane.routing_stage_attempt",
+            "wp1.model_lane.run_extension",
+        ]),
+        "behavior coverage matrix must stay exact for WP-1 model-lane behaviors"
+    );
+    assert_eq!(
+        behavior_ids.len(),
+        matrix.len(),
+        "behavior coverage matrix must not contain duplicate behavior_id rows"
+    );
+    let registry_schema_ids = schema_registry
+        .iter()
+        .map(|row| row.schema_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let coverage_schema_ids = matrix
+        .iter()
+        .filter_map(|row| row.schema_id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        coverage_schema_ids, registry_schema_ids,
+        "every ModelLane schema registry row must have first-class UserManual behavior coverage"
+    );
+    for required_schema in [
+        "hsk.model_lane_terminal@1",
+        "hsk.model_lane_cloud_projection_plan@1",
+        "hsk.model_lane_cloud_consent_denial@1",
+        "hsk.model_lane_context_bundle_artifact@1",
+        "hsk.model_lane_recovery_event@1",
+        "hsk.model_lane_lease@1",
+    ] {
+        assert!(
+            coverage_schema_ids.contains(required_schema),
+            "coverage matrix must include first-class schema coverage for {required_schema}"
+        );
+    }
+    for row in &matrix {
+        assert_eq!(
+            row.internal_diagnostics_posture,
+            DiagnosticTierPosture::RunLevelWired,
+            "{} internal_diagnostics must be RUN_LEVEL_WIRED (covered by the single run-level HBR-INT-009 envelope, not a per-behavior WIRED literal)",
+            row.behavior_id
+        );
+        assert_eq!(
+            row.palmistry_posture,
+            DiagnosticTierPosture::RunLevelWired,
+            "{} Palmistry must be RUN_LEVEL_WIRED (covered by the single run-level HBR-INT-009 envelope, not a per-behavior WIRED literal)",
+            row.behavior_id
+        );
+        assert!(
+            row.deferred_reason
+                .is_some_and(|reason| reason.contains("wired observers")),
+            "{} RUN_LEVEL_WIRED diagnostics posture requires explicit observer/authority separation",
+            row.behavior_id
+        );
+        assert!(
+            row.follow_up_ref
+                .is_some_and(|value| value.starts_with("palmistry://wp1/model-lane/")),
+            "{} Palmistry posture requires a model-lane follow-up ref",
+            row.behavior_id
+        );
+    }
+    verify_model_lane_behavior_coverage(&matrix, &schema_registry, &pages, &tools).unwrap_or_else(
+        |errors| {
+            panic!(
+                "model-lane behavior coverage gaps:\n{}",
+                errors
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        },
+    );
+
+    let mixed = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_lane.mixed_validation")
+        .expect("mixed validation row");
+    assert_eq!(mixed.schema_id, Some("hsk.model_lane_mt_runtime_status@1"));
+    assert_eq!(mixed.event_family, "model_lane_mt_runtime_status");
+    assert_eq!(mixed.runtime_surface_id, "ModelLaneStore");
+    assert_eq!(mixed.tool_id, "worktree_model_lane_live_surreal_tests");
+    assert_eq!(mixed.user_manual_slug, "model-lane-validation-harness");
+    assert!(
+        mixed
+            .eventledger_flight_recorder_path
+            .contains("kernel_event_ledger"),
+        "mixed validation row must stay EventLedger/FlightRecorder-backed"
+    );
+    assert!(
+        mixed.follow_up_ref.is_some(),
+        "Palmistry wired posture must carry a stable diagnostic correlation ref"
+    );
+}
+
+/// WP-1 MT-013 (AC#5): the embedded-model lifecycle ledger + fail-closed/
+/// embedding Flight Recorder behaviors have first-class UserManual coverage rows
+/// backed by real seeded pages/tools, with all HBR-INT-009 tiers WIRED.
+#[tokio::test]
+async fn embedded_model_behaviors_have_manual_coverage() {
+    let (pages, tools) = canonical_manual_rows();
+
+    let matrix = embedded_model_behavior_coverage_matrix();
+    let behavior_ids = matrix
+        .iter()
+        .map(|row| row.behavior_id)
+        .collect::<BTreeSet<_>>();
+    assert!(
+        !behavior_ids.is_empty(),
+        "canonical embedded-model registry is nonempty"
+    );
+    assert_eq!(
+        behavior_ids.len(),
+        matrix.len(),
+        "behavior coverage matrix must not contain duplicate behavior_id rows"
+    );
+
+    for row in &matrix {
+        assert_eq!(
+            row.internal_diagnostics_posture,
+            DiagnosticTierPosture::Wired,
+            "{} internal_diagnostics must be WIRED through the native producer",
+            row.behavior_id
+        );
+        assert_eq!(
+            row.palmistry_posture,
+            DiagnosticTierPosture::Wired,
+            "{} Palmistry must be WIRED through the authenticated watcher",
+            row.behavior_id
+        );
+        assert!(
+            row.deferred_reason
+                .is_some_and(|reason| reason.contains("wired")),
+            "{} WIRED tiers require explicit observer/authority separation",
+            row.behavior_id
+        );
+        assert!(
+            row.follow_up_ref
+                .is_some_and(|value| value.starts_with("palmistry://wp1/embedded-model/")),
+            "{} WIRED tiers require an embedded-model Palmistry correlation ref",
+            row.behavior_id
+        );
+        assert!(
+            row.schema_id.is_none(),
+            "{} is not a ModelLane schema-registry row",
+            row.behavior_id
+        );
+    }
+
+    let tool_ids = matrix
+        .iter()
+        .map(|row| row.tool_id)
+        .collect::<BTreeSet<_>>();
+    assert!(
+        tool_ids.contains("embedded_model_ledger_tests"),
+        "ledger behaviors must point at the embedded_model_ledger_tests proof suite"
+    );
+    assert!(
+        tool_ids.contains("llm_client_local_routing_tests"),
+        "FR behaviors must point at the llm_client_local_routing_tests proof suite"
+    );
+    for tool_id in [
+        "embedded_model_ledger_tests",
+        "candle_e2e_smoke::mt013_real_candle_default_load_emits_process_ledger_start_stop",
+        "llm_client_local_routing_tests",
+    ] {
+        let tool = tools
+            .iter()
+            .find(|tool| tool.tool_id == tool_id)
+            .unwrap_or_else(|| panic!("missing MT-013 UserManual tool entry {tool_id}"));
+        let cli_flag = tool
+            .cli_flag
+            .as_deref()
+            .unwrap_or_else(|| panic!("MT-013 UserManual tool entry {tool_id} has no CLI command"));
+        assert!(
+            !cli_flag.contains("--target-dir"),
+            "MT-013 UserManual tool entry {tool_id} must honor the configured per-owner CARGO_TARGET_DIR: {cli_flag}"
+        );
+        assert!(
+            cli_flag.contains("-j 4"),
+            "MT-013 UserManual tool entry {tool_id} must retain the bounded build job count: {cli_flag}"
+        );
+        assert!(
+            tool.expected_input.contains("per-owner"),
+            "MT-013 UserManual tool entry {tool_id} must explain the per-owner CARGO_TARGET_DIR prerequisite"
+        );
+    }
+    verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
+        panic!(
+            "embedded-model behavior coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+}
+
+/// WP-1 MT-012: the operator chat/launch surface behaviors have UserManual
+/// coverage (page + tool seeded) and all HBR-INT-009 tiers WIRED.
+#[tokio::test]
+async fn operator_chat_launch_behaviors_have_manual_coverage() {
+    let (pages, tools) = canonical_manual_rows();
+
+    let matrix = operator_chat_launch_behavior_coverage_matrix();
+    let behavior_ids = matrix
+        .iter()
+        .map(|row| row.behavior_id)
+        .collect::<BTreeSet<_>>();
+    for surface in wp009_surface_registry()
+        .iter()
+        .filter(|surface| surface.group == SurfaceGroup::OperatorChat)
+    {
+        assert!(
+            behavior_ids.contains(surface.surface_id),
+            "shipped Operator Chat route {} {} escaped behavior coverage",
+            surface.method,
+            surface.route
+        );
+    }
+    assert_eq!(
+        behavior_ids.len(),
+        matrix.len(),
+        "behavior coverage matrix must not contain duplicate behavior_id rows"
+    );
+
+    for row in &matrix {
+        assert_eq!(
+            row.internal_diagnostics_posture,
+            DiagnosticTierPosture::Wired,
+            "{} internal_diagnostics must be WIRED through the native producer",
+            row.behavior_id
+        );
+        assert_eq!(
+            row.palmistry_posture,
+            DiagnosticTierPosture::Wired,
+            "{} Palmistry must be WIRED through the authenticated watcher",
+            row.behavior_id
+        );
+        assert!(
+            row.follow_up_ref
+                .is_some_and(|value| value.starts_with("palmistry://wp1/operator-chat/")),
+            "{} WIRED tiers require an operator-chat Palmistry correlation ref",
+            row.behavior_id
+        );
+        assert_eq!(
+            row.user_manual_slug, "operator-chat-launch",
+            "operator-chat behaviors point at the operator-chat-launch manual page"
+        );
+        assert_eq!(
+            row.tool_id, "operator_chat_capture_tests",
+            "operator-chat behaviors point at the operator_chat_capture_tests proof suite"
+        );
+    }
+
+    verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
+        panic!(
+            "operator-chat behavior coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+
+    let mut stale_route = matrix.clone();
+    let route_row = stale_route
+        .iter_mut()
+        .find(|row| row.behavior_id == "operator_chat.models.list")
+        .expect("canonical Operator Chat models route row");
+    route_row.runtime_surface_id = "/operator-chat/deleted-models-route";
+    let errors = verify_embedded_model_behavior_coverage(&stale_route, &pages, &tools)
+        .expect_err("a stale nonempty route must fail computed consistency");
+    assert_coverage_error_contains(
+        &errors,
+        "operator_chat.models.list",
+        "does not equal canonical",
+    );
+
+    let operator_chat_page = pages
+        .iter()
+        .find(|page| page.slug == "operator-chat-launch")
+        .expect("operator-chat-launch manual page exists");
+    let operator_chat_body = operator_chat_page.body.to_string();
+    assert!(
+        operator_chat_body.contains("operator-chat.model.<lane>.<provider>.<model>"),
+        "manual must document the actual Operator Chat model-row author_id prefix"
+    );
+    assert!(
+        operator_chat_body.contains("SUBAGENT")
+            && operator_chat_body.contains("launch_operator_subagent_model_lane")
+            && operator_chat_body.contains("SubagentManager"),
+        "manual must document the Operator Chat subagent lane, no-OS launch helper, and authority"
+    );
+    assert!(
+        !operator_chat_body.contains("operator-chat.picker.model.<lane>.<provider>.<model>"),
+        "manual must not point no-context models at the obsolete picker author_id prefix"
+    );
+    assert!(
+        operator_chat_body.contains(
+            "internal_diagnostics is WIRED through the native producer and Problems projection"
+        ) && operator_chat_body.contains(
+            "Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+        ) && !operator_chat_body.contains("DEFERRED-with-reason"),
+        "Operator Chat manual must keep the implemented diagnostics tiers WIRED"
+    );
+}
+
+#[tokio::test]
+async fn dedicated_embedding_model_behaviors_have_manual_coverage() {
+    let (pages, tools) = canonical_manual_rows();
+
+    let matrix = dedicated_embedding_model_behavior_coverage_matrix();
+    let behavior_ids = matrix
+        .iter()
+        .map(|row| row.behavior_id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        behavior_ids.len(),
+        matrix.len(),
+        "canonical registry ids are unique"
+    );
+
+    let row = matrix
+        .first()
+        .expect("dedicated embedding behavior row exists");
+    assert_eq!(row.user_manual_slug, "dedicated-embedding-model-routing");
+    assert_eq!(row.tool_id, "dedicated_embedding_model_tests");
+    assert_eq!(
+        row.event_family, "data_embedding_computed",
+        "coverage row must cite the emitted embedding success event family"
+    );
+    assert!(
+        row.eventledger_flight_recorder_path
+            .contains("loom_block_search_index.embedding_model"),
+        "coverage row must cite the stored embedding_model provenance path"
+    );
+    assert_eq!(
+        row.internal_diagnostics_posture,
+        DiagnosticTierPosture::Wired
+    );
+    assert_eq!(row.palmistry_posture, DiagnosticTierPosture::Wired);
+    assert!(
+        row.deferred_reason.is_some_and(|reason| {
+            reason.contains("wired observers") && !reason.contains("follow-up worktrees")
+        }),
+        "wired embedding diagnostics must not regress to stale follow-up-worktree wording"
+    );
+    assert!(
+        row.follow_up_ref
+            .is_some_and(|value| value.starts_with("palmistry://wp1/dedicated-embedding-model/")),
+        "wired Palmistry posture requires a dedicated correlation ref"
+    );
+
+    verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
+        panic!(
+            "dedicated embedding model behavior coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+
+    let page = pages
+        .iter()
+        .find(|page| page.slug == "dedicated-embedding-model-routing")
+        .expect("dedicated embedding model manual page exists");
+    let page_body = page.body.to_string();
+    assert!(
+        page_body.contains("HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH"),
+        "manual page must document the dedicated embedding model config"
+    );
+    assert!(
+        page_body.contains("query_embedding_model"),
+        "manual page must document query embedding model provenance"
+    );
+    assert!(
+        page_body.contains("embedspace:<artifact_sha256>:dim:<dimension>"),
+        "manual page must document the stable embedding-space key, not only the per-boot UUID"
+    );
+    assert!(
+        page_body.contains(
+            "Tier-2 internal_diagnostics is WIRED through the native producer and Problems projection",
+        ) && page_body.contains(
+            "Tier-3 Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+        ),
+        "dedicated embedding manual must keep both implemented diagnostic tiers WIRED"
+    );
+    assert!(
+        !page_body.contains("follow-up worktrees"),
+        "dedicated embedding manual must not regress to stale worktree deferral wording"
+    );
+}
+
+#[test]
+fn model_runtime_selection_failure_recovery_rows_match_compiled_api_contract() {
+    let _compiled_router = handshake_core::api::model_runtime_registry::routes;
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+    assert_eq!(matrix.len(), 17, "MT-014 behavior matrix row count drifted");
+    let selection_rows = matrix
+        .iter()
+        .filter(|row| {
+            row.behavior_id
+                .starts_with("wp1.model_runtime.selection.post.")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        selection_rows.len(),
+        11,
+        "MT-014 selection coverage must include success, every reachable failure class, and recovery/re-observation"
+    );
+
+    for (behavior_id, runtime_surface_id, response_code, evidence_marker, proof_tool_id) in [
+        (
+            "wp1.model_runtime.selection.post.failure.invalid_input",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_INVALID_CODE),
+            "invalid target_model_id, actor, or reason",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.non_ready_target",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_REJECTED_CODE),
+            "non-READY",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.timeout",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_REJECTED_CODE),
+            "timeout keeps the prior active model",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.unavailable",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE),
+            "503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.recovery.preserve_prior",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            None,
+            "keeps the prior active model",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.recovery.reobserve",
+            MODEL_RUNTIME_REGISTRY_ROUTE,
+            None,
+            "Refresh re-reads the durable projection",
+            "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection",
+        ),
+    ] {
+        let row = selection_rows
+            .iter()
+            .find(|row| row.behavior_id == behavior_id)
+            .unwrap_or_else(|| panic!("missing exact MT-014 behavior row {behavior_id}"));
+        assert_eq!(row.runtime_surface_id, runtime_surface_id, "{behavior_id}");
+        assert_eq!(row.response_code, response_code, "{behavior_id}");
+        assert_eq!(row.manual_evidence_marker, evidence_marker, "{behavior_id}");
+        assert_eq!(row.proof_tool_id, proof_tool_id, "{behavior_id}");
+        assert!(
+            row.recovery_instruction_marker
+                .starts_with("Restore the current migration chain/database authority"),
+            "{behavior_id} must carry an explicit recovery instruction"
+        );
+    }
+
+    let reobserve = selection_rows
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve")
+        .expect("re-observation row exists");
+    assert_eq!(
+        reobserve.schema_id,
+        Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID),
+        "GET re-observation returns the canonical typed registry projection"
+    );
+    let integrity = selection_rows
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime.selection.post.failure.integrity")
+        .expect("integrity row exists");
+    assert_eq!(
+        integrity.response_code,
+        Some(MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE)
+    );
+}
+
+#[tokio::test]
+async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
+    let features = seed_corpus().features;
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+
+    assert!(
+        serde_json::to_value(&matrix).is_ok(),
+        "MT-014 behavior coverage matrix must remain machine-readable"
+    );
+    assert_eq!(
+        matrix
+            .iter()
+            .map(|row| row.behavior_id)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "wp1.model_runtime_registry.persistent_adapter_selection",
+            "wp1.model_runtime_registry.restart_recovery",
+            "wp1.model_runtime_registry.fail_closed_selection_conflict",
+            "wp1.model_runtime_registry.api_projection",
+            "wp1.model_runtime_registry.native_panel",
+            "wp1.model_runtime_registry.eventledger_selection_evidence",
+            "wp1.model_runtime.selection.post.success",
+            "wp1.model_runtime.selection.post.failure.audit",
+            "wp1.model_runtime.selection.post.failure.stale_target",
+            "wp1.model_runtime.selection.post.failure.embedding_role",
+            "wp1.model_runtime.selection.post.failure.integrity",
+            "wp1.model_runtime.selection.post.failure.invalid_input",
+            "wp1.model_runtime.selection.post.failure.non_ready_target",
+            "wp1.model_runtime.selection.post.failure.timeout",
+            "wp1.model_runtime.selection.post.failure.unavailable",
+            "wp1.model_runtime.selection.post.recovery.preserve_prior",
+            "wp1.model_runtime.selection.post.recovery.reobserve",
+        ]),
+        "MT-014 ModelRuntime registry coverage matrix must stay exact"
+    );
+    verify_model_runtime_registry_behavior_coverage(&matrix, &features).unwrap_or_else(|errors| {
+        panic!(
+            "ModelRuntime registry UserManual coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+
+    let feature = features
+        .iter()
+        .find(|feature| feature.feature_id == MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID)
+        .expect("current MT-014 UserManual feature exists");
+    assert_eq!(feature.manual_version, USER_MANUAL_VERSION);
+    assert!(feature
+        .description
+        .contains(MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE));
+    assert!(matrix.iter().all(|row| {
+        row.proof_execution_status == ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
+    }));
+    let persistent = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.persistent_adapter_selection")
+        .expect("persistent registry coverage row");
+    assert_eq!(persistent.schema_id, Some(MODEL_RUNTIME_REGISTRY_SCHEMA_ID));
+    assert_eq!(
+        persistent.eventledger_event_type,
+        Some(KernelEventType::ModelRuntimeSelectionRecorded.as_str())
+    );
+    let api = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.api_projection")
+        .expect("registry API coverage row");
+    assert_eq!(api.runtime_surface_id, MODEL_RUNTIME_REGISTRY_ROUTE);
+    assert_eq!(
+        api.schema_id,
+        Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID)
+    );
+    let native = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.native_panel")
+        .expect("native ModelRuntime panel coverage row");
+    assert!(native.runtime_surface_id.contains("PaneType::ModelRuntime"));
+    assert!(native
+        .runtime_surface_id
+        .contains("model-runtime.registry.*"));
+}
+
+#[tokio::test]
+async fn model_runtime_registry_stale_deployed_row_fails_read_only_freshness_check() {
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+    let mut markers = BTreeSet::new();
+    for row in &matrix {
+        markers.insert(row.manual_evidence_marker);
+        markers.insert(row.recovery_instruction_marker);
+    }
+    markers.extend([
+        MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
+        "Tier-1 Flight Recorder events are WIRED",
+        "internal_diagnostics is WIRED through the native producer and Problems projection",
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+    ]);
+    let stale_feature = UserManualFeatureEntry {
+        feature_id: MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID.to_owned(),
+        title: "stale deployed MT-014 feature".to_owned(),
+        description: markers.into_iter().collect::<Vec<_>>().join(" | "),
+        tool_ids: matrix
+            .iter()
+            .map(|row| row.proof_tool_id.to_owned())
+            .collect(),
+        origin: "wp1_mt014".to_owned(),
+        content_hash: "0".repeat(64),
+        manual_version: "2.0.9-stale".to_owned(),
+    };
+    let deployed_rows = vec![stale_feature];
+    let errors = verify_model_runtime_registry_behavior_coverage(&matrix, &deployed_rows)
+        .expect_err("stale deployed row must fail the read-only freshness check");
+    assert!(errors.iter().any(|error| {
+        error.behavior_id == "wp1.model_runtime_registry.manual_version"
+            && error.reason.contains(USER_MANUAL_VERSION)
+    }));
+}
+
+const EVIDENCE_WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
+const EVIDENCE_OWNER: &str = "KERNEL_BUILDER-mt011-evidence";
+
+/// A minimal-but-valid `ModelLaneRun` whose locus fields are consistent with the
+/// run identity, so `ModelLaneStore::record_run` accepts it and later diagnostic
+/// tier records can attach to it.
+fn evidence_run(run_id: &str) -> NewModelLaneRun {
+    NewModelLaneRun {
+        run_id: run_id.into(),
+        trace_id: format!("trace-{run_id}"),
+        run_span_id: format!("span-{run_id}"),
+        coordinator_session_id: format!("coordinator-{run_id}"),
+        routing_policy: "mixed_local_cloud_subagent".into(),
+        context_bundle_id: format!("ctx-{run_id}"),
+        lane_ids: vec![format!("lane-{run_id}")],
+        event_ledger_stream_id: format!("mlane-stream-{run_id}"),
+        artifact_namespace: format!("artifact://model-lane/{run_id}"),
+        projection_plan_ref: None,
+        consent_receipt_ref: None,
+        work_packet_id: Some(EVIDENCE_WP_ID.into()),
+        micro_task_id: Some("MT-011".into()),
+        task_board_id: Some("task-board://wp-1".into()),
+        owner_session: EVIDENCE_OWNER.into(),
+        idempotency_key: format!("idem-{run_id}"),
+        replay_order_key: "00000001/run".into(),
+        replay_after_event_ledger_seq: None,
+        recovery_state: ModelLaneRecoveryState::Restartable,
+        failstate_code: None,
+        reason_ref: None,
+        recovery_hint_ref: Some("usermanual://dexterity/diagnostics".into()),
+        locus_binding: Some(ModelLaneLocusBinding {
+            work_packet_id: EVIDENCE_WP_ID.into(),
+            micro_task_id: "MT-011".into(),
+            task_board_id: Some("task-board://wp-1".into()),
+            coordinator_session_id: format!("coordinator-{run_id}"),
+            session_id: format!("session-{run_id}"),
+            model_session_id: format!("model-session-{run_id}"),
+            owner_session: EVIDENCE_OWNER.into(),
+            locus_binding_ref: format!("locus://wp1/mt011/{run_id}"),
+        }),
+        memory_pack_ref: format!("memory-pack://fems/{run_id}"),
+        memory_pack_hash: "a1".repeat(32),
+        determinism_mode: "deterministic_replay".into(),
+        budget_summary_ref: "budget://mt011".into(),
+        selected_model_id: Some("model://mt011/local".into()),
+        candidate_model_ids: vec!["model://mt011/local".into()],
+        procedural_review_status: "reviewed_by_kernel_builder".into(),
+        truncation_warning_ref: None,
+        rejection_reason_refs: vec![],
+    }
+}
+
+/// One tier of the run-level HBR-INT-009 envelope (`behavior_id = "HBR-INT-009"`).
+fn evidence_tier(
+    run_id: &str,
+    tier: ModelLaneDiagnosticTier,
+    state: ModelLaneDiagnosticTierState,
+    evidence_ref: &str,
+) -> NewModelLaneDiagnosticTierStatus {
+    NewModelLaneDiagnosticTierStatus {
+        diagnostic_status_id: format!("diag-{run_id}-{}", tier.as_str()),
+        behavior_id: "HBR-INT-009".into(),
+        run_id: run_id.into(),
+        tier,
+        state,
+        reason: format!("run-level HBR-INT-009 tier {} for {run_id}", tier.as_str()),
+        evidence_ref: evidence_ref.into(),
+        follow_up_ref: Some("palmistry://wp1/model-lane/run".into()),
+        event_ledger_stream_id: format!("mlane-stream-{run_id}"),
+        work_packet_id: EVIDENCE_WP_ID.into(),
+        micro_task_id: "MT-011".into(),
+        task_board_id: "task-board://wp-1".into(),
+        owner_session: EVIDENCE_OWNER.into(),
+        idempotency_key: format!("idem-diag-{run_id}-{}", tier.as_str()),
+        diagnostic_payload: json!({"behavior_id": "HBR-INT-009", "run_id": run_id}),
+    }
+}
+
+/// MT-011 run-level evidence proof (POSITIVE): when a real ModelLaneRun carries
+/// the durable run-level HBR-INT-009 triplet (Flight Recorder + internal_diagnostics
+/// + Palmistry, with `internal-diagnostics://session/` + `palmistry-observation://session/`
+/// evidence refs), `verify_model_lane_behavior_evidence` PASSES for the full
+/// RUN_LEVEL_WIRED model-lane matrix. This replaces the tautological static WIRED
+/// flip with evidence validated against real durable records.
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_records_exist() {
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+
+    let run_id = "run-mt011-evidence-positive";
+    store
+        .record_run(evidence_run(run_id))
+        .await
+        .expect("record the run that carries the run-level HBR-INT-009 envelope");
+    for (tier, evidence_ref) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "eventledger://kernel/model-lane/run/run-mt011-evidence-positive",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "internal-diagnostics://session/run-mt011-evidence-positive/panic-heartbeat-frame-resource-open-event",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            "palmistry-observation://session/run-mt011-evidence-positive/watcher",
+        ),
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                run_id,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                evidence_ref,
+            ))
+            .await
+            .expect("record run-level HBR-INT-009 tier");
+    }
+
+    let postures = verify_model_lane_behavior_evidence(&store, run_id, &matrix)
+        .await
+        .unwrap_or_else(|errors| {
+            panic!(
+                "run-level HBR-INT-009 evidence gate must PASS when durable records exist:\n{}",
+                errors
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        });
+    assert_eq!(
+        postures.len(),
+        1,
+        "the 24 model-lane behaviors share ONE run-level HBR-INT-009 envelope, not per-behavior evidence"
+    );
+    assert_eq!(postures[0].run_id, run_id);
+    assert_eq!(postures[0].behavior_id, "HBR-INT-009");
+    assert_eq!(
+        postures[0].tiers.len(),
+        3,
+        "run-level HBR-INT-009 envelope must carry all three correlated tiers"
+    );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB positive evidence scope");
+}
+
+/// MT-011 run-level evidence proof (NEGATIVE): the gate FAILS CLOSED when the
+/// run-level HBR-INT-009 records are absent or incomplete, and it also rejects a
+/// gamed per-behavior `Wired` literal before any DB lookup. This replaces the
+/// tautological negative test that could never fail on hardcoded WIRED literals.
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_incomplete() {
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+
+    // (a) ABSENT: a run with no durable HBR-INT-009 records fails closed.
+    let absent_run = "run-mt011-evidence-absent";
+    let errors = verify_model_lane_behavior_evidence(&store, absent_run, &matrix)
+        .await
+        .expect_err("absent run-level HBR-INT-009 evidence must fail closed");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.behavior_id == "HBR-INT-009"),
+        "absent evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
+    );
+
+    // (b) INCOMPLETE: only the FlightRecorder tier recorded (missing
+    // internal_diagnostics + Palmistry) fails closed — Flight-Recorder-only
+    // evidence is not enough.
+    let incomplete_run = "run-mt011-evidence-incomplete";
+    store
+        .record_run(evidence_run(incomplete_run))
+        .await
+        .expect("record the incomplete run");
+    store
+        .record_diagnostic_tier_status(evidence_tier(
+            incomplete_run,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/run/run-mt011-evidence-incomplete",
+        ))
+        .await
+        .expect("record only the FlightRecorder tier");
+    let errors = verify_model_lane_behavior_evidence(&store, incomplete_run, &matrix)
+        .await
+        .expect_err("Flight-Recorder-only run-level evidence must fail closed");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.behavior_id == "HBR-INT-009"),
+        "incomplete evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
+    );
+
+    // (c) GAMED LITERAL: a matrix row that declares a per-behavior `Wired`
+    // posture (the exact anti-pattern this MT closes) is rejected by the gate
+    // before any DB lookup.
+    let mut gamed = matrix.clone();
+    gamed[0].internal_diagnostics_posture = DiagnosticTierPosture::Wired;
+    let errors = verify_model_lane_behavior_evidence(&store, absent_run, &gamed)
+        .await
+        .expect_err("a per-behavior WIRED literal must be rejected by the run-level evidence gate");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.reason.contains("RUN_LEVEL_WIRED")),
+        "gamed per-behavior WIRED must be rejected with a RUN_LEVEL_WIRED declaration error, got {errors:?}"
+    );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB negative evidence scope");
+}
+
+// ---------------------------------------------------------------------------
+// MT-022 (AC-1 / AC-2 / AC-5): HBR-MAN-003 for the CANONICAL UserManual corpus.
+//
+// These are pure compiled-corpus checks, so they run on every invocation of this
+// proof binary and cannot be skipped by an unavailable resource.
+// ---------------------------------------------------------------------------
+
+fn scanned_body(corpus: &handshake_core::user_manual::seed::SeedCorpus, slug: &str) -> String {
+    let page = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == slug)
+        .unwrap_or_else(|| panic!("UserManual page {slug} missing from the seeded corpus"));
+    page.sections
+        .iter()
+        .map(|section| section.body_md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn user_manual_names_only_surfaces_that_exist_in_compiled_product_code() {
+    let corpus = seed_corpus();
+    let proof = verify_manual_named_surface_existence(&corpus.pages).unwrap_or_else(|errors| {
+        panic!(
+            "HBR-MAN-003: the canonical UserManual corpus names {} surface(s) that do not exist: {}",
+            errors.len(),
+            errors
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        )
+    });
+
+    assert_eq!(
+        proof.pages_scanned,
+        corpus.pages.len(),
+        "the gate must scan every seeded page, not a subset"
+    );
+    // Anti-vacuous-pass: a gate that scanned nothing is not a gate.
+    assert!(
+        proof.symbol_claims_checked >= 40,
+        "expected the corpus to make a substantial number of product-symbol claims, got {}",
+        proof.symbol_claims_checked
+    );
+    assert!(
+        proof.flight_recorder_event_claims_checked >= 4,
+        "expected the corpus to make Flight Recorder event claims, got {}",
+        proof.flight_recorder_event_claims_checked
+    );
+    assert!(
+        proof.compiled_flight_recorder_vocabulary >= 50,
+        "the compiled Flight Recorder vocabulary looks truncated: {}",
+        proof.compiled_flight_recorder_vocabulary
+    );
+    // MT-022 floors for the classes the parser was broadened to cover. The
+    // validator's finding was that the gate "recognizes only a narrow subset";
+    // these make a regression back to that subset a test failure rather than a
+    // quiet loss of coverage.
+    assert!(
+        proof.route_claims_checked >= 90,
+        "expected the corpus to make route claims resolved against the surface registry, got {}",
+        proof.route_claims_checked
+    );
+    assert!(
+        proof.json_sections_scanned >= 15,
+        "expected body_json sections to be scanned, got {}",
+        proof.json_sections_scanned
+    );
+    assert!(
+        proof.literal_claims_collected >= 500,
+        "expected string-literal claims to be classified for source grounding, got {}",
+        proof.literal_claims_collected
+    );
+}
+
+/// The concatenated text of the product's own source, with the manual corpus
+/// itself EXCLUDED. `verify_manual_literal_claims` resolves string-literal
+/// claims (env vars, config keys, schema ids, bare type names) against this:
+/// they name literals, not Rust items, so they cannot be compile-anchored.
+///
+/// The walk lives in the proof suite, never in the library — `handshake_core`
+/// must not read the source tree at runtime, and the path here is derived from
+/// `CARGO_MANIFEST_DIR` so it stays disk- and checkout-agnostic.
+/// Proof files ARE included on purpose: the manual legitimately names proof
+/// targets that exist only in tests (for example
+/// `worktree_model_lane_live_surreal_tests` and the
+/// test-only `HANDSHAKE_TEST_CANDLE_MODEL_DIR` env var). That is also why the
+/// drift fixtures below assemble their fabricated names at runtime.
+fn product_source_text() -> String {
+    fn walk(dir: &std::path::Path, skip: &std::path::Path, out: &mut String, skipped: &mut usize) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if path.is_dir() {
+                if matches!(name.as_ref(), "target" | "node_modules" | "dist" | ".git") {
+                    continue;
+                }
+                walk(&path, skip, out, skipped);
+                continue;
+            }
+            if path == skip {
+                *skipped += 1;
+                continue;
+            }
+            let is_source = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|ext| {
+                    matches!(
+                        ext,
+                        "rs" | "sql" | "ts" | "tsx" | "js" | "jsx" | "toml" | "json"
+                    )
+                });
+            if !is_source {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                out.push_str(&text);
+                out.push('\n');
+            }
+        }
+    }
+
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let src_root = manifest
+        .ancestors()
+        .nth(2)
+        .expect("handshake_core lives at <repo>/src/backend/handshake_core")
+        .to_path_buf();
+    assert!(
+        src_root.join("backend").join("handshake_core").is_dir(),
+        "resolved product source root {src_root:?} is not the repo `src/` tree"
+    );
+    // Built the same way the walk builds paths (no `canonicalize`, which would
+    // return a Windows extended-length prefix and never compare equal).
+    let corpus = src_root
+        .join("backend")
+        .join("handshake_core")
+        .join("src")
+        .join("user_manual")
+        .join("seed.rs");
+    assert!(corpus.is_file(), "seeded corpus {corpus:?} must exist");
+
+    let mut out = String::new();
+    let mut skipped = 0usize;
+    walk(&src_root, &corpus, &mut out, &mut skipped);
+    assert_eq!(
+        skipped, 1,
+        "the seeded corpus must be excluded from its own grounding source exactly once"
+    );
+    assert!(
+        out.len() > 5_000_000,
+        "product source scan looks truncated: {} bytes",
+        out.len()
+    );
+    out
+}
+
+/// MT-022: the string-literal half of HBR-MAN-003. Env vars, config/JSON keys,
+/// typed schema ids, and bare type names cannot be compile-anchored from the
+/// library, so they are resolved against the real product source instead. A
+/// fabricated or mistyped name appears nowhere and fails here.
+#[test]
+fn user_manual_literal_claims_resolve_against_real_product_source() {
+    let corpus = seed_corpus();
+    let claims = manual_literal_claims(&corpus.pages);
+    let source = product_source_text();
+
+    let resolved = verify_manual_literal_claims(&claims, &source).unwrap_or_else(|errors| {
+        panic!(
+            "HBR-MAN-003: the canonical UserManual corpus names {} literal(s) that appear nowhere \
+             in product source: {}",
+            errors.len(),
+            errors
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        )
+    });
+
+    // Anti-vacuous-pass floors: a classifier that classified nothing is not a
+    // check. Each class the parser was broadened to cover must be represented.
+    assert_eq!(resolved, claims.len());
+    assert!(
+        claims.len() >= 500,
+        "expected the corpus to make a substantial number of literal claims, got {}",
+        claims.len()
+    );
+    for (class, floor) in [
+        (ManualClaimClass::ScreamingSnake, 40usize),
+        (ManualClaimClass::SnakeCase, 400),
+        (ManualClaimClass::SchemaId, 15),
+        (ManualClaimClass::BareTypeName, 20),
+    ] {
+        let count = claims.iter().filter(|claim| claim.class == class).count();
+        assert!(
+            count >= floor,
+            "expected at least {floor} `{}` claims, got {count} — the classifier stopped seeing \
+             this class",
+            class.as_str()
+        );
+    }
+}
+
+#[test]
+fn user_manual_named_surface_gate_fails_on_drift() {
+    // The AC-5 requirement: a gate nobody has seen fail is not a gate. Inject
+    // one deliberately false claim per class the MT-022 parser now covers and
+    // prove EVERY one is reported.
+    let mut corpus = seed_corpus();
+    corpus.pages.push(NewUserManualPage {
+        slug: "mt022-drift-probe".into(),
+        title: "MT-022 drift probe (test-only)".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![
+            NewManualSection {
+                section_kind: "purpose",
+                title: "Deliberately false claims".into(),
+                body_md: "Call `SwarmCoordinator::totally_not_a_real_method` and watch for \
+                          FR-EVT-SWARM-SPAWN-DENIED in the Flight Recorder. A truncated \
+                          FR-EVT-S must not resolve against a longer real id, and a \
+                          lowercase fr-evt-swarm-spawn-denied must not evade the scan."
+                    .into(),
+                body_json: None,
+            },
+            NewManualSection {
+                section_kind: "navigation",
+                title: "Routes that are not mounted".into(),
+                // NOTE on a fixture deliberately NOT used here:
+                // `GET /usermanual/pages/no-such-route` DOES resolve, because
+                // it is a legal concrete instance of the mounted pattern
+                // `GET /usermanual/pages/:slug`. Whether a given slug exists is
+                // a page-content claim proven by the TOC reachability tests,
+                // not a mounted-surface claim. The fixtures below are the
+                // shapes that genuinely cannot be served.
+                body_md: "Call `GET /usermanual/pages/:slug/no-such-subroute`, then \
+                          `DELETE /usermanual/pages`, then `POST /workspaces/:ws/loom/blocks` \
+                          (drifted parameter name), then lowercase `get /usermanual/pages`."
+                    .into(),
+                body_json: None,
+            },
+            NewManualSection {
+                // Proves body_json is really scanned: before MT-022 a claim
+                // parked in a JSON body was invisible to this gate.
+                section_kind: "evidence",
+                title: "Claim parked in a JSON body".into(),
+                body_md: "The machine-readable body below carries the claim.".into(),
+                body_json: Some(json!({
+                    "notes": ["the JSON body names `ModelLaneStore::totally_fabricated_json_only`"],
+                })),
+            },
+        ],
+        anchors: vec![],
+    });
+
+    let errors = verify_manual_named_surface_existence(&corpus.pages)
+        .expect_err("a manual page naming a non-existent surface MUST fail HBR-MAN-003");
+
+    for expected in [
+        // Rust path (pre-existing coverage).
+        "SwarmCoordinator::totally_not_a_real_method",
+        // Rust path parked in body_json (new: JSON bodies are scanned).
+        "ModelLaneStore::totally_fabricated_json_only",
+        // Flight Recorder: fabricated id, truncated family, lowercase spelling.
+        "FR-EVT-SWARM-SPAWN-DENIED",
+        "FR-EVT-S",
+        "fr-evt-swarm-spawn-denied",
+        // Routes: unmounted subpath, wrong method, drifted parameter name,
+        // lowercase method token.
+        "/usermanual/pages/:slug/no-such-subroute",
+        "DELETE /usermanual/pages",
+        "/workspaces/:ws/loom/blocks",
+        "route method `get`",
+    ] {
+        assert!(
+            errors.iter().any(|error| error.reason.contains(expected)),
+            "the injected drift `{expected}` must be reported, got {errors:?}"
+        );
+    }
+    assert!(
+        errors
+            .iter()
+            .all(|error| error.behavior_id == MANUAL_NAMED_SURFACE_BEHAVIOR_ID),
+        "named-surface failures must carry the named-surface behavior id, got {errors:?}"
+    );
+
+    // The literal classes fail through the source-grounded half of the gate.
+    //
+    // The fabricated names are ASSEMBLED AT RUNTIME on purpose. The grounding
+    // source deliberately includes proof files (see `product_source_text`), so
+    // a fixture written as a contiguous literal in THIS file would resolve
+    // against this file and the negative fixture would silently stop proving
+    // anything. Splitting each name keeps it absent from every source byte.
+    let fake_env = format!("OPENAI_COMPAT_{}_FAKE_URL", "TOTALLY");
+    let fake_key = format!("max_{}", "concurrentt");
+    let fake_schema = format!("hsk.not_a_real_{}@9", "schema");
+    let fake_type = format!("Totally{}TypeName", "Fake");
+    let source = product_source_text();
+    for fabricated in [&fake_env, &fake_key, &fake_schema, &fake_type] {
+        assert!(
+            !source.contains(fabricated.as_str()),
+            "fixture `{fabricated}` leaked into product source — the negative fixture would be \
+             vacuous"
+        );
+    }
+
+    let mut literal_corpus = seed_corpus();
+    literal_corpus.pages.push(NewUserManualPage {
+        slug: "mt022-literal-drift-probe".into(),
+        title: "MT-022 literal drift probe (test-only)".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![NewManualSection {
+            section_kind: "purpose",
+            title: "Deliberately false literals".into(),
+            body_md: format!(
+                "Set `{fake_env}`, raise `{fake_key}`, read `{fake_schema}`, and construct a \
+                 `{fake_type}`."
+            ),
+            body_json: None,
+        }],
+        anchors: vec![],
+    });
+    let literal_errors =
+        verify_manual_literal_claims(&manual_literal_claims(&literal_corpus.pages), &source)
+            .expect_err("fabricated literals MUST fail the source-grounded half of HBR-MAN-003");
+    for expected in [&fake_env, &fake_key, &fake_schema, &fake_type] {
+        assert!(
+            literal_errors
+                .iter()
+                .any(|error| error.reason.contains(expected.as_str())),
+            "the injected literal drift `{expected}` must be reported, got {literal_errors:?}"
+        );
+    }
+
+    // Removing the drifted pages returns the corpus to PASS: the failures are
+    // caused by the injected claims, not by an unrelated corpus problem.
+    corpus.pages.pop();
+    verify_manual_named_surface_existence(&corpus.pages)
+        .expect("the unmodified canonical corpus must pass once the drift is removed");
+    literal_corpus.pages.pop();
+    verify_manual_literal_claims(&manual_literal_claims(&literal_corpus.pages), &source)
+        .expect("the unmodified canonical corpus must pass once the literal drift is removed");
+}
+
+#[test]
+fn external_compat_engine_import_lane_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "external-compat-engine-import");
+
+    // AC-1: purpose, non-swarm-spawnability, the Dexterity rejection path,
+    // inputs/outputs, failure modes, recovery.
+    for required in [
+        "ProviderKind::ExternalCompat",
+        "ExternalEngineImportRecord",
+        "operator_signature",
+        "OPENAI_COMPAT_BASE_URL",
+        "Dexterity rejects external_compat launch bypass",
+        "Dexterity model-lane schema does not support external_compat provider",
+        "external-compat imports are offline registrations, not swarm-spawnable",
+        "SwarmError::ProviderNotConfigured",
+        "ModelRuntimeError::AdapterMismatch",
+        // AC-3 HBR-INT-009 posture: all three tiers stated, none silently skipped.
+        "Tier-1 Flight Recorder",
+        "Tier-2 internal_diagnostics",
+        "Tier-3 Palmistry",
+    ] {
+        assert!(
+            body.contains(required),
+            "external-compat-engine-import must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link"
+                && anchor.anchor_value == "external-compat-engine-import"
+        }),
+        "the new page must be reachable from the UserManual table of contents"
+    );
+}
+
+#[test]
+fn worktree_microvm_model_lane_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "microvm-sandbox-kvm");
+
+    for required in [
+        "ModelLaneStore -> SwarmCoordinator",
+        "ProductionModelSessionFactory -> WorktreeVmRegistry",
+        "CloudHypervisorAdapter -> hsk-warm-agent -> llama-server",
+        "Tier3Microvm",
+        "with_warm_vm_execution()",
+        "worktree_id",
+        "real token frames",
+        "ProcessOwnershipLedger START/STOP",
+        "owner_account_id",
+        "actor_principal_id",
+        "workspace_id",
+        "cross-account",
+        "Tier 1 durable lane and lifecycle evidence: WIRED",
+        "Tier 2 internal_diagnostics: DEFERRED-with-reason",
+        "Tier 3 Palmistry: DEFERRED-with-reason",
+        "WorktreeVmRegistry::teardown_worktree_vm",
+        "--manifest-path src/backend/handshake_core/Cargo.toml",
+        "-j 4",
+        "per-owner external `CARGO_TARGET_DIR`",
+        "mutually exclusive modes",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT",
+        "HANDSHAKE_DATA_DIR",
+        "HANDSHAKE_SURREAL_STORAGE_SCOPE",
+    ] {
+        assert!(
+            body.contains(required),
+            "microvm-sandbox-kvm must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link" && anchor.anchor_value == "microvm-sandbox-kvm"
+        }),
+        "the microVM sandbox page must be reachable from the UserManual table of contents"
+    );
+}
+
+#[test]
+fn product_local_scope_manual_matches_server_owned_exact_authority() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "backend-navigation-and-identity");
+
+    for required in [
+        "server-owned product-local scope",
+        "Normal native requests send no scope headers",
+        "optional equality assertions only",
+        "owner_account_id",
+        "actor_principal_id",
+        "authenticated_session_id",
+        "access_space_id",
+        "workspace_id",
+        "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE",
+        "RESOURCE_SCOPE_MISMATCH",
+        "does not implement `WP-KERNEL-006` or `WP-KERNEL-007`",
+    ] {
+        assert!(
+            body.contains(required),
+            "backend-navigation-and-identity must document `{required}`"
+        );
+    }
+
+    for stale in [
+        "trusts the caller's claimed account",
+        "x-handshake-owner-account` — REQUIRED",
+        "resend with a well-formed `x-handshake-owner-account`",
+        "a_request_with_no_scope_header_is_denied_not_widened",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "backend-navigation-and-identity must not retain stale authority text `{stale}`"
+        );
+    }
+}
+
+#[test]
+fn wp1_console_manual_matches_scoped_stream_privacy() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "wp1-orchestration-console");
+
+    for required in [
+        "contiguous, subscriber-local visible sequence",
+        "never a global producer count",
+        "Global lag counts are deliberately suppressed",
+        "bounded scoped replay",
+        "Flight Recorder/EventLedger",
+    ] {
+        assert!(
+            body.contains(required),
+            "wp1-orchestration-console must document `{required}`"
+        );
+    }
+
+    for stale in [
+        "monotonic, stable row identity",
+        "console_lagged",
+        "number of dropped entries",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "wp1-orchestration-console must not retain stale stream text `{stale}`"
+        );
+    }
+}
+
+fn missing_manual_surface_ids(body: &str, required: &[&str]) -> Vec<String> {
+    required
+        .iter()
+        .filter(|id| !body.contains(**id))
+        .map(|id| (*id).to_owned())
+        .collect()
+}
+
+/// MT-021 inverse gate: start from shipped native surface identifiers and require the canonical
+/// UserManual to name every one. The counterfactual proves this gate rejects a page after any required
+/// identifier is removed, instead of passing because adjacent prose happens to mention Settings.
+#[test]
+fn wp1_native_menu_settings_and_cloud_posture_have_inverse_manual_coverage() {
+    let corpus = seed_corpus();
+    let console = scanned_body(&corpus, "wp1-orchestration-console");
+    let launch = scanned_body(&corpus, "operator-chat-launch");
+    let cloud = scanned_body(&corpus, "cloud-model-access");
+    let combined = format!("{console}\n{launch}\n{cloud}");
+    let required = [
+        "menu.models.wp1-orchestration-console",
+        "settings.swarm-max-actions-per-frame",
+        "swarm_max_actions_per_frame",
+        "settings.swarm-model-sessions-max-concurrent",
+        "settings.swarm-model-sessions-max-concurrent.status",
+        "swarm_model_sessions_max_concurrent",
+        "settings.cloud.consent.status",
+        "settings.cloud.consent.{provider}.posture",
+        "NOT WIRED",
+        "requested",
+        "max_concurrent",
+        "fully_applied",
+        "live_sessions",
+    ];
+    assert_eq!(
+        missing_manual_surface_ids(&combined, &required),
+        Vec::<String>::new(),
+        "every shipped WP-1 menu/settings/status identifier must be discoverable in UserManual"
+    );
+
+    let without_model_control = combined.replace(
+        "settings.swarm-model-sessions-max-concurrent",
+        "REMOVED_BY_COUNTERFACTUAL",
+    );
+    assert_eq!(
+        missing_manual_surface_ids(
+            &without_model_control,
+            &["settings.swarm-model-sessions-max-concurrent"]
+        ),
+        vec!["settings.swarm-model-sessions-max-concurrent".to_owned()],
+        "counterfactual removal must fail the inverse surface-to-manual gate"
+    );
+}
+
+#[test]
+fn swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "swarm-budget-and-spawn-rejection");
+
+    // AC-2: the budget dimensions, every emitted rejection reason, the durable
+    // event, what the operator sees, and how to recover.
+    for required in [
+        "max_concurrent",
+        "max_concurrent_cold_starts",
+        "max_lifetime_spawns",
+        "max_committed_memory_bytes",
+        "concurrency_cap",
+        "lifetime_ceiling",
+        "breaker_open",
+        "budget:tokens",
+        "budget:cost",
+        "budget:committed_memory",
+        "budget:committed_memory_unestimated",
+        "FR-EVT-SWARM-SPAWN-REJECTED",
+        "FR-EVT-SWARM-BREAKER-TRIPPED",
+        "/wp1/diagnostics/console/stream",
+        "ConsoleCategory::SpawnRejected",
+        "SwarmError::ConcurrencyCapReached",
+        "SwarmError::LifetimeSpawnCeilingReached",
+        "BACK OFF AND RETRY",
+        "TERMINAL for this run",
+        // AC-3 HBR-INT-009 posture: all three tiers stated, none silently skipped.
+        "Tier-1 Flight Recorder",
+        "Tier-2 internal_diagnostics",
+        "Tier-3 Palmistry",
+    ] {
+        assert!(
+            body.contains(required),
+            "swarm-budget-and-spawn-rejection must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link"
+                && anchor.anchor_value == "swarm-budget-and-spawn-rejection"
+        }),
+        "the new page must be reachable from the UserManual table of contents"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 remediation (validator FAIL_V5): the three-tier diagnostic model binds
+// each tier to ONE evidence URI scheme, and cross-tier substitution is rejected.
+//
+//   Tier 1 FlightRecorder       -> `eventledger://kernel/`
+//   Tier 2 InternalDiagnostics  -> `internal-diagnostics://session/`
+//   Tier 3 Palmistry            -> `palmistry-observation://session/`
+//
+// Tier 2 is Handshake's own IN-PROCESS self-diagnostics; Tier 3 is the EXTERNAL
+// out-of-process watcher that survives a freeze or crash. They observe different
+// failure classes, so one is never evidence for the other.
+// ---------------------------------------------------------------------------
+
+/// Pure, compiled proof that the binding is EXACT and TOTAL: every diagonal
+/// (tier, its own prefix) pair is accepted and every one of the six off-diagonal
+/// (tier, another tier's prefix) pairs is rejected as a cross-tier substitution.
+///
+/// This is the falsifiable core of the MT-011 remediation and needs no database,
+/// so it runs on every invocation of this proof binary.
+#[test]
+fn diagnostic_tier_evidence_uri_binding_is_exact_and_rejects_every_cross_tier_substitution() {
+    assert_eq!(
+        DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING.len(),
+        3,
+        "the binding must cover all three HBR-INT-009 tiers"
+    );
+
+    let mut accepted = 0usize;
+    let mut rejected = 0usize;
+    for (declared_tier, _, declared_prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+        for (other_tier, _, other_prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+            let offered = format!("{other_prefix}run-mt011-binding/observation-1");
+            if declared_tier == other_tier {
+                verify_diagnostic_tier_evidence_uri(declared_tier, &offered).unwrap_or_else(
+                    |violation| {
+                        panic!(
+                            "tier {} must accept its OWN evidence prefix {declared_prefix}: {violation}",
+                            declared_tier.as_str()
+                        )
+                    },
+                );
+                accepted += 1;
+                continue;
+            }
+            let violation = verify_diagnostic_tier_evidence_uri(declared_tier, &offered)
+                .expect_err(&format!(
+                    "tier {} must REJECT tier {}'s evidence scheme",
+                    declared_tier.as_str(),
+                    other_tier.as_str()
+                ));
+            assert_eq!(
+                violation.reason_code(),
+                "DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION",
+                "offering {} evidence as {} must be reported as a cross-tier substitution, got {violation}",
+                other_tier.as_str(),
+                declared_tier.as_str()
+            );
+            assert!(
+                matches!(
+                    violation,
+                    DiagnosticEvidenceUriViolation::CrossTierSchemeSubstitution { .. }
+                ),
+                "unexpected violation shape: {violation:?}"
+            );
+            // The denial must stay actionable without echoing the offending URI
+            // (HBR-PRIV-004: a denial is not a metadata side channel).
+            let rendered = violation.to_string();
+            assert!(
+                rendered.contains(declared_tier.as_str())
+                    && rendered.contains(other_tier.as_str())
+                    && rendered.contains(declared_prefix),
+                "denial must name both tiers and the required prefix: {rendered}"
+            );
+            assert!(
+                !rendered.contains("run-mt011-binding"),
+                "denial must not echo the offending evidence URI: {rendered}"
+            );
+            rejected += 1;
+        }
+    }
+    assert_eq!(accepted, 3, "one accepted pair per tier");
+    assert_eq!(rejected, 6, "all six cross-tier pairs must be rejected");
+
+    // A URI with no bound diagnostic scheme, and the right scheme under the
+    // wrong authority root, are each their own distinct finding rather than
+    // being silently folded into the cross-tier case.
+    assert_eq!(
+        verify_diagnostic_tier_evidence_uri(
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "https://example.invalid/observation",
+        )
+        .expect_err("an unbound scheme must be rejected")
+        .reason_code(),
+        "DIAGNOSTIC_EVIDENCE_UNBOUND_SCHEME"
+    );
+    assert_eq!(
+        verify_diagnostic_tier_evidence_uri(
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "internal-diagnostics://wp1/not-a-session/observation",
+        )
+        .expect_err("the tier's own scheme under the wrong root must be rejected")
+        .reason_code(),
+        "DIAGNOSTIC_EVIDENCE_WRONG_AUTHORITY_ROOT"
+    );
+
+    // Scheme ownership is resolvable on its own, and the three scheme tokens do
+    // not overlap.
+    for (tier, _, prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+        assert_eq!(
+            diagnostic_tier_owning_evidence_uri_scheme(prefix),
+            Some(tier),
+            "{prefix} must resolve to exactly one owning tier"
+        );
+    }
+    assert_eq!(
+        diagnostic_tier_owning_evidence_uri_scheme("flight-recorder://detached/only"),
+        None,
+        "a detached flight-recorder ref belongs to no HBR-INT-009 tier"
+    );
+}
+
+/// MT-011 run-level evidence proof (NEGATIVE, per tier, against real durable
+/// embedded SurrealDB rows): a run whose HBR-INT-009 envelope carries a tier record
+/// wearing ANOTHER tier's evidence scheme fails the gate, in both directions.
+///
+/// Every case is seeded on its own `run_id` because
+/// `model_lane_diagnostic_tier_statuses` keeps one row per (run, behavior, tier).
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme_substitution() {
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+
+    // Correct, tier-native evidence for each tier. The substitution cases below
+    // swap exactly ONE entry, so the failure can only come from the swap.
+    let canonical = |run_id: &str, tier: ModelLaneDiagnosticTier| match tier {
+        ModelLaneDiagnosticTier::FlightRecorder => {
+            format!("eventledger://kernel/model-lane/run/{run_id}")
+        }
+        ModelLaneDiagnosticTier::InternalDiagnostics => {
+            format!("internal-diagnostics://session/{run_id}/panic-heartbeat-frame-resource")
+        }
+        ModelLaneDiagnosticTier::Palmistry => {
+            format!("palmistry-observation://session/{run_id}/watcher")
+        }
+    };
+
+    // (declared tier, tier whose scheme is substituted in, run slug)
+    let substitutions = [
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::Palmistry,
+            "run-mt011-sub-int-as-palm",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "run-mt011-sub-palm-as-int",
+        ),
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "run-mt011-sub-fr-as-int",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "run-mt011-sub-int-as-fr",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "run-mt011-sub-palm-as-fr",
+        ),
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::Palmistry,
+            "run-mt011-sub-fr-as-palm",
+        ),
+    ];
+
+    for (declared_tier, substituted_tier, run_id) in substitutions {
+        store
+            .record_run(evidence_run(run_id))
+            .await
+            .unwrap_or_else(|error| panic!("record run {run_id}: {error}"));
+        for tier in [
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::Palmistry,
+        ] {
+            let evidence_ref = if tier == declared_tier {
+                canonical(run_id, substituted_tier)
+            } else {
+                canonical(run_id, tier)
+            };
+            store
+                .record_diagnostic_tier_status(evidence_tier(
+                    run_id,
+                    tier,
+                    ModelLaneDiagnosticTierState::Wired,
+                    &evidence_ref,
+                ))
+                .await
+                .unwrap_or_else(|error| {
+                    panic!("record {} tier for {run_id}: {error}", tier.as_str())
+                });
+        }
+
+        let errors = verify_model_lane_behavior_evidence(&store, run_id, &matrix)
+            .await
+            .err()
+            .unwrap_or_else(|| {
+                panic!(
+                    "offering {} evidence as the {} tier must FAIL the run-level HBR-INT-009 gate for {run_id}",
+                    substituted_tier.as_str(),
+                    declared_tier.as_str()
+                )
+            });
+        assert!(
+            errors.iter().any(|error| {
+                error.behavior_id == "HBR-INT-009"
+                    && error
+                        .reason
+                        .contains("DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION")
+                    && error.reason.contains(declared_tier.as_str())
+                    && error.reason.contains(substituted_tier.as_str())
+            }),
+            "the failure must name the cross-tier substitution for tier {} (got {errors:?})",
+            declared_tier.as_str()
+        );
+    }
+
+    // POSITIVE CONTROL on the same code path: with every tier carrying its OWN
+    // scheme the gate passes, so the six negatives above are observing the
+    // binding rather than a gate that rejects everything.
+    let ok_run = "run-mt011-tier-binding-positive";
+    store
+        .record_run(evidence_run(ok_run))
+        .await
+        .expect("record the tier-binding positive-control run");
+    for tier in [
+        ModelLaneDiagnosticTier::FlightRecorder,
+        ModelLaneDiagnosticTier::InternalDiagnostics,
+        ModelLaneDiagnosticTier::Palmistry,
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                ok_run,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                &canonical(ok_run, tier),
+            ))
+            .await
+            .expect("record tier-native run-level evidence");
+    }
+    let postures = verify_model_lane_behavior_evidence(&store, ok_run, &matrix)
+        .await
+        .unwrap_or_else(|errors| {
+            panic!("tier-native run-level evidence must PASS the gate: {errors:?}")
+        });
+    assert_eq!(postures.len(), 1);
+    assert_eq!(postures[0].tiers.len(), 3);
+    for record in &postures[0].tiers {
+        verify_diagnostic_tier_evidence_uri(record.tier, &record.evidence_ref).unwrap_or_else(
+            |violation| panic!("accepted posture carries a mis-bound tier URI: {violation}"),
+        );
+    }
+
+    // A tier that is merely DEFERRED cannot carry the RUN_LEVEL_WIRED liveness
+    // claim, even with a perfectly-bound URI.
+    let deferred_run = "run-mt011-tier-deferred";
+    store
+        .record_run(evidence_run(deferred_run))
+        .await
+        .expect("record the deferred-tier run");
+    for tier in [
+        ModelLaneDiagnosticTier::FlightRecorder,
+        ModelLaneDiagnosticTier::InternalDiagnostics,
+        ModelLaneDiagnosticTier::Palmistry,
+    ] {
+        let state = if tier == ModelLaneDiagnosticTier::Palmistry {
+            ModelLaneDiagnosticTierState::DeferredWithReason
+        } else {
+            ModelLaneDiagnosticTierState::Wired
+        };
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                deferred_run,
+                tier,
+                state,
+                &canonical(deferred_run, tier),
+            ))
+            .await
+            .expect("record run-level tier with a deferred Palmistry tier");
+    }
+    let errors = verify_model_lane_behavior_evidence(&store, deferred_run, &matrix)
+        .await
+        .expect_err("a DEFERRED tier must not satisfy RUN_LEVEL_WIRED coverage");
+    assert!(
+        errors.iter().any(|error| error
+            .reason
+            .contains("requires a live WIRED `palmistry` tier record")),
+        "the failure must name the deferred Palmistry tier, got {errors:?}"
+    );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB cross-tier evidence scope");
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 acceptance: the machine-readable `hsk.user_manual_behavior_coverage@1`
+// matrix, and the gate that fails when any required column is missing.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_any_missing_column()
+{
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
+
+    // The matrix covers EVERY behavior family this WP declares, not just the
+    // model-lane rows, so a family with no manual entry cannot hide.
+    let mut behavior_rows = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+    behavior_rows.extend(embedded_model_behavior_coverage_matrix());
+    behavior_rows.extend(operator_chat_launch_behavior_coverage_matrix());
+    behavior_rows.extend(cloud_model_access_behavior_coverage_matrix());
+    behavior_rows.extend(dedicated_embedding_model_behavior_coverage_matrix());
+
+    let matrix =
+        user_manual_behavior_coverage_matrix(&behavior_rows, &schema_registry, &pages, &tools);
+    assert_eq!(matrix.schema_id, USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID);
+    assert_eq!(matrix.user_manual_version, USER_MANUAL_VERSION);
+    assert_eq!(matrix.rows.len(), behavior_rows.len());
+    assert!(
+        matrix.rows.len() >= 24,
+        "the WP-1 behavior inventory must not shrink silently, got {}",
+        matrix.rows.len()
+    );
+
+    let proven = verify_user_manual_behavior_coverage_matrix(&matrix).unwrap_or_else(|errors| {
+        panic!(
+            "MT-011 coverage matrix gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+    assert_eq!(proven, matrix.rows.len());
+
+    // It is genuinely machine-readable: every declared column survives a JSON
+    // round trip, keyed by behavior_id.
+    let rendered = serde_json::to_value(&matrix).expect("serialize the MT-011 coverage matrix");
+    let rows = rendered["rows"].as_array().expect("matrix rows array");
+    assert_eq!(rows.len(), matrix.rows.len());
+    for row in rows {
+        for column in [
+            "behavior_id",
+            "schema_or_event_family",
+            "runtime_surface_id",
+            "user_manual_slug",
+            "proof_tool_id",
+            "eventledger_flight_recorder_evidence_path",
+            "internal_diagnostics_posture",
+            "palmistry_posture",
+            "self_consistency_result",
+        ] {
+            assert!(
+                !row[column].is_null(),
+                "coverage row {} is missing column `{column}`",
+                row["behavior_id"]
+            );
+        }
+        assert_eq!(row["self_consistency_result"]["result"], "consistent");
+        assert_eq!(row["user_manual_version"], USER_MANUAL_VERSION);
+    }
+    // The serialized binding travels with the matrix.
+    assert_eq!(
+        rendered["diagnostic_tier_evidence_uri_binding"]
+            .as_array()
+            .expect("binding array")
+            .len(),
+        3
+    );
+
+    // NEGATIVE, one per required column. Each tamper is applied to a fresh copy
+    // of the proven matrix, so a failure can only come from that column.
+    let expect_gap =
+        |mutate: &dyn Fn(&mut handshake_core::user_manual::UserManualBehaviorCoverageMatrix),
+         needle: &str| {
+            let mut tampered = matrix.clone();
+            mutate(&mut tampered);
+            let errors = verify_user_manual_behavior_coverage_matrix(&tampered)
+                .expect_err(&format!("tampering `{needle}` must fail the coverage gate"));
+            assert!(
+                errors.iter().any(|error| error.reason.contains(needle)),
+                "expected a coverage error containing `{needle}`, got {errors:?}"
+            );
+        };
+
+    expect_gap(
+        &|m| m.rows[0].user_manual_slug = "",
+        "lacks a UserManual entry",
+    );
+    expect_gap(
+        &|m| m.rows[0].eventledger_flight_recorder_evidence_path = "",
+        "lacks an EventLedger/Flight Recorder evidence path",
+    );
+    expect_gap(
+        &|m| m.rows[0].runtime_surface_id = "",
+        "lacks an implemented command/API/IPC runtime surface",
+    );
+    expect_gap(
+        &|m| m.rows[0].proof_tool_id = "",
+        "lacks a UserManual proof target",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
+            m.rows[0].diagnostic_reason = None;
+        },
+        "requires an explicit reason",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].palmistry_posture = DiagnosticTierPosture::DeferredWithReason;
+            m.rows[0].follow_up_ref = None;
+        },
+        "requires a follow_up_ref",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].self_consistency_result = BehaviorSelfConsistencyResult::Inconsistent {
+                errors: vec!["injected self-consistency failure".to_owned()],
+            }
+        },
+        "self-consistency failed",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].self_consistency_result =
+                BehaviorSelfConsistencyResult::Inconsistent { errors: Vec::new() }
+        },
+        "inconsistent with no stated reason",
+    );
+    expect_gap(
+        &|m| m.rows.clear(),
+        "matrix that covers nothing is not proof",
+    );
+    expect_gap(
+        &|m| m.diagnostic_tier_evidence_uri_binding.clear(),
+        "does not match the compiled binding",
+    );
+    expect_gap(
+        &|m| {
+            let duplicate = m.rows[0].clone();
+            m.rows.push(duplicate);
+        },
+        "duplicate behavior_id",
+    );
+
+    // A row whose self-consistency genuinely cannot be computed (its UserManual
+    // page does not exist) is reported as INCONSISTENT by the projection itself,
+    // not silently omitted.
+    let mut broken = behavior_rows.clone();
+    broken[0].user_manual_slug = "missing-model-lane-manual-page";
+    let broken_matrix =
+        user_manual_behavior_coverage_matrix(&broken, &schema_registry, &pages, &tools);
+    assert!(
+        !broken_matrix.rows[0]
+            .self_consistency_result
+            .is_consistent(),
+        "a behavior with no UserManual page must project an inconsistent self-consistency result"
+    );
+    verify_user_manual_behavior_coverage_matrix(&broken_matrix)
+        .expect_err("a matrix row with no UserManual page must fail the coverage gate");
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 / HBR-PRIV-004 + HBR-PRIV-005: diagnostic records, their reasons,
+// evidence refs and diagnostic payloads are owner/AccessSpace filtered, and a
+// denial does not become a cross-account side channel.
+//
+// This reuses the WP-1 resource-scope substrate proven by
+// `worktree_model_lane_live_surreal_tests` (exact embedded-store scope,
+// `swarm_orchestration/resource_scope.rs`) rather than inventing a second
+// ownership model.
+// ---------------------------------------------------------------------------
+
+/// Seed one run plus its complete, tier-native run-level HBR-INT-009 envelope
+/// through `store`, so the rows carry whatever scope that store stamps.
+async fn seed_scoped_diagnostic_envelope(store: &ModelLaneStore, run_id: &str) {
+    store
+        .record_run(evidence_run(run_id))
+        .await
+        .unwrap_or_else(|error| panic!("seed scoped run {run_id}: {error}"));
+    for (tier, evidence_ref) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            format!("eventledger://kernel/model-lane/run/{run_id}"),
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            format!("internal-diagnostics://session/{run_id}/panic-heartbeat-frame-resource"),
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            format!("palmistry-observation://session/{run_id}/watcher"),
+        ),
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                run_id,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                &evidence_ref,
+            ))
+            .await
+            .unwrap_or_else(|error| {
+                panic!("seed scoped {} tier for {run_id}: {error}", tier.as_str())
+            });
+    }
+}
+
+#[tokio::test]
+async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_side_channel() {
+    let mut surreal_scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate exact embedded SurrealDB privacy-proof scope");
+    let storage = surreal_scope.storage().clone();
+    let matrix = model_lane_behavior_coverage_matrix(&canonical_model_lane_schema_registry())
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
+
+    let alice = OwnerAccountId::mint();
+    let bob = OwnerAccountId::mint();
+    assert_ne!(alice, bob, "the two owning accounts must be distinct");
+    let alice_scope = ResourceScope::new(alice, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new("ws-mt011-alice").unwrap());
+    let bob_scope = ResourceScope::new(bob, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new("ws-mt011-bob").unwrap());
+    let alice_store = ModelLaneStore::new_scoped(storage.clone(), alice_scope);
+    let bob_store = ModelLaneStore::new_scoped(storage.clone(), bob_scope);
+
+    let alice_run = "run-mt011-priv-alice";
+    let bob_run = "run-mt011-priv-bob";
+    seed_scoped_diagnostic_envelope(&alice_store, alice_run).await;
+    seed_scoped_diagnostic_envelope(&bob_store, bob_run).await;
+    verify_model_lane_behavior_evidence(&alice_store, alice_run, &matrix)
+        .await
+        .expect("the owning account must prove its own run-level evidence");
+    let errors = verify_model_lane_behavior_evidence(&alice_store, bob_run, &matrix)
+        .await
+        .expect_err("alice must not read bob's diagnostic tier evidence");
+    let rendered = errors
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+    for secret in [
+        bob.to_string(),
+        format!("internal-diagnostics://session/{bob_run}"),
+        format!("palmistry-observation://session/{bob_run}"),
+        format!("eventledger://kernel/model-lane/run/{bob_run}"),
+    ] {
+        assert!(
+            !rendered.contains(&secret),
+            "a cross-account diagnostic denial leaked `{secret}`: {rendered}"
+        );
+    }
+    verify_model_lane_behavior_evidence(&bob_store, alice_run, &matrix)
+        .await
+        .expect_err("bob must not read alice's diagnostic tier evidence");
+    verify_model_lane_behavior_evidence(&bob_store, bob_run, &matrix)
+        .await
+        .expect("bob must still prove his own run-level evidence");
+
+    let ws_owner = OwnerAccountId::mint();
+    let session = AuthenticatedSessionRef::mint();
+    let access_space = AccessSpaceRef::mint();
+    let alpha_store = ModelLaneStore::new_scoped(
+        storage.clone(),
+        ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_session(session)
+            .with_access_space(access_space)
+            .with_workspace(WorkspaceScopeRef::new("ws-mt011-alpha").unwrap()),
+    );
+    let beta_store = ModelLaneStore::new_scoped(
+        storage.clone(),
+        ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_session(session)
+            .with_access_space(access_space)
+            .with_workspace(WorkspaceScopeRef::new("ws-mt011-beta").unwrap()),
+    );
+    let alpha_run = "run-mt011-priv-alpha";
+    let beta_run = "run-mt011-priv-beta";
+    seed_scoped_diagnostic_envelope(&alpha_store, alpha_run).await;
+    seed_scoped_diagnostic_envelope(&beta_store, beta_run).await;
+    verify_model_lane_behavior_evidence(&alpha_store, alpha_run, &matrix)
+        .await
+        .expect("the owning workspace must prove its own run-level evidence");
+    verify_model_lane_behavior_evidence(&alpha_store, beta_run, &matrix)
+        .await
+        .expect_err("one workspace must not read another workspace's diagnostic evidence");
+
+    drop((alice_store, bob_store, alpha_store, beta_store, storage));
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean exact embedded SurrealDB privacy-proof scope");
+}

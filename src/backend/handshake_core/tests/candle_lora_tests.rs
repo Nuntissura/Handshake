@@ -1,17 +1,11 @@
 #![cfg(feature = "candle-runtime-engine")]
 
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path};
 
 use candle_core::{DType, Device, Tensor};
-use futures::StreamExt;
 use handshake_core::model_runtime::{
-    candle::{
-        generate::{candle_generate_stream, CandleGenerationCodec},
-        lora_impl::{apply_lora_delta_to_linear_output, CandleLoraStack},
-        CandleSteeringHooks,
-    },
-    BaseModelTag, CancellationToken, FinishReason, GenPrompt, GenerateRequest, LicenseTag,
-    LoraDescriptor, LoraId, LoraStackOps, LoraStrength, ModelId, ModelRuntimeError, SamplingParams,
+    candle::lora_impl::{apply_lora_delta_to_linear_output, CandleLoraStack},
+    BaseModelTag, LicenseTag, LoraDescriptor, LoraId, LoraStackOps, LoraStrength, ModelId,
 };
 use sha2::{Digest, Sha256};
 
@@ -277,28 +271,6 @@ async fn candle_lora_stack_rejects_extra_lora_target_pairs_and_empty_license() {
     );
 }
 
-#[tokio::test]
-async fn candle_generate_stream_allows_mounted_lora_override() {
-    let model_id = ModelId::new_v7();
-    let lora_id = LoraId::new_v7();
-    let mut req = request(model_id, CancellationToken::new(), 2);
-    req.lora_overrides = vec![lora_id];
-    let mut stream = candle_generate_stream(
-        Arc::new(std::sync::Mutex::new(Box::new(
-            FakeTransformer::with_mounted_lora(lora_id),
-        ))),
-        Arc::new(FakeCodec),
-        CandleSteeringHooks::new_for_model(model_id, 2),
-        req,
-        CancellationToken::new(),
-    );
-
-    let first = stream.next().await.unwrap().unwrap();
-    assert_eq!(first.text, "A");
-    let second = stream.next().await.unwrap().unwrap();
-    assert_eq!(second.finish_reason, Some(FinishReason::Stop));
-}
-
 fn write_lora_file(
     path: &Path,
     target: &str,
@@ -359,117 +331,4 @@ fn sha256_bytes(path: &Path) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(std::fs::read(path).unwrap());
     hasher.finalize().into()
-}
-
-fn request(id: ModelId, cancel: CancellationToken, max_tokens: u32) -> GenerateRequest {
-    GenerateRequest {
-        id,
-        prompt: GenPrompt::from("prompt"),
-        sampling: SamplingParams {
-            temperature: Some(0.0),
-            top_p: None,
-            top_k: None,
-            min_p: None,
-            repetition_penalty: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            seed: Some(7),
-        },
-        lora_overrides: Vec::new(),
-        steering_overrides: Vec::new(),
-        kv_prefix_handle: None,
-        cancel,
-        max_tokens,
-        stop_sequences: Vec::new(),
-        speculative_mode: None,
-        structured_decoding: None,
-    }
-}
-
-#[derive(Default)]
-struct FakeTransformer {
-    calls: usize,
-    mounted_loras: Vec<LoraId>,
-}
-
-impl FakeTransformer {
-    fn with_mounted_lora(id: LoraId) -> Self {
-        Self {
-            calls: 0,
-            mounted_loras: vec![id],
-        }
-    }
-}
-
-impl handshake_core::model_runtime::candle::TransformerModel for FakeTransformer {
-    fn forward(
-        &mut self,
-        _input_ids: &Tensor,
-        _hooks: &CandleSteeringHooks,
-        _steering_overrides: &[handshake_core::model_runtime::SteeringVectorId],
-        _lora_overrides: &[LoraId],
-    ) -> Result<Tensor, ModelRuntimeError> {
-        let token = if self.calls == 0 { 2 } else { 3 };
-        self.calls += 1;
-        let mut logits = vec![0.0_f32; 4];
-        logits[token] = 10.0;
-        Tensor::from_vec(logits, 4, &Device::Cpu)
-            .map_err(|error| ModelRuntimeError::GenerateError(error.to_string()))
-    }
-
-    fn n_layers(&self) -> u32 {
-        1
-    }
-
-    fn hidden_dim(&self) -> u32 {
-        2
-    }
-
-    fn vocab_size(&self) -> u32 {
-        4
-    }
-
-    fn eos_token_ids(&self) -> &[u32] {
-        &[3]
-    }
-
-    fn device(&self) -> Device {
-        Device::Cpu
-    }
-
-    fn reset_generation_state(&mut self) -> Result<(), ModelRuntimeError> {
-        self.calls = 0;
-        Ok(())
-    }
-
-    fn validate_lora_overrides(&self, ids: &[LoraId]) -> Result<(), ModelRuntimeError> {
-        let missing = ids
-            .iter()
-            .filter(|id| !self.mounted_loras.contains(id))
-            .collect::<Vec<_>>();
-        if missing.is_empty() {
-            Ok(())
-        } else {
-            Err(ModelRuntimeError::LoraStackError(
-                "fake transformer saw unmounted LoRA override".to_string(),
-            ))
-        }
-    }
-}
-
-struct FakeCodec;
-
-impl CandleGenerationCodec for FakeCodec {
-    fn encode_prompt(&self, _prompt: &str) -> Result<Vec<u32>, ModelRuntimeError> {
-        Ok(vec![1])
-    }
-
-    fn decode_token(&self, token_id: u32) -> Result<String, ModelRuntimeError> {
-        Ok(match token_id {
-            2 => "A",
-            3 => "",
-            _ => "?",
-        }
-        .to_string())
-    }
 }

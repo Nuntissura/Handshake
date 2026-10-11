@@ -173,7 +173,7 @@ impl McpSession {
             return DispatchPlan::Direct;
         }
         match ArgusMethod::from_wire_name(&request.method) {
-            Some(ArgusMethod::Click | ArgusMethod::SetValue) => {
+            Some(ArgusMethod::Click | ArgusMethod::ShowContextMenu | ArgusMethod::SetValue) => {
                 match request.params.get("target").and_then(|v| v.as_str()) {
                     Some(t) if !t.is_empty() => DispatchPlan::ExclusiveWrite {
                         target: t.to_owned(),

@@ -256,6 +256,17 @@ pub(crate) struct RecorderAuthority {
     pub(crate) ctx: crate::api::stage::CaptureContext,
     /// The `:workspace_id` path segment, present for the ingestion routes.
     pub(crate) workspace_id: Option<String>,
+    pub(crate) attribution:
+        crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+}
+
+impl RecorderAuthority {
+    fn resource_scope(&self) -> crate::swarm_orchestration::resource_scope::ResourceScopeQuery {
+        crate::swarm_orchestration::resource_scope::ResourceScopeQuery::for_owner(
+            self.attribution.owner_account_id,
+        )
+        .within_workspace(self.attribution.workspace_id.clone())
+    }
 }
 
 impl RecorderAuthority {
@@ -463,10 +474,21 @@ async fn authorize_flight_recorder_request(
         return audit_failed_closed().into_response();
     }
 
+    let attribution = match serde_json::from_value(json!({
+        "owner_account_id": authority.account_id,
+        "actor_principal_id": authority.principal_id,
+        "authenticated_session_id": authority.session_id,
+        "access_space_id": authority.access_space_id,
+        "workspace_id": workspace_id,
+    })) {
+        Ok(attribution) => attribution,
+        Err(_) => return workspace_denied().into_response(),
+    };
     let record_user_scope = authority.record_user_scope.clone();
     request.extensions_mut().insert(RecorderAuthority {
         ctx,
         workspace_id: Some(workspace_id),
+        attribution,
     });
     state
         .surreal
@@ -577,10 +599,14 @@ async fn record_runtime_chat_event(
         }
     };
 
-    let payload = match serde_json::to_value(&event) {
+    let mut payload = match serde_json::to_value(&event) {
         Ok(value) => value,
         Err(err) => return Err(db_error(err)),
     };
+    authority
+        .attribution
+        .stamp_json_object(&mut payload)
+        .map_err(db_error)?;
     let mut fr_event = crate::flight_recorder::FlightRecorderEvent::new(
         event_type,
         crate::flight_recorder::FlightRecorderActor::System,
@@ -610,6 +636,17 @@ async fn record_runtime_chat_event(
     // row is a diagnostic projection (D-154-2); the durable, session-attributed authority record of
     // this ingestion is a kernel_event_ledger receipt written by the account record user (the
     // middleware scope) with the session principal as actor, never the `runtime_chat` system lane.
+    let mut receipt_payload = json!({
+        "receipt_kind": "runtime_chat_flight_recorder_recorded",
+        "workspace_id": workspace_id,
+        "event_id": event.event_id.trim(),
+        "fr_event_id": fr_event_id,
+        "event_type": serde_json::to_value(&event.event_type).map_err(db_error)?,
+    });
+    authority
+        .attribution
+        .stamp_json_object(&mut receipt_payload)
+        .map_err(db_error)?;
     let receipt = NewKernelEvent::builder(
         workspace_id.clone(),
         event.session_id.trim().to_owned(),
@@ -623,13 +660,7 @@ async fn record_runtime_chat_event(
     ))
     .source_component("runtime_chat_fr_ingestion")
     .correlation_id(trace_id.to_string())
-    .payload(json!({
-        "receipt_kind": "runtime_chat_flight_recorder_recorded",
-        "workspace_id": workspace_id,
-        "event_id": event.event_id.trim(),
-        "fr_event_id": fr_event_id,
-        "event_type": serde_json::to_value(&event.event_type).map_err(db_error)?,
-    }))
+    .payload(receipt_payload)
     .build()
     .map_err(db_error)?;
     let appended = state
@@ -1273,6 +1304,11 @@ fn kernel_event_matches_new(
         && stored.payload == expected.payload
 }
 
+#[cfg(test)]
+tokio::task_local! {
+    static NATIVE_EDITOR_PENDING_APPEND_BARRIER: std::sync::Arc<tokio::sync::Barrier>;
+}
+
 fn native_editor_completion_payload(envelope: &NativeEditorFrEventV0_1) -> Value {
     // `fr_event_id` is the DURABLE workspace-partitioned id actually written to the recorder; the
     // caller's own id is preserved separately so client-side reconciliation still has its handle.
@@ -1291,10 +1327,19 @@ fn native_editor_completion_payload(envelope: &NativeEditorFrEventV0_1) -> Value
     })
 }
 
-fn native_editor_completion_payload_hash(envelope: &NativeEditorFrEventV0_1) -> String {
-    crate::kernel::context_bundle::sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(
-        &native_editor_completion_payload(envelope),
-    ))
+fn native_editor_completion_payload_with_origin(
+    envelope: &NativeEditorFrEventV0_1,
+    origin: &Value,
+) -> Result<Value, String> {
+    let mut payload = native_editor_completion_payload(envelope);
+    if origin.get("owner_account_id").is_some() {
+        let attribution: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution =
+            serde_json::from_value(origin.clone()).map_err(|e| e.to_string())?;
+        attribution
+            .stamp_json_object(&mut payload)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(payload)
 }
 
 fn build_native_editor_pending(
@@ -1320,6 +1365,20 @@ fn build_native_editor_pending(
     // explicitly so an operator reading the ledger can see the tenant boundary directly.
     let durable_event_id = expected_fr.event_id.to_string();
 
+    let mut payload = json!({
+        "receipt_kind": "native_editor_flight_recorder_pending",
+        "expected_completion_payload_hash": crate::kernel::context_bundle::sha256_hex(
+            &crate::kernel::context_bundle::canonical_json_bytes(
+                &native_editor_completion_payload_with_origin(envelope, &expected_fr.payload)?)),
+        "envelope": envelope,
+    });
+    if expected_fr.payload.get("owner_account_id").is_some() {
+        let attribution: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution =
+            serde_json::from_value(expected_fr.payload.clone()).map_err(|e| e.to_string())?;
+        attribution
+            .stamp_json_object(&mut payload)
+            .map_err(|e| e.to_string())?;
+    }
     NewKernelEvent::builder(
         kernel_task_run_id,
         session_run_id,
@@ -1333,11 +1392,7 @@ fn build_native_editor_pending(
     ))
     .source_component("native_editor_fr_ingestion")
     .correlation_id(expected_fr.trace_id.to_string())
-    .payload(json!({
-        "receipt_kind": "native_editor_flight_recorder_pending",
-        "expected_completion_payload_hash": native_editor_completion_payload_hash(envelope),
-        "envelope": envelope,
-    }))
+    .payload(payload)
     .build()
     .map_err(|error| error.to_string())
 }
@@ -1376,6 +1431,7 @@ fn build_native_editor_completion(
     pending_receipt: &crate::kernel::KernelEvent,
     envelope: &NativeEditorFrEventV0_1,
 ) -> Result<NewKernelEvent, String> {
+    let payload = native_editor_completion_payload_with_origin(envelope, &pending_receipt.payload)?;
     NewKernelEvent::builder(
         pending_receipt.kernel_task_run_id.clone(),
         pending_receipt.session_run_id.clone(),
@@ -1398,7 +1454,7 @@ fn build_native_editor_completion(
             .clone()
             .unwrap_or_else(|| envelope.event_id.clone()),
     )
-    .payload(native_editor_completion_payload(envelope))
+    .payload(payload)
     .build()
     .map_err(|error| error.to_string())
 }
@@ -1429,8 +1485,21 @@ async fn reconcile_native_editor_pending_receipt(
             .ok_or_else(|| "pending native-editor receipt lacks envelope".to_owned())?,
     )
     .map_err(|error| error.to_string())?;
-    let expected = native_editor_fr_event_from_envelope(&envelope)
+    let attribution: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution =
+        serde_json::from_value(pending_receipt.payload.clone())
+            .map_err(|_| "pending native-editor original attribution is unavailable".to_owned())?;
+    if attribution.workspace_id.as_str() != envelope.canonical_workspace_id() {
+        return Err("pending native-editor original workspace conflicts with envelope".to_owned());
+    }
+    let original_scope = crate::swarm_orchestration::resource_scope::ResourceScopeQuery::for_owner(
+        attribution.owner_account_id,
+    )
+    .within_workspace(attribution.workspace_id.clone());
+    let mut expected = native_editor_fr_event_from_envelope(&envelope)
         .map_err(|_| "pending native-editor envelope is invalid".to_owned())?;
+    attribution
+        .stamp_json_object(&mut expected.payload)
+        .map_err(|e| e.to_string())?;
     if !native_editor_pending_receipt_matches(&pending_receipt, &envelope, &expected) {
         return Err(format!(
             "native-editor pending receipt {} is not authentic",
@@ -1441,6 +1510,7 @@ async fn reconcile_native_editor_pending_receipt(
         .flight_recorder
         .list_events(crate::flight_recorder::EventFilter {
             event_id: Some(expected.event_id),
+            resource_scope: Some(original_scope),
             ..Default::default()
         })
         .await
@@ -1569,7 +1639,30 @@ async fn record_native_editor_event(
     }
 
     let kind_str = event.kind.as_str();
-    let fr_event = native_editor_fr_event_from_envelope(&event)?;
+    let mut fr_event = native_editor_fr_event_from_envelope(&event)?;
+    let mut original_attribution = authority.attribution.clone();
+    let prior = state
+        .storage
+        .list_kernel_events_for_aggregate("native_editor_event", &fr_event.event_id.to_string())
+        .await
+        .map_err(map_native_editor_ledger_error)?;
+    let prior_pending: Vec<_> = prior
+        .into_iter()
+        .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorPending)
+        .collect();
+    if prior_pending.len() > 1 {
+        return Err(event_conflict());
+    }
+    if let Some(pending) = prior_pending.first() {
+        original_attribution =
+            serde_json::from_value(pending.payload.clone()).map_err(|_| event_conflict())?;
+        original_attribution
+            .authorize(&authority.resource_scope())
+            .map_err(|_| workspace_denied())?;
+    }
+    original_attribution
+        .stamp_json_object(&mut fr_event.payload)
+        .map_err(db_error)?;
     // The durable, workspace-partitioned recorder identity. Every idempotency/conflict probe below
     // uses THIS id, never the caller-controlled `event_uuid`.
     let durable_event_uuid = fr_event.event_id;
@@ -1578,14 +1671,63 @@ async fn record_native_editor_event(
     // ordering could strand an FR row forever without its required EventLedger mirror.
     let pending_receipt = build_native_editor_pending(&event, &fr_event).map_err(db_error)?;
 
-    let pending_receipt = state
-        .storage
-        .append_kernel_event(pending_receipt)
-        .await
-        .map_err(map_native_editor_ledger_error)?;
+    #[cfg(test)]
+    if prior_pending.is_empty() {
+        if let Ok(barrier) = NATIVE_EDITOR_PENDING_APPEND_BARRIER.try_with(Clone::clone) {
+            barrier.wait().await;
+        }
+    }
+
+    let pending_receipt = if let Some(pending) = prior_pending.into_iter().next() {
+        pending
+    } else {
+        match state.storage.append_kernel_event(pending_receipt).await {
+            Ok(pending) => pending,
+            Err(error)
+                if matches!(&error,
+                crate::storage::StorageError::Conflict(code)
+                | crate::storage::StorageError::ConflictDetails { code, .. }
+                    if *code == "kernel event idempotency key was reused with different event content") =>
+            {
+                let mut winners = state
+                    .storage
+                    .list_kernel_events_for_aggregate(
+                        "native_editor_event",
+                        &durable_event_uuid.to_string(),
+                    )
+                    .await
+                    .map_err(map_native_editor_ledger_error)?
+                    .into_iter()
+                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorPending);
+                let winner = winners.next().ok_or_else(event_conflict)?;
+                if winners.next().is_some() {
+                    return Err(event_conflict());
+                }
+                original_attribution =
+                    serde_json::from_value(winner.payload.clone()).map_err(|_| event_conflict())?;
+                original_attribution
+                    .authorize(&authority.resource_scope())
+                    .map_err(|_| workspace_denied())?;
+                fr_event = native_editor_fr_event_from_envelope(&event)?;
+                original_attribution
+                    .stamp_json_object(&mut fr_event.payload)
+                    .map_err(db_error)?;
+                if !native_editor_pending_receipt_matches(&winner, &event, &fr_event) {
+                    return Err(event_conflict());
+                }
+                winner
+            }
+            Err(error) => return Err(map_native_editor_ledger_error(error)),
+        }
+    };
     if !native_editor_pending_receipt_matches(&pending_receipt, &event, &fr_event) {
         return Err(event_conflict());
     }
+
+    let original_scope = crate::swarm_orchestration::resource_scope::ResourceScopeQuery::for_owner(
+        original_attribution.owner_account_id,
+    )
+    .within_workspace(original_attribution.workspace_id.clone());
 
     // Idempotency covers BOTH stores. After the ledger receipt exists, either reuse the existing FR row
     // or create it. A concurrent same-id insertion is re-observed and treated as idempotent.
@@ -1593,6 +1735,7 @@ async fn record_native_editor_event(
         .flight_recorder
         .list_events(crate::flight_recorder::EventFilter {
             event_id: Some(durable_event_uuid),
+            resource_scope: Some(original_scope.clone()),
             ..Default::default()
         })
         .await
@@ -1609,6 +1752,7 @@ async fn record_native_editor_event(
                 .flight_recorder
                 .list_events(crate::flight_recorder::EventFilter {
                     event_id: Some(durable_event_uuid),
+                    resource_scope: Some(original_scope.clone()),
                     ..Default::default()
                 })
                 .await
@@ -1616,7 +1760,10 @@ async fn record_native_editor_event(
             let Some(stored) = raced.first() else {
                 return Err(map_recorder_err(error));
             };
-            let expected = native_editor_fr_event_from_envelope(&event)?;
+            let mut expected = native_editor_fr_event_from_envelope(&event)?;
+            original_attribution
+                .stamp_json_object(&mut expected.payload)
+                .map_err(db_error)?;
             if !native_editor_fr_event_matches(stored, &expected) {
                 return Err(event_conflict());
             }
@@ -1704,6 +1851,7 @@ async fn list_events(
         event_type: filter.event_type.clone(),
         // Authoritative scope, not the raw query value (a blank `?wsid=` must not read as "all").
         wsid: Some(workspace_scope.clone()),
+        resource_scope: Some(authority.resource_scope()),
     };
 
     let mut events = state
@@ -1919,6 +2067,14 @@ mod tests {
                 binding_token: "0".repeat(64),
             },
             workspace_id: Some(workspace_id.to_owned()),
+            attribution: serde_json::from_value(json!({
+                "owner_account_id": "00000000-0000-0000-0000-000000000001",
+                "actor_principal_id": "00000000-0000-0000-0000-000000000002",
+                "authenticated_session_id": "00000000-0000-0000-0000-000000000003",
+                "access_space_id": "00000000-0000-0000-0000-000000000004",
+                "workspace_id": workspace_id,
+            }))
+            .expect("handler fixture has explicit resource attribution"),
         }
     }
 
@@ -2834,9 +2990,32 @@ mod tests {
             let event_id = Uuid::now_v7().to_string();
             let event = native_editor_envelope(&event_id);
 
+            let left_authority = test_recorder_authority(TEST_WORKSPACE_ID);
+            let mut right_authority = left_authority.clone();
+            right_authority.attribution.authenticated_session_id =
+                crate::swarm_orchestration::resource_scope::AuthenticatedSessionRef::from_uuid(
+                    Uuid::now_v7(),
+                );
+            let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
             let (left, right) = tokio::join!(
-                ingest_native_editor(State(state.clone()), Json(event.clone())),
-                ingest_native_editor(State(state.clone()), Json(event)),
+                NATIVE_EDITOR_PENDING_APPEND_BARRIER.scope(
+                    barrier.clone(),
+                    super::record_native_editor_event(
+                        State(state.clone()),
+                        Path(TEST_WORKSPACE_ID.to_owned()),
+                        Extension(left_authority.clone()),
+                        Json(event.clone())
+                    )
+                ),
+                NATIVE_EDITOR_PENDING_APPEND_BARRIER.scope(
+                    barrier,
+                    super::record_native_editor_event(
+                        State(state.clone()),
+                        Path(TEST_WORKSPACE_ID.to_owned()),
+                        Extension(right_authority.clone()),
+                        Json(event.clone())
+                    )
+                ),
             );
             assert!(left.is_ok(), "first concurrent ingest failed");
             assert!(right.is_ok(), "second concurrent ingest failed");
@@ -2863,6 +3042,66 @@ mod tests {
                     })
                     .count();
             assert_eq!(ledger_rows, 2, "one pending and one completion receipt");
+            let receipts =
+                native_editor_ledger_events(&state, durable_id_for(&event_id).to_string()).await?;
+            let pending = receipts
+                .iter()
+                .find(|row| row.event_type == KernelEventType::FlightRecorderMirrorPending)
+                .expect("pending winner");
+            let completion = receipts
+                .iter()
+                .find(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .expect("completion winner");
+            assert_eq!(
+                pending.payload["authenticated_session_id"],
+                completion.payload["authenticated_session_id"]
+            );
+            assert_eq!(
+                pending.payload["authenticated_session_id"],
+                recorder_rows[0].payload["authenticated_session_id"]
+            );
+            assert!(!state
+                .storage
+                .list_pending_native_editor_mirrors(0, 100)
+                .await?
+                .iter()
+                .any(|row| row.event_id == pending.event_id));
+            let mut first_changed = native_editor_envelope(&Uuid::now_v7().to_string());
+            let mut second_changed = first_changed.clone();
+            first_changed.payload["line_delta"] = json!(2);
+            second_changed.payload["line_delta"] = json!(3);
+            let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+            let (first_result, second_result) = tokio::join!(
+                NATIVE_EDITOR_PENDING_APPEND_BARRIER.scope(
+                    barrier.clone(),
+                    super::record_native_editor_event(
+                        State(state.clone()),
+                        Path(TEST_WORKSPACE_ID.to_owned()),
+                        Extension(left_authority),
+                        Json(first_changed)
+                    )
+                ),
+                NATIVE_EDITOR_PENDING_APPEND_BARRIER.scope(
+                    barrier,
+                    super::record_native_editor_event(
+                        State(state.clone()),
+                        Path(TEST_WORKSPACE_ID.to_owned()),
+                        Extension(right_authority),
+                        Json(second_changed)
+                    )
+                ),
+            );
+            assert_eq!(
+                usize::from(first_result.is_ok()) + usize::from(second_result.is_ok()),
+                1,
+                "changed-envelope race must have only one successful winner"
+            );
+            let conflict = if let Err(error) = first_result {
+                error
+            } else {
+                second_result.unwrap_err()
+            };
+            assert_eq!(conflict.0, StatusCode::CONFLICT);
             Ok(())
         })
         .await
@@ -3068,9 +3307,15 @@ mod tests {
     #[test]
     fn native_editor_receipt_matchers_reject_minimal_corruption() {
         let event = native_editor_envelope(&Uuid::now_v7().to_string());
-        let expected_fr = native_editor_fr_event_from_envelope(&event)
+        let mut expected_fr = native_editor_fr_event_from_envelope(&event)
             .unwrap_or_else(|_| panic!("expected FR event"));
-        let pending = crate::kernel::KernelEvent::from_new(native_editor_pending_event(&event));
+        test_recorder_authority(TEST_WORKSPACE_ID)
+            .attribution
+            .stamp_json_object(&mut expected_fr.payload)
+            .expect("fixture attribution");
+        let pending = crate::kernel::KernelEvent::from_new(
+            build_native_editor_pending(&event, &expected_fr).expect("stamped pending"),
+        );
         assert!(native_editor_pending_receipt_matches(
             &pending,
             &event,
@@ -3125,6 +3370,20 @@ mod tests {
             build_native_editor_completion(&pending, &event).expect("completion fixture"),
         );
         assert!(native_editor_completion_matches(&pending, &completion));
+        assert_eq!(
+            pending.payload["expected_completion_payload_hash"],
+            completion.payload_hash
+        );
+        assert_eq!(
+            completion.payload["authenticated_session_id"],
+            pending.payload["authenticated_session_id"]
+        );
+        let mut conflicting_origin = completion.clone();
+        conflicting_origin.payload["authenticated_session_id"] = json!(Uuid::now_v7());
+        assert!(!native_editor_completion_matches(
+            &pending,
+            &conflicting_origin
+        ));
         for mutation in [
             "event_version",
             "receipt_kind",
@@ -3174,8 +3433,16 @@ mod tests {
         run_flight_recorder_test(|state| async move {
             let event_id = Uuid::now_v7().to_string();
             let event = native_editor_envelope(&event_id);
-            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
-                .await?;
+            let mut expected_fr = native_editor_fr_event_from_envelope(&event)
+                .map_err(|_| "invalid recovery fixture")?;
+            test_recorder_authority(TEST_WORKSPACE_ID)
+                .attribution
+                .stamp_json_object(&mut expected_fr.payload)?;
+            let pending = append_authorized_native_editor_event(
+                &state,
+                build_native_editor_pending(&event, &expected_fr)?,
+            )
+            .await?;
 
             let before = state
                 .flight_recorder
@@ -3212,6 +3479,15 @@ mod tests {
             assert_eq!(
                 completion_count, 1,
                 "completion exists only after FR recovery"
+            );
+            assert!(
+                !state
+                    .storage
+                    .list_pending_native_editor_mirrors(0, 100)
+                    .await?
+                    .iter()
+                    .any(|candidate| candidate.event_id == pending.event_id),
+                "exact stamped completion must remove the forward pending candidate"
             );
             Ok(())
         })
@@ -3310,16 +3586,17 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
             let event = native_editor_envelope(&Uuid::now_v7().to_string());
-            let pending =
-                append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
-                    .await?;
-            state
-                .flight_recorder
-                .record_event(
-                    native_editor_fr_event_from_envelope(&event)
-                        .map_err(|_| "failed to build corrupt-hash FR fixture")?,
-                )
-                .await?;
+            let mut expected_fr = native_editor_fr_event_from_envelope(&event)
+                .map_err(|_| "failed to build corrupt-hash FR fixture")?;
+            test_recorder_authority(TEST_WORKSPACE_ID)
+                .attribution
+                .stamp_json_object(&mut expected_fr.payload)?;
+            let pending = append_authorized_native_editor_event(
+                &state,
+                build_native_editor_pending(&event, &expected_fr)?,
+            )
+            .await?;
+            state.flight_recorder.record_event(expected_fr).await?;
             let completion = build_native_editor_completion(&pending, &event)?;
             let canonical_completion_hash = completion.payload_hash.clone();
             let completion = state.storage.append_kernel_event(completion).await?;

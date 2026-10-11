@@ -651,6 +651,7 @@ impl DuckDbFlightRecorder {
         filter: super::EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        let resource_scope = filter.resource_scope.clone();
 
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
@@ -731,6 +732,17 @@ impl DuckDbFlightRecorder {
                 })?));
         }
 
+        // First privacy layer: denied rows never leave DuckDB. JSON field
+        // names match the flat five-field attribution stamped at ingestion.
+        if let Some(scope) = resource_scope.as_ref() {
+            conditions.push("json_extract_string(payload, '$.owner_account_id') = ?".to_string());
+            params.push(Box::new(scope.owner_account_id().as_uuid().to_string()));
+            if let Some(workspace) = scope.workspace() {
+                conditions.push("json_extract_string(payload, '$.workspace_id') = ?".to_string());
+                params.push(Box::new(workspace.as_str().to_owned()));
+            }
+        }
+
         // Keep the timestamp on an integer path. `EXTRACT(EPOCH ...)` returns f64; at current Unix
         // epochs its precision is coarser than a TIMESTAMPTZ microsecond, so about half of exact
         // microsecond values can decode into the preceding microsecond. That breaks immutable-event
@@ -761,7 +773,20 @@ impl DuckDbFlightRecorder {
         let mut events = Vec::new();
         for raw_res in event_iter {
             let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
-            events.push(decode_raw_event(raw)?);
+            let event = decode_raw_event(raw)?;
+            if let Some(scope) = resource_scope.as_ref() {
+                // Second privacy layer: exact post-decode authorization. A
+                // malformed or partially attributed payload fails closed.
+                let Ok(attribution) = serde_json::from_value::<
+                    crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+                >(event.payload.clone()) else {
+                    continue;
+                };
+                if attribution.authorize(scope).is_err() {
+                    continue;
+                }
+            }
+            events.push(event);
         }
 
         Ok(events)
@@ -812,6 +837,106 @@ impl DuckDbFlightRecorder {
         for raw_res in event_iter {
             let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
             events.push(decode_raw_event(raw)?);
+        }
+        Ok(events)
+    }
+
+    fn query_session_events_for_scope(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        let mut params: Vec<Box<dyn duckdb::ToSql>> = vec![
+            Box::new(session_id.to_string()),
+            Box::new(scope.owner_account_id().as_uuid().to_string()),
+        ];
+        let mut query = String::from(
+            "SELECT event_id, trace_id, epoch_us(timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE (session_span_id = ?1 OR model_session_id = ?1 OR json_extract_string(payload, '$.instance_id') = ?1) AND json_extract_string(payload, '$.owner_account_id') = ?2",
+        );
+        if let Some(workspace) = scope.workspace() {
+            params.push(Box::new(workspace.as_str().to_owned()));
+            query.push_str(&format!(
+                " AND json_extract_string(payload, '$.workspace_id') = ?{}",
+                params.len()
+            ));
+        }
+        if let Some(from) = from {
+            params.push(Box::new(from.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp >= ?{}", params.len()));
+        }
+        if let Some(to) = to {
+            params.push(Box::new(to.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp <= ?{}", params.len()));
+        }
+        query.push_str(" ORDER BY timestamp ASC, ingest_sequence ASC, event_id ASC");
+
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let param_refs: Vec<&dyn duckdb::ToSql> =
+            params.iter().map(|value| value.as_ref()).collect();
+        let rows = stmt
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let mut events = Vec::new();
+        for row in rows {
+            let event = decode_raw_event(
+                row.map_err(|error| RecorderError::SinkError(error.to_string()))?,
+            )?;
+            let Ok(attribution) = serde_json::from_value::<
+                crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+            >(event.payload.clone()) else {
+                continue;
+            };
+            if attribution.authorize(&scope).is_ok() {
+                events.push(event);
+            }
+        }
+        Ok(events)
+    }
+
+    fn query_resource_scoped_events(
+        &self,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        let mut params: Vec<Box<dyn duckdb::ToSql>> =
+            vec![Box::new(scope.owner_account_id().as_uuid().to_string())];
+        let mut query = String::from(
+            "SELECT event_id, trace_id, epoch_us(timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE json_extract_string(payload, '$.owner_account_id') = ?1",
+        );
+        if let Some(workspace) = scope.workspace() {
+            params.push(Box::new(workspace.as_str().to_owned()));
+            query.push_str(&format!(
+                " AND json_extract_string(payload, '$.workspace_id') = ?{}",
+                params.len()
+            ));
+        }
+        query.push_str(" ORDER BY timestamp ASC, ingest_sequence ASC, event_id ASC");
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let param_refs: Vec<&dyn duckdb::ToSql> =
+            params.iter().map(|value| value.as_ref()).collect();
+        let rows = stmt
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let mut events = Vec::new();
+        for row in rows {
+            let event = decode_raw_event(
+                row.map_err(|error| RecorderError::SinkError(error.to_string()))?,
+            )?;
+            let Ok(attribution) = serde_json::from_value::<
+                crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+            >(event.payload.clone()) else {
+                continue;
+            };
+            if attribution.authorize(&scope).is_ok() {
+                events.push(event);
+            }
         }
         Ok(events)
     }
@@ -1127,6 +1252,23 @@ impl FlightRecorder for DuckDbFlightRecorder {
         to: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         self.query_session_scoped_events(session_id, from, to)
+    }
+
+    async fn list_session_events_for_scope(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.query_session_events_for_scope(session_id, from, to, scope)
+    }
+
+    async fn list_resource_scoped_events(
+        &self,
+        scope: crate::swarm_orchestration::resource_scope::ResourceScopeQuery,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.query_resource_scoped_events(scope)
     }
 
     fn duckdb_connection(&self) -> Option<Arc<Mutex<DuckDbConnection>>> {

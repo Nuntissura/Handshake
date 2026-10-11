@@ -60,7 +60,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 
 use crate::model_runtime::{
-    CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntime, ModelRuntimeError,
+    CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntimeError,
     SamplingParams,
 };
 use crate::swarm_orchestration::{ModelInstanceId, SpawnRequest, SwarmCoordinator, SwarmError};
@@ -187,7 +187,7 @@ pub enum ParallelDistillError {
     #[error("student scoring failed for sample {sample_id}: {source}")]
     StudentScore {
         sample_id: String,
-        source: ModelRuntimeError,
+        source: SwarmError,
     },
     #[error("downstream PEFT pipeline failed: {0}")]
     Pipeline(#[from] DistillError),
@@ -208,7 +208,6 @@ pub enum ParallelDistillError {
 /// coordinator's public `session_runtime` / `session_model_id` accessors; tests
 /// can supply their own resolver over a controllable factory.
 pub trait SessionRuntimeResolver: Send + Sync {
-    fn runtime_for(&self, instance_id: ModelInstanceId) -> Option<Arc<dyn ModelRuntime>>;
     fn model_id_for(&self, instance_id: ModelInstanceId) -> Option<ModelId>;
 }
 
@@ -234,10 +233,6 @@ impl CoordinatorSessionRuntimeResolver {
 }
 
 impl SessionRuntimeResolver for CoordinatorSessionRuntimeResolver {
-    fn runtime_for(&self, instance_id: ModelInstanceId) -> Option<Arc<dyn ModelRuntime>> {
-        self.coordinator.session_runtime(instance_id)
-    }
-
     fn model_id_for(&self, instance_id: ModelInstanceId) -> Option<ModelId> {
         self.coordinator.session_model_id(instance_id)
     }
@@ -424,10 +419,6 @@ impl ParallelDistillOrchestrator {
         teacher_iid: ModelInstanceId,
         plan: &ParallelDistillPlan,
     ) -> Result<Vec<TrainingTurn>, ParallelDistillError> {
-        let runtime = self
-            .resolver
-            .runtime_for(teacher_iid)
-            .ok_or(ParallelDistillError::TeacherRuntimeMissing)?;
         let model_id = self
             .resolver
             .model_id_for(teacher_iid)
@@ -448,7 +439,10 @@ impl ParallelDistillOrchestrator {
                 speculative_mode: None,
                 structured_decoding: None,
             };
-            let mut stream = runtime.generate(req);
+            let mut stream = self
+                .coordinator
+                .generate_session_managed(teacher_iid, req)
+                .map_err(ParallelDistillError::TeacherSpawn)?;
             let mut completion = String::new();
             let mut finish_reason = None;
             let mut event_ids = Vec::new();
@@ -490,21 +484,12 @@ impl ParallelDistillOrchestrator {
         student_iid: ModelInstanceId,
         plan: &ParallelDistillPlan,
     ) -> Result<Vec<StudentBaselineScore>, ParallelDistillError> {
-        let runtime = self
-            .resolver
-            .runtime_for(student_iid)
-            .ok_or(ParallelDistillError::StudentRuntimeMissing)?;
-        let model_id = self
-            .resolver
-            .model_id_for(student_iid)
-            .ok_or(ParallelDistillError::StudentRuntimeMissing)?;
-
         let mut scores = Vec::with_capacity(plan.samples.len());
         for sample in &plan.samples {
             // The prompt bytes form a real token sequence for the score seam;
             // the engine returns its mean log-probability over the sequence.
             let sequence: Vec<u32> = sample.prompt.bytes().map(u32::from).collect();
-            let score = runtime.score(model_id, sequence).await.map_err(|source| {
+            let score = self.coordinator.score_session(student_iid, sequence).await.map_err(|source| {
                 ParallelDistillError::StudentScore {
                     sample_id: sample.id.clone(),
                     source,

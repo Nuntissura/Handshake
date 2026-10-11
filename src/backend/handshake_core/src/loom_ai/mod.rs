@@ -21,7 +21,6 @@ pub mod promotion;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::kernel::crdt::actor_site::KnowledgeActorIdV1;
@@ -67,11 +66,7 @@ impl From<StorageError> for LoomAiJobError {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 /// Stable idempotency hash over the suggestion's identifying tuple.
 fn value_hash(kind: LoomAiJobKind, block_id: &str, target: Option<&str>, value: &Value) -> String {
@@ -230,7 +225,7 @@ pub async fn run_loom_ai_job(
     req: LoomAiJobRequest,
 ) -> Result<LoomAiJobResult, LoomAiJobError> {
     let job_id = new_job_id();
-    let model_id = llm.profile().model_id.clone();
+    let model_id = llm.selected_model_id();
 
     // First pass: call the model for every block and collect parsed
     // suggestions. A model decline on ANY call fails the whole job with zero

@@ -35,7 +35,14 @@ pub enum SurfaceGroup {
     MemoryClaims,
     CrdtCollaboration,
     NotesLoom,
+    ModelAccess,
+    ModelRuntimeRegistry,
+    OperatorChat,
+    ModelLaneCloudConsent,
+    ModelLaneNavigation,
     UserManual,
+    /// WP-1 live orchestration debug console (SSE observability tee).
+    Wp1OrchestrationConsole,
     /// Atelier storage-authority surfaces (MT-138 readiness gate).
     Atelier,
     /// Kernel EventLedger read surfaces (MT-072 preference receipts).
@@ -52,7 +59,13 @@ impl SurfaceGroup {
             Self::MemoryClaims => "memory_claims",
             Self::CrdtCollaboration => "crdt_collaboration",
             Self::NotesLoom => "notes_loom",
+            Self::ModelAccess => "model_access",
+            Self::ModelRuntimeRegistry => "model_runtime_registry",
+            Self::OperatorChat => "operator_chat",
+            Self::ModelLaneCloudConsent => "model_lane_cloud_consent",
+            Self::ModelLaneNavigation => "model_lane_navigation",
             Self::UserManual => "user_manual",
+            Self::Wp1OrchestrationConsole => "wp1_orchestration_console",
             Self::Atelier => "atelier",
             Self::KernelEvents => "kernel_events",
         }
@@ -67,7 +80,13 @@ impl SurfaceGroup {
             Self::MemoryClaims => "memory-and-claims-surface",
             Self::CrdtCollaboration => "crdt-collaboration-surface",
             Self::NotesLoom => "notes-loom-surface",
+            Self::ModelAccess => "cloud-model-access",
+            Self::ModelRuntimeRegistry => "model-runtime-registry-and-loom-degrade",
+            Self::OperatorChat => "operator-chat-launch",
+            Self::ModelLaneCloudConsent => "model-lane-cloud-projection-consent",
+            Self::ModelLaneNavigation => "model-lane-navigation",
             Self::UserManual => "usermanual-surface",
+            Self::Wp1OrchestrationConsole => "wp1-orchestration-console",
             Self::Atelier => "atelier-storage-authority",
             Self::KernelEvents => "editor-preferences-surface",
         }
@@ -84,7 +103,16 @@ impl SurfaceGroup {
             | Self::Retrieval
             | Self::MemoryClaims
             | Self::CrdtCollaboration => true,
-            Self::NotesLoom | Self::UserManual | Self::Atelier | Self::KernelEvents => false,
+            Self::NotesLoom
+            | Self::ModelAccess
+            | Self::ModelRuntimeRegistry
+            | Self::OperatorChat
+            | Self::ModelLaneCloudConsent
+            | Self::ModelLaneNavigation
+            | Self::UserManual
+            | Self::Wp1OrchestrationConsole
+            | Self::Atelier
+            | Self::KernelEvents => false,
         }
     }
 }
@@ -1238,6 +1266,282 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "q + filter query params including source_kinds.",
         "JSON heterogeneous graph-search hits; Loom block hits include hsk.loom_retrieval_bias@1 metadata."
     ),
+    // -- Model access configuration (api/model_access.rs) -----------------
+    surface!(
+        "model_access.providers.list",
+        SurfaceGroup::ModelAccess,
+        "GET",
+        "/model-access/providers",
+        "List non-secret cloud provider access status for the operator model picker.",
+        "None.",
+        "JSON cloud access enumeration with byok, cli_bridge, and excluded provider rows; never key material."
+    ),
+    surface!(
+        "model_access.byok_key.store",
+        SurfaceGroup::ModelAccess,
+        "PUT",
+        "/model-access/byok/:provider/key",
+        "Store or rotate a BYOK API key in the injected cloud access vault.",
+        "provider path param; JSON {api_key}; key material is accepted only at the transport boundary.",
+        "JSON non-secret provider status; 400 empty_api_key, 404 provider_not_offered, 503 keychain_unavailable."
+    ),
+    surface!(
+        "model_access.byok_key.delete",
+        SurfaceGroup::ModelAccess,
+        "DELETE",
+        "/model-access/byok/:provider/key",
+        "Delete a BYOK key idempotently through the cloud access vault.",
+        "provider path param.",
+        "JSON non-secret provider unavailable status; 404 provider_not_offered, 503 keychain_unavailable."
+    ),
+    surface!(
+        "model_access.cli_bridge.login",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge/:provider/login",
+        "Start the provider's own official CLI login as an in-app pseudo-terminal session after operator confirmation; no OS console window is opened and no foreground or Z-order change occurs.",
+        "provider path param; operator-confirmed start of the provider-owned official login command.",
+        "JSON login-session snapshot (session_id, typed status, provider transcript, bounded window); never key material; 404 provider_not_offered."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session",
+        SurfaceGroup::ModelAccess,
+        "GET",
+        "/model-access/cli-bridge-login/:session",
+        "Poll one in-app official-CLI login session for its typed status, the provider's terminal transcript, and the remaining bounded-window budget.",
+        "session path param.",
+        "JSON login-session snapshot; 404 cli_login_session_not_found."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session_input",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge-login/:session/input",
+        "Deliver one operator response (device code or prompt answer) to the running login process's stdin so the interactive flow can be completed inside Handshake.",
+        "session path param; JSON body {\"input\": \"<text>\"}.",
+        "JSON login-session snapshot; 404 cli_login_session_not_found, 409 cli_login_session_finished."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session_cancel",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge-login/:session/cancel",
+        "Terminate the running in-app official-CLI login process and evict its session.",
+        "session path param.",
+        "JSON login-session snapshot with cancelled status; 404 cli_login_session_not_found."
+    ),
+    // -- ModelRuntime registry/control surface (api/model_runtime_registry.rs)
+    surface!(
+        "model_runtime.registry.list",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "GET",
+        "/model-runtime/registry",
+        "List durable model-runtime registry rows joined to current READY catalog state.",
+        "None.",
+        "JSON hsk.model_runtime_registry_projection@3 with catalog revision, stable artifact identity, canonical path availability, adapter/runtime state, embedded SurrealDB active purposes, KV/LoRA/steering telemetry availability, ProcessOwnershipLedger link availability, performance availability, capability/compatibility-gated action availability and reasons, audit reference, and current live state."
+    ),
+    surface!(
+        "model_runtime.selection.post",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "POST",
+        "/model-runtime/selection",
+        "Switch embedded SurrealDB application/default to another current READY completion model through a serialized audited SwapRequest.",
+        "JSON {target_model_id, actor, reason}; all fields are bounded and control-free.",
+        "JSON hsk.model_runtime_registry_projection@3 with the new application/default row and selection_receipt_ref; stale/non-READY, embedding-role, integrity, timeout, audit, or embedded SurrealDB CAS failures preserve the prior durable selection."
+    ),
+    surface!(
+        "model_runtime.control.post",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "POST",
+        "/model-runtime/control",
+        "Request a typed ModelRuntime lifecycle action through the runtime owner.",
+        "JSON ModelRuntimeControlRequest schema_version 1 with request_id, current model_id, tagged action, timeout_ms in 1..=30000, optional expected_catalog_revision, and optional expected_selection_revision; unload requires catalog revision and adapter swap requires both revisions.",
+        "JSON ModelRuntimeControlReceipt. Quiesce receipts prove admission closure; unload receipts report runtime unload and catalog update plus whether durable ProcessOwnershipLedger STOP committed; compatible-adapter swap requires catalog and selection CAS revisions and reports target START, source unload, durable adapter rebind, catalog replacement, selection rebound, and the source STOP verdict. A receipt with reconciliation_required=true is a truthful partial-state success: product state changed, STOP durability is unconfirmed or rejected, and the existing runtime/boot reconciliation path must close the open lifecycle without repeating the mutation."
+    ),
+    // -- Operator chat launch surface (api/operator_chat.rs) ---------------
+    surface!(
+        "operator_chat.models.list",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/models",
+        "List the backend-owned operator-chat picker inventory and governed owner-session choices.",
+        "None.",
+        "JSON inventory_source, sessions, local, cloud_byok, cloud_cli_bridge, subagents, and excluded rows; unavailable providers and invalid session lineage remain visible but not launchable."
+    ),
+    surface!(
+        "operator_chat.selection.record",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/selection",
+        "Record an operator chat model selection decision through the model catalog audit path.",
+        "JSON selection decision with selected_model_id and optional lane/model/provider context.",
+        "JSON {status: recorded, selected_model_id} or selection_audit_failed envelope."
+    ),
+    surface!(
+        "operator_chat.launch",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/launch",
+        "Launch an operator chat lane through the sanctioned OperatorChatLaunchService.",
+        "JSON OperatorChatSelection for local, BYOK/CLI cloud, or subagent lane launch.",
+        "JSON launched run/lane payload; 503 launch_not_wired or fail-closed launch error envelope."
+    ),
+    surface!(
+        "operator_chat.transcript.get",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/transcript/:run_id",
+        "Fetch captured ModelLane transcript rows for an operator chat run.",
+        "run_id path param.",
+        "JSON {run_id, rows}; 503 transcript_not_wired when the ModelLaneStore is unavailable."
+    ),
+    surface!(
+        "operator_chat.routing.lifecycle",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/lifecycle",
+        "Execute one canonical six-policy routing graph through the production ModelLane coordinator.",
+        "JSON OperatorChatRoutingLifecycleRequest with execution_id, selecting_decision_id, authority, canonical run context, and stage launch bindings.",
+        "JSON hsk.model_lane_routing_execution@5 state and per-stage lifecycle rows; 503 routing_not_wired or a typed fail-closed launch error envelope."
+    ),
+    surface!(
+        "operator_chat.routing.recover",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/recover",
+        "Recover and resume one durable routing execution from embedded SurrealDB/EventLedger authority.",
+        "The original OperatorChatRoutingLifecycleRequest with the same execution_id and canonical run/stage bindings.",
+        "JSON hsk.model_lane_routing_execution@5 state after fenced recovery; context or launch-plan drift fails closed."
+    ),
+    surface!(
+        "operator_chat.routing.authority",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/authority",
+        "Complete an awaiting validator/operator authority stage and resume its canonical routing lifecycle.",
+        "JSON execution_id, stage_id, message_id, and the original routing_request; execution ids must match.",
+        "JSON hsk.model_lane_routing_execution@5 state; mismatched execution authority returns bad_request without mutation."
+    ),
+    surface!(
+        "operator_chat.routing.cancel",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/cancel",
+        "Cancel one durable routing execution and persist its operator-supplied reason.",
+        "JSON {execution_id, reason}.",
+        "JSON cancelled ModelLaneRoutingExecutionState with compensated/cancelled stage state and EventLedger authority."
+    ),
+    // -- Live swarm admission control (api/operator_chat.rs, WP-1 MT-021) ---
+    surface!(
+        "operator_chat.swarm.max_concurrent.read",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/swarm/max-concurrent",
+        "Read the model-session concurrency cap currently IN FORCE plus the live session count.",
+        "None.",
+        "JSON {max_concurrent, live_sessions}; max_concurrent is the live admission-semaphore cap, never the value the coordinator was constructed with."
+    ),
+    surface!(
+        "operator_chat.swarm.max_concurrent.set",
+        SurfaceGroup::OperatorChat,
+        "PUT",
+        "/operator-chat/swarm/max-concurrent",
+        "Change the live model-session concurrency cap without rebuilding the coordinator or killing running sessions.",
+        "JSON {max_concurrent: <usize>}; values below 1 are clamped to 1.",
+        "JSON {requested, max_concurrent, fully_applied, live_sessions}; lowering is cooperative, so max_concurrent may stay above requested and fully_applied is then false."
+    ),
+    // -- Run-scoped cloud consent control (api/operator_chat.rs) -----------
+    surface!(
+        "model_lane.cloud_single_run.grant_launch",
+        SurfaceGroup::ModelLaneCloudConsent,
+        "POST",
+        "/operator-chat/cloud/single-run/grant-launch",
+        "Grant a governed run-scoped cloud consent receipt and launch the covered ModelLane run.",
+        "JSON run-scoped projection, consent, provider, model, retention, and fan-out authority payload; projection_plan.export_delegation (audience_refs subset of fan_out_targets, source_scope, authorization_receipt_ref) is REQUIRED.",
+        "JSON launch/consent projection with durable plan and receipt references; mismatched or partial authority fails closed."
+    ),
+    surface!(
+        "model_lane.cloud_single_run.revoke",
+        SurfaceGroup::ModelLaneCloudConsent,
+        "POST",
+        "/operator-chat/cloud/single-run/revoke",
+        "Revoke one run-scoped cloud consent receipt and cancel every covered lane through durable cleanup/finalization.",
+        "JSON canonical consent_receipt_ref plus revocation actor/reason context.",
+        "JSON revocation result covering every canonical lane; retries are idempotent and incomplete cleanup remains retryable."
+    ),
+    // -- Dexterity ModelLane navigation (api/model_lane_navigation.rs) -----
+    surface!(
+        "model_lane.navigation.run",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/runs/:run_id",
+        "Load one Dexterity ModelLane run navigation projection from embedded SurrealDB/EventLedger authority.",
+        "run_id path param.",
+        "JSON hsk.model_lane_navigation@1 projection with run, lanes, messages, artifacts, recovery, diagnostics, EventLedger refs, Flight Recorder refs, and manual refs."
+    ),
+    surface!(
+        "model_lane.navigation.lane",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/lanes/:lane_id",
+        "Load one lane-scoped Dexterity navigation projection and related messages, leases, and recovery rows.",
+        "lane_id path param.",
+        "JSON hsk.model_lane_navigation@1 projection filtered to the lane and its EventLedger-backed evidence."
+    ),
+    surface!(
+        "model_lane.navigation.message",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/messages/:message_id",
+        "Load one message-scoped Dexterity navigation projection and related lane/artifact/handoff rows.",
+        "message_id path param.",
+        "JSON hsk.model_lane_navigation@1 projection filtered to the message payload and EventLedger-backed row."
+    ),
+    surface!(
+        "model_lane.navigation.artifact_context",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/artifacts",
+        "Lookup ModelLane artifact and ContextBundle handoff authority by artifact ref, content hash, binding id, or context_bundle_id.",
+        "One artifact selector query param (`artifact_ref`, `artifact_binding_id`, `artifact_manifest_ref`, `artifact_payload_ref`, `artifact_sha256`, or `content_hash`) and/or `context_bundle_id`; optional `run_id` narrows shared hashes/refs.",
+        "JSON hsk.model_lane_navigation@1 projection with matching artifact, message, handoff, Locus/Loom/FEMS, EventLedger, and Flight Recorder refs."
+    ),
+    surface!(
+        "model_lane.navigation.trace_span",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/traces/:trace_id",
+        "Lookup Dexterity run/lane/message/recovery rows by trace_id and optional span_id.",
+        "trace_id path param; optional span_id query param.",
+        "JSON hsk.model_lane_navigation@1 projection filtered by trace/span evidence and linked span contexts."
+    ),
+    surface!(
+        "model_lane.navigation.diagnostic_tier",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/diagnostics/:run_id",
+        "Lookup HBR diagnostic tiers and MT runtime status for a Dexterity run.",
+        "run_id path param; optional behavior_id, tier, and mt_id query params.",
+        "JSON hsk.model_lane_navigation@1 projection filtered to diagnostic tier and MT status rows with recovery refs."
+    ),
+    surface!(
+        "model_lane.navigation.recovery",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/recovery/:run_id",
+        "Lookup checkpoint, recovery event, lease, diagnostic, and MT runtime recovery state for a Dexterity run.",
+        "run_id path param.",
+        "JSON hsk.model_lane_navigation@1 projection with checkpoint, recovery event, lease, diagnostic, MT status, EventLedger, and Flight Recorder refs."
+    ),
+    surface!(
+        "model_lane.navigation.lookup",
+        SurfaceGroup::ModelLaneNavigation,
+        "GET",
+        "/swarm/model-lanes/navigation/lookup",
+        "Resolve one ModelLane selector from the full no-context lookup matrix to an authoritative navigation projection.",
+        "Exactly one query selector: run_id, lane_id, message_id, model_session_id, session_id, wp_id/work_packet_id, mt_id/micro_task_id, task_board_id, artifact_ref, context_bundle_id, locus_ref, loom_ref, fems_ref, memory_pack_ref/hash, event_ledger_event_id/seq, trace_id, span_id, or error_code.",
+        "JSON hsk.model_lane_navigation@1 projection for the resolved run; typed bad_request/not_found/internal_error envelope on failure."
+    ),
     // -- UserManual (api/user_manual.rs — this group's own surface) --------
     surface!(
         "usermanual.pages.list",
@@ -1414,6 +1718,16 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Durable EventLedger events for one aggregate (e.g. preference_record receipts).",
         "aggregate_type and aggregate_id path params.",
         "JSON array of kernel events (event_id, event_type, payload, created_at)."
+    ),
+    // -- WP-1 live orchestration debug console (api/console_stream.rs) -------
+    surface!(
+        "wp1.orchestration_console.stream",
+        SurfaceGroup::Wp1OrchestrationConsole,
+        "GET",
+        "/wp1/diagnostics/console/stream",
+        "Live WP-1 orchestration debug console over Server-Sent Events: model-lane launch/status changes, model invocations, resource/breaker/lease events, and (via the publish API) cloud-access/CLI-bridge login. NON-AUTHORITATIVE observability tee, never the durable store.",
+        "None (anonymous read). Responds text/event-stream; connect replays the bounded recent history then follows the live tail.",
+        "SSE stream of hsk.wp1_console_entry@1 events (seq, ts_unix_ms, severity, category, subject, detail, trace_id); periodic keep-alive comments; console_lagged notice on subscriber lag."
     ),
 ];
 

@@ -77,6 +77,15 @@ impl SteeringHookHandle {
         self.ops.list_vectors()
     }
 
+    /// Currently active (applied) steering vectors for this loaded model.
+    /// Distinct from [`list_vectors`], which enumerates every registered vector
+    /// regardless of activation. Drives the Section 10.13.1 "Steering vectors
+    /// active" panel field. Empty when nothing is applied; adapters that do not
+    /// host steering never reach this path (their `steering_hooks` fails typed).
+    pub fn list_active(&self) -> Vec<SteeringVectorMeta> {
+        self.ops.list_active()
+    }
+
     pub async fn set_active(&self, ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError> {
         self.ops.set_active(ids).await
     }
@@ -295,6 +304,12 @@ pub trait SteeringHookOps: Send + Sync {
     ) -> Result<SteeringVectorId, ModelRuntimeError>;
 
     fn list_vectors(&self) -> Vec<SteeringVectorMeta>;
+
+    /// Currently active (applied) steering vectors. Defaults to empty so an ops
+    /// implementation that tracks no activation cannot fabricate an active set.
+    fn list_active(&self) -> Vec<SteeringVectorMeta> {
+        Vec::new()
+    }
 
     async fn set_active(&self, ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError>;
 

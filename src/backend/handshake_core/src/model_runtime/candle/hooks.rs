@@ -105,6 +105,20 @@ impl CandleSteeringHooks {
         })
     }
 
+    /// Metadata for only the currently active (applied) steering vectors —
+    /// the real set the forward path applies — for the Section 10.13.1 panel
+    /// field. Unknown active ids are skipped rather than fabricated.
+    pub fn try_list_active(&self) -> Result<Vec<SteeringVectorMeta>, ModelRuntimeError> {
+        self.with_registry(|registry| {
+            registry
+                .active
+                .iter()
+                .filter_map(|id| registry.vectors.get(id))
+                .map(SteeringVectorMeta::from)
+                .collect()
+        })
+    }
+
     pub fn snapshot_vectors_for_request(
         &self,
         steering_overrides: &[SteeringVectorId],
@@ -655,6 +669,10 @@ impl SteeringHookOps for CandleSteeringHooks {
 
     fn list_vectors(&self) -> Vec<SteeringVectorMeta> {
         self.try_list_vectors().unwrap_or_default()
+    }
+
+    fn list_active(&self) -> Vec<SteeringVectorMeta> {
+        self.try_list_active().unwrap_or_default()
     }
 
     async fn set_active(&self, ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError> {

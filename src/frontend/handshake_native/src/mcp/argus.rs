@@ -8,6 +8,7 @@
 pub const ARGUS_INSPECT_METHOD: &str = "argus.inspect";
 /// Canonical activate-an-addressed-control method.
 pub const ARGUS_CLICK_METHOD: &str = "argus.click";
+pub const ARGUS_SHOW_CONTEXT_MENU_METHOD: &str = "argus.show_context_menu";
 /// Canonical replace-an-addressed-control's whole value method.
 pub const ARGUS_SET_VALUE_METHOD: &str = "argus.set_value";
 /// Canonical focus-safe pixel capture method.
@@ -24,6 +25,7 @@ pub const LEGACY_SCREENSHOT_METHOD: &str = "screenshot";
 pub enum ArgusMethod {
     Inspect,
     Click,
+    ShowContextMenu,
     SetValue,
     Screenshot,
 }
@@ -34,6 +36,7 @@ impl ArgusMethod {
         match name {
             ARGUS_INSPECT_METHOD | LEGACY_INSPECT_METHOD => Some(Self::Inspect),
             ARGUS_CLICK_METHOD | LEGACY_CLICK_METHOD => Some(Self::Click),
+            ARGUS_SHOW_CONTEXT_MENU_METHOD => Some(Self::ShowContextMenu),
             ARGUS_SET_VALUE_METHOD | LEGACY_SET_VALUE_METHOD => Some(Self::SetValue),
             ARGUS_SCREENSHOT_METHOD | LEGACY_SCREENSHOT_METHOD => Some(Self::Screenshot),
             _ => None,
@@ -45,6 +48,7 @@ impl ArgusMethod {
         match self {
             Self::Inspect => ARGUS_INSPECT_METHOD,
             Self::Click => ARGUS_CLICK_METHOD,
+            Self::ShowContextMenu => ARGUS_SHOW_CONTEXT_MENU_METHOD,
             Self::SetValue => ARGUS_SET_VALUE_METHOD,
             Self::Screenshot => ARGUS_SCREENSHOT_METHOD,
         }
@@ -52,7 +56,7 @@ impl ArgusMethod {
 
     /// Whether this operation mutates an addressed live control.
     pub const fn is_mutating(self) -> bool {
-        matches!(self, Self::Click | Self::SetValue)
+        matches!(self, Self::Click | Self::ShowContextMenu | Self::SetValue)
     }
 }
 

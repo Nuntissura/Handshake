@@ -765,6 +765,7 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
                     .record_moodboard_snapshot(&NewMoodboardSnapshot {
                         document_id,
                         raw_json_text: resolved.clone(),
+                        expected_document_version_id: None,
                         author: fixture_doc.author.clone(),
                     })
                     .await

@@ -38,7 +38,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use cli::PalmistryConfig;
+use cli::{PalmistryConfig, RingFormat};
 use control::{ControlOutcome, ControlServer};
 use crash_capture::{
     minidump_path_for, persist_crash_record, CrashRecord, CrashServerHandler,
@@ -51,7 +51,7 @@ use lifecycle::{
     build_survivor_record, run_lifecycle, spawn_parent_watch, LifecycleConfig, LifecycleState,
     ParentWatch,
 };
-use ring_reader::PalmistryRingReader;
+use ring_reader::{PalmistryRingReader, PalmistryRingReaderV2};
 use survivor_store::SurvivorStore;
 
 /// Startup-error exit code (refused partial start / could not bind control socket).
@@ -360,6 +360,8 @@ pub struct RunOptions {
     /// caller / future `[lib]` extraction can inject a faster-retry or pre-opened reader without forking
     /// the run path; the integration tests drive the real default through the compiled binary.
     pub ring_reader_factory: RingReaderFactory,
+    /// Explicit nonce-aware v2 factory; never auto-detects or falls back.
+    pub ring_reader_v2_factory: RingReaderV2Factory,
     /// Builds the MT-091 hung-window probe for the watched pid. Default = the real Win32
     /// `SendMessageTimeoutW(WM_NULL)` probe on Windows (a never-finds-a-window stub off Windows). The
     /// seam exists so an in-crate caller / future `[lib]` extraction can inject a fake probe; the
@@ -383,6 +385,7 @@ impl Default for RunOptions {
         Self {
             parent_watch_factory: Box::new(default_parent_watch),
             ring_reader_factory: Box::new(default_ring_reader),
+            ring_reader_v2_factory: Box::new(default_ring_reader_v2),
             hung_window_probe_factory: Box::new(default_hung_window_probe),
             lifecycle: LifecycleConfig::default(),
             crash_server_factory: Box::new(default_crash_server),
@@ -409,6 +412,49 @@ fn default_crash_server(crash_socket: &str) -> Result<minidumper::Server, minidu
 /// fake / faster-retry reader without forking the run path. Aliased to keep the [`RunOptions`] field
 /// type legible (clippy type-complexity).
 pub type RingReaderFactory = Box<dyn Fn(&str) -> std::io::Result<PalmistryRingReader>>;
+pub type RingReaderV2Factory =
+    Box<dyn Fn(&str, [u8; 16]) -> std::io::Result<PalmistryRingReaderV2>>;
+fn default_ring_reader_v2(path: &str, nonce: [u8; 16]) -> std::io::Result<PalmistryRingReaderV2> {
+    PalmistryRingReaderV2::open_with_default_retry(Path::new(path), nonce)
+}
+
+// One current watcher map owner; full typed v2 records remain intact through the read boundary.
+enum WatcherRingReader {
+    V1(PalmistryRingReader),
+    V2(PalmistryRingReaderV2),
+}
+enum WatcherRingEvents {
+    V1(Vec<handshake_diag_ring::DiagEvent>),
+    V2(Vec<handshake_diag_ring::schema::DiagEventV2>),
+}
+impl WatcherRingEvents {
+    fn count(&self) -> u32 {
+        match self {
+            Self::V1(events) => events.len() as u32,
+            Self::V2(events) => events.len() as u32,
+        }
+    }
+}
+impl WatcherRingReader {
+    fn capacity(&self) -> u32 {
+        match self {
+            Self::V1(reader) => reader.capacity(),
+            Self::V2(reader) => reader.capacity(),
+        }
+    }
+    fn read_heartbeat(&self) -> Option<handshake_diag_ring::Heartbeat> {
+        match self {
+            Self::V1(reader) => reader.read_heartbeat(),
+            Self::V2(reader) => reader.read_heartbeat(),
+        }
+    }
+    fn read_last_events(&self, n: u32) -> WatcherRingEvents {
+        match self {
+            Self::V1(reader) => WatcherRingEvents::V1(reader.read_last_events(n)),
+            Self::V2(reader) => WatcherRingEvents::V2(reader.read_last_events(n)),
+        }
+    }
+}
 
 /// The real ring-reader factory: bounded open-retry against the backing file at `ring_path`. Retries
 /// with a bounded backoff until the ring appears + validates or the bounded deadline elapses, so a
@@ -534,7 +580,7 @@ impl FreezeStatus {
 /// lifecycle. Returns the join handle.
 #[allow(clippy::too_many_arguments)]
 fn spawn_freeze_poll(
-    reader: Arc<PalmistryRingReader>,
+    reader: Arc<WatcherRingReader>,
     probe: Box<dyn HungWindowProbe>,
     status: Arc<FreezeStatus>,
     run: Arc<AtomicBool>,
@@ -577,7 +623,7 @@ fn spawn_freeze_poll(
                         &session_id,
                         parent_pid,
                         report,
-                        survivor_store::last_event_count(&last_events),
+                        last_events.count(),
                         survivor_store::SurvivorProbeResult::NotResponding,
                     );
                     match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
@@ -632,7 +678,7 @@ fn spawn_freeze_poll(
 
 fn spawn_child_stall_poll(
     registry: Arc<child_registry::ChildRegistry>,
-    reader: Arc<PalmistryRingReader>,
+    reader: Arc<WatcherRingReader>,
     run: Arc<AtomicBool>,
     poll_interval: Duration,
     session_id: String,
@@ -661,7 +707,7 @@ fn spawn_child_stall_poll(
                             &session_id,
                             parent_pid,
                             &report,
-                            survivor_store::last_event_count(&last_events),
+                            last_events.count(),
                         );
                         match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
                             Ok(path) => tracing::warn!(
@@ -783,22 +829,63 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // (possibly frozen) writer. It is held live for the watcher's life so the freeze-probe (MT-091) and
     // the survivor store (MT-093) read through it. Wrapped in `Arc` so a future freeze-probe thread can
     // share it without re-opening the map.
-    let ring_reader = Arc::new((options.ring_reader_factory)(&config.ring_path).map_err(
-        |err| {
-            std::io::Error::new(
-                err.kind(),
-                format!(
-                    "ring path '{}' is not a valid diagnostic ring (open-retry exhausted): {err}",
-                    config.ring_path
-                ),
-            )
-        },
-    )?);
+    let selected_reader = match config.ring_format {
+        RingFormat::V1 => {
+            (options.ring_reader_factory)(&config.ring_path).map(WatcherRingReader::V1)
+        }
+        RingFormat::V2 { expected_nonce } => {
+            (options.ring_reader_v2_factory)(&config.ring_path, expected_nonce)
+                .map(WatcherRingReader::V2)
+        }
+    };
+    let ring_reader = Arc::new(selected_reader.map_err(|err| {
+        std::io::Error::new(
+            err.kind(),
+            format!(
+                "ring path '{}' is not a valid diagnostic ring (open-retry exhausted): {err}",
+                config.ring_path
+            ),
+        )
+    })?);
     tracing::info!(
         ring_path = %config.ring_path,
         capacity = ring_reader.capacity(),
         "diag ring opened (Tier 3 zero-cooperation reader ready)"
     );
+
+    // Only an explicitly requested current-child bootstrap reads the inherited private seed.
+    // The actual v2 map has already validated the immutable expected nonce above.
+    let signing_bootstrap = match config.signing_process_instance {
+        None => None,
+        Some(process_instance_id) => {
+            let RingFormat::V2 { expected_nonce } = config.ring_format else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "signing requires v2",
+                ));
+            };
+            let session_id = uuid::Uuid::parse_str(&config.session_id).map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "invalid original signing session",
+                )
+            })?;
+            let seed = control::read_private_signing_seed(Duration::from_secs(1))?;
+            Some(control::WatcherSigningBootstrap::from_private_seed(
+                control::WatcherSigningIdentity {
+                    protocol_version: 1,
+                    session_id,
+                    process_instance_id,
+                    parent_pid: config.parent_pid,
+                    watcher_pid: std::process::id(),
+                    ring_version: 2,
+                    record_size: 120,
+                    launch_nonce: expected_nonce,
+                },
+                seed,
+            )?)
+        }
+    };
 
     // Bind the control socket. A watcher with no control channel can never be cleanly shut down, so a
     // bind failure is fatal (startup error).
@@ -885,7 +972,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                     }
                     Ok(())
                 };
-            server.serve_connection(&mut on_msg)
+            server.serve_connection_with_signer(&mut on_msg, signing_bootstrap.as_ref())
         };
         run_control_loop(
             &mut serve_once,
@@ -1146,13 +1233,13 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     if crash_captured.load(Ordering::SeqCst) {
         // (a) RICH: a CrashContext-driven out-of-process minidump was written. Record it.
         let faulting_thread_id = crash_thread_id.load(Ordering::SeqCst);
-        let crash = CrashRecord::with_minidump(
+        let crash = CrashRecord::with_minidump_with_event_count(
             &config.session_id,
             config.parent_pid,
             faulting_thread_id,
             minidump_path.clone(),
             last_heartbeat,
-            &last_events,
+            last_events.count(),
         );
         match persist_crash_record(Path::new(&config.ring_path), &crash) {
             Ok(path) => tracing::warn!(
@@ -1177,12 +1264,12 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                 tracing::warn!(error = %err, "the crash minidumper server reported a dump-write error");
             }
         }
-        let crash = CrashRecord::post_mortem(
+        let crash = CrashRecord::post_mortem_with_event_count(
             &config.session_id,
             config.parent_pid,
             state.parent_exit_code(),
             last_heartbeat,
-            &last_events,
+            last_events.count(),
         );
         match persist_crash_record(Path::new(&config.ring_path), &crash) {
             Ok(path) => tracing::warn!(

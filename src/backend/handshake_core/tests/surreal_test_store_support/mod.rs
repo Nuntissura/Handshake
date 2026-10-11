@@ -1,9 +1,10 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use std::collections::BTreeSet;
 
-use handshake_core::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+use handshake_core::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig, SurrealTestMutator};
 use handshake_core::storage::{NewWorkspace, Workspace, WriteContext};
 use uuid::Uuid;
 
@@ -11,6 +12,7 @@ pub const TEST_STORE_ROOT_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_ROOT";
 pub const TEST_STORE_STALE_AGE_MS_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_STALE_AGE_MS";
 pub const ARTIFACTS_ROOT_ENV: &str = "HANDSHAKE_ARTIFACTS_ROOT";
 pub const DEFAULT_STALE_AGE: Duration = Duration::ZERO;
+pub const DEFAULT_EMBEDDED_SCOPE_TIMEOUT: Duration = Duration::from_secs(120);
 
 const SCOPE_PREFIX: &str = "surreal-test-store-";
 const OWNER_MARKER_SUFFIX: &str = ".owner";
@@ -86,12 +88,33 @@ pub struct StoreBacklogMeasurement {
     pub contained_data_bytes: u64,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedSurrealCleanupDiagnostics {
+    pub namespace: String, pub database: String, pub store_path: PathBuf,
+    pub timeout: Duration, pub database_absent: bool,
+    pub namespace_absent_after_reopen: bool, pub elapsed: Duration, pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedSurrealCleanupAttempt {
+    pub namespace: String, pub database: String, pub succeeded: bool,
+    pub diagnostics: EmbeddedSurrealCleanupDiagnostics,
+}
+
 pub struct IsolatedSurrealTestStore {
     root: PathBuf,
     scope_path: PathBuf,
     marker_path: PathBuf,
     identity: StoreIdentity,
     storage: Option<SurrealStorage>,
+    config: SurrealStorageConfig,
+    timeout: Duration,
+    catalog: Option<SurrealTestMutator>,
+    catalog_pending: bool,
+    catalog_removed: bool,
+    successful_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
+    last_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
+    reopen_pending: bool,
     // Field order is intentional: Rust drops fields in declaration order, so the
     // store closes before the zero-share ownership marker is released on unwind.
     owner_marker: Option<File>,
@@ -99,9 +122,50 @@ pub struct IsolatedSurrealTestStore {
 }
 
 impl IsolatedSurrealTestStore {
+    pub(super) fn storage(&self) -> &SurrealStorage {
+        self.storage
+            .as_ref()
+            .expect("isolated store storage remains owned until shutdown")
+    }
+
+    pub(super) async fn reopen(&mut self) -> io::Result<()> {
+        if self.successful_cleanup.is_some() || self.catalog_removed || self.catalog_pending || self.catalog.is_some() || self.reopen_pending {
+            return Err(io::Error::new(io::ErrorKind::Other, "reopen is forbidden after cleanup or pending catalog/reopen settlement"));
+        }
+        self.close_storage_barrier().await?;
+        self.reopen_pending = true;
+        let storage = SurrealStorage::open(self.config.clone()).await.map_err(storage_error)?;
+        self.storage = Some(storage);
+        self.reopen_pending = false;
+        bootstrap_schema(self.storage()).await.map_err(storage_error).map(|_| ())
+    }
+
+    pub async fn close_for_reopen(&mut self) -> io::Result<()> {
+        if self.catalog_pending || self.catalog.is_some() || self.successful_cleanup.is_some() {
+            return Err(io::Error::new(io::ErrorKind::Other, "pending catalog or completed cleanup forbids close-for-reopen"));
+        }
+        self.close_storage_barrier().await
+    }
+
+    pub fn namespace(&self) -> &str { self.config.namespace() }
+    pub fn database(&self) -> &str { self.config.database() }
+    pub fn store_path(&self) -> &Path { self.config.path() }
+
+    pub async fn write_foreign_survival_sentinel(&self) -> io::Result<()> {
+        self.storage().test_mutator().write_foreign_survival_sentinel().await.map_err(storage_error)
+    }
+
+    pub async fn foreign_survival_sentinel_exists(&self) -> io::Result<bool> {
+        self.storage().test_inspector().foreign_survival_sentinel_exists().await.map_err(storage_error)
+    }
+
     pub async fn create() -> io::Result<Self> {
         let minimum_age = configured_stale_age()?;
         Self::create_in_with_policy(configured_test_store_root()?, minimum_age).await
+    }
+
+    pub async fn create_in_with_timeouts(root: impl AsRef<Path>, timeout: Duration, shutdown_wait: Duration) -> io::Result<Self> {
+        Self::create_in_with_policy_and_timeouts(root, DEFAULT_STALE_AGE, true, timeout, shutdown_wait).await
     }
 
     pub async fn create_in(root: impl AsRef<Path>) -> io::Result<Self> {
@@ -120,11 +184,16 @@ impl IsolatedSurrealTestStore {
         Self::create_in_with_policy_and_bootstrap(root, minimum_age, false).await
     }
 
-    async fn create_in_with_policy_and_bootstrap(
-        root: impl AsRef<Path>,
-        minimum_age: Duration,
-        bootstrap: bool,
+    async fn create_in_with_policy_and_bootstrap(root: impl AsRef<Path>, minimum_age: Duration, bootstrap: bool) -> io::Result<Self> {
+        Self::create_in_with_policy_and_timeouts(root, minimum_age, bootstrap, DEFAULT_EMBEDDED_SCOPE_TIMEOUT, DEFAULT_EMBEDDED_SCOPE_TIMEOUT).await
+    }
+
+    async fn create_in_with_policy_and_timeouts(
+        root: impl AsRef<Path>, minimum_age: Duration, bootstrap: bool, timeout: Duration, shutdown_wait: Duration,
     ) -> io::Result<Self> {
+        if timeout.is_zero() || shutdown_wait.is_zero() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "embedded scope timeout must be greater than zero"));
+        }
         let root = prepare_root(root.as_ref())?;
         let startup_sweep = sweep_prepared_root(&root, minimum_age)?;
         let identity = StoreIdentity::generate();
@@ -145,7 +214,7 @@ impl IsolatedSurrealTestStore {
             return Err(error);
         }
 
-        let config = match SurrealStorageConfig::for_data_dir(scope_path.join("data")) {
+        let config = match SurrealStorageConfig::for_test_scope(scope_path.join("embedded"), &format!("hs_test_ns_{}", identity.id.simple()), &format!("hs_test_db_{}", identity.token.simple()), shutdown_wait) {
             Ok(config) => config,
             Err(error) => {
                 let _ =
@@ -153,7 +222,7 @@ impl IsolatedSurrealTestStore {
                 return Err(storage_error(error));
             }
         };
-        let storage = match SurrealStorage::open(config).await {
+        let storage = match SurrealStorage::open(config.clone()).await {
             Ok(storage) => storage,
             Err(error) => {
                 let _ =
@@ -187,7 +256,10 @@ impl IsolatedSurrealTestStore {
             scope_path,
             marker_path,
             identity,
-            storage: Some(storage),
+            storage: Some(storage), config, timeout,
+            catalog: None, catalog_pending: false, catalog_removed: false,
+            successful_cleanup: None, last_cleanup: None,
+            reopen_pending: false,
             owner_marker: Some(owner_marker),
             startup_sweep,
         })
@@ -236,6 +308,12 @@ impl IsolatedSurrealTestStore {
     }
 
     async fn close_storage_barrier(&mut self) -> io::Result<()> {
+        if self.reopen_pending {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "pending reopen cannot prove engine closure or permit cleanup",
+            ));
+        }
         if let Some(storage) = self.storage.as_ref() {
             storage.shutdown().await.map_err(storage_error)?;
         }
@@ -244,19 +322,110 @@ impl IsolatedSurrealTestStore {
     }
 
     pub async fn shutdown_and_cleanup(mut self) -> io::Result<()> {
+        self.cleanup().await.map(|_| ())
+    }
+
+    fn pending_cleanup(&self) -> EmbeddedSurrealCleanupDiagnostics {
+        EmbeddedSurrealCleanupDiagnostics {
+            namespace: self.namespace().to_owned(), database: self.database().to_owned(),
+            store_path: self.store_path().to_owned(), timeout: self.timeout,
+            database_absent: false, namespace_absent_after_reopen: false,
+            elapsed: Duration::ZERO, error: None,
+        }
+    }
+
+    pub async fn cleanup(&mut self) -> io::Result<EmbeddedSurrealCleanupDiagnostics> {
+        if let Some(receipt) = &self.successful_cleanup { return Ok(receipt.clone()); }
+        let started = Instant::now();
+        let mut diagnostics = self.pending_cleanup();
+        let result = self.cleanup_once(&mut diagnostics).await;
+        diagnostics.elapsed = started.elapsed();
+        if let Err(error) = &result { diagnostics.error = Some(error.to_string()); }
+        self.last_cleanup = Some(diagnostics.clone());
+        if result.is_ok() { self.successful_cleanup = Some(diagnostics.clone()); }
+        result.map(|_| diagnostics)
+    }
+
+    async fn close_catalog_barrier(&mut self) -> io::Result<()> {
+        if let Some(catalog) = self.catalog.as_ref() {
+            catalog.close_catalog().await.map_err(storage_error)?;
+            self.catalog.take();
+            self.catalog_pending = false;
+        } else if self.catalog_pending {
+            return Err(io::Error::new(io::ErrorKind::Other, "catalog open settlement is unknown"));
+        }
+        Ok(())
+    }
+
+    async fn open_catalog(&mut self) -> io::Result<()> {
+        self.catalog_pending = true;
+        let catalog = bounded_scope(self.timeout, SurrealTestMutator::open_root_catalog(self.config.clone())).await?;
+        self.catalog = Some(catalog);
+        Ok(())
+    }
+
+    async fn cleanup_once(&mut self, diagnostics: &mut EmbeddedSurrealCleanupDiagnostics) -> io::Result<()> {
+        if self.reopen_pending { return Err(io::Error::new(io::ErrorKind::Other, "pending reopen cannot prove cleanup")); }
+        self.close_catalog_barrier().await?;
         self.close_storage_barrier().await?;
-        let marker = self
-            .owner_marker
-            .take()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "owner marker is missing"))?;
-        remove_owned_scope(
-            &self.root,
-            &self.scope_path,
-            &self.marker_path,
-            &self.identity,
-            marker,
-        )
-        .map(|_| ())
+        if !self.catalog_removed {
+            self.open_catalog().await?;
+            diagnostics.database_absent = bounded_scope(self.timeout,
+                self.catalog.as_ref().expect("owned root catalog installed").remove_owned_test_catalog()).await?;
+            self.close_catalog_barrier().await?;
+            self.open_catalog().await?;
+            let namespaces = bounded_scope(self.timeout,
+                self.catalog.as_ref().expect("fresh root catalog installed").root_namespaces()).await?;
+            diagnostics.namespace_absent_after_reopen = !namespaces.contains(self.namespace());
+            if !diagnostics.namespace_absent_after_reopen {
+                return Err(io::Error::new(io::ErrorKind::Other, "exact namespace survived fresh catalog reread"));
+            }
+            self.close_catalog_barrier().await?;
+            self.catalog_removed = true;
+        } else {
+            diagnostics.database_absent = true;
+            diagnostics.namespace_absent_after_reopen = true;
+        }
+        self.remove_closed_owned_path()
+    }
+
+    fn remove_closed_owned_path(&mut self) -> io::Result<()> {
+        let original = self.root.join(self.identity.scope_name());
+        let quarantine = self.root.join(format!("{}{}", self.identity.scope_name(), QUARANTINE_SUFFIX));
+        validate_marker_path(&self.root, &self.marker_path, &self.identity)
+            .map_err(|reason| io::Error::new(io::ErrorKind::PermissionDenied, reason))?;
+        validate_open_marker(self.owner_marker.as_mut().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "owner marker is missing"))?, &self.identity)
+            .map_err(|reason| io::Error::new(io::ErrorKind::PermissionDenied, reason))?;
+        if original.exists() {
+            validate_scope(&self.root, &original, &self.identity)
+                .map_err(|reason| io::Error::new(io::ErrorKind::PermissionDenied, reason))?;
+            inspect_contained_tree(&original).map_err(|reason| io::Error::new(io::ErrorKind::PermissionDenied, reason))?;
+            if quarantine.exists() { return Err(io::Error::new(io::ErrorKind::AlreadyExists, "owned quarantine already exists")); }
+            fs::rename(&original, &quarantine)?;
+        }
+        if quarantine.exists() {
+            inspect_contained_tree(&quarantine).map_err(|reason| io::Error::new(io::ErrorKind::PermissionDenied, reason))?;
+            fs::remove_dir_all(&quarantine)?;
+        }
+        drop(self.owner_marker.take());
+        if let Err(removal_error) = fs::remove_file(&self.marker_path) {
+            match probe_owner(&self.root, &self.marker_path, &self.identity) {
+                OwnerProbe::Stale(marker) => {
+                    self.owner_marker = Some(marker);
+                    return Err(removal_error);
+                }
+                outcome => {
+                    let reason = match outcome {
+                        OwnerProbe::Live => "original marker is held by another owner".to_owned(),
+                        OwnerProbe::Unsafe(reason) => reason,
+                        OwnerProbe::Unproven => "exclusive original marker ownership is unproven".to_owned(),
+                        OwnerProbe::Stale(_) => unreachable!(),
+                    };
+                    return Err(io::Error::new(removal_error.kind(), format!("{removal_error}; original marker reacquisition failed: {reason}")));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub async fn leave_closed_orphan_for_proof(mut self) -> io::Result<PathBuf> {
@@ -290,14 +459,95 @@ impl IsolatedSurrealTestStore {
     }
 
     pub fn release_quarantine_owner_for_proof(mut self) -> PathBuf {
+        if self.reopen_pending {
+            return self.scope_path.clone();
+        }
         drop(self.owner_marker.take());
         self.scope_path.clone()
     }
 }
 
+async fn bounded_scope<T, E: std::fmt::Display>(timeout: Duration, operation: impl std::future::Future<Output = Result<T, E>>) -> io::Result<T> {
+    match tokio::time::timeout(timeout, operation).await {
+        Ok(result) => result.map_err(storage_error),
+        Err(_) => Err(io::Error::new(io::ErrorKind::TimedOut, format!("embedded catalog operation exceeded {} ms timeout", timeout.as_millis()))),
+    }
+}
+
+pub async fn independent_root_namespaces_for_proof(store_path: impl AsRef<Path>, timeout: Duration) -> io::Result<BTreeSet<String>> {
+    independent_catalog_for_proof(store_path.as_ref(), None, timeout).await
+}
+
+pub async fn independent_namespace_databases_for_proof(store_path: impl AsRef<Path>, namespace: &str, timeout: Duration) -> io::Result<BTreeSet<String>> {
+    independent_catalog_for_proof(store_path.as_ref(), Some(namespace), timeout).await
+}
+
+async fn independent_catalog_for_proof(store_path: &Path, namespace: Option<&str>, timeout: Duration) -> io::Result<BTreeSet<String>> {
+    if store_path.file_name().and_then(|name| name.to_str()) != Some("embedded") {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "probe requires exact owned embedded store path"));
+    }
+    let scope_path = store_path.parent().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "probe scope parent missing"))?;
+    let identity = scope_path.file_name().and_then(|name| name.to_str()).and_then(StoreIdentity::parse_scope_name)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::PermissionDenied, "probe scope identity invalid"))?;
+    let root = prepare_root(scope_path.parent().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "probe root missing"))?)?;
+    let expected_namespace = format!("hs_test_ns_{}", identity.id.simple());
+    let database = format!("hs_test_db_{}", identity.token.simple());
+    if namespace.is_some_and(|name| name != expected_namespace) {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "probe namespace differs from exact path identity"));
+    }
+    let marker_path = root.join(identity.marker_name());
+    let mut probe_owner = if !scope_path.exists() {
+        let mut marker = create_held_owner_marker(&marker_path)?;
+        marker.write_all(identity.marker_body().as_bytes())?;
+        marker.sync_data()?;
+        fs::create_dir(scope_path)?;
+        Some(marker)
+    } else { None };
+    let config = SurrealStorageConfig::for_test_scope(store_path.to_path_buf(), &expected_namespace, &database, timeout).map_err(storage_error)?;
+    let probe = match bounded_scope(timeout, SurrealTestMutator::open_root_catalog(config)).await {
+        Ok(probe) => probe,
+        Err(error) => {
+            if let Some(marker) = probe_owner.take() { std::mem::forget(marker); }
+            return Err(error);
+        }
+    };
+    let result = if namespace.is_some() {
+        bounded_scope(timeout, probe.namespace_databases()).await
+    } else { bounded_scope(timeout, probe.root_namespaces()).await };
+    if let Err(error) = probe.close_catalog().await {
+        if let Some(marker) = probe_owner.take() { std::mem::forget(marker); }
+        std::mem::forget(probe);
+        return Err(storage_error(error));
+    }
+    drop(probe);
+    if let Some(marker) = probe_owner.take() {
+        remove_owned_scope(&root, scope_path, &marker_path, &identity, marker)?;
+    }
+    result
+}
+
+pub async fn cleanup_embedded_surreal_scopes(scopes: &mut [IsolatedSurrealTestStore]) -> Vec<EmbeddedSurrealCleanupAttempt> {
+    let mut attempts = Vec::with_capacity(scopes.len());
+    for scope in scopes {
+        let namespace = scope.namespace().to_owned();
+        let database = scope.database().to_owned();
+        let result = scope.cleanup().await;
+        let succeeded = result.is_ok();
+        let diagnostics = result.unwrap_or_else(|error| scope.last_cleanup.clone().unwrap_or_else(|| {
+            let mut pending = scope.pending_cleanup(); pending.error = Some(error.to_string()); pending
+        }));
+        attempts.push(EmbeddedSurrealCleanupAttempt { namespace, database, succeeded, diagnostics });
+    }
+    attempts
+}
+
 impl Drop for IsolatedSurrealTestStore {
     fn drop(&mut self) {
-        if self.storage.is_some() {
+        if self.successful_cleanup.is_none() {
+            eprintln!("embedded_surreal_cleanup_pending namespace={} database={} store={} diagnostics={:?}",
+                self.namespace(), self.database(), self.store_path().display(), self.last_cleanup);
+        }
+        if self.successful_cleanup.is_none() && self.owner_marker.is_some() {
             // Plain drop, unwind, or cancellation cannot prove the asynchronous
             // close barrier completed. Retain the zero-share marker handle until
             // process exit so a sweeper cannot reclaim storage still closing.
@@ -897,7 +1147,7 @@ enum EngineLockProbe {
 fn probe_engine_lock(root: &Path, identity: &StoreIdentity) -> EngineLockProbe {
     use std::os::windows::fs::OpenOptionsExt;
 
-    let lock_path = root.join(identity.scope_name()).join("data").join("LOCK");
+    let lock_path = root.join(identity.scope_name()).join("embedded").join("LOCK");
     match OpenOptions::new()
         .read(true)
         .write(true)

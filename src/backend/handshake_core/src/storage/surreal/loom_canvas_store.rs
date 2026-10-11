@@ -59,7 +59,7 @@ const OWNED_LOOM_BUNDLE_SQL: &str = "BEGIN TRANSACTION; \
     CREATE ONLY $block CONTENT $content RETURN NONE; \
     CREATE $owned_resource SET resource_kind = 'loom_block', external_resource_id = record::id($block), owner_account_id = $creator.account_id, created_by_principal_id = $creator.principal_id, created_in_session_id = $creator, creator_grant_id = $owned_grant, access_space_id = $creator.access_space_id, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = $creator.policy_version, classification = 'account_private', storage_locator_hash = $locator_hash, created_at = time::now(), updated_at = time::now() RETURN NONE; \
     IF array::len((CREATE $owned_grant SET account_id = $creator.account_id, principal_id = $creator.principal_id, access_space_id = $creator.access_space_id, resource_id = $owned_resource, actions = ['read','create','update','delete'], capability_ids = ['fs.read','fs.write'], delegation_chain = $creator.delegation_chain, status = 'active', grant_version = 1, policy_version = $creator.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
-    IF array::len((UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = $content_type, search_text = $search_text, indexed_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((CREATE type::record('kernel_event_ledger', $index_event.event_id) CONTENT $index_event RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; UPSERT $search CONTENT $index_content RETURN NONE; IF (SELECT VALUE index_event_id FROM $search)[0] != type::record('kernel_event_ledger', $index_event.event_id) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((CREATE $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     IF array::len((CREATE $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
@@ -361,6 +361,10 @@ struct OwnedLoomBlockContent {
     block_id: String,
     workspace_id: RecordId,
     created_in_session_id: RecordId,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
     content_type: String,
     document_id: Option<RecordId>,
     asset_id: Option<RecordId>,
@@ -390,6 +394,8 @@ struct OwnedLoomBlockContent {
 
 #[derive(Clone, SurrealValue)]
 struct OwnedLoomBundleBindings {
+    index_content: super::loom_search::IndexContent,
+    index_event: super::loom_search::KernelReceiptWrite,
     block: RecordId,
     content: OwnedLoomBlockContent,
     search: RecordId,
@@ -1265,6 +1271,7 @@ pub(crate) async fn create_record_user_loom_bundle(
         .ok_or(StorageError::Validation(
             "loom block_id must be non-empty without surrounding whitespace",
         ))?;
+    let exact = event_ledger::current_loom_exact_scope(db, workspace_id).await?;
     let is_canvas = matches!(block.content_type, LoomBlockContentType::Canvas);
     // Master Spec LoomBlockContentType (11-shared-dev-platform §242-247) + the implemented canvas
     // kind; LM-RLS-001 gates creation by membership role, not by content type.
@@ -1379,10 +1386,15 @@ pub(crate) async fn create_record_user_loom_bundle(
     if !derived.is_object() {
         derived = json!({});
     }
+    let (index_content, index_event) = super::loom_search::keyword_index(&exact, &preview)?;
     let content = OwnedLoomBlockContent {
         block_id: block_id.clone(),
         workspace_id: RecordId::new(WORKSPACES, workspace_id.to_owned()),
         created_in_session_id: RecordId::new("authenticated_sessions", scope.session_id.clone()),
+        owner_account_id: exact.owner_account_id.to_string(),
+        actor_principal_id: exact.actor_principal_id.to_string(),
+        authenticated_session_id: exact.authenticated_session_id.to_string(),
+        access_space_id: exact.access_space_id.to_string(),
         content_type: preview.content_type.as_str().to_owned(),
         document_id: preview
             .document_id
@@ -1424,6 +1436,8 @@ pub(crate) async fn create_record_user_loom_bundle(
             .map(|id| RecordId::new("assets", id)),
     };
     let bindings = OwnedLoomBundleBindings {
+        index_content,
+        index_event,
         block: RecordId::new(BLOCKS, block_id.clone()),
         content,
         search: RecordId::new("loom_block_search_index", block_id.clone()),

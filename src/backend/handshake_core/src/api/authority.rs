@@ -1278,7 +1278,7 @@ async fn store_session_secret(
         run_session_vault_operation(move || {
             let vault = OsKeychainSecretsVault::new(namespace);
             match token {
-                Some(token) => vault.put(&key, token),
+                Some(token) => vault.put(&key, &token),
                 None => vault.delete(&key),
             }
         })

@@ -5,6 +5,7 @@ use std::{fs, path::Path};
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::llama::{Config, LlamaConfig, LlamaEosToks};
+use serde_json::Value;
 
 use super::{
     hooks::CandleSteeringHooks,
@@ -174,6 +175,16 @@ impl CandleLlamaModel {
         Self::from_varbuilder_with_dtype(model_id, config, Vec::new(), vb, DType::F32, device)
     }
 
+    pub(super) fn from_varbuilder_for_model_with_eos(
+        model_id: ModelId,
+        config: Config,
+        eos_token_ids: Vec<u32>,
+        vb: VarBuilder,
+        device: &Device,
+    ) -> Result<Self, ModelRuntimeError> {
+        Self::from_varbuilder_with_dtype(model_id, config, eos_token_ids, vb, DType::F32, device)
+    }
+
     fn from_varbuilder_with_dtype(
         model_id: ModelId,
         config: Config,
@@ -321,4 +332,16 @@ fn eos_token_ids(config: &LlamaConfig) -> Vec<u32> {
         Some(LlamaEosToks::Multiple(values)) => values.clone(),
         None => Vec::new(),
     }
+}
+
+pub(super) fn decode_llama_config_value(
+    value: &Value,
+) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
+    let llama_config = serde_json::from_value::<LlamaConfig>(value.clone()).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to decode captured Candle Llama config: {error}"
+        ))
+    })?;
+    let eos_token_ids = eos_token_ids(&llama_config);
+    Ok((llama_config.into_config(false), eos_token_ids))
 }

@@ -265,6 +265,84 @@ fn decode_timed_append(
     Ok(row)
 }
 
+#[derive(SurrealValue)]
+struct OriginalLoomSessionScope {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+}
+
+#[derive(SurrealValue)]
+struct LoomScopeSessionBinding { session: RecordId }
+
+pub(crate) async fn current_loom_exact_scope(
+    database: &super::SurrealDataContext<'_>,
+    workspace_id: &str,
+) -> StorageResult<crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution> {
+    use crate::swarm_orchestration::resource_scope::{
+        ExactResourceScopeAttribution, OwnerAccountId, ActorPrincipalId,
+        AuthenticatedSessionRef, AccessSpaceRef, WorkspaceScopeRef,
+    };
+    let authority = super::current_record_user_scope().ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+    let rows = database.query_values::<OriginalLoomSessionScope, _>(
+        "SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, record::id(id) AS authenticated_session_id, record::id(access_space_id) AS access_space_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session LIMIT 2;",
+        LoomScopeSessionBinding { session: RecordId::new("authenticated_sessions", authority.session_id) },
+    ).await?;
+    if rows.len() != 1 { return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")); }
+    let row = rows.into_iter().next().expect("one canonical session");
+    let parse = |value: &str| -> StorageResult<uuid::Uuid> {
+        let id = uuid::Uuid::parse_str(value).map_err(|_| StorageError::Validation("invalid canonical Loom scope UUID"))?;
+        if id.is_nil() { return Err(StorageError::Validation("nil canonical Loom scope UUID")); }
+        Ok(id)
+    };
+    Ok(ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(parse(&row.owner_account_id)?),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&row.actor_principal_id)?),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&row.authenticated_session_id)?),
+        access_space_id: AccessSpaceRef::from_uuid(parse(&row.access_space_id)?),
+        workspace_id: WorkspaceScopeRef::new(workspace_id.to_owned()).map_err(|_| StorageError::Validation("invalid Loom scope workspace"))?,
+    })
+}
+
+/// Requires the original account route's canonical session receipt before publication.
+pub(crate) fn prepare_scoped_loom_event(
+    mut event: NewKernelEvent,
+    scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+) -> StorageResult<(KernelEvent, LedgerWrite)> {
+    let session = LOOM_SESSION_RECEIPT.try_with(Clone::clone).map_err(|_| {
+        StorageError::Validation("Loom scoped publication requires authenticated session actor")
+    })?;
+    let authority = super::current_record_user_scope().ok_or(StorageError::Validation(
+        "Loom scoped publication requires record-user authority",
+    ))?;
+    if authority.session_id != scope.authenticated_session_id.to_string()
+        || session.workspace_id != scope.workspace_id.as_str()
+    {
+        return Err(StorageError::Validation("Loom scoped publication authority mismatch"));
+    }
+    let payload = event.payload.as_object_mut().ok_or(StorageError::Validation(
+        "Loom scoped publication payload must be an object",
+    ))?;
+    for (key, value) in [
+        ("owner_account_id", scope.owner_account_id.to_string()),
+        ("actor_principal_id", scope.actor_principal_id.to_string()),
+        ("authenticated_session_id", scope.authenticated_session_id.to_string()),
+        ("access_space_id", scope.access_space_id.to_string()),
+        ("workspace_id", scope.workspace_id.as_str().to_owned()),
+    ] {
+        if payload.get(key).is_some_and(|stored| stored != &serde_json::Value::String(value.clone())) {
+            return Err(StorageError::Validation("Loom scoped publication payload scope mismatch"));
+        }
+        payload.insert(key.to_owned(), serde_json::Value::String(value));
+    }
+    event.actor = session.actor;
+    event.payload_hash = crate::kernel::context_bundle::sha256_hex(
+        &crate::kernel::context_bundle::canonical_json_bytes(&event.payload),
+    );
+    prepare_event(event)
+}
+
 pub(crate) fn prepare_event(
     mut event: NewKernelEvent,
 ) -> StorageResult<(KernelEvent, LedgerWrite)> {
@@ -1041,29 +1119,60 @@ fn native_editor_completion_matches(pending: &KernelEvent, completed: &KernelEve
         // can revalidate them without rewriting append-only EventLedger rows.
         return false;
     };
-    let expected_payload = serde_json::json!({
+    let Some(envelope) = pending.payload.get("envelope") else {
+        return false;
+    };
+    let Some(client_event_id) = envelope.get("event_id").and_then(serde_json::Value::as_str) else {
+        return false;
+    };
+    let Some(workspace_id) = envelope
+        .get("workspace_id")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return false;
+    };
+    let mut expected_payload = serde_json::json!({
         "receipt_kind": "native_editor_flight_recorder_recorded",
         "fr_event_id": pending.aggregate_id,
+        "client_event_id": client_event_id,
         "fr_event_type": "system",
-        "envelope": pending.payload.get("envelope").cloned().unwrap_or(serde_json::Value::Null),
+        "envelope": envelope,
     });
-    completed.aggregate_type == pending.aggregate_type
+    if pending.payload.get("owner_account_id").is_some() {
+        let Ok(attribution) = serde_json::from_value::<
+            crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+        >(pending.payload.clone()) else {
+            return false;
+        };
+        if attribution.workspace_id.as_str() != workspace_id {
+            return false;
+        }
+        if attribution
+            .stamp_json_object(&mut expected_payload)
+            .is_err()
+        {
+            return false;
+        }
+    }
+    let computed_hash = crate::kernel::context_bundle::sha256_hex(
+        &crate::kernel::context_bundle::canonical_json_bytes(&expected_payload),
+    );
+    if computed_hash != expected_hash {
+        return false;
+    }
+    completed.event_type == KernelEventType::FlightRecorderMirrorRecorded
+        && completed.aggregate_type == pending.aggregate_type
         && completed.aggregate_id == pending.aggregate_id
         && completed.event_version == pending.event_version
         && completed.kernel_task_run_id == pending.kernel_task_run_id
         && completed.session_run_id == pending.session_run_id
         && completed.idempotency_key
-            == format!("native-editor-fr-complete:{}", pending.aggregate_id)
+            == format!("native-editor-fr-complete:{workspace_id}:{client_event_id}")
         && completed.source_component == "native_editor_fr_ingestion"
         && completed.actor == pending.actor
         && completed.causation_id.as_deref() == Some(pending.event_id.as_str())
         && completed.correlation_id.as_deref()
-            == Some(
-                pending
-                    .correlation_id
-                    .as_deref()
-                    .unwrap_or(pending.aggregate_id.as_str()),
-            )
+            == Some(pending.correlation_id.as_deref().unwrap_or(client_event_id))
         && completed.payload_hash == expected_hash
         && completed.payload == expected_payload
 }

@@ -3,13 +3,15 @@
 //! These are pure data: no async, no locks. They are the inputs the operator
 //! / upstream scheduler hands to [`super::coordinator::SwarmCoordinator`].
 
-use std::fmt;
+use std::{collections::BTreeSet, fmt};
 
 use serde::{Deserialize, Serialize};
 
 use crate::model_runtime::ModelId;
 use crate::model_runtime::ProviderKind;
 use crate::model_runtime::{registry::RuntimeBinding, WarmVmSnapshotManifest};
+
+use super::model_lane::DexterityLaunchContract;
 
 /// Specific BYOK provider under the coarse `ProviderKind::ByokCloud` lane.
 /// Kept optional on [`SpawnRequest`] for backward compatibility: old callers
@@ -57,6 +59,28 @@ impl fmt::Display for ModelInstanceId {
     }
 }
 
+/// Fenced coordinator-owned checkout lease attached before factory creation.
+/// The token is attribution data; the corresponding OS lock remains owned by
+/// the coordinator until terminal teardown and durable STOP complete.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckoutLeaseRef {
+    pub lease_id: uuid::Uuid,
+    pub owner_generation: u64,
+    pub owner_instance_id: ModelInstanceId,
+    pub worktree_id: Option<String>,
+    pub canonical_working_dir: Option<String>,
+}
+
+/// Exact routing-stage incarnation that owns a spawned runtime. Stable model
+/// instance IDs are intentionally reusable across routing retries, so they are
+/// not sufficient authority for cancellation or completion on their own.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RoutingAttemptIdentity {
+    pub execution_id: String,
+    pub stage_id: String,
+    pub attempt: u32,
+}
+
 /// A request to spawn a single model session into the swarm. The factory turns
 /// this into a live session; the coordinator enforces the bounds before the
 /// factory is ever called.
@@ -75,6 +99,11 @@ pub struct SpawnRequest {
     /// passes to the cloud adapter's allowlisted `load`. Required for cloud
     /// providers; ignored for local.
     pub cloud_model_name: Option<String>,
+    /// Exact official CLI provider selected under `ProviderKind::OfficialCli`
+    /// (`claude_code` | `codex`). Without this, legacy callers fall back to the
+    /// single configured CLI bridge, but operator-chat launches must preserve
+    /// the row the operator clicked.
+    pub official_cli_provider: Option<String>,
     /// Optional provider flavor for `ProviderKind::ByokCloud`. Without this the
     /// production factory uses its legacy configured-lane fallback; with it, the
     /// requested Anthropic/OpenAI lane must be configured and is honored exactly.
@@ -107,25 +136,40 @@ pub struct SpawnRequest {
     /// recovery and board grouping. `None` for a session not bound to a worktree.
     pub worktree_id: Option<String>,
     /// Operator-assigned on-disk place for this session (absolute OR repo-relative,
-    /// disk-agnostic). RECORDED ATTRIBUTION ONLY today: it is carried into the
-    /// ledger / side-table / transcript for "where does this session live" answers
-    /// and as the bridge to future VM-execution routing. It is NOT resolved,
-    /// created, or used as a real cwd here — the swarm session runs in-process.
+    /// disk-agnostic). For CLI-bridge lanes (`ProviderKind::OfficialCli`) this is
+    /// LOAD-BEARING as of WP-1 MT-012: the production factory plumbs it into
+    /// `CliBridgeConfig.working_dir`, which `LiveCliSpawner` applies as the real
+    /// subprocess cwd (`cmd.current_dir`). For warm Tier-3 local model lanes it
+    /// is also LOAD-BEARING: the coordinator canonicalizes and fences it, then
+    /// the production factory binds that exact checkout read-only at `/worktree`
+    /// inside the microVM. For other in-process local/BYOK lanes it remains
+    /// RECORDED ATTRIBUTION ONLY because those lanes have no local subprocess.
     /// `None` for a session with no assigned disk location.
     pub working_dir: Option<String>,
+    /// Coordinator-minted authority. Callers cannot supply this; spawn_session
+    /// overwrites it after acquiring both OS-backed checkout lease keys.
+    pub checkout_lease: Option<CheckoutLeaseRef>,
     /// Operator-intended isolation tier for this session (mirrors
     /// [`crate::sandbox::adapter::IsolationTier`]).
     ///
     /// WP-KERNEL-004 wave 1 made this LOAD-BEARING for exactly ONE route: a
-    /// `Local`+`LlamaCpp` spawn with `isolation_tier == Some(Tier3Microvm)` is
-    /// dispatched by [`super::production_factory::ProductionModelSessionFactory`]
-    /// into a Cloud Hypervisor microVM (`create_sandboxed_local`) instead of an
-    /// in-process llama.cpp load. Every OTHER tier value (incl. `None`,
-    /// `Tier1Container`, `Tier2Syscall`) remains RECORDED-ONLY today — it is
-    /// carried into the ledger / transcript as the operator's intent but does not
-    /// yet select an execution substrate; those sessions still run in-process.
+    /// `Local`+`LlamaCpp` Tier3 dispatches into a Cloud Hypervisor microVM.
+    /// Official-CLI dispatch also treats this as a load-bearing minimum and
+    /// rejects any adapter whose effective tier is weaker. Other local lanes
+    /// continue to record non-Tier3 values without changing substrate.
     /// `None` for no recorded tier.
     pub isolation_tier: Option<crate::sandbox::adapter::IsolationTier>,
+    /// Explicit trust decision for sandboxed execution. Official-CLI launches
+    /// require this field and never infer trust from spawner construction.
+    pub requested_trust_class: Option<crate::sandbox::TrustClass>,
+    /// Explicit adapter capabilities required by this request. `None` means no
+    /// posture was supplied; `Some(empty)` is an explicit no-extra-capabilities
+    /// request and remains distinguishable from missing authority.
+    pub requested_sandbox_capabilities: Option<BTreeSet<crate::sandbox::RequiredCapability>>,
+    /// Requested network policy for the actual sandbox invocation.
+    pub requested_net_policy: Option<crate::sandbox::NetPolicy>,
+    /// Durable execution-policy authority reference applied to this request.
+    pub requested_execution_policy_ref: Option<String>,
     /// rank-7 time-boxing: an optional per-spawn lease lifetime. When set, the
     /// session's claim lease expires after this duration instead of the
     /// coordinator's configured `lease_ttl`; with no lease renewal the EXISTING
@@ -150,6 +194,15 @@ pub struct SpawnRequest {
     /// this against the request's model hash, guest model path, and worktree
     /// before calling the adapter's snapshot restore path.
     pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
+    /// Typed Dexterity launch-recording contract. When present, the coordinator
+    /// must persist the model-lane run/lane rows after the factory creates a
+    /// real LiveSession and before returning spawn success.
+    pub dexterity_launch: Option<DexterityLaunchContract>,
+    /// Exact routing attempt that owns this spawn. Non-routing callers leave
+    /// this unset. The coordinator copies it into pending and live registries
+    /// so stale routing workers cannot act on a replacement with the same
+    /// stable [`ModelInstanceId`].
+    pub routing_attempt: Option<RoutingAttemptIdentity>,
 }
 
 impl SpawnRequest {
@@ -164,6 +217,7 @@ impl SpawnRequest {
             runtime_binding,
             provider: None,
             cloud_model_name: None,
+            official_cli_provider: None,
             byok_cloud_provider: None,
             owner_role: owner_role.into(),
             owner_wp: None,
@@ -176,11 +230,18 @@ impl SpawnRequest {
             swarm_id: None,
             worktree_id: None,
             working_dir: None,
+            checkout_lease: None,
             isolation_tier: None,
+            requested_trust_class: None,
+            requested_sandbox_capabilities: None,
+            requested_net_policy: None,
+            requested_execution_policy_ref: None,
             time_box: None,
             committed_memory_bytes: None,
             local_execution_mode: None,
             warm_vm_restore_manifest: None,
+            dexterity_launch: None,
+            routing_attempt: None,
         }
     }
 
@@ -213,6 +274,13 @@ impl SpawnRequest {
         self
     }
 
+    /// Select the exact official CLI bridge provider under
+    /// `ProviderKind::OfficialCli`.
+    pub fn with_official_cli_provider(mut self, provider: impl Into<String>) -> Self {
+        self.official_cli_provider = Some(provider.into());
+        self
+    }
+
     /// Select the exact BYOK provider under `ProviderKind::ByokCloud`.
     pub fn with_byok_cloud_provider(mut self, provider: ByokCloudProvider) -> Self {
         self.byok_cloud_provider = Some(provider);
@@ -241,18 +309,37 @@ impl SpawnRequest {
         self
     }
 
-    /// Record the operator-assigned on-disk place for this session. RECORDED
-    /// ATTRIBUTION ONLY — see the `working_dir` field doc; not resolved or used as
-    /// a cwd here.
+    /// Record the operator-assigned on-disk place for this session. Official-CLI
+    /// production dispatch uses it as the validated attached-process cwd; warm
+    /// Tier-3 local dispatch binds its coordinator-canonicalized form at
+    /// `/worktree`; other lanes follow the field documentation above.
     pub fn with_working_dir(mut self, working_dir: impl Into<String>) -> Self {
         self.working_dir = Some(working_dir.into());
         self
     }
 
-    /// Record the operator-intended isolation tier. RECORDED ONLY — see the
-    /// `isolation_tier` field doc; not enforced (the session runs in-process).
+    /// Record the operator-intended isolation tier. This is load-bearing for
+    /// Official-CLI and local Tier3 routes; see the field documentation.
     pub fn with_isolation_tier(mut self, tier: crate::sandbox::adapter::IsolationTier) -> Self {
         self.isolation_tier = Some(tier);
+        self
+    }
+
+    /// Supply the complete sandbox posture atomically. Official-CLI production
+    /// dispatch fails closed when this posture is absent or partial.
+    pub fn with_sandbox_posture(
+        mut self,
+        trust_class: crate::sandbox::TrustClass,
+        isolation_tier: crate::sandbox::adapter::IsolationTier,
+        required_capabilities: BTreeSet<crate::sandbox::RequiredCapability>,
+        net_policy: crate::sandbox::NetPolicy,
+        execution_policy_ref: impl Into<String>,
+    ) -> Self {
+        self.requested_trust_class = Some(trust_class);
+        self.isolation_tier = Some(isolation_tier);
+        self.requested_sandbox_capabilities = Some(required_capabilities);
+        self.requested_net_policy = Some(net_policy);
+        self.requested_execution_policy_ref = Some(execution_policy_ref.into());
         self
     }
 
@@ -287,6 +374,16 @@ impl SpawnRequest {
         self
     }
 
+    pub fn with_dexterity_launch(mut self, launch: DexterityLaunchContract) -> Self {
+        self.dexterity_launch = Some(launch);
+        self
+    }
+
+    pub fn with_routing_attempt(mut self, routing_attempt: RoutingAttemptIdentity) -> Self {
+        self.routing_attempt = Some(routing_attempt);
+        self
+    }
+
     pub fn wants_warm_vm_execution(&self) -> bool {
         self.local_execution_mode == Some(LocalExecutionMode::WarmVm)
     }
@@ -299,12 +396,16 @@ impl SpawnRequest {
         self.worktree_id.as_deref()
     }
 
-    /// The operator-assigned on-disk place, if recorded (attribution only).
+    /// The operator-assigned on-disk place, if supplied.
     pub fn working_dir(&self) -> Option<&str> {
         self.working_dir.as_deref()
     }
 
-    /// The operator-intended isolation tier, if recorded (not enforced).
+    pub fn checkout_lease(&self) -> Option<&CheckoutLeaseRef> {
+        self.checkout_lease.as_ref()
+    }
+
+    /// The operator-intended isolation tier, if supplied.
     pub fn isolation_tier(&self) -> Option<crate::sandbox::adapter::IsolationTier> {
         self.isolation_tier
     }

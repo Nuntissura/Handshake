@@ -8,7 +8,11 @@ use std::{
     },
     path::PathBuf,
     ptr::{null, null_mut},
-    time::Duration,
+    sync::{
+        atomic::{AtomicBool, AtomicU8, Ordering},
+        Arc, Mutex,
+    },
+    time::{Duration, Instant},
 };
 
 use windows_sys::Win32::{
@@ -45,29 +49,110 @@ use super::job_object_wrap::{WindowsNativeJobGuard, WindowsNativeJobLimits};
 const SE_GROUP_ENABLED: u32 = 0x0000_0004;
 const SE_GROUP_LOGON_ID: u32 = 0xC000_0000;
 const JOB_TERMINATED_EXIT_CODE: u32 = 1;
+const PROCESS_TERMINATION_WAIT_MS: u32 = 5_000;
+
+/// This is the crate's single raw `bInheritHandles=TRUE` process-creation
+/// path. Serialize the interval in which child pipe handles are inheritable so
+/// another attached launch cannot capture them before the explicit handle list
+/// is consumed by CreateProcessAsUserW.
+static INHERITABLE_HANDLE_SPAWN_LOCK: Mutex<()> = Mutex::new(());
+
+const STARTUP_RESUME_INITIAL: u8 = 0;
+const STARTUP_RESUME_CANCELLED_BEFORE_RESUME: u8 = 1;
+const STARTUP_RESUME_CLAIMED: u8 = 2;
 
 #[derive(Debug)]
-pub(super) struct WindowsNativeLaunchOptions {
-    pub(super) exe: PathBuf,
-    pub(super) args: Vec<String>,
-    pub(super) cwd: Option<PathBuf>,
-    pub(super) env: Option<Vec<(OsString, OsString)>>,
-    pub(super) job_limits: WindowsNativeJobLimits,
-    pub(super) startup_timeout: Option<Duration>,
+pub(crate) struct StartupCancellation {
+    cancelled: AtomicBool,
+    resume_state: AtomicU8,
+}
+
+impl Default for StartupCancellation {
+    fn default() -> Self {
+        Self {
+            cancelled: AtomicBool::new(false),
+            resume_state: AtomicU8::new(STARTUP_RESUME_INITIAL),
+        }
+    }
+}
+
+impl StartupCancellation {
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+
+    /// Returns true when cancellation won before the suspended process was
+    /// resumed. False means resume already won; cancellation is still recorded
+    /// so the launch worker reclaims the attributed late child before releasing
+    /// startup admission.
+    pub(crate) fn cancel_before_resume(&self) -> bool {
+        self.cancelled.store(true, Ordering::Release);
+        self.resume_state
+            .compare_exchange(
+                STARTUP_RESUME_INITIAL,
+                STARTUP_RESUME_CANCELLED_BEFORE_RESUME,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+    }
+
+    /// Atomically claims the resume side-effect boundary. No mutex is held
+    /// across `ResumeThread`, so a stalled Win32 call cannot block the async
+    /// timeout path from recording cancellation and returning within its bound.
+    fn try_claim_resume(&self) -> bool {
+        self.resume_state
+            .compare_exchange(
+                STARTUP_RESUME_INITIAL,
+                STARTUP_RESUME_CLAIMED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+    }
+
+    #[cfg(test)]
+    fn resume_state(&self) -> u8 {
+        self.resume_state.load(Ordering::Acquire)
+    }
+}
+
+fn wait_for_process_termination_bounded(process: HANDLE, context: &str) -> Result<(), String> {
+    let wait = unsafe { WaitForSingleObject(process, PROCESS_TERMINATION_WAIT_MS) };
+    if wait == WAIT_FAILED {
+        return Err(format!("{context}: {}", last_error("WaitForSingleObject")));
+    }
+    if wait == WAIT_TIMEOUT {
+        return Err(format!(
+            "{context}: process did not terminate within {PROCESS_TERMINATION_WAIT_MS} ms"
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
-pub(super) struct WindowsNativeLaunchedIo {
-    pub(super) pid: u32,
-    pub(super) stdin: Option<File>,
-    pub(super) stdout: Option<File>,
-    pub(super) stderr: Option<File>,
-    pub(super) job_guard: Option<WindowsNativeJobGuard>,
+pub(crate) struct WindowsNativeLaunchOptions {
+    pub(crate) exe: PathBuf,
+    pub(crate) args: Vec<String>,
+    pub(crate) cwd: Option<PathBuf>,
+    pub(crate) env: Option<Vec<(OsString, OsString)>>,
+    pub(crate) job_limits: WindowsNativeJobLimits,
+    pub(crate) startup_timeout: Option<Duration>,
+    pub(crate) startup_cancellation: Option<Arc<StartupCancellation>>,
+}
+
+#[derive(Debug)]
+pub(crate) struct WindowsNativeLaunchedIo {
+    pub(crate) pid: u32,
+    pub(crate) stdin: Option<File>,
+    pub(crate) stdout: Option<File>,
+    pub(crate) stderr: Option<File>,
+    pub(crate) job_guard: Option<WindowsNativeJobGuard>,
     process: OwnedHandle,
 }
 
 impl WindowsNativeLaunchedIo {
-    pub(super) fn wait(self, timeout: Option<Duration>) -> Result<u32, String> {
+    pub(crate) fn wait(self, timeout: Option<Duration>) -> Result<u32, String> {
         let millis = timeout
             .map(|duration| duration.as_millis().min(u128::from(u32::MAX)) as u32)
             .unwrap_or(INFINITE);
@@ -86,12 +171,32 @@ impl WindowsNativeLaunchedIo {
         }
         Ok(exit_code)
     }
+
+    pub(crate) fn try_wait(&self) -> Result<Option<u32>, String> {
+        let wait = unsafe { WaitForSingleObject(self.process.raw(), 0) };
+        if wait == WAIT_FAILED {
+            return Err(last_error("WaitForSingleObject"));
+        }
+        if wait == WAIT_TIMEOUT {
+            return Ok(None);
+        }
+        let mut exit_code = STILL_ACTIVE as u32;
+        let ok = unsafe { GetExitCodeProcess(self.process.raw(), &mut exit_code) };
+        if ok == 0 {
+            return Err(last_error("GetExitCodeProcess"));
+        }
+        Ok(Some(exit_code))
+    }
 }
 
 pub(super) fn launch_restricted_appcontainer_with_io(
     security: &rappct::SecurityCapabilities,
     options: WindowsNativeLaunchOptions,
 ) -> Result<WindowsNativeLaunchedIo, String> {
+    let launch_started = Instant::now();
+    if options.startup_timeout == Some(Duration::ZERO) {
+        return Err("startup timeout must be greater than zero".to_string());
+    }
     if security.lpac {
         rappct::supports_lpac()
             .map_err(|error| format!("LPAC requested but unavailable: {error}"))?;
@@ -99,6 +204,9 @@ pub(super) fn launch_restricted_appcontainer_with_io(
 
     let security_caps = OwnedSecurityCapabilities::new(security)?;
     let restricted_token = create_restricted_primary_token()?;
+    let inheritable_handle_guard = INHERITABLE_HANDLE_SPAWN_LOCK
+        .lock()
+        .map_err(|_| "inheritable-handle process-creation lock poisoned".to_string())?;
     let mut stdio = PipeStdio::new()?;
     let mut job_guard = Some(WindowsNativeJobGuard::create(options.job_limits)?);
     let job_handles = [job_guard
@@ -167,16 +275,51 @@ pub(super) fn launch_restricted_appcontainer_with_io(
         )
     };
     if ok == 0 {
+        let clear_error = stdio.clear_child_inheritance().err();
+        drop(inheritable_handle_guard);
         return Err(format!(
-            "{}; exe={}; cmdline={}",
+            "{}; exe={}; cmdline={}{}",
             last_error("CreateProcessAsUserW"),
             options.exe.display(),
-            cmdline
+            cmdline,
+            clear_error
+                .map(|error| format!("; child-handle cleanup failed: {error}"))
+                .unwrap_or_default()
         ));
     }
 
     let process = OwnedHandle::from_raw(process_info.hProcess, "process")?;
     let thread = OwnedHandle::from_raw(process_info.hThread, "thread")?;
+    if let Err(error) = stdio.clear_child_inheritance() {
+        let _ = unsafe {
+            windows_sys::Win32::System::Threading::TerminateProcess(
+                process.raw(),
+                JOB_TERMINATED_EXIT_CODE,
+            )
+        };
+        drop(inheritable_handle_guard);
+        return Err(format!(
+            "failed to clear child pipe inheritance after process creation: {error}"
+        ));
+    }
+    drop(inheritable_handle_guard);
+    if options
+        .startup_cancellation
+        .as_ref()
+        .is_some_and(|cancellation| !cancellation.try_claim_resume())
+    {
+        let _ = unsafe {
+            windows_sys::Win32::System::Threading::TerminateProcess(
+                process.raw(),
+                JOB_TERMINATED_EXIT_CODE,
+            )
+        };
+        wait_for_process_termination_bounded(
+            process.raw(),
+            "attached startup cancellation cleanup",
+        )?;
+        return Err("attached startup cancelled before suspended-process resume".to_string());
+    }
     let resumed = unsafe { ResumeThread(thread.raw()) };
     if resumed == u32::MAX {
         let _ = unsafe {
@@ -195,14 +338,18 @@ pub(super) fn launch_restricted_appcontainer_with_io(
     let parent_stderr = stdio.parent_stderr.take().map(OwnedHandle::into_file);
 
     if let Some(timeout) = options.startup_timeout {
-        let wait = unsafe {
-            WaitForSingleObject(
+        if launch_started.elapsed() > timeout {
+            if let Some(job) = job_guard.as_ref() {
+                let _ = job.terminate(JOB_TERMINATED_EXIT_CODE);
+            }
+            wait_for_process_termination_bounded(
                 process.raw(),
-                timeout.as_millis().min(u128::from(u32::MAX)) as u32,
-            )
-        };
-        if wait == WAIT_FAILED {
-            return Err(last_error("WaitForSingleObject(startup)"));
+                "AppContainer startup-timeout cleanup",
+            )?;
+            return Err(format!(
+                "AppContainer process creation exceeded startup timeout of {} ms",
+                timeout.as_millis()
+            ));
         }
     }
 
@@ -586,6 +733,13 @@ impl PipeStdio {
             self.child_stderr.raw(),
         ]
     }
+
+    fn clear_child_inheritance(&self) -> Result<(), String> {
+        set_handle_inherit(self.child_stdin.raw(), false, "stdin child read")?;
+        set_handle_inherit(self.child_stdout.raw(), false, "stdout child write")?;
+        set_handle_inherit(self.child_stderr.raw(), false, "stderr child write")?;
+        Ok(())
+    }
 }
 
 fn create_pipe_pair(label: &str) -> Result<(OwnedHandle, OwnedHandle), String> {
@@ -706,6 +860,10 @@ fn build_env_block(env: &[(OsString, OsString)]) -> Vec<u16> {
         block.push(0);
     }
     block.push(0);
+    if env.is_empty() {
+        // Windows requires an empty environment block to contain two NULs.
+        block.push(0);
+    }
     block
 }
 
@@ -725,4 +883,66 @@ fn last_error(stage: &str) -> String {
         "{stage} failed with Win32 error {code}: {}",
         io::Error::last_os_error()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exact_empty_environment_block_is_double_nul_terminated() {
+        assert_eq!(build_env_block(&[]), vec![0, 0]);
+    }
+
+    #[test]
+    fn exact_environment_block_has_no_ambient_entries() {
+        let block = build_env_block(&[(OsString::from("ONLY"), OsString::from("value"))]);
+        let expected = "ONLY=value\0\0".encode_utf16().collect::<Vec<_>>();
+        assert_eq!(block, expected);
+    }
+
+    #[test]
+    fn startup_cancellation_wins_before_resume() {
+        let cancellation = StartupCancellation::default();
+        assert!(cancellation.cancel_before_resume());
+        assert!(cancellation.is_cancelled());
+        assert_eq!(
+            cancellation.resume_state(),
+            STARTUP_RESUME_CANCELLED_BEFORE_RESUME
+        );
+        assert!(!cancellation.try_claim_resume());
+    }
+
+    #[test]
+    fn startup_timeout_after_resume_requests_late_child_reclaim() {
+        let cancellation = StartupCancellation::default();
+        assert!(cancellation.try_claim_resume());
+        assert!(!cancellation.cancel_before_resume());
+        assert!(cancellation.is_cancelled());
+        assert_eq!(cancellation.resume_state(), STARTUP_RESUME_CLAIMED);
+    }
+
+    #[test]
+    fn cancellation_never_waits_for_a_claimed_resume_boundary() {
+        let cancellation = Arc::new(StartupCancellation::default());
+        assert!(cancellation.try_claim_resume());
+
+        let (finished_tx, finished_rx) = std::sync::mpsc::channel();
+        let worker_cancellation = cancellation.clone();
+        let worker = std::thread::spawn(move || {
+            let won_before_resume = worker_cancellation.cancel_before_resume();
+            finished_tx
+                .send(won_before_resume)
+                .expect("cancellation result receiver remains live");
+        });
+
+        assert_eq!(
+            finished_rx
+                .recv_timeout(Duration::from_millis(250))
+                .expect("atomic cancellation must not block behind resume"),
+            false
+        );
+        worker.join().expect("cancellation worker joins");
+        assert!(cancellation.is_cancelled());
+    }
 }

@@ -1777,6 +1777,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             NetPolicy::Allowlist(_) => Err(net_policy_failed(
                 "cloud_hypervisor microVMs boot with no network device; external allowlist entries require a future tap/virtio-net bind and fail closed",
             )),
+            NetPolicy::HostInherited => Err(net_policy_failed(
+                "cloud_hypervisor cannot enforce attached host-inherited networking and fails closed",
+            )),
         }
     }
 

@@ -30,11 +30,7 @@ pub fn estimate_tokens(text: &str) -> u32 {
     (text.len().saturating_add(3) / 4) as u32
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+pub use crate::storage::artifacts::sha256_hex;
 
 fn deterministic_uuid_for_str(value: &str) -> Uuid {
     let mut hasher = Sha256::new();

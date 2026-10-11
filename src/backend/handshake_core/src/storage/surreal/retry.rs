@@ -251,7 +251,7 @@ pub fn is_unique_index_violation(message: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Arc, atomic::Ordering};
+    use std::sync::{atomic::Ordering, Arc};
     use std::time::{Duration, Instant};
     fn ms(value: u64) -> Duration {
         Duration::from_millis(value)

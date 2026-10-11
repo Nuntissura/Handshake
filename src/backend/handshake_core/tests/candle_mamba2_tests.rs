@@ -52,6 +52,8 @@ fn candle_mamba2_capabilities_are_base_path_only() {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: true,
+        supports_embedding: true,
+        embedding_dimension: Some(4),
     };
 
     let actual = candle_mamba2_capabilities(&declared);
@@ -67,6 +69,8 @@ fn candle_mamba2_capabilities_are_base_path_only() {
     assert!(actual.supports_subquadratic);
     assert!(!actual.supports_speculative_draft);
     assert!(!actual.supports_eagle3);
+    assert!(!actual.supports_embedding);
+    assert_eq!(actual.embedding_dimension, None);
 }
 
 #[test]
@@ -271,6 +275,8 @@ fn load_spec(artifact_path: &Path) -> LoadSpec {
             supports_subquadratic: false,
             supports_speculative_draft: true,
             supports_eagle3: true,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: Some(handshake_core::model_runtime::CANDLE_LOCAL_ENGINE_ORIGIN.to_string()),

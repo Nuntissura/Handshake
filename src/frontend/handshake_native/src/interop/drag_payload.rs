@@ -42,7 +42,16 @@ use std::{any::Any, sync::Arc};
 /// render as the non-media `hsLink` CHIP (a labelled reference), not an inline image, so an unresolved or
 /// remote CKC item never blocks the editor on an asset fetch. All four are valid `refKind` strings the
 /// opaque-JSONB `content_json` round-trips losslessly.
-pub const ATELIER_EMBED_REF_KINDS: [&str; 4] = ["atelier", "media", "character", "moodboard"];
+pub const ATELIER_EMBED_REF_KINDS: [&str; 8] = [
+    "atelier",
+    "media",
+    "media_album",
+    "folder",
+    "source_url",
+    "character",
+    "character_sheet",
+    "moodboard",
+];
 
 /// Which CKC/Atelier artifact kind a [`DragPayload::AtelierRef`] references. The variant set is exactly
 /// the MT-033 contract list (`Media | Character | Moodboard`); the [`AtelierItemKind::ref_kind`] mapping
@@ -51,8 +60,16 @@ pub const ATELIER_EMBED_REF_KINDS: [&str; 4] = ["atelier", "media", "character",
 pub enum AtelierItemKind {
     /// A media asset (image/video/album from the atelier intake store).
     Media,
+    /// A CKC/Atelier media collection reference. This is a chip, not a renderable rich-editor `album`.
+    MediaAlbum,
+    /// A CKC/Atelier source-folder provenance reference.
+    Folder,
+    /// A CKC/Atelier source-URL provenance reference.
+    SourceUrl,
     /// A character (atelier character record).
     Character,
+    /// A versioned character sheet (`atelier://sheet/{character}/{version}`).
+    CharacterSheet,
     /// A moodboard / collection.
     Moodboard,
 }
@@ -63,7 +80,11 @@ impl AtelierItemKind {
     pub fn ref_kind(self) -> &'static str {
         match self {
             AtelierItemKind::Media => "media",
+            AtelierItemKind::MediaAlbum => "media_album",
+            AtelierItemKind::Folder => "folder",
+            AtelierItemKind::SourceUrl => "source_url",
             AtelierItemKind::Character => "character",
+            AtelierItemKind::CharacterSheet => "character_sheet",
             AtelierItemKind::Moodboard => "moodboard",
         }
     }
@@ -74,7 +95,11 @@ impl AtelierItemKind {
     pub fn from_ref_kind(ref_kind: &str) -> Option<Self> {
         match ref_kind {
             "media" | "atelier" => Some(AtelierItemKind::Media),
+            "media_album" | "collection" => Some(AtelierItemKind::MediaAlbum),
+            "folder" | "source_folder" => Some(AtelierItemKind::Folder),
+            "source_url" | "url" => Some(AtelierItemKind::SourceUrl),
             "character" => Some(AtelierItemKind::Character),
+            "character_sheet" | "sheet" | "sheet_version" => Some(AtelierItemKind::CharacterSheet),
             "moodboard" => Some(AtelierItemKind::Moodboard),
             _ => None,
         }
@@ -85,7 +110,11 @@ impl AtelierItemKind {
     pub fn badge(self) -> &'static str {
         match self {
             AtelierItemKind::Media => "Media",
+            AtelierItemKind::MediaAlbum => "Album",
+            AtelierItemKind::Folder => "Folder",
+            AtelierItemKind::SourceUrl => "URL",
             AtelierItemKind::Character => "Character",
+            AtelierItemKind::CharacterSheet => "Sheet",
             AtelierItemKind::Moodboard => "Moodboard",
         }
     }
@@ -140,6 +169,30 @@ impl AtelierRef {
             label: label.into(),
             loom_block_id: Some(loom_block_id.into()),
         }
+    }
+
+    /// Build a versioned CKC character-sheet reference. The `item_id`/`refValue`
+    /// is the portable sheet address, not a copied block of sheet text.
+    pub fn character_sheet_version(
+        character_internal_id: impl AsRef<str>,
+        sheet_version_id: impl AsRef<str>,
+        label: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            format!(
+                "atelier://sheet/{}/{}",
+                character_internal_id.as_ref(),
+                sheet_version_id.as_ref()
+            ),
+            AtelierItemKind::CharacterSheet,
+            label,
+        )
+    }
+
+    /// Build a CKC media-album/collection reference. The `media_album`
+    /// refKind is deliberately distinct from rich-editor `album` embeds.
+    pub fn media_album(collection_ref: impl Into<String>, label: impl Into<String>) -> Self {
+        Self::new(collection_ref, AtelierItemKind::MediaAlbum, label)
     }
 
     /// The `hsLink` `refKind` this reference's embed atom carries (the `item_kind` mapping).

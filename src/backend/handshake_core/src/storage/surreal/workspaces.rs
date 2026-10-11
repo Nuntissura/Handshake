@@ -621,8 +621,8 @@ COMMIT TRANSACTION;
         channel_hash: &str,
     ) -> Result<Vec<Workspace>, super::resource_authority::ResourceAuthorityError> {
         use super::resource_authority::{
-            AuthorizationRequest, ResourceAction, ResourceAuthorityError, ResourceKind, SigninParams,
-            AUTHORITY_ACCESS_METHOD,
+            AuthorizationRequest, ResourceAction, ResourceAuthorityError, ResourceKind,
+            SigninParams, AUTHORITY_ACCESS_METHOD,
         };
         use sha2::{Digest, Sha256};
         use surrealdb::opt::auth::Record;
@@ -630,17 +630,36 @@ COMMIT TRANSACTION;
         let database = self.config().database().to_owned();
         let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
         let channel_binding_hash = Some(channel_hash.to_owned());
-        let candidates: Vec<Workspace> = self.with_lease(move |client| Box::pin(async move {
-            let ordinary = client.clone();
-            ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
-            ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
-                params: SigninParams { token_hash, channel_binding_hash } }).await?;
-            // Table RLS evaluates grants with permission-predicate visibility. A normal WHERE
-            // invocation instead sees protected_resources.external_resource_id as NONE.
-            let mut result = ordinary.query("SELECT * FROM workspaces ORDER BY created_at, id;").await?.check()?;
-            let rows: Vec<WorkspaceRecord> = result.take(0)?;
-            rows.into_iter().map(TryInto::try_into).collect()
-        })).await?;
+        let candidates: Vec<Workspace> = self
+            .with_lease(move |client| {
+                Box::pin(async move {
+                    let ordinary = client.clone();
+                    ordinary
+                        .use_ns(namespace.clone())
+                        .use_db(database.clone())
+                        .await?;
+                    ordinary
+                        .signin(Record {
+                            namespace,
+                            database,
+                            access: AUTHORITY_ACCESS_METHOD.to_owned(),
+                            params: SigninParams {
+                                token_hash,
+                                channel_binding_hash,
+                            },
+                        })
+                        .await?;
+                    // Table RLS evaluates grants with permission-predicate visibility. A normal WHERE
+                    // invocation instead sees protected_resources.external_resource_id as NONE.
+                    let mut result = ordinary
+                        .query("SELECT * FROM workspaces ORDER BY created_at, id;")
+                        .await?
+                        .check()?;
+                    let rows: Vec<WorkspaceRecord> = result.take(0)?;
+                    rows.into_iter().map(TryInto::try_into).collect()
+                })
+            })
+            .await?;
         let mut visible = Vec::with_capacity(candidates.len());
         for workspace in candidates {
             // Table RLS also admits memory/fr readers; this route still requires fs.read.

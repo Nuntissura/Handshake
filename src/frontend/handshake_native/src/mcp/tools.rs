@@ -420,6 +420,16 @@ pub fn dispatch_request(
             }
             Err(e) => McpResponse::err(request.id.clone(), McpError::general(e.code, e.message)),
         },
+        ArgusMethod::ShowContextMenu => match parse_target(&request.params) {
+            Ok(target) => enqueue_response(
+                request,
+                snapshot,
+                channel,
+                &target,
+                UiAction::ShowContextMenu,
+            ),
+            Err(e) => McpResponse::err(request.id.clone(), McpError::general(e.code, e.message)),
+        },
         ArgusMethod::SetValue => match parse_target_and_value(&request.params) {
             Ok((target, value)) => enqueue_response(
                 request,

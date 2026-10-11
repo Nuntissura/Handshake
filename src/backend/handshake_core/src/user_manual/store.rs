@@ -490,6 +490,10 @@ impl<'a> UserManualStore<'a> {
         self.db
     }
 
+    pub async fn ensure_seeded(&self) -> StorageResult<super::seed::SeedReport> {
+        super::seed::ensure_seeded(self.db).await
+    }
+
     async fn rows<R, B>(&self, statement: &'static str, bindings: B) -> StorageResult<Vec<R>>
     where
         R: SurrealValue + Send + 'static,
@@ -566,7 +570,9 @@ impl<'a> UserManualStore<'a> {
         let content_hash = page.content_hash();
         let existing = self.get_page_by_slug(&page.slug).await?;
         if let Some((stored, sections, anchors)) = &existing {
-            if stored.content_hash == content_hash
+            if stored.manual_version == manual_version
+                && stored.status == status
+                && stored.content_hash == content_hash
                 && section_rows_match_seed(sections, &page.sections)
                 && anchor_rows_match_seed(anchors, &page.anchors)
             {
@@ -576,7 +582,7 @@ impl<'a> UserManualStore<'a> {
         let page_id = existing
             .as_ref()
             .map(|(page, _, _)| page.page_id.clone())
-            .unwrap_or_else(|| format!("UMP-{}", Uuid::now_v7()));
+            .unwrap_or_else(|| page.slug.clone());
         let (_receipt, event) = prepare_event(self.manual_receipt_event(
             if existing.is_some() {
                 "page_updated"
@@ -628,7 +634,7 @@ impl<'a> UserManualStore<'a> {
             .iter()
             .enumerate()
             .map(|(position, section)| SectionInput {
-                section_id: format!("UMS-{}", Uuid::now_v7()),
+                section_id: sha256_hex(&format!("{page_id}:section:{position}")),
                 page_id: page_record.clone(),
                 position: position as i64,
                 section_kind: section.section_kind.to_owned(),
@@ -641,7 +647,10 @@ impl<'a> UserManualStore<'a> {
             .anchors
             .iter()
             .map(|anchor| AnchorInput {
-                anchor_id: format!("UMA-{}", Uuid::now_v7()),
+                anchor_id: sha256_hex(&format!(
+                    "{page_id}:anchor:{}:{}:{}",
+                    anchor.anchor_kind, anchor.anchor_value, anchor.http_method
+                )),
                 page_id: page_record.clone(),
                 anchor_kind: anchor.anchor_kind.to_owned(),
                 anchor_value: anchor.anchor_value.clone(),

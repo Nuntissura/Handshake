@@ -1,4 +1,8 @@
+#![cfg(feature = "test-utils")]
 #![cfg_attr(not(feature = "candle-runtime-engine"), allow(dead_code))]
+
+#[cfg(feature = "candle-runtime-engine")]
+mod process_ledger_surreal_support;
 
 use std::{
     collections::BTreeSet,
@@ -142,6 +146,818 @@ async fn candle_e2e_smoke_reports_every_family_as_passed_or_skipped() {
             outcome.event_family,
             outcome.coverage.join(",")
         );
+    }
+}
+
+#[cfg(not(feature = "candle-runtime-engine"))]
+#[tokio::test]
+#[ignore = "MT-013 real Candle default-load ledger proof is run explicitly with candle-runtime-engine"]
+async fn mt013_real_candle_default_load_emits_process_ledger_start_stop() {
+    panic!(
+        "MT-013 real Candle default-load ledger proof requires --features candle-runtime-engine"
+    );
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "MT-013 real Candle default-load ledger proof requires real model weights"]
+async fn mt013_real_candle_default_load_emits_process_ledger_start_stop() {
+    mt013_real_candle_ledger::run_real_candle_default_load_ledger_proof().await;
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "MT-013 real Candle partial-boot rollback proof requires real model weights"]
+async fn mt013_real_candle_embedding_failure_unloads_and_stops_primary() {
+    mt013_real_candle_ledger::run_real_candle_embedding_failure_rollback_proof().await;
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "MT-014 real Candle registry rollback proof requires real model weights"]
+async fn mt014_real_candle_registry_commit_failure_rolls_back_and_stops() {
+    mt013_real_candle_ledger::run_real_candle_registry_rollback_proof().await;
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+mod mt013_real_candle_ledger {
+    use std::{
+        env, fs,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
+
+    use async_trait::async_trait;
+    use handshake_core::{
+        flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
+        kernel::KernelEventType,
+        llm::{
+            boot::build_default_local_client,
+            embedded_ledger::EMBEDDED_MODEL_OWNER_ROLE,
+            registry::{LocalModelConfig, ProviderKind, ResolvedProvider},
+            CompletionRequest, LlmClient, LlmError, ModelTier,
+        },
+        model_runtime::{
+            candle::adapter::sha256_file, ModelRegistryStore, ScopedModelRegistryAuthority, RuntimeBinding,
+            MODEL_RUNTIME_CAPABILITIES_SCHEMA_ID, MODEL_RUNTIME_REGISTRY_SCHEMA_ID,
+        },
+        process_ledger::{
+            acquire_embedded_runtime_instance_lease, drain_and_join_ledger_writer,
+            resolve_embedded_runtime_host_scope_with_override, LedgerBatcher, LedgerBatcherConfig,
+            NoopOverflowSink,
+        },
+        storage::artifacts::{bundle_index_content_hash, bundle_index_json, BundleIndexEntry},
+    };
+    use sha2::{Digest, Sha256};
+
+    use crate::process_ledger_surreal_support::ProcessLedgerSurrealHarness;
+
+    const MT013_REAL_CANDLE_MODEL_DIR_ENV: &str = "HANDSHAKE_TEST_CANDLE_MODEL_DIR";
+    const MT013_REAL_CANDLE_PROOF_NONCE_ENV: &str = "HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE";
+
+    struct NoopRecorder;
+
+    #[async_trait]
+    impl FlightRecorder for NoopRecorder {
+        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    async fn candle_registry_authority(process_ledger: &ProcessLedgerSurrealHarness) -> ScopedModelRegistryAuthority {
+        let storage = process_ledger.storage();
+        handshake_core::storage::surreal::bootstrap_model_registry_schema(&storage)
+            .await.expect("bootstrap canonical model registry schema");
+        let exact = handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution::try_from_resource_scope(
+            &process_ledger.model_resource_scope()).expect("complete ProcessLedger model registry scope");
+        let store = ModelRegistryStore::new(storage);
+        store.ensure_workspace_for_tests(&exact).await.expect("create exact workspace predecessor");
+        ScopedModelRegistryAuthority::new(store, exact)
+    }
+
+    async fn disabled_boot_reason(client: &dyn LlmClient, context: &str) -> String {
+        let error = client
+            .completion(CompletionRequest::new(
+                uuid::Uuid::now_v7(),
+                format!("{context} diagnostic"),
+                client.profile().model_id.clone(),
+            ))
+            .await
+            .expect_err("a disabled boot must expose its production failure reason");
+        match error {
+            LlmError::ProviderError(reason) => reason,
+            other => panic!("{context} returned the wrong disabled error type: {other}"),
+        }
+    }
+
+    pub async fn run_real_candle_default_load_ledger_proof() {
+        let artifacts_root = env::var_os("HANDSHAKE_ARTIFACTS_DIR")
+            .map(PathBuf::from)
+            .expect("MT-013 real Candle proof requires HANDSHAKE_ARTIFACTS_DIR");
+        let proof_dir = artifacts_root
+            .join("handshake-test")
+            .join("wp1-final-audit");
+        fs::create_dir_all(&proof_dir).expect("create MT-013 final-audit artifact directory");
+        let proof_path = proof_dir.join("mt013-real-candle-ledger-proof-v2.json");
+        let provenance_path = proof_dir.join("mt013-real-candle-ledger-proof-v2.provenance.json");
+        for stale_path in [&proof_path, &provenance_path] {
+            if stale_path.exists() {
+                fs::remove_file(stale_path).unwrap_or_else(|error| {
+                    panic!("remove stale {}: {error}", stale_path.display())
+                });
+            }
+        }
+        let proof_nonce =
+            uuid::Uuid::parse_str(&env::var(MT013_REAL_CANDLE_PROOF_NONCE_ENV).unwrap_or_else(
+                |_| panic!("MT-013 real Candle proof requires {MT013_REAL_CANDLE_PROOF_NONCE_ENV}"),
+            ))
+            .expect("MT-013 real Candle proof nonce must be a UUID")
+            .to_string();
+
+        let model_dir = required_real_candle_model_dir();
+        let artifact_path = model_dir.join("model.safetensors");
+        let sha_hex = sha256_file(&artifact_path).expect("hash real Candle model artifact");
+        let sha256 = decode_sha256(&sha_hex);
+        let config_bytes = fs::read(model_dir.join("config.json"))
+            .expect("read real Candle config for independent receipt proof");
+        let tokenizer_bytes = fs::read(model_dir.join("tokenizer.json"))
+            .expect("read real Candle tokenizer for independent receipt proof");
+        let config_sha256 = sha256_bytes(&config_bytes);
+        let tokenizer_sha256 = sha256_bytes(&tokenizer_bytes);
+        let expected_bundle_index = bundle_index_json(&[
+            BundleIndexEntry {
+                path: "model.safetensors".to_string(),
+                content_hash: sha_hex.clone(),
+                size_bytes: fs::metadata(&artifact_path)
+                    .expect("inspect real Candle weights length")
+                    .len(),
+            },
+            BundleIndexEntry {
+                path: "config.json".to_string(),
+                content_hash: config_sha256.clone(),
+                size_bytes: config_bytes.len() as u64,
+            },
+            BundleIndexEntry {
+                path: "tokenizer.json".to_string(),
+                content_hash: tokenizer_sha256.clone(),
+                size_bytes: tokenizer_bytes.len() as u64,
+            },
+        ])
+        .expect("canonicalize independent Candle bundle receipt");
+        let expected_bundle_sha256 = bundle_index_content_hash(&expected_bundle_index);
+        let resolved = ResolvedProvider {
+            provider_id: "local_runtime".to_string(),
+            kind: ProviderKind::LocalRuntime,
+            tier: ModelTier::Local,
+            base_url: "local://embedded-candle".to_string(),
+            model_id: "mt013-real-candle-default".to_string(),
+            api_key_env: None,
+            local_model: Some(LocalModelConfig {
+                artifact_path: artifact_path.clone(),
+                sha256,
+                runtime_binding: RuntimeBinding::Candle,
+                display_name: "mt013-real-candle-default".to_string(),
+                embedding_dimension: None,
+            }),
+            local_embedding_model: None,
+        };
+
+        let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let registry_authority = candle_registry_authority(&process_ledger).await;
+        let registry_store = registry_authority.store().clone();
+        let explicit_scope = format!("mt013-real-candle-{}", uuid::Uuid::now_v7());
+        let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
+            Some(&explicit_scope),
+        )
+        .expect("resolve real Candle runtime host scope");
+        let runtime_instance_lease =
+            acquire_embedded_runtime_instance_lease(uuid::Uuid::now_v7(), runtime_host_scope)
+                .expect("acquire real Candle runtime instance lease");
+        let runtime_instance = runtime_instance_lease.descriptor().clone();
+        let (ledger, ledger_writer) = LedgerBatcher::spawn(
+            process_ledger.store(),
+            Arc::new(NoopOverflowSink),
+            LedgerBatcherConfig::default(),
+        );
+        let ledger_close = ledger.clone();
+
+        let client = build_default_local_client(
+            &resolved,
+            recorder,
+            Some(ledger),
+            Some(registry_authority.clone()),
+            Some(runtime_instance.clone()),
+        )
+        .await;
+        let profile_model_id = client.profile().model_id.clone();
+
+        let catalog = match client.model_catalog() {
+            Some(catalog) => catalog,
+            None => {
+                let diagnostic = disabled_boot_reason(client.as_ref(), "real Candle boot").await;
+                panic!(
+                    "successful real Candle boot exposes the live model catalog; production boot diagnostic: {diagnostic}"
+                );
+            }
+        };
+        let catalog_entry = catalog
+            .entry(&profile_model_id)
+            .expect("real Candle profile UUID is present in the live catalog");
+        assert!(catalog_entry.ready, "real Candle catalog row must be READY");
+        assert_eq!(catalog_entry.runtime_binding, "candle");
+        assert_eq!(catalog_entry.artifact_sha256, sha_hex);
+
+        let persisted = registry_store
+            .load_by_artifact_sha256(registry_authority.scope(), &sha256)
+            .await
+            .expect("read committed real Candle registry selection")
+            .expect("real Candle registry row exists after successful boot");
+        assert_eq!(persisted.schema_id, MODEL_RUNTIME_REGISTRY_SCHEMA_ID);
+        assert_eq!(
+            persisted.capabilities_schema_id,
+            MODEL_RUNTIME_CAPABILITIES_SCHEMA_ID
+        );
+        assert_eq!(persisted.runtime_binding, RuntimeBinding::Candle);
+        assert_eq!(persisted.artifact_sha256, sha256);
+        assert_eq!(persisted.selection_revision, 1);
+        assert_eq!(
+            persisted.last_observed_runtime_model_id.to_string(),
+            profile_model_id
+        );
+        assert_eq!(
+            persisted.base_model_tag.as_str(),
+            catalog_entry.base_model_tag
+        );
+        assert_eq!(
+            persisted.selection_created_event_id, persisted.selection_updated_event_id,
+            "initial selection row points at its one committed audit event"
+        );
+        let inspector = process_ledger.storage().test_inspector();
+        let receipts = inspector.table_selector("kernel_event_ledger").await.expect("canonical EventLedger table");
+        let event_type_field = receipts.field("event_type").expect("canonical event type field");
+        let receipt_rows = inspector.project(&receipts, &[event_type_field],
+            handshake_core::storage::surreal::RowFilter::IdEquals(persisted.selection_created_event_id.clone()))
+            .await.expect("read typed real Candle selection EventLedger row");
+        assert_eq!(receipt_rows.len(), 1, "one canonical selection receipt");
+        let selection_event_type = receipt_rows[0].values["event_type"].as_str()
+            .expect("typed selection event is a string");
+        assert_eq!(
+            selection_event_type,
+            KernelEventType::ModelRuntimeSelectionRecorded.as_str()
+        );
+
+        client
+            .shutdown_gracefully()
+            .await
+            .expect("pre-reserved real Candle STOP enqueue");
+        let drain_outcome = drain_and_join_ledger_writer(
+            &ledger_close,
+            ledger_writer,
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+        assert!(
+            matches!(
+                drain_outcome,
+                handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+            ),
+            "real embedded-Surreal lifecycle writer must drain: {drain_outcome:?}"
+        );
+
+        let lifecycle = process_ledger
+            .lifecycle(
+                uuid::Uuid::parse_str(&profile_model_id).expect("profile model id is UUIDv7"),
+            )
+            .await
+            .expect("read exact-scope durable real Candle START/STOP lifecycle row");
+        assert_eq!(lifecycle.process_uuid.to_string(), profile_model_id);
+        assert_eq!(
+            lifecycle.os_pid, None,
+            "in-process runtime remains pid-less"
+        );
+        assert_eq!(lifecycle.engine_kind, "candle");
+        assert!(
+            lifecycle.stopped_at.is_some(),
+            "durable STOP timestamp is required"
+        );
+        assert_eq!(lifecycle.exit_code, Some(0));
+        assert_eq!(
+            lifecycle.stop_reason.as_deref(),
+            Some("llm-client-shutdown")
+        );
+        assert_eq!(
+            lifecycle.model_artifact_sha256.as_deref(),
+            Some(sha_hex.as_str())
+        );
+        assert_eq!(lifecycle.owner_role, EMBEDDED_MODEL_OWNER_ROLE);
+        assert_eq!(
+            lifecycle.metadata["source"].as_str(),
+            Some("wp1_mt013_embedded_model_load")
+        );
+        assert_eq!(
+            lifecycle.metadata["model_id"].as_str(),
+            Some(profile_model_id.as_str())
+        );
+        assert_eq!(
+            lifecycle.metadata["display_name"].as_str(),
+            Some("mt013-real-candle-default")
+        );
+        assert_eq!(
+            lifecycle.metadata["os_pid_absent_reason"].as_str(),
+            Some("in_process_library_load_no_os_process")
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_instance_schema_id"].as_str(),
+            Some("hsk.embedded_runtime.instance@2")
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_instance_id"],
+            serde_json::json!(runtime_instance.instance_id.to_string())
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_host_scope_id"].as_str(),
+            Some(runtime_instance.host_scope_id.as_str())
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_lease_protocol"].as_str(),
+            Some(runtime_instance.lease_protocol.as_str())
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_lease_address"],
+            serde_json::json!(runtime_instance.loopback_address.to_string())
+        );
+        assert_eq!(
+            lifecycle.metadata["runtime_lease_port"].as_u64(),
+            Some(u64::from(runtime_instance.loopback_port))
+        );
+        let artifact_lifecycles = process_ledger.lifecycles_for_artifact(&sha_hex).await;
+        let lifecycle_counts = (
+            artifact_lifecycles.len(),
+            artifact_lifecycles
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+        );
+        assert_eq!(
+            lifecycle_counts,
+            (1, 0),
+            "real Candle boot must leave exactly one closed lifecycle and no duplicate/open row"
+        );
+        let integrity = &lifecycle.metadata["artifact_integrity_receipt"];
+        assert_eq!(
+            integrity["schema_id"].as_str(),
+            Some("handshake.model_artifact_integrity.candle.v1")
+        );
+        assert_eq!(
+            integrity["bundle_sha256"].as_str(),
+            Some(expected_bundle_sha256.as_str())
+        );
+        assert_eq!(
+            integrity["weights"]["sha256"].as_str(),
+            Some(sha_hex.as_str())
+        );
+        assert_eq!(
+            integrity["weights"]["length_bytes"].as_u64(),
+            Some(
+                fs::metadata(&artifact_path)
+                    .expect("reinspect real Candle weights length")
+                    .len()
+            )
+        );
+        assert_eq!(
+            integrity["config"]["sha256"].as_str(),
+            Some(config_sha256.as_str())
+        );
+        assert_eq!(
+            integrity["config"]["length_bytes"].as_u64(),
+            Some(config_bytes.len() as u64)
+        );
+        assert_eq!(
+            integrity["tokenizer"]["sha256"].as_str(),
+            Some(tokenizer_sha256.as_str())
+        );
+        assert_eq!(
+            integrity["tokenizer"]["length_bytes"].as_u64(),
+            Some(tokenizer_bytes.len() as u64)
+        );
+
+        let ledger_dump = serde_json::json!({
+            "registry": {
+                "schema_id": persisted.schema_id,
+                "registry_row_id": persisted.registry_row_id,
+                "artifact_sha256": hex::encode(persisted.artifact_sha256),
+                "runtime_binding": persisted.runtime_binding.adapter_id(),
+                "selection_revision": persisted.selection_revision,
+                "selection_event_id": persisted.selection_created_event_id,
+                "live_model_id": profile_model_id,
+            },
+            "process_ledger": {
+                "process_uuid": lifecycle.process_uuid,
+                "os_pid": lifecycle.os_pid,
+                "engine_kind": lifecycle.engine_kind,
+                "started_at": lifecycle.started_at,
+                "stopped_at": lifecycle.stopped_at,
+                "exit_code": lifecycle.exit_code,
+                "stop_reason": lifecycle.stop_reason,
+                "model_artifact_sha256": lifecycle.model_artifact_sha256,
+                "metadata_jsonb": lifecycle.metadata,
+                "owner_role": lifecycle.owner_role,
+            },
+        });
+        drop(client);
+        runtime_instance_lease
+            .release()
+            .await
+            .expect("release real Candle runtime instance lease");
+
+        let producer_completed_at_utc = chrono::Utc::now();
+        let proof_artifact = serde_json::json!({
+            "schema_id": "hsk.mt013_real_candle_ledger_proof@3",
+            "proof_nonce": proof_nonce,
+            "producer_completed_at_utc": producer_completed_at_utc.to_rfc3339(),
+            "producer_completed_at_unix_ms": producer_completed_at_utc.timestamp_millis(),
+            "producer_test_id": "mt013_real_candle_default_load_emits_process_ledger_start_stop",
+            "producer_status": "passed_all_runtime_durable_ledger_and_cleanup_assertions",
+            "result": {
+                "status": "PASS",
+                "passed": 1,
+                "failed": 0,
+            },
+            "ledger_dump": ledger_dump,
+        });
+        let proof_bytes = serde_json::to_vec_pretty(&proof_artifact)
+            .expect("serialize MT-013 real Candle proof artifact");
+        let artifact_sha256 = format!("{:x}", Sha256::digest(&proof_bytes));
+        let provenance = serde_json::json!({
+            "schema_id": "hsk.mt013_real_candle_ledger_provenance@1",
+            "proof_nonce": proof_nonce,
+            "producer_test_id": "mt013_real_candle_default_load_emits_process_ledger_start_stop",
+            "producer_status": "passed_all_runtime_durable_ledger_and_cleanup_assertions",
+            "producer_completed_at_utc": producer_completed_at_utc.to_rfc3339(),
+            "producer_completed_at_unix_ms": producer_completed_at_utc.timestamp_millis(),
+            "artifact_sha256": artifact_sha256,
+        });
+        let proof_temp = proof_dir.join(format!(
+            "mt013-real-candle-ledger-proof-v2.{proof_nonce}.tmp"
+        ));
+        let provenance_temp = proof_dir.join(format!(
+            "mt013-real-candle-ledger-proof-v2.provenance.{proof_nonce}.tmp"
+        ));
+        fs::write(&proof_temp, &proof_bytes).expect("write temporary MT-013 proof artifact");
+        fs::write(
+            &provenance_temp,
+            serde_json::to_vec_pretty(&provenance).expect("serialize MT-013 proof provenance"),
+        )
+        .expect("write temporary MT-013 proof provenance");
+        fs::rename(&provenance_temp, &provenance_path)
+            .expect("publish MT-013 proof provenance atomically");
+        fs::rename(&proof_temp, &proof_path).expect("publish MT-013 proof artifact atomically");
+        eprintln!(
+            "[MT-013_REAL_CANDLE_LEDGER_DUMP] {}",
+            serde_json::to_string_pretty(&proof_artifact["ledger_dump"])
+                .expect("serialize registry + ledger dump")
+        );
+        eprintln!("[MT-013_REAL_CANDLE_LEDGER_PROOF] {}", proof_path.display());
+        process_ledger.close().await;
+    }
+
+    pub async fn run_real_candle_embedding_failure_rollback_proof() {
+        let model_dir = required_real_candle_model_dir();
+        let primary_path = model_dir.join("model.safetensors");
+        let primary_sha_hex =
+            sha256_file(&primary_path).expect("hash real Candle primary artifact");
+        let primary_sha256 = decode_sha256(&primary_sha_hex);
+        let missing_embedding_path = model_dir.join("mt013-missing-embedding.safetensors");
+        assert!(
+            !missing_embedding_path.exists(),
+            "negative-path embedding artifact must remain absent"
+        );
+        let embedding_sha256 = [0xA5_u8; 32];
+        let embedding_sha_hex = hex::encode(embedding_sha256);
+        let resolved = ResolvedProvider {
+            provider_id: "local_runtime".to_string(),
+            kind: ProviderKind::LocalRuntime,
+            tier: ModelTier::Local,
+            base_url: "local://embedded-candle".to_string(),
+            model_id: "mt013-real-candle-partial-rollback".to_string(),
+            api_key_env: None,
+            local_model: Some(LocalModelConfig {
+                artifact_path: primary_path,
+                sha256: primary_sha256,
+                runtime_binding: RuntimeBinding::Candle,
+                display_name: "mt013-real-candle-primary".to_string(),
+                embedding_dimension: None,
+            }),
+            local_embedding_model: Some(LocalModelConfig {
+                artifact_path: missing_embedding_path,
+                sha256: embedding_sha256,
+                runtime_binding: RuntimeBinding::Candle,
+                display_name: "mt013-missing-candle-embedding".to_string(),
+                embedding_dimension: Some(768),
+            }),
+        };
+
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let registry_authority = candle_registry_authority(&process_ledger).await;
+        let explicit_scope = format!("mt013-partial-boot-{}", uuid::Uuid::now_v7());
+        let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
+            Some(&explicit_scope),
+        )
+        .expect("resolve partial-boot runtime host scope");
+        let runtime_instance_lease =
+            acquire_embedded_runtime_instance_lease(uuid::Uuid::now_v7(), runtime_host_scope)
+                .expect("acquire partial-boot runtime instance lease");
+        let runtime_instance = runtime_instance_lease.descriptor().clone();
+        let (ledger, ledger_writer) = LedgerBatcher::spawn(
+            process_ledger.store(),
+            Arc::new(NoopOverflowSink),
+            LedgerBatcherConfig::default(),
+        );
+        let ledger_close = ledger.clone();
+
+        let client = build_default_local_client(
+            &resolved,
+            Arc::new(NoopRecorder),
+            Some(ledger),
+            Some(registry_authority.clone()),
+            Some(runtime_instance),
+        )
+        .await;
+        assert_eq!(client.profile().max_context_tokens, 0);
+        assert!(client.model_catalog().is_none());
+        let failure_reason =
+            disabled_boot_reason(client.as_ref(), "real Candle embedding rollback").await;
+        assert!(
+            failure_reason.contains("embedded embedding ModelRuntime load failed")
+                && failure_reason.contains("mt013-missing-embedding.safetensors"),
+            "partial-boot proof must fail for the injected missing embedding artifact: {failure_reason}"
+        );
+
+        let drain_outcome = drain_and_join_ledger_writer(
+            &ledger_close,
+            ledger_writer,
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+        assert!(matches!(
+            drain_outcome,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+        let mut primary_rows = process_ledger
+            .lifecycles_for_artifact(&primary_sha_hex)
+            .await;
+        assert_eq!(primary_rows.len(), 1);
+        let primary_row = primary_rows
+            .pop()
+            .expect("real primary load has exact-scope durable rollback START/STOP");
+        assert!(primary_row.stopped_at.is_some());
+        assert_eq!(
+            primary_row.stop_reason.as_deref(),
+            Some("embedding-load-failed-primary-rollback")
+        );
+        assert_eq!(
+            process_ledger
+                .lifecycles_for_artifact(&primary_sha_hex)
+                .await
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+            0
+        );
+        let embedding_rows = process_ledger
+            .lifecycles_for_artifact(&embedding_sha_hex)
+            .await
+            .len();
+        assert_eq!(
+            embedding_rows, 0,
+            "never-loaded embedding gets no fake START"
+        );
+        let inspector = process_ledger.storage().test_inspector();
+        let registry_table = inspector.table_selector("model_runtime_registry").await.expect("canonical registry table");
+        let registry_rows = inspector.row_count(&registry_table, handshake_core::storage::surreal::RowFilter::All)
+            .await.expect("count uncommitted registry rows");
+        assert_eq!(registry_rows, 0);
+        let receipt_table = inspector.table_selector("kernel_event_ledger").await.expect("canonical EventLedger table");
+        let selection_events = inspector.row_count(&receipt_table, handshake_core::storage::surreal::RowFilter::FieldEquals {
+            field: receipt_table.field("event_type").expect("canonical event type field"),
+            value: KernelEventType::ModelRuntimeSelectionRecorded.as_str().into(),
+        }).await.expect("count partial-boot selection events");
+        assert_eq!(
+            selection_events, 0,
+            "partial boot must not leave a selection audit event without a registry row"
+        );
+
+        eprintln!(
+            "[MT-013_REAL_CANDLE_PARTIAL_ROLLBACK_DUMP] {}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "primary_artifact_sha256": primary_sha_hex,
+                "primary_process_uuid": primary_row.process_uuid,
+                "primary_stopped_at": primary_row.stopped_at,
+                "primary_stop_reason": primary_row.stop_reason,
+                "embedding_artifact_sha256": embedding_sha_hex,
+                "embedding_lifecycle_rows": embedding_rows,
+                "registry_rows": registry_rows,
+                "selection_events": selection_events,
+            }))
+            .expect("serialize partial-boot rollback dump")
+        );
+        drop(client);
+        runtime_instance_lease
+            .release()
+            .await
+            .expect("release partial-boot runtime instance lease");
+        process_ledger.close().await;
+    }
+
+    pub async fn run_real_candle_registry_rollback_proof() {
+        let model_dir = required_real_candle_model_dir();
+        let artifact_path = model_dir.join("model.safetensors");
+        let sha_hex = sha256_file(&artifact_path).expect("hash rollback-proof Candle artifact");
+        let sha256 = decode_sha256(&sha_hex);
+        let resolved = ResolvedProvider {
+            provider_id: "local_runtime".to_string(),
+            kind: ProviderKind::LocalRuntime,
+            tier: ModelTier::Local,
+            base_url: "local://embedded-candle".to_string(),
+            model_id: "mt014-real-candle-registry-rollback".to_string(),
+            api_key_env: None,
+            local_model: Some(LocalModelConfig {
+                artifact_path,
+                sha256,
+                runtime_binding: RuntimeBinding::Candle,
+                display_name: "mt014-real-candle-registry-rollback".to_string(),
+                embedding_dimension: None,
+            }),
+            local_embedding_model: None,
+        };
+
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let authority = candle_registry_authority(&process_ledger).await;
+        let registry_authority = ScopedModelRegistryAuthority::new(
+            authority.store().clone().with_precommit_failure_for_tests(), authority.scope().clone());
+        let explicit_scope = format!("mt014-rollback-proof-{}", uuid::Uuid::now_v7());
+        let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
+            Some(&explicit_scope),
+        )
+        .expect("resolve rollback-proof runtime host scope");
+        let runtime_instance_lease =
+            acquire_embedded_runtime_instance_lease(uuid::Uuid::now_v7(), runtime_host_scope)
+                .expect("acquire rollback-proof runtime instance lease");
+        let runtime_instance = runtime_instance_lease.descriptor().clone();
+        let (ledger, ledger_writer) = LedgerBatcher::spawn(
+            process_ledger.store(),
+            Arc::new(NoopOverflowSink),
+            LedgerBatcherConfig::default(),
+        );
+        let ledger_close = ledger.clone();
+        let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+        let client = build_default_local_client(
+            &resolved,
+            recorder,
+            Some(ledger),
+            Some(registry_authority.clone()),
+            Some(runtime_instance),
+        )
+        .await;
+        assert_eq!(
+            client.profile().max_context_tokens,
+            0,
+            "registry write failure must return a Disabled client"
+        );
+        assert!(
+            client.model_catalog().is_none(),
+            "a privately assembled but uncommitted live catalog must never escape"
+        );
+        let failure_reason =
+            disabled_boot_reason(client.as_ref(), "real Candle registry rollback").await;
+        assert!(
+            failure_reason.contains("persistent model registry commit/read-back failed after load")
+                && failure_reason.contains("MT014_FORCED_PRECOMMIT_REGISTRY_FAILURE")
+                && failure_reason.contains("after registry/audit DML and read-back")
+                && failure_reason.contains("1500 ms"),
+            "registry rollback proof must fail at the injected post-mutation precommit gate, not an unrelated boot error: {failure_reason}"
+        );
+
+        let drain_outcome = drain_and_join_ledger_writer(
+            &ledger_close,
+            ledger_writer,
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+        assert!(matches!(
+            drain_outcome,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+        let mut rollback_lifecycles = process_ledger.lifecycles_for_artifact(&sha_hex).await;
+        assert_eq!(rollback_lifecycles.len(), 1);
+        let rollback_lifecycle = rollback_lifecycles
+            .pop()
+            .expect("read exact-scope durable rollback START/STOP row");
+        assert!(rollback_lifecycle.stopped_at.is_some());
+        assert_eq!(
+            rollback_lifecycle.stop_reason.as_deref(),
+            Some("persistent-registry-commit-failed")
+        );
+        assert_eq!(
+            process_ledger
+                .lifecycles_for_artifact(&sha_hex)
+                .await
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+            0
+        );
+
+        let inspector = process_ledger.storage().test_inspector();
+        let registry_table = inspector.table_selector("model_runtime_registry").await.expect("canonical registry table");
+        let registry_rows = inspector.row_count(&registry_table, handshake_core::storage::surreal::RowFilter::FieldEquals {
+            field: registry_table.field("artifact_sha256").expect("canonical artifact hash field"),
+            value: sha_hex.clone().into(),
+        }).await.expect("count rolled-back registry rows");
+        assert_eq!(
+            registry_rows, 0,
+            "failed transaction leaves no registry row"
+        );
+        let receipt_table = inspector.table_selector("kernel_event_ledger").await.expect("canonical EventLedger table");
+        let selection_events = inspector.row_count(&receipt_table, handshake_core::storage::surreal::RowFilter::FieldEquals {
+            field: receipt_table.field("event_type").expect("canonical event type field"),
+            value: KernelEventType::ModelRuntimeSelectionRecorded.as_str().into(),
+        }).await.expect("count rolled-back selection events");
+        assert_eq!(
+            selection_events, 0,
+            "same-transaction selection audit must roll back with registry insert"
+        );
+
+        eprintln!(
+            "[MT-014_REAL_CANDLE_REGISTRY_ROLLBACK_DUMP] {}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "artifact_sha256": sha_hex,
+                "registry_rows": registry_rows,
+                "selection_events": selection_events,
+                "process_ledger": {
+                    "process_uuid": rollback_lifecycle.process_uuid,
+                    "stopped_at": rollback_lifecycle.stopped_at,
+                    "stop_reason": rollback_lifecycle.stop_reason,
+                },
+            }))
+            .expect("serialize real Candle rollback dump")
+        );
+        drop(client);
+        runtime_instance_lease
+            .release()
+            .await
+            .expect("release rollback-proof runtime instance lease");
+        process_ledger.close().await;
+    }
+
+    fn required_real_candle_model_dir() -> PathBuf {
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::ERROR)
+            .with_test_writer()
+            .try_init();
+        let raw = env::var_os(MT013_REAL_CANDLE_MODEL_DIR_ENV).unwrap_or_else(|| {
+            panic!(
+                "MT-013 real Candle proof requires {MT013_REAL_CANDLE_MODEL_DIR_ENV} pointing at a directory containing model.safetensors and tokenizer.json"
+            )
+        });
+        let model_dir = PathBuf::from(raw);
+        require_file(&model_dir.join("model.safetensors"));
+        require_file(&model_dir.join("tokenizer.json"));
+        model_dir
+    }
+
+    fn require_file(path: &Path) {
+        assert!(
+            path.is_file(),
+            "MT-013 real Candle proof requires existing file {}",
+            path.display()
+        );
+    }
+
+    fn sha256_bytes(bytes: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        hex::encode(hasher.finalize())
+    }
+
+    fn decode_sha256(hex_value: &str) -> [u8; 32] {
+        let bytes = hex::decode(hex_value).expect("sha256_file returns valid hex");
+        bytes
+            .try_into()
+            .expect("sha256_file returns exactly 32 bytes")
     }
 }
 
@@ -546,6 +1362,8 @@ mod live {
                 supports_kv_prefix_cache: true,
                 supports_kv_quantization: KvQuantSupport::Q8,
                 supports_activation_steering: true,
+                supports_embedding: false,
+                embedding_dimension: None,
                 supports_subquadratic: false,
                 supports_speculative_draft: true,
                 supports_eagle3: true,

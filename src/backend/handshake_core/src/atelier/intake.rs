@@ -25,7 +25,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -33,9 +33,11 @@ use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    atelier_event_sql, event_ref_for_text, media::MEDIA_ORIGINAL_RETENTION_CLASS,
-    reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, collections::collections_event_family, event_ref_for_text,
+    media::MEDIA_ORIGINAL_RETENTION_CLASS, reject_legacy_runtime_ref, search::normalize_tag,
+    AtelierError, AtelierResult, AtelierStore, PreparedAtelierEvent, RecordEventBindings,
 };
+use crate::storage::artifacts::sha256_hex;
 use crate::storage::surreal::keyed_lock::LockKey;
 
 struct IntakeRow(serde_json::Map<String, serde_json::Value>);
@@ -343,11 +345,59 @@ pub struct NewIntakeItem {
 /// change into the media-facing workflow: accepted items resolve their media
 /// asset by `content_hash` and are attached to the batch target collection when
 /// one exists.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeClassificationContactSheetMetadata {
+    pub rows: Option<i64>,
+    pub columns: Option<i64>,
+    pub dpi: Option<i64>,
+    pub cells: Option<i64>,
+}
+
+/// Dataset-mining metadata attached to an intake decision (CKC MT-017). The
+/// durable copy lives on `atelier_intake_item_metadata`, keyed by the item.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeClassificationMetadata {
+    pub request_id: Option<String>,
+    pub batch_id: Option<String>,
+    pub dataset_ref: Option<String>,
+    pub character_ref: Option<String>,
+    #[serde(default)]
+    pub link_passed: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub note: Option<String>,
+    pub event: Option<String>,
+    pub date: Option<String>,
+    pub location: Option<String>,
+    pub facial_profile: Option<String>,
+    pub loaded_item_count: Option<i64>,
+    pub contact_sheet: Option<IntakeClassificationContactSheetMetadata>,
+}
+
 #[derive(Clone, Debug)]
 pub struct ApplyIntakeClassificationRequest {
     pub item_id: Uuid,
     pub lane: IntakeLane,
     pub reason: Option<String>,
+    pub requested_by: Option<String>,
+    pub metadata: Option<IntakeClassificationMetadata>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ApplyIntakeBatchClassificationOverride {
+    pub item_id: Uuid,
+    pub lane: IntakeLane,
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ApplyIntakeBatchClassificationsRequest {
+    pub batch_id: Uuid,
+    pub default_lane: IntakeLane,
+    pub default_reason: Option<String>,
+    pub requested_by: String,
+    pub metadata: Option<IntakeClassificationMetadata>,
+    pub overrides: Vec<ApplyIntakeBatchClassificationOverride>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -356,6 +406,45 @@ pub struct IntakeClassificationApplyResult {
     pub asset_id: Option<Uuid>,
     pub collection_id: Option<Uuid>,
     pub collection_inserted: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeBatchClassificationFailure {
+    pub item_id: Uuid,
+    pub index: usize,
+    pub error: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeBatchClassificationApplyResult {
+    pub batch_id: Uuid,
+    pub total_item_count: usize,
+    pub applied: Vec<IntakeClassificationApplyResult>,
+    pub failed: Option<IntakeBatchClassificationFailure>,
+}
+
+/// The durable per-item dataset-mining metadata row
+/// (`atelier_intake_item_metadata`), read back for proofs and recovery.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeItemMetadata {
+    pub item_id: Uuid,
+    pub batch_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub request_id: String,
+    pub dataset_ref: Option<String>,
+    pub character_ref: Option<String>,
+    pub link_passed: bool,
+    pub tags: Vec<String>,
+    pub note: Option<String>,
+    pub event_label: Option<String>,
+    pub event_date: Option<String>,
+    pub location: Option<String>,
+    pub facial_profile: Option<String>,
+    pub loaded_item_count: Option<i64>,
+    pub contact_sheet: Option<IntakeClassificationContactSheetMetadata>,
+    pub requested_by: String,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -547,17 +636,6 @@ fn image_mime_for_path(path: &Path) -> Option<&'static str> {
         "webp" => Some("image/webp"),
         _ => None,
     }
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
-
-fn advisory_lock_key(scope: &str) -> i64 {
-    let digest = Sha256::digest(scope.as_bytes());
-    let mut bytes = [0_u8; 8];
-    bytes.copy_from_slice(&digest[..8]);
-    i64::from_be_bytes(bytes)
 }
 
 fn checked_usize_to_i64(field: &str, value: usize) -> AtelierResult<i64> {
@@ -1206,7 +1284,7 @@ const GET_ITEM_BY_REF_STATEMENT: &str =
 const LIST_ITEMS_STATEMENT: &str = concat!(
     "SELECT ",
     item_columns!(),
-    " FROM atelier_intake_item WHERE batch_id = $batch_ref ORDER BY created_at_utc ASC;"
+    " FROM atelier_intake_item WHERE batch_id = $batch_ref ORDER BY created_at_utc ASC, item_id ASC;"
 );
 const LIST_ITEMS_LIMITED_STATEMENT: &str = concat!(
     "SELECT ",
@@ -1353,7 +1431,1148 @@ const WRITE_RESET_STATEMENT: &str = concat!(
     " RETURN (SELECT ", reset_columns!(), " FROM $rid)[0]; };"
 );
 
+// ---------------------------------------------------------------------------
+// CKC MT-017 / MT-031: classification apply with dataset-mining metadata.
+//
+// PostgreSQL ran every item of a batch inside one `BEGIN ... COMMIT` with
+// `FOR UPDATE` row locks and two advisory locks. On the embedded store the
+// whole plan (lane changes, collection membership, rejection audits, metadata
+// upserts and every event they emit) is ONE statement, so a batch commits
+// together or not at all; the optimistic write-write conflict SurrealDB raises
+// instead of a PG deadlock is retried a bounded number of times
+// (MT-056 INTAKE_DEADLOCK_RETRY).
+// ---------------------------------------------------------------------------
+
+/// Upper bound on attempts for one classification apply when the embedded
+/// store reports an optimistic write-write conflict. The first attempt counts,
+/// so at most two retries follow it.
+const INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS: u32 = 3;
+
+/// Bounded backoff between conflict retries: 25 ms, then 50 ms.
+fn intake_write_conflict_backoff(attempt: u32) -> Duration {
+    Duration::from_millis(25 * u64::from(attempt.max(1)))
+}
+
+/// SurrealDB surfaces a serialisation failure between two concurrent writers as
+/// a retryable transaction error rather than a PostgreSQL deadlock. Only that
+/// family is retried; validation, not-found and invariant errors are final.
+fn is_retryable_write_conflict(err: &AtelierError) -> bool {
+    let AtelierError::Database(storage_err) = err else {
+        return false;
+    };
+    let text = storage_err.to_string().to_ascii_lowercase();
+    text.contains("read or write conflict")
+        || text.contains("hsk-intake-stale-plan")
+        || text.contains("can be retried")
+        || text.contains("transaction conflict")
+        || text.contains("resource busy")
+}
+
+fn normalize_metadata_text(
+    field: &str,
+    value: &Option<String>,
+    reject_runtime_ref: bool,
+) -> AtelierResult<Option<String>> {
+    match value.as_deref() {
+        None => Ok(None),
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() || trimmed != raw {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.{field} must not be empty or padded"
+                )));
+            }
+            if reject_runtime_ref {
+                reject_legacy_runtime_ref(&format!("metadata.{field}"), raw)?;
+            }
+            Ok(Some(raw.to_string()))
+        }
+    }
+}
+
+fn normalize_metadata_request_id(
+    metadata: &IntakeClassificationMetadata,
+    required: bool,
+) -> AtelierResult<Option<String>> {
+    let normalized = normalize_metadata_text("request_id", &metadata.request_id, true)?;
+    if required && normalized.is_none() {
+        return Err(AtelierError::Validation(
+            "metadata.request_id is required for batch intake classification".into(),
+        ));
+    }
+    Ok(normalized)
+}
+
+fn normalize_metadata_loaded_count(value: Option<i64>) -> AtelierResult<Option<i64>> {
+    if let Some(count) = value {
+        if count < 0 {
+            return Err(AtelierError::Validation(
+                "metadata.loaded_item_count must not be negative".into(),
+            ));
+        }
+    }
+    Ok(value)
+}
+
+fn normalize_contact_sheet_metadata(
+    value: &Option<IntakeClassificationContactSheetMetadata>,
+) -> AtelierResult<Option<IntakeClassificationContactSheetMetadata>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    for (field, candidate) in [
+        ("rows", value.rows),
+        ("columns", value.columns),
+        ("dpi", value.dpi),
+        ("cells", value.cells),
+    ] {
+        if let Some(candidate) = candidate {
+            if candidate <= 0 {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.contact_sheet.{field} must be positive"
+                )));
+            }
+        }
+    }
+    Ok(Some(value.clone()))
+}
+
+fn normalize_classification_metadata(
+    metadata: Option<&IntakeClassificationMetadata>,
+    expected_batch_id: Option<Uuid>,
+    canonical_item_count: Option<i64>,
+    require_request_id: bool,
+) -> AtelierResult<(Option<IntakeClassificationMetadata>, Option<String>)> {
+    let Some(metadata) = metadata else {
+        if require_request_id {
+            return Err(AtelierError::Validation(
+                "metadata with request_id is required for batch intake classification".into(),
+            ));
+        }
+        return Ok((None, None));
+    };
+
+    let request_id = normalize_metadata_request_id(metadata, require_request_id)?;
+    let mut batch_id = normalize_metadata_text("batch_id", &metadata.batch_id, true)?;
+    if let Some(expected_batch_id) = expected_batch_id {
+        let expected = expected_batch_id.to_string();
+        if let Some(actual) = batch_id.as_deref() {
+            if actual != expected {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.batch_id {actual} does not match intake batch {expected}"
+                )));
+            }
+        } else {
+            batch_id = Some(expected);
+        }
+    }
+
+    let mut tags = Vec::new();
+    let mut seen_tags = BTreeSet::new();
+    for raw_tag in &metadata.tags {
+        let normalized = normalize_tag(raw_tag);
+        if normalized.is_empty() {
+            continue;
+        }
+        if seen_tags.insert(normalized.clone()) {
+            tags.push(normalized);
+        }
+    }
+
+    let loaded_item_count = match canonical_item_count {
+        Some(count) => Some(count),
+        None => normalize_metadata_loaded_count(metadata.loaded_item_count)?,
+    };
+
+    Ok((
+        Some(IntakeClassificationMetadata {
+            request_id: request_id.clone(),
+            batch_id,
+            dataset_ref: normalize_metadata_text("dataset_ref", &metadata.dataset_ref, true)?,
+            character_ref: normalize_metadata_text("character_ref", &metadata.character_ref, true)?,
+            link_passed: metadata.link_passed,
+            tags,
+            note: normalize_metadata_text("note", &metadata.note, false)?,
+            event: normalize_metadata_text("event", &metadata.event, false)?,
+            date: normalize_metadata_text("date", &metadata.date, false)?,
+            location: normalize_metadata_text("location", &metadata.location, false)?,
+            facial_profile: normalize_metadata_text(
+                "facial_profile",
+                &metadata.facial_profile,
+                false,
+            )?,
+            loaded_item_count,
+            contact_sheet: normalize_contact_sheet_metadata(&metadata.contact_sheet)?,
+        }),
+        request_id,
+    ))
+}
+
+fn normalize_requested_by(value: Option<&str>) -> AtelierResult<Option<String>> {
+    match value {
+        None => Ok(None),
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() || trimmed != raw {
+                return Err(AtelierError::Validation(
+                    "requested_by must not be empty or padded".into(),
+                ));
+            }
+            reject_legacy_runtime_ref("requested_by", raw)?;
+            Some(raw.to_string()).map(Ok).transpose()
+        }
+    }
+}
+
+fn metadata_tags_from_json(value: Option<serde_json::Value>) -> Vec<String> {
+    let Some(serde_json::Value::Array(values)) = value else {
+        return Vec::new();
+    };
+    values
+        .into_iter()
+        .filter_map(|value| match value {
+            serde_json::Value::String(text) => Some(normalize_tag(&text)),
+            _ => None,
+        })
+        .filter(|tag| !tag.is_empty())
+        .collect()
+}
+
+fn intake_item_metadata_from_row(row: &IntakeRow) -> AtelierResult<IntakeItemMetadata> {
+    let tags_json: Option<serde_json::Value> = row.get("tags_json");
+    let contact_sheet_json: Option<serde_json::Value> = row.get("contact_sheet_json");
+    let contact_sheet = contact_sheet_json
+        .filter(|value| !value.is_null())
+        .map(serde_json::from_value::<IntakeClassificationContactSheetMetadata>)
+        .transpose()
+        .map_err(|err| {
+            AtelierError::Internal(format!(
+                "persisted intake item metadata contact_sheet_json is malformed: {err}"
+            ))
+        })?;
+    Ok(IntakeItemMetadata {
+        item_id: row.get("item_id"),
+        batch_id: row.get("batch_id"),
+        asset_id: row.get("asset_id"),
+        request_id: row.get("request_id"),
+        dataset_ref: row.get("dataset_ref"),
+        character_ref: row.get("character_ref"),
+        link_passed: row.get("link_passed"),
+        tags: metadata_tags_from_json(tags_json),
+        note: row.get("note"),
+        event_label: row.get("event_label"),
+        event_date: row.get("event_date"),
+        location: row.get("location"),
+        facial_profile: row.get("facial_profile"),
+        loaded_item_count: row.get("loaded_item_count"),
+        contact_sheet,
+        requested_by: row.get("requested_by"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    })
+}
+
+#[derive(SurrealValue)]
+struct MetadataRefBinding {
+    metadata_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct RequestBatchConflictBinding {
+    request_id: String,
+    batch_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct RecordedRequestBinding {
+    event_family: String,
+    aggregate_id: String,
+    request_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CollectionRefBinding {
+    collection_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CollectionMemberLookupBinding {
+    pair_key: Vec<SurrealUuid>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ClassificationMemberInput {
+    collection_ref: RecordId,
+    asset_ref: RecordId,
+    pair_key: Vec<SurrealUuid>,
+    source_path_ref: String,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ClassificationAuditInput {
+    audit_ref: RecordId,
+    audit_id: SurrealUuid,
+    reason: String,
+    source_path_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ClassificationMetadataInput {
+    metadata_ref: RecordId,
+    asset_ref: Option<RecordId>,
+    request_id: String,
+    dataset_ref: Option<String>,
+    character_ref: Option<String>,
+    link_passed: bool,
+    tags_json: Vec<String>,
+    note: Option<String>,
+    event_label: Option<String>,
+    event_date: Option<String>,
+    location: Option<String>,
+    facial_profile: Option<String>,
+    loaded_item_count: Option<i64>,
+    contact_sheet_json: Option<serde_json::Value>,
+    requested_by: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ClassificationItemInput {
+    item_ref: RecordId,
+    batch_ref: RecordId,
+    expected_lane: String,
+    expected_lane_reason: Option<String>,
+    expected_updated_at: surrealdb::types::Datetime,
+    metadata_ref: RecordId,
+    expected_metadata: Option<surrealdb::types::Value>,
+    request_id: Option<String>,
+    changed: bool,
+    touch_batch: bool,
+    lane: String,
+    lane_reason: Option<String>,
+    member: Option<ClassificationMemberInput>,
+    audit: Option<ClassificationAuditInput>,
+    metadata: Option<ClassificationMetadataInput>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ClassificationApplyBindings {
+    items: Vec<ClassificationItemInput>,
+    item_refs: Vec<RecordId>,
+    events: Vec<RecordEventBindings>,
+}
+
+const GET_ITEM_METADATA_STATEMENT: &str = "SELECT record::id(item_id) AS item_id, \
+     record::id(batch_id) AS batch_id, \
+     IF asset_id = NONE { NONE } ELSE { record::id(asset_id) } AS asset_id, request_id, \
+     dataset_ref, character_ref, link_passed, tags_json, note, event_label, event_date, location, \
+     facial_profile, loaded_item_count, contact_sheet_json, requested_by, created_at_utc, \
+     updated_at_utc FROM $metadata_ref LIMIT 1;";
+const FIND_CONFLICTING_REQUEST_BATCH_STATEMENT: &str =
+    "SELECT VALUE record::id(batch_id) FROM atelier_intake_item_metadata \
+     WHERE request_id = $request_id AND batch_id != $batch_ref LIMIT 1;";
+const RECORDED_REQUEST_PAYLOAD_STATEMENT: &str = "SELECT VALUE payload FROM atelier_event \
+     WHERE event_family = $event_family AND aggregate_type = 'atelier_intake_item' \
+       AND aggregate_id = $aggregate_id AND payload.metadata.request_id = $request_id \
+     ORDER BY created_at_utc ASC LIMIT 1;";
+const GET_COLLECTION_TARGET_STATEMENT: &str = "SELECT collection_id, \
+     IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, \
+     IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } AS sheet_version_id \
+     FROM $collection_ref LIMIT 1;";
+const GET_COLLECTION_MEMBER_STATEMENT: &str = "RETURN { \
+       LET $rid = type::record('atelier_collection_item', $pair_key); \
+       RETURN { exists: record::exists($rid), \
+                source_path_ref: (SELECT VALUE source_path_ref FROM $rid)[0] }; };";
+
+/// One atomic statement for a whole classification plan. Every domain write
+/// and every event it emits commits together; the kernel ledger + atelier
+/// projection rows are written per element of `$events` with the same
+/// idempotent shape `atelier_event_sql!` uses for a single event.
+const APPLY_CLASSIFICATIONS_STATEMENT: &str = concat!(
+    "BEGIN TRANSACTION; RETURN { \
+       FOR $it IN $items { \
+         IF $it.request_id != NONE { \
+           LET $guard = type::record('atelier_intake_request_guard', $it.request_id); \
+           UPSERT $guard SET request_id = $it.request_id, revision = (revision ?? 0) + 1; \
+           IF count(SELECT id FROM atelier_intake_item_metadata \
+                    WHERE request_id = $it.request_id AND batch_id != $it.batch_ref) != 0 { \
+             THROW 'metadata.request_id is already bound to another intake batch'; \
+           }; \
+         }; \
+         LET $current = (SELECT * FROM $it.item_ref)[0]; \
+         LET $metadata = (SELECT * FROM $it.metadata_ref)[0]; \
+         IF $current.lane != $it.expected_lane \
+            OR $current.lane_reason != $it.expected_lane_reason \
+            OR $current.updated_at_utc != $it.expected_updated_at \
+            OR $metadata != $it.expected_metadata { THROW 'HSK-INTAKE-STALE-PLAN'; }; \
+       }; \
+       FOR $it IN $items { \
+         IF !record::exists($it.item_ref) { THROW 'intake item not found'; }; \
+         IF $it.changed { \
+           UPDATE $it.item_ref SET lane = $it.lane, lane_reason = $it.lane_reason, \
+             updated_at_utc = time::now(); \
+         }; \
+         IF $it.touch_batch { UPDATE $it.batch_ref SET updated_at_utc = time::now(); }; \
+         IF $it.member != NONE { \
+           LET $member_rid = type::record('atelier_collection_item', $it.member.pair_key); \
+           IF !record::exists($member_rid) { \
+             LET $next_order = (array::max((SELECT VALUE sort_order FROM atelier_collection_item \
+                                 WHERE collection_id = $it.member.collection_ref)) ?? -1) + 1; \
+             CREATE $member_rid CONTENT { collection_id: $it.member.collection_ref, \
+               asset_id: $it.member.asset_ref, sort_order: $next_order, \
+               source_path_ref: $it.member.source_path_ref, linked_by: $it.member.actor, \
+               updated_by: $it.member.actor }; \
+             UPDATE $it.member.collection_ref SET updated_at_utc = time::now(); \
+           } ELSE { \
+             IF (SELECT VALUE source_path_ref FROM $member_rid)[0] != $it.member.source_path_ref { \
+               UPDATE $member_rid SET source_path_ref = $it.member.source_path_ref, \
+                 updated_by = $it.member.actor, updated_at_utc = time::now(); \
+               UPDATE $it.member.collection_ref SET updated_at_utc = time::now(); \
+             }; \
+           }; \
+         }; \
+         IF $it.audit != NONE { \
+           IF count(SELECT id FROM atelier_intake_item_rejection_audit \
+                    WHERE item_id = $it.item_ref AND lane = $it.lane \
+                      AND reason = $it.audit.reason) = 0 { \
+             CREATE $it.audit.audit_ref CONTENT { audit_id: $it.audit.audit_id, \
+               item_id: $it.item_ref, batch_id: $it.batch_ref, lane: $it.lane, \
+               reason: $it.audit.reason, source_path_ref: $it.audit.source_path_ref }; \
+           }; \
+         }; \
+         IF $it.metadata != NONE { \
+           UPSERT $it.metadata.metadata_ref SET item_id = $it.item_ref, batch_id = $it.batch_ref, \
+             asset_id = $it.metadata.asset_ref, request_id = $it.metadata.request_id, \
+             dataset_ref = $it.metadata.dataset_ref, character_ref = $it.metadata.character_ref, \
+             link_passed = $it.metadata.link_passed, tags_json = $it.metadata.tags_json, \
+             note = $it.metadata.note, event_label = $it.metadata.event_label, \
+             event_date = $it.metadata.event_date, location = $it.metadata.location, \
+             facial_profile = $it.metadata.facial_profile, \
+             loaded_item_count = $it.metadata.loaded_item_count, \
+             contact_sheet_json = $it.metadata.contact_sheet_json, \
+             requested_by = $it.metadata.requested_by, updated_at_utc = time::now(); \
+         }; \
+       }; \
+       FOR $e IN $events { \
+         LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
+           WHERE idempotency_key = $e.idempotency_key LIMIT 1)[0]; \
+         IF $existing IS NONE { \
+           CREATE $e.ledger_id CONTENT { \
+             event_id: $e.kernel_event_id, event_version: $e.event_version, \
+             kernel_task_run_id: $e.kernel_task_run_id, session_run_id: $e.session_run_id, \
+             aggregate_type: $e.kernel_aggregate_type, aggregate_id: $e.kernel_aggregate_id, \
+             idempotency_key: $e.idempotency_key, event_type: $e.event_type, \
+             actor_kind: $e.actor_kind, actor_id: $e.actor_id, causation_id: $e.causation_id, \
+             correlation_id: $e.correlation_id, payload_hash: $e.payload_hash, \
+             source_component: $e.source_component, payload: $e.ledger_payload, \
+             created_at: $e.created_at }; \
+         }; \
+         LET $ledger_row = (SELECT event_id, event_sequence FROM kernel_event_ledger \
+           WHERE idempotency_key = $e.idempotency_key LIMIT 1)[0]; \
+         CREATE $e.atelier_id CONTENT { event_id: $e.atelier_event_uuid, \
+           event_family: $e.event_family, aggregate_type: $e.kernel_aggregate_type, \
+           aggregate_id: $e.kernel_aggregate_id, kernel_event_id: $ledger_row.event_id, \
+           kernel_event_sequence: $ledger_row.event_sequence, payload: $e.atelier_payload }; \
+       }; \
+       RETURN (SELECT ",
+    item_columns!(),
+    " FROM $item_refs ORDER BY created_at_utc ASC, item_id ASC); }; COMMIT TRANSACTION;"
+);
+
+#[derive(SurrealValue)]
+struct LedgerIdempotencyBinding {
+    idempotency_key: String,
+}
+
+#[derive(SurrealValue)]
+struct LedgerReceiptRow {
+    event_id: String,
+    event_sequence: i64,
+}
+
+/// The fully resolved write plan for one intake item.
+struct ClassificationPlan {
+    item_id: Uuid,
+    asset_id: Option<Uuid>,
+    collection_id: Option<Uuid>,
+    collection_inserted: bool,
+    input: ClassificationItemInput,
+    events: Vec<PreparedAtelierEvent>,
+}
+
+/// Per-plan bookkeeping so two items in one batch that resolve to the same
+/// `(collection, asset)` pair predict membership the way the statement will
+/// observe it.
+#[derive(Default)]
+struct BatchPlanState {
+    planned_members: BTreeMap<(Uuid, Uuid), String>,
+}
+
 impl AtelierStore {
+    /// Read the durable dataset-mining metadata row for an intake item.
+    pub async fn get_intake_item_metadata(
+        &self,
+        item_id: Uuid,
+    ) -> AtelierResult<Option<IntakeItemMetadata>> {
+        let binding = MetadataRefBinding {
+            metadata_ref: RecordId::new("atelier_intake_item_metadata", SurrealUuid::from(item_id)),
+        };
+        let row: Option<serde_json::Value> = self
+            .with_data(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_ITEM_METADATA_STATEMENT, binding).await })
+            })
+            .await?;
+        row.map(intake_row)
+            .transpose()?
+            .map(|row| intake_item_metadata_from_row(&row))
+            .transpose()
+    }
+
+    async fn recorded_request_payload(
+        &self,
+        item_id: Uuid,
+        request_id: Option<&str>,
+    ) -> AtelierResult<Option<serde_json::Value>> {
+        let Some(request_id) = request_id.map(str::trim).filter(|value| !value.is_empty()) else {
+            return Ok(None);
+        };
+        let binding = RecordedRequestBinding {
+            event_family: intake_event_family::INTAKE_ITEM_CLASSIFIED.to_owned(),
+            aggregate_id: item_id.to_string(),
+            request_id: request_id.to_owned(),
+        };
+        self.with_data(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(RECORDED_REQUEST_PAYLOAD_STATEMENT, binding)
+                    .await
+            })
+        })
+        .await
+    }
+
+    async fn resolve_asset_id_by_content_hash(
+        &self,
+        content_hash: &str,
+    ) -> AtelierResult<Option<Uuid>> {
+        let content_hash = content_hash.to_owned();
+        self.with_data(move |ctx| {
+            Box::pin(async move {
+                ctx.query_first(
+                    "SELECT VALUE asset_id FROM atelier_media_asset \
+                     WHERE content_hash = $content_hash LIMIT 1;",
+                    ContentHashBinding { content_hash },
+                )
+                .await
+            })
+        })
+        .await
+    }
+
+    /// Build the write plan for one item. Every validation the PostgreSQL
+    /// transaction performed under `FOR UPDATE` happens here, before anything
+    /// is written, so a failing item aborts the whole plan with nothing
+    /// persisted.
+    async fn plan_intake_classification(
+        &self,
+        existing: &IntakeItem,
+        batch: &IntakeBatch,
+        lane: IntakeLane,
+        reason: Option<&str>,
+        requested_by: Option<&str>,
+        metadata: Option<&IntakeClassificationMetadata>,
+        state: &mut BatchPlanState,
+    ) -> AtelierResult<ClassificationPlan> {
+        // Snapshot before reading plan inputs; compare the complete typed row
+        // in the write transaction so retries rebuild rather than lose merges.
+        let metadata_ref = RecordId::new(
+            "atelier_intake_item_metadata",
+            SurrealUuid::from(existing.item_id),
+        );
+        let expected_metadata: Option<surrealdb::types::Value> = self
+            .with_data({
+                let binding = MetadataRefBinding {
+                    metadata_ref: metadata_ref.clone(),
+                };
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first("SELECT * FROM $metadata_ref LIMIT 1;", binding)
+                            .await
+                    })
+                }
+            })
+            .await?;
+        let normalized_reason = normalize_lane_reason(lane, reason)?;
+        let (metadata, request_id) =
+            normalize_classification_metadata(metadata, Some(existing.batch_id), None, false)?;
+        let requested_by = normalize_requested_by(requested_by)?;
+        let changed = existing.lane != lane || existing.lane_reason != normalized_reason;
+        let has_request_context = requested_by.is_some() || metadata.is_some();
+        let recorded_request_payload = self
+            .recorded_request_payload(existing.item_id, request_id.as_deref())
+            .await?;
+        let duplicate_request_id = recorded_request_payload.is_some();
+        if let Some(recorded_payload) = recorded_request_payload.as_ref() {
+            let recorded_lane = recorded_payload
+                .get("lane")
+                .and_then(|value| value.as_str());
+            let recorded_reason = recorded_payload
+                .get("reason")
+                .and_then(|value| value.as_str())
+                .map(ToOwned::to_owned);
+            if recorded_lane != Some(lane.as_str()) || recorded_reason != normalized_reason {
+                return Err(AtelierError::Validation(
+                    "duplicate intake classification request_id conflicts with recorded lane/reason"
+                        .into(),
+                ));
+            }
+        }
+        if duplicate_request_id && changed {
+            return Err(AtelierError::Validation(
+                "duplicate intake classification request_id is stale against current lane/reason"
+                    .into(),
+            ));
+        }
+
+        let item_ref = RecordId::new("atelier_intake_item", SurrealUuid::from(existing.item_id));
+        let batch_ref = RecordId::new("atelier_intake_batch", SurrealUuid::from(existing.batch_id));
+        let source_path_ref = event_ref_for_text(&existing.source_path);
+        let mut events = Vec::new();
+        let mut asset_id = None;
+        let mut collection_id = None;
+        let mut collection_inserted = false;
+        let mut member = None;
+
+        if lane == IntakeLane::Accepted {
+            let content_hash = existing.content_hash.as_deref().ok_or_else(|| {
+                AtelierError::Validation(
+                    "accepted intake item requires target media asset content_hash".into(),
+                )
+            })?;
+            let resolved_asset_id = self
+                .resolve_asset_id_by_content_hash(content_hash)
+                .await?
+                .ok_or_else(|| {
+                    AtelierError::NotFound(format!(
+                        "target media asset for intake item {}",
+                        existing.item_id
+                    ))
+                })?;
+            asset_id = Some(resolved_asset_id);
+
+            if let Some(target_collection_id) = batch.target_collection_id {
+                let collection_ref = RecordId::new(
+                    "atelier_collection",
+                    SurrealUuid::from(target_collection_id),
+                );
+                let collection_row: Option<serde_json::Value> = self
+                    .with_data({
+                        let collection_ref = collection_ref.clone();
+                        move |ctx| {
+                            Box::pin(async move {
+                                ctx.query_first(
+                                    GET_COLLECTION_TARGET_STATEMENT,
+                                    CollectionRefBinding { collection_ref },
+                                )
+                                .await
+                            })
+                        }
+                    })
+                    .await?;
+                let collection_row = intake_row(collection_row.ok_or_else(|| {
+                    AtelierError::NotFound(format!("target collection {target_collection_id}"))
+                })?)?;
+                let collection_character_id: Option<Uuid> =
+                    collection_row.get("character_internal_id");
+                let collection_sheet_version_id: Option<Uuid> =
+                    collection_row.get("sheet_version_id");
+                if let Some(target_character_id) = batch.target_character_id {
+                    if collection_character_id != Some(target_character_id) {
+                        return Err(AtelierError::Validation(format!(
+                            "target collection {target_collection_id} does not belong to intake batch target_character_id {target_character_id}"
+                        )));
+                    }
+                }
+                if let Some(target_sheet_version_id) = batch.target_sheet_version_id {
+                    if collection_sheet_version_id != Some(target_sheet_version_id) {
+                        return Err(AtelierError::Validation(format!(
+                            "target collection {target_collection_id} does not belong to intake batch target_sheet_version_id {target_sheet_version_id}"
+                        )));
+                    }
+                }
+
+                let pair_key = vec![
+                    SurrealUuid::from(target_collection_id),
+                    SurrealUuid::from(resolved_asset_id),
+                ];
+                let (member_exists, existing_source_path_ref): (bool, Option<String>) = match state
+                    .planned_members
+                    .get(&(target_collection_id, resolved_asset_id))
+                {
+                    Some(planned_ref) => (true, Some(planned_ref.clone())),
+                    None => {
+                        let lookup: Option<serde_json::Value> = self
+                            .with_data({
+                                let pair_key = pair_key.clone();
+                                move |ctx| {
+                                    Box::pin(async move {
+                                        ctx.query_first(
+                                            GET_COLLECTION_MEMBER_STATEMENT,
+                                            CollectionMemberLookupBinding { pair_key },
+                                        )
+                                        .await
+                                    })
+                                }
+                            })
+                            .await?;
+                        let lookup = intake_row(lookup.ok_or_else(|| {
+                            AtelierError::Internal(
+                                "collection membership lookup returned no row".to_owned(),
+                            )
+                        })?)?;
+                        (lookup.get("exists"), lookup.get("source_path_ref"))
+                    }
+                };
+                let inserted = !member_exists;
+                let updated_refs = member_exists
+                    && existing_source_path_ref.as_deref() != Some(source_path_ref.as_str());
+                collection_id = Some(target_collection_id);
+                collection_inserted = inserted;
+                state.planned_members.insert(
+                    (target_collection_id, resolved_asset_id),
+                    source_path_ref.clone(),
+                );
+                if inserted || updated_refs {
+                    member = Some(ClassificationMemberInput {
+                        collection_ref,
+                        asset_ref: RecordId::new(
+                            "atelier_media_asset",
+                            SurrealUuid::from(resolved_asset_id),
+                        ),
+                        pair_key,
+                        source_path_ref: source_path_ref.clone(),
+                        actor: requested_by.clone().unwrap_or_else(|| "system".to_owned()),
+                    });
+                    events.push(self.prepare_event(
+                        collections_event_family::COLLECTION_IMAGES_ADDED,
+                        "atelier_collection",
+                        &target_collection_id.to_string(),
+                        serde_json::json!({
+                            "requested": 1,
+                            "inserted": if inserted { 1 } else { 0 },
+                            "updated_refs": if updated_refs { 1 } else { 0 },
+                            "asset_id": resolved_asset_id,
+                            "intake_item_id": existing.item_id,
+                            "source_path_ref": source_path_ref,
+                            "requested_by": requested_by.as_deref(),
+                            "request_id": request_id.as_deref(),
+                        }),
+                    )?);
+                }
+            }
+        }
+
+        let mut audit = None;
+        if changed && lane.requires_rejection_audit() {
+            let audit_reason = normalized_reason.clone().ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "{} intake items require a rejection audit reason",
+                    lane.as_str()
+                ))
+            })?;
+            let lookup = AuditLookupBinding {
+                item_ref: item_ref.clone(),
+                lane: lane.as_str().to_owned(),
+                reason: audit_reason.clone(),
+            };
+            let existing_audit: Option<serde_json::Value> = self
+                .with_data(move |ctx| {
+                    Box::pin(async move { ctx.query_first(FIND_AUDIT_STATEMENT, lookup).await })
+                })
+                .await?;
+            if existing_audit.is_none() {
+                let audit_id = Uuid::now_v7();
+                audit = Some(ClassificationAuditInput {
+                    audit_ref: RecordId::new(
+                        "atelier_intake_item_rejection_audit",
+                        SurrealUuid::from(audit_id),
+                    ),
+                    audit_id: SurrealUuid::from(audit_id),
+                    reason: audit_reason.clone(),
+                    source_path_ref: source_path_ref.clone(),
+                });
+                events.push(self.prepare_event(
+                    intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
+                    "atelier_intake_item",
+                    &existing.item_id.to_string(),
+                    serde_json::json!({
+                        "audit_id": audit_id,
+                        "batch_id": existing.batch_id,
+                        "lane": lane,
+                        "reason_ref": event_ref_for_text(&audit_reason),
+                        "source_path_ref": source_path_ref,
+                    }),
+                )?);
+            }
+        }
+
+        let emit_classified = (changed || has_request_context) && !duplicate_request_id;
+        if emit_classified {
+            events.push(self.prepare_event(
+                intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                "atelier_intake_item",
+                &existing.item_id.to_string(),
+                serde_json::json!({
+                    "batch_id": existing.batch_id,
+                    "lane": lane,
+                    "reason": normalized_reason,
+                    "source_path_ref": source_path_ref,
+                    "asset_id": asset_id,
+                    "collection_id": collection_id,
+                    "apply_workflow": true,
+                    "changed": changed,
+                    "requested_by": requested_by.as_deref(),
+                    "metadata": metadata.as_ref(),
+                }),
+            )?);
+        }
+
+        let mut metadata_input = None;
+        if let (Some(requested_by), Some(metadata), Some(request_id)) = (
+            requested_by.as_deref(),
+            metadata.as_ref(),
+            metadata
+                .as_ref()
+                .and_then(|value| value.request_id.as_deref()),
+        ) {
+            let previous = self.get_intake_item_metadata(existing.item_id).await?;
+            let mut merged_tags = Vec::new();
+            let mut seen_tags = BTreeSet::new();
+            if let Some(previous) = previous.as_ref() {
+                for tag in &previous.tags {
+                    if seen_tags.insert(tag.clone()) {
+                        merged_tags.push(tag.clone());
+                    }
+                }
+            }
+            for tag in &metadata.tags {
+                let normalized = normalize_tag(tag);
+                if normalized.is_empty() {
+                    continue;
+                }
+                if seen_tags.insert(normalized.clone()) {
+                    merged_tags.push(normalized);
+                }
+            }
+            let coalesce = |incoming: &Option<String>, prior: Option<&Option<String>>| {
+                incoming
+                    .clone()
+                    .or_else(|| prior.and_then(|value| value.clone()))
+            };
+            let contact_sheet = metadata
+                .contact_sheet
+                .clone()
+                .or_else(|| previous.as_ref().and_then(|row| row.contact_sheet.clone()));
+            let contact_sheet_json = contact_sheet
+                .map(|value| serde_json::to_value(value).unwrap_or_else(|_| serde_json::json!({})));
+            metadata_input = Some(ClassificationMetadataInput {
+                metadata_ref: RecordId::new(
+                    "atelier_intake_item_metadata",
+                    SurrealUuid::from(existing.item_id),
+                ),
+                asset_ref: asset_id
+                    .or_else(|| previous.as_ref().and_then(|row| row.asset_id))
+                    .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(id))),
+                request_id: request_id.to_owned(),
+                dataset_ref: coalesce(
+                    &metadata.dataset_ref,
+                    previous.as_ref().map(|row| &row.dataset_ref),
+                ),
+                character_ref: coalesce(
+                    &metadata.character_ref,
+                    previous.as_ref().map(|row| &row.character_ref),
+                ),
+                link_passed: metadata.link_passed,
+                tags_json: merged_tags,
+                note: previous
+                    .as_ref()
+                    .and_then(|row| row.note.clone())
+                    .or_else(|| metadata.note.clone()),
+                event_label: coalesce(
+                    &metadata.event,
+                    previous.as_ref().map(|row| &row.event_label),
+                ),
+                event_date: coalesce(&metadata.date, previous.as_ref().map(|row| &row.event_date)),
+                location: coalesce(
+                    &metadata.location,
+                    previous.as_ref().map(|row| &row.location),
+                ),
+                facial_profile: coalesce(
+                    &metadata.facial_profile,
+                    previous.as_ref().map(|row| &row.facial_profile),
+                ),
+                loaded_item_count: metadata
+                    .loaded_item_count
+                    .or_else(|| previous.as_ref().and_then(|row| row.loaded_item_count)),
+                contact_sheet_json,
+                requested_by: requested_by.to_owned(),
+            });
+        }
+
+        Ok(ClassificationPlan {
+            item_id: existing.item_id,
+            asset_id,
+            collection_id,
+            collection_inserted,
+            input: ClassificationItemInput {
+                item_ref,
+                batch_ref,
+                expected_lane: existing.lane.as_str().to_owned(),
+                expected_lane_reason: existing.lane_reason.clone(),
+                expected_updated_at: existing.updated_at_utc.into(),
+                metadata_ref,
+                expected_metadata,
+                request_id,
+                changed,
+                touch_batch: emit_classified,
+                lane: lane.as_str().to_owned(),
+                lane_reason: normalized_reason,
+                member,
+                audit,
+                metadata: metadata_input,
+            },
+            events,
+        })
+    }
+
+    /// Commit a set of plans in one statement, then mirror their events onto
+    /// the Flight Recorder exactly as `write_with_event` does.
+    async fn execute_classification_plans(
+        &self,
+        plans: Vec<ClassificationPlan>,
+    ) -> AtelierResult<Vec<IntakeClassificationApplyResult>> {
+        let mut inputs = Vec::with_capacity(plans.len());
+        let mut item_refs = Vec::with_capacity(plans.len());
+        let mut prepared_events = Vec::new();
+        let mut event_bindings = Vec::new();
+        for plan in &plans {
+            inputs.push(plan.input.clone());
+            item_refs.push(plan.input.item_ref.clone());
+        }
+        let mut summaries = Vec::with_capacity(plans.len());
+        for plan in plans {
+            summaries.push((
+                plan.item_id,
+                plan.asset_id,
+                plan.collection_id,
+                plan.collection_inserted,
+            ));
+            for event in plan.events {
+                event_bindings.push(event.bindings.clone());
+                prepared_events.push(event);
+            }
+        }
+
+        let rows: Vec<serde_json::Value> = {
+            let bindings = ClassificationApplyBindings {
+                items: inputs,
+                item_refs,
+                events: event_bindings,
+            };
+            self.with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values_at(APPLY_CLASSIFICATIONS_STATEMENT, bindings, 1)
+                        .await
+                })
+            })
+            .await
+            .map_err(|err| {
+                if err
+                    .to_string()
+                    .contains("metadata.request_id is already bound to another intake batch")
+                {
+                    AtelierError::Validation(
+                        "metadata.request_id is already bound to another intake batch".into(),
+                    )
+                } else {
+                    err
+                }
+            })?
+        };
+
+        for prepared in prepared_events {
+            let key = prepared.bindings.idempotency_key.clone();
+            let recorded: Option<LedgerReceiptRow> = self
+                .with_data(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                            LedgerIdempotencyBinding {
+                                idempotency_key: key,
+                            },
+                        )
+                        .await
+                    })
+                })
+                .await?;
+            self.finish_event(
+                prepared,
+                recorded.map(|row| super::RecordedLedgerRow {
+                    event_id: row.event_id,
+                    event_sequence: row.event_sequence,
+                }),
+            )
+            .await?;
+        }
+
+        let mut items_by_id = BTreeMap::new();
+        for row in rows {
+            let item = item_from_row(&intake_row(row)?)?;
+            items_by_id.insert(item.item_id, item);
+        }
+        summaries
+            .into_iter()
+            .map(|(item_id, asset_id, collection_id, collection_inserted)| {
+                let item = items_by_id.remove(&item_id).ok_or_else(|| {
+                    AtelierError::Internal(format!(
+                        "applying intake classification returned no row for item {item_id}"
+                    ))
+                })?;
+                Ok(IntakeClassificationApplyResult {
+                    item,
+                    asset_id,
+                    collection_id,
+                    collection_inserted,
+                })
+            })
+            .collect()
+    }
+
+    async fn prepare_intake_classification(
+        &self,
+        request: &ApplyIntakeClassificationRequest,
+    ) -> AtelierResult<ClassificationPlan> {
+        let existing = self
+            .get_intake_item_by_id(request.item_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
+        let batch = self
+            .get_intake_batch_by_id(existing.batch_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
+        let mut state = BatchPlanState::default();
+        let plan = self
+            .plan_intake_classification(
+                &existing,
+                &batch,
+                request.lane,
+                request.reason.as_deref(),
+                request.requested_by.as_deref(),
+                request.metadata.as_ref(),
+                &mut state,
+            )
+            .await?;
+        Ok(plan)
+    }
+
+    async fn apply_intake_batch_classifications_once(
+        &self,
+        request: &ApplyIntakeBatchClassificationsRequest,
+        requested_by: &str,
+    ) -> AtelierResult<IntakeBatchClassificationApplyResult> {
+        let batch = self
+            .get_intake_batch_by_id(request.batch_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", request.batch_id)))?;
+        let items = self.list_intake_items(request.batch_id, None).await?;
+        let canonical_item_count = checked_usize_to_i64("intake batch item count", items.len())?;
+        let (metadata, request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(request.batch_id),
+            Some(canonical_item_count),
+            true,
+        )?;
+        let request_id = request_id.ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata.request_id is required for batch intake classification".into(),
+            )
+        })?;
+        let conflict_binding = RequestBatchConflictBinding {
+            request_id: request_id.clone(),
+            batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(request.batch_id)),
+        };
+        let conflicting_batch_id: Option<Uuid> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(FIND_CONFLICTING_REQUEST_BATCH_STATEMENT, conflict_binding)
+                        .await
+                })
+            })
+            .await?;
+        if let Some(conflicting_batch_id) = conflicting_batch_id {
+            return Err(AtelierError::Validation(format!(
+                "metadata.request_id {request_id} is already bound to intake batch {conflicting_batch_id}"
+            )));
+        }
+
+        let item_ids: BTreeSet<Uuid> = items.iter().map(|item| item.item_id).collect();
+        let mut overrides = BTreeMap::new();
+        for override_row in &request.overrides {
+            if !item_ids.contains(&override_row.item_id) {
+                return Err(AtelierError::Validation(format!(
+                    "intake batch override item_id {} does not belong to batch {}",
+                    override_row.item_id, request.batch_id
+                )));
+            }
+            if overrides
+                .insert(
+                    override_row.item_id,
+                    (override_row.lane, override_row.reason.clone()),
+                )
+                .is_some()
+            {
+                return Err(AtelierError::Validation(format!(
+                    "duplicate intake batch override item_id {}",
+                    override_row.item_id
+                )));
+            }
+        }
+
+        let mut planned = Vec::with_capacity(items.len());
+        for item in &items {
+            let (lane, reason) = overrides
+                .get(&item.item_id)
+                .cloned()
+                .unwrap_or((request.default_lane, request.default_reason.clone()));
+            let normalized_reason = normalize_lane_reason(lane, reason.as_deref())?;
+            planned.push((item, lane, normalized_reason));
+        }
+
+        let mut state = BatchPlanState::default();
+        let mut plans = Vec::with_capacity(planned.len());
+        for (item, lane, reason) in planned {
+            plans.push(
+                self.plan_intake_classification(
+                    item,
+                    &batch,
+                    lane,
+                    reason.as_deref(),
+                    Some(requested_by),
+                    metadata.as_ref(),
+                    &mut state,
+                )
+                .await?,
+            );
+        }
+        let applied = self.execute_classification_plans(plans).await?;
+        Ok(IntakeBatchClassificationApplyResult {
+            batch_id: request.batch_id,
+            total_item_count: items.len(),
+            applied,
+            failed: None,
+        })
+    }
+
     /// Persist the authoritative Atelier item -> Loom block relation.
     ///
     /// The target block must already be a real Loom authority row carrying a
@@ -2002,7 +3221,11 @@ impl AtelierStore {
             .map(|row| row.as_ref().map(batch_from_row))
     }
 
-    async fn get_intake_batch_by_id(&self, batch_id: Uuid) -> AtelierResult<Option<IntakeBatch>> {
+    /// Fetch a single batch by its id.
+    pub async fn get_intake_batch_by_id(
+        &self,
+        batch_id: Uuid,
+    ) -> AtelierResult<Option<IntakeBatch>> {
         let binding = BatchRefBinding {
             batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
         };
@@ -2197,7 +3420,8 @@ impl AtelierStore {
             .transpose()
     }
 
-    async fn get_intake_item_by_id(&self, item_id: Uuid) -> AtelierResult<Option<IntakeItem>> {
+    /// Fetch a single item by its id.
+    pub async fn get_intake_item_by_id(&self, item_id: Uuid) -> AtelierResult<Option<IntakeItem>> {
         let binding = ItemRefBinding {
             item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item_id)),
         };
@@ -2585,104 +3809,127 @@ impl AtelierStore {
 
     /// Apply an intake lane decision to the media workflow. Accepted decisions
     /// resolve the item's `content_hash` to an existing media asset and attach
-    /// that asset to the batch target collection when configured. All writes
-    /// happen in one transaction so invalid targets roll back the lane change.
+    /// that asset to the batch target collection when configured. Every write
+    /// (lane change, collection membership, rejection audit, dataset-mining
+    /// metadata) and every event it emits land in ONE statement, so invalid
+    /// targets leave nothing behind. A SurrealDB write-write conflict raised by a
+    /// concurrent writer is retried a bounded number of times (MT-056
+    /// INTAKE_DEADLOCK_RETRY: the PostgreSQL deadlock retry, re-expressed for an
+    /// optimistic embedded store).
     pub async fn apply_intake_classification(
         &self,
         request: &ApplyIntakeClassificationRequest,
     ) -> AtelierResult<IntakeClassificationApplyResult> {
-        let normalized_reason = normalize_lane_reason(request.lane, request.reason.as_deref())?;
-        let existing = self
-            .get_intake_item_by_id(request.item_id)
-            .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
-        let batch = self
-            .get_intake_batch_by_id(existing.batch_id)
-            .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
+        self.apply_intake_classification_from_plan(request, None)
+            .await
+    }
 
-        let mut asset_id = None;
-        let mut collection_id = None;
-        let mut collection_inserted = false;
-        if request.lane == IntakeLane::Accepted {
-            let content_hash = existing.content_hash.as_deref().ok_or_else(|| {
-                AtelierError::Validation(
-                    "accepted intake item requires target media asset content_hash".into(),
-                )
-            })?;
-            let resolved_asset_id: Option<Uuid> = self
-                .with_data({
-                    let content_hash = content_hash.to_owned();
-                    move |ctx| {
-                        Box::pin(async move {
-                            ctx.query_first(
-                                "SELECT VALUE asset_id FROM atelier_media_asset \
-                                 WHERE content_hash = $content_hash LIMIT 1;",
-                                ContentHashBinding { content_hash },
-                            )
-                            .await
-                        })
-                    }
-                })
-                .await?;
-            let resolved_asset_id = resolved_asset_id.ok_or_else(|| {
-                AtelierError::NotFound(format!(
-                    "target media asset for intake item {}",
-                    existing.item_id
-                ))
-            })?;
-            asset_id = Some(resolved_asset_id);
-
-            if let Some(target_collection_id) = batch.target_collection_id {
-                let inserted = self
-                    .add_images_to_collection(target_collection_id, &[resolved_asset_id])
-                    .await?;
-                collection_id = Some(target_collection_id);
-                collection_inserted = inserted > 0;
+    async fn apply_intake_classification_from_plan(
+        &self,
+        request: &ApplyIntakeClassificationRequest,
+        mut initial_plan: Option<ClassificationPlan>,
+    ) -> AtelierResult<IntakeClassificationApplyResult> {
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            let outcome = async {
+                let plan = match initial_plan.take() {
+                    Some(plan) => plan,
+                    None => self.prepare_intake_classification(request).await?,
+                };
+                self.execute_classification_plans(vec![plan])
+                    .await?
+                    .pop()
+                    .ok_or_else(|| {
+                        AtelierError::Internal(
+                            "applying intake classification returned no result".into(),
+                        )
+                    })
+            }
+            .await;
+            match outcome {
+                Err(err)
+                    if attempt < INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS
+                        && is_retryable_write_conflict(&err) =>
+                {
+                    tracing::warn!(
+                        target: "handshake_core::atelier",
+                        item_id = %request.item_id,
+                        attempt,
+                        error = %err,
+                        "intake classification hit a write conflict; retrying"
+                    );
+                    tokio::time::sleep(intake_write_conflict_backoff(attempt)).await;
+                }
+                other => return other,
             }
         }
+    }
 
-        let mut item = existing.clone();
-        let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
-        if changed {
-            let bindings = ItemClassificationBindings {
-                item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(request.item_id)),
-                batch_ref: RecordId::new(
-                    "atelier_intake_batch",
-                    SurrealUuid::from(existing.batch_id),
-                ),
-                lane: request.lane.as_str().to_owned(),
-                lane_reason: normalized_reason.clone(),
-            };
-            let row: Option<serde_json::Value> = self
-                .write_with_event(
-                    CLASSIFY_ITEM_STATEMENT,
-                    bindings,
-                    intake_event_family::INTAKE_ITEM_CLASSIFIED,
-                    "atelier_intake_item",
-                    &request.item_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": existing.batch_id,
-                        "lane": request.lane,
-                        "reason": normalized_reason,
-                        "source_path_ref": event_ref_for_text(&existing.source_path),
-                        "asset_id": asset_id,
-                        "collection_id": collection_id,
-                        "apply_workflow": true,
-                    }),
-                )
-                .await?;
-            item = item_from_row(&intake_row(row.ok_or_else(|| {
-                AtelierError::Internal("applying intake classification returned no row".to_owned())
-            })?)?)?;
-            self.insert_rejection_audit(&item).await?;
+    /// Apply a classification plan to the canonical persisted item set for one
+    /// batch. Loaded UI rows may provide per-item overrides, but the backend
+    /// owns the full item enumeration so large batches are never limited to the
+    /// currently rendered or expanded subset. The whole plan commits in one
+    /// statement or not at all; write-write conflicts are retried a bounded
+    /// number of times (MT-056 INTAKE_DEADLOCK_RETRY).
+    pub async fn apply_intake_batch_classifications(
+        &self,
+        request: &ApplyIntakeBatchClassificationsRequest,
+    ) -> AtelierResult<IntakeBatchClassificationApplyResult> {
+        let requested_by = request.requested_by.trim();
+        if requested_by.is_empty() || requested_by != request.requested_by {
+            return Err(AtelierError::Validation(
+                "requested_by must not be empty or padded".into(),
+            ));
         }
-        Ok(IntakeClassificationApplyResult {
-            item,
-            asset_id,
-            collection_id,
-            collection_inserted,
-        })
+        reject_legacy_runtime_ref("requested_by", requested_by)?;
+
+        let request_metadata = request.metadata.as_ref().ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata with request_id and batch_id is required for batch intake classification"
+                    .into(),
+            )
+        })?;
+        if request_metadata.batch_id.is_none() {
+            return Err(AtelierError::Validation(
+                "metadata.batch_id is required for batch intake classification".into(),
+            ));
+        }
+        let (_preflight_metadata, preflight_request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(request.batch_id),
+            None,
+            true,
+        )?;
+        if preflight_request_id.is_none() {
+            return Err(AtelierError::Validation(
+                "metadata.request_id is required for batch intake classification".into(),
+            ));
+        }
+
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            match self
+                .apply_intake_batch_classifications_once(request, requested_by)
+                .await
+            {
+                Err(err)
+                    if attempt < INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS
+                        && is_retryable_write_conflict(&err) =>
+                {
+                    tracing::warn!(
+                        target: "handshake_core::atelier",
+                        batch_id = %request.batch_id,
+                        attempt,
+                        error = %err,
+                        "intake batch classification hit a write conflict; retrying"
+                    );
+                    tokio::time::sleep(intake_write_conflict_backoff(attempt)).await;
+                }
+                other => return other,
+            }
+        }
     }
 
     /// Per-lane counts for the sorter header.
@@ -2740,5 +3987,244 @@ impl AtelierStore {
             AtelierError::Internal("closing an intake batch returned no row".to_owned())
         })?)?;
         Ok(batch_from_row(&row))
+    }
+}
+
+/// A real, already-read classification plan for deterministic interleaving proofs.
+#[cfg(feature = "test-utils")]
+pub struct IntakeClassificationTestPlan {
+    request: ApplyIntakeClassificationRequest,
+    plan: ClassificationPlan,
+}
+
+#[cfg(feature = "test-utils")]
+impl AtelierStore {
+    pub async fn test_prepare_intake_classification(
+        &self,
+        request: &ApplyIntakeClassificationRequest,
+    ) -> AtelierResult<IntakeClassificationTestPlan> {
+        Ok(IntakeClassificationTestPlan {
+            request: request.clone(),
+            plan: self.prepare_intake_classification(request).await?,
+        })
+    }
+
+    pub async fn test_apply_prepared_intake_classification(
+        &self,
+        prepared: IntakeClassificationTestPlan,
+    ) -> AtelierResult<IntakeClassificationApplyResult> {
+        self.apply_intake_classification_from_plan(&prepared.request, Some(prepared.plan))
+            .await
+    }
+
+    /// Commit exactly these real plans without retry, to inspect atomic rollback.
+    pub async fn test_commit_intake_classification_plans(
+        &self,
+        plans: Vec<IntakeClassificationTestPlan>,
+    ) -> AtelierResult<Vec<IntakeClassificationApplyResult>> {
+        self.execute_classification_plans(plans.into_iter().map(|p| p.plan).collect())
+            .await
+    }
+}
+
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+
+    async fn authority_snapshot(storage: &SurrealStorage) -> serde_json::Value {
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                "RETURN { guards: (SELECT * FROM atelier_intake_request_guard ORDER BY id), \
+                   batches: (SELECT * FROM atelier_intake_batch ORDER BY id), \
+                   items: (SELECT * FROM atelier_intake_item ORDER BY id), \
+                   metadata: (SELECT * FROM atelier_intake_item_metadata ORDER BY id), \
+                   audits: (SELECT * FROM atelier_intake_item_rejection_audit ORDER BY id), \
+                   ledger: (SELECT * FROM kernel_event_ledger ORDER BY id), \
+                   events: (SELECT * FROM atelier_event ORDER BY id) };",
+                super::super::NoDomain {},
+            ).await
+                })
+            })
+            .await
+            .expect("read intake authority")
+            .expect("snapshot")
+    }
+
+    #[tokio::test]
+    async fn intake_later_event_failure_rolls_back_domain_and_ledger() {
+        let directory = tempfile::tempdir().expect("isolated intake transaction store");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(directory.path()).expect("configure store"),
+        )
+        .await
+        .expect("open store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+        let store = AtelierStore::new(storage.clone());
+        let batch = store
+            .open_intake_batch(&NewIntakeBatch {
+                idempotency_key: format!("mt061-rollback-{}", Uuid::now_v7()),
+                source_label: "mt061-rollback".into(),
+                source_ref: None,
+                mode: IntakeBatchMode::Manual,
+                profile_mode: IntakeProfileMode::LooseProfile,
+                character_internal_id: None,
+                target_character_id: None,
+                target_sheet_version_id: None,
+                target_collection_id: None,
+                resume_cursor: None,
+            })
+            .await
+            .expect("open batch");
+        for index in 0..2 {
+            store
+                .add_intake_item(
+                    batch.batch_id,
+                    &NewIntakeItem {
+                        source_path: format!("artifact://intake/rollback/{index}"),
+                        file_name: format!("rollback-{index}.png"),
+                        byte_len: 42,
+                        content_hash: None,
+                    },
+                )
+                .await
+                .expect("add item");
+        }
+        let items = store
+            .list_intake_items(batch.batch_id, None)
+            .await
+            .expect("canonical item order");
+        let request = ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Rejected,
+            default_reason: Some("earlier-event".into()),
+            requested_by: "mt061-writer".into(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt061-late-failure-{}", Uuid::now_v7())),
+                batch_id: Some(batch.batch_id.to_string()),
+                tags: vec!["rollback".into()],
+                note: Some("rollback proof".into()),
+                ..Default::default()
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: items[1].item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("mt061-reject-later-event".into()),
+            }],
+        };
+        let before = authority_snapshot(&storage).await;
+        // This isolated trigger rejects the later item's projection insert after
+        // all domain writes and the preceding item's event pair were executed.
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.execute_returning(
+                        "DEFINE EVENT mt061_reject_later ON TABLE atelier_event \
+                 WHEN $after.event_family = 'atelier.intake.item_classified' \
+                   AND $after.payload.reason = 'mt061-reject-later-event' \
+                 THEN { THROW 'mt061_later_event_rejected'; };",
+                        super::super::NoDomain {},
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("install isolated final-event trigger");
+        let error = store
+            .apply_intake_batch_classifications(&request)
+            .await
+            .expect_err("later event must reject the transaction");
+        assert!(
+            error.to_string().contains("mt061_later_event_rejected"),
+            "{error}"
+        );
+        assert_eq!(
+            authority_snapshot(&storage).await,
+            before,
+            "guards, batches, items, metadata, audits and both event tables must roll back"
+        );
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.execute_returning(
+                        "REMOVE EVENT mt061_reject_later ON TABLE atelier_event;",
+                        super::super::NoDomain {},
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("remove isolated trigger");
+        let applied = store
+            .apply_intake_batch_classifications(&request)
+            .await
+            .expect("success retry");
+        assert_eq!(applied.applied.len(), 2);
+        assert!(applied.failed.is_none());
+        for item in &items {
+            assert_eq!(
+                store
+                    .get_intake_item_by_id(item.item_id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .lane,
+                IntakeLane::Rejected
+            );
+            assert_eq!(
+                store
+                    .get_intake_item_metadata(item.item_id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .tags,
+                vec!["rollback"]
+            );
+            assert_eq!(
+                store
+                    .count_events_for_aggregate(
+                        intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                        "atelier_intake_item",
+                        &item.item_id.to_string(),
+                    )
+                    .await
+                    .unwrap(),
+                1
+            );
+        }
+        let after = authority_snapshot(&storage).await;
+        assert_eq!(after["guards"].as_array().unwrap().len(), 1);
+        assert_eq!(after["metadata"].as_array().unwrap().len(), 2);
+        assert_eq!(after["audits"].as_array().unwrap().len(), 2);
+        let old_events = before["events"].as_array().unwrap();
+        let added: Vec<_> = after["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|row| {
+                !old_events
+                    .iter()
+                    .any(|old| old["event_id"] == row["event_id"])
+            })
+            .collect();
+        assert_eq!(added.len(), 4);
+        assert_eq!(
+            after["ledger"].as_array().unwrap().len(),
+            before["ledger"].as_array().unwrap().len() + 4
+        );
+        for event in added {
+            let ledger = after["ledger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["event_id"] == event["kernel_event_id"])
+                .expect("committed ledger pair");
+            assert_eq!(ledger["event_sequence"], event["kernel_event_sequence"]);
+            assert_eq!(ledger["payload"]["atelier_payload"], event["payload"]);
+        }
+        drop(store);
+        storage.shutdown().await.expect("close isolated store");
     }
 }

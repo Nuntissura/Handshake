@@ -176,7 +176,7 @@ fn overview_count_statement(table: &str) -> &'static str {
     }
 }
 
-fn atelier_store(state: &AppState) -> AtelierStore {
+pub(crate) fn atelier_store(state: &AppState) -> AtelierStore {
     AtelierStore::with_observability(
         state.surreal.clone(),
         state.storage.clone(),
@@ -185,14 +185,16 @@ fn atelier_store(state: &AppState) -> AtelierStore {
 }
 
 /// Cap on list endpoints so a React panel never pulls an unbounded result set.
-const LIST_CAP: i64 = 200;
+pub(crate) const LIST_CAP: i64 = 200;
+// Compatibility metadata only; authenticated account sessions determine the actor.
+pub(crate) const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 
 #[derive(Debug, Serialize)]
-struct ErrorResponse {
-    error: &'static str,
+pub(crate) struct ErrorResponse {
+    pub(crate) error: &'static str,
 }
 
-fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
+pub(crate) fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
     tracing::error!(target: "handshake_core::atelier", error = %err, "db_error");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -200,7 +202,7 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
     )
 }
 
-fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+pub(crate) fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)
         .and_then(|value| value.to_str().ok())
@@ -220,10 +222,38 @@ fn protected_denial() -> ApiError {
     )
 }
 
+
+/// Read the persisted principal's operator identity after existing account authorization.
+/// Request actor-kind/id declarations cannot grant the no-lease operator exception.
+pub(crate) async fn atelier_authenticated_operator(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<bool, ApiError> {
+    let account = atelier_account(state, headers, ResourceAction::Update).await?;
+    let session = super::authority::authenticated_session(state, headers)
+        .await.map_err(|_| protected_denial())?;
+    Ok(session.actor_id == account.actor_id
+        && session.session_id == account.record_user_scope.session_id
+        && session.actor_kind == "operator"
+        && matches!(session.principal_kind.as_str(), "human_account" | "break_glass_operator"))
+}
+
+pub(crate) fn artifact_byte_read_error(
+    err: crate::storage::artifacts::ArtifactError,
+) -> (StatusCode, Json<ErrorResponse>) {
+    use crate::storage::artifacts::ArtifactError;
+    match err {
+        ArtifactError::Io(io_err) if io_err.kind() == std::io::ErrorKind::NotFound => {
+            atelier_error(crate::atelier::AtelierError::NotFound("artifact payload".to_owned()))
+        }
+        other => internal_error(other),
+    }
+}
+
 /// MT-154 (D-154-3): the Atelier library is an account-owned ProtectedResource without a workspace.
 /// Reads need `fs.read`, writes `fs.write`, rechecked against the live account session; the request
 /// then runs as that account's record user (`owner_account_id = $auth.account_id` row permissions).
-async fn atelier_account(
+pub(crate) async fn atelier_account(
     state: &AppState,
     headers: &HeaderMap,
     action: ResourceAction,
@@ -255,7 +285,7 @@ pub async fn with_account_session<T>(
 
 /// Runs `operation` as the account record user with Atelier receipts stamped with the session
 /// principal (never `System("atelier")` or a header-supplied actor).
-async fn as_account<T>(
+pub(crate) async fn as_account<T>(
     state: &AppState,
     account: &AccountSessionAuthority,
     operation: impl std::future::Future<Output = T>,
@@ -287,7 +317,7 @@ fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorR
 /// 400, and infra/storage failures are 500. (Malformed `Path<Uuid>` / JSON body
 /// inputs are already rejected with a 400 by Axum's extractors before a handler
 /// runs.) The body never leaks internals — it is a fixed `&'static str` code.
-fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorResponse>) {
+pub(crate) fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorResponse>) {
     use crate::atelier::AtelierError;
     // MT-154 silent-deny ruling: a record-user write the table permissions dropped surfaces as the
     // guard THROW and is answered with the constant 403, never 200/500.

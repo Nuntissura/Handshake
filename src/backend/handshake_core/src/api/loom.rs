@@ -16,6 +16,10 @@ use crate::storage::{
     QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore, StorageError,
     WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
+use crate::swarm_orchestration::resource_scope::{
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, WorkspaceScopeRef,
+};
 use crate::AppState;
 use axum::{
     extract::{Extension, FromRequestParts, Path, Query, Request, State},
@@ -499,6 +503,7 @@ async fn create_record_user_loom_block(
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
+    let scope = loom_search_scope(&authority, &workspace_id)?;
     let ctx = loom_create_write_context(&authority)?;
     let new_block = NewLoomBlock {
         block_id: payload.block_id,
@@ -519,7 +524,25 @@ async fn create_record_user_loom_block(
         .await
         .map_err(map_storage_error)?;
 
-    finalize_loom_block_create(&state, &ctx, &workspace_id, block).await
+    finalize_loom_block_create(&state, &ctx, &workspace_id, block, Some(&scope)).await
+}
+
+fn loom_search_scope(
+    authority: &crate::api::authority::AuthorizedResourceContext,
+    workspace_id: &str,
+) -> ApiResult<ExactResourceScopeAttribution> {
+    let identifier = |value: &str| -> ApiResult<Uuid> {
+        let value = Uuid::parse_str(value).map_err(|_| loom_denied())?;
+        if value.is_nil() { return Err(loom_denied()); }
+        Ok(value)
+    };
+    Ok(ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(identifier(&authority.account_id)?),
+        actor_principal_id: ActorPrincipalId::from_uuid(identifier(&authority.principal_id)?),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(identifier(&authority.session_id)?),
+        access_space_id: AccessSpaceRef::from_uuid(identifier(&authority.access_space_id)?),
+        workspace_id: WorkspaceScopeRef::new(workspace_id).map_err(|_| loom_denied())?,
+    })
 }
 
 fn loom_create_write_context(
@@ -691,7 +714,7 @@ async fn create_legacy_loom_block(
         .await
         .map_err(map_storage_error)?;
 
-    finalize_loom_block_create(&state, &ctx, &workspace_id, block).await
+    finalize_loom_block_create(&state, &ctx, &workspace_id, block, None).await
 }
 
 async fn finalize_loom_block_create(
@@ -699,7 +722,9 @@ async fn finalize_loom_block_create(
     ctx: &WriteContext,
     workspace_id: &str,
     block: LoomBlock,
+    scope: Option<&ExactResourceScopeAttribution>,
 ) -> ApiResult<Json<LoomBlock>> {
+    if block.workspace_id != workspace_id { return Err(loom_denied()); }
     let block_id = block.block_id.clone();
     let block_workspace_id = block.workspace_id.clone();
     let event = FlightRecorderEvent::new(
@@ -721,7 +746,7 @@ async fn finalize_loom_block_create(
     // WP-KERNEL-009 MT-264: refresh the semantic embedding projection so a
     // normally-created block is searchable by the semantic modality (not only
     // by tests that manually reindex). No-op decline when no model configured.
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
+    refresh_loom_block_embedding(&state, &block, scope).await;
 
     Ok(Json(block))
 }
@@ -739,15 +764,19 @@ async fn finalize_loom_block_create(
 /// committed: it is recorded to the Flight Recorder so the block stays usable
 /// while the embedding can be backfilled, rather than failing an otherwise
 /// successful authority write.
-async fn refresh_loom_block_embedding(state: &AppState, ctx: &WriteContext, block: &LoomBlock) {
-    match crate::loom_search::reindex_block(
-        state.storage.as_ref(),
-        state.llm_client.as_ref(),
-        ctx,
-        block,
-    )
-    .await
-    {
+async fn refresh_loom_block_embedding(
+    state: &AppState,
+    block: &LoomBlock,
+    scope: Option<&ExactResourceScopeAttribution>,
+) {
+    let result = match scope {
+        Some(scope) if scope.workspace_id.as_str() == block.workspace_id => {
+            let store = crate::storage::surreal::SurrealLoomSearchStore::new(state.surreal.clone());
+            crate::loom_search::reindex_block(&store, state.llm_client.as_ref(), state.flight_recorder.as_ref(), scope, block).await
+        }
+        _ => Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")),
+    };
+    match result {
         Ok(_wrote_embedding) => {}
         Err(err) => {
             let event = FlightRecorderEvent::new(
@@ -875,12 +904,16 @@ async fn open_daily_journal(
     // record-user scope as the create, like the POST /loom/blocks path (loom_create_authority);
     // outside it the KNOWLEDGE_LOOM_BLOCK_INDEXED receipt carries no authority_* identity and
     // fn::mt120_loom_receipt hides it from the owner's aggregate read.
+    let search_scope = loom_search_scope(&authority, &workspace_id)?;
     let finalize_scope = authority.record_user_scope.clone();
+    let receipt_actor = LoomAccount { authority: authority.clone(), ctx: ctx.clone() }.session_actor();
     let created = state
         .surreal
         .with_record_user_scope(
             authority.record_user_scope,
-            database.create_record_user_loom_bundle(
+            crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                receipt_actor.clone(), workspace_id.clone(),
+                database.create_record_user_loom_bundle(
                 &ctx,
                 NewLoomBlock {
                     block_id: None,
@@ -897,7 +930,7 @@ async fn open_daily_journal(
                     derived,
                 },
                 None,
-            ),
+            )),
         )
         .await;
     match created {
@@ -906,7 +939,10 @@ async fn open_daily_journal(
                 .surreal
                 .with_record_user_scope(
                     finalize_scope,
-                    finalize_loom_block_create(&state, &ctx, &workspace_id, block),
+                    crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                        receipt_actor.clone(), workspace_id.clone(),
+                        finalize_loom_block_create(&state, &ctx, &workspace_id, block, Some(&search_scope)),
+                    ),
                 )
                 .await
         }
@@ -2822,6 +2858,7 @@ async fn patch_loom_block_authenticated(
     // MT-109 C3: the tag-edge writes of this PATCH (Kanban card move) run in the same account
     // scope, with receipts bound to the block workspace and stamped with the session principal.
     let account = loom_block_account(&state, &headers, &block_id, ResourceAction::Update).await?;
+    let scope = loom_search_scope(&account.authority, &workspace_id)?;
     let ctx = account.ctx.clone();
     let scoped_state = state.clone();
     let loom_workspace = workspace_id.clone();
@@ -2829,7 +2866,7 @@ async fn patch_loom_block_authenticated(
         .run(
             &state,
             &loom_workspace,
-            patch_loom_block_inner(scoped_state, workspace_id, block_id, payload, ctx),
+            patch_loom_block_inner(scoped_state, workspace_id, block_id, payload, ctx, Some(scope)),
         )
         .await
 }
@@ -2847,6 +2884,7 @@ async fn patch_loom_block(
         block_id,
         payload,
         block_view_write_context(&headers),
+        None,
     )
     .await
 }
@@ -2857,6 +2895,7 @@ async fn patch_loom_block_inner(
     block_id: String,
     payload: LoomBlockPatchRequest,
     ctx: WriteContext,
+    scope: Option<ExactResourceScopeAttribution>,
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
@@ -3069,7 +3108,7 @@ async fn patch_loom_block_inner(
     // search text and embedding -- unchanged, and tag search reads loom_edges live
     // (search_store.rs loom_search_v2), so the projection rewrite and its receipt are skipped.
     if !block_update_skipped {
-        refresh_loom_block_embedding(&state, &ctx, &block).await;
+        refresh_loom_block_embedding(&state, &block, scope.as_ref()).await;
     }
 
     Ok(Json(block))
@@ -4414,7 +4453,7 @@ async fn loom_search_v2_authenticated(
         .run(
             &state,
             &loom_workspace,
-            loom_search_v2(State(state.clone()), Path(workspace_id), Json(payload)),
+            loom_search_v2(State(state.clone()), Path(workspace_id.clone()), Json(payload), loom_search_scope(&account.authority, &workspace_id)?),
         )
         .await
 }
@@ -4423,21 +4462,26 @@ async fn loom_search_v2(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<LoomSearchV2Body>,
+    scope: ExactResourceScopeAttribution,
 ) -> ApiResult<Json<crate::storage::LoomSearchV2Response>> {
+    if scope.workspace_id.as_str() != workspace_id { return Err(loom_denied()); }
     ensure_workspace_exists(&state, &workspace_id).await?;
     let request = crate::storage::LoomSearchV2Request {
         query: payload.query,
         content_type: payload.content_type,
         tag_ids: payload.tag_ids,
         query_embedding: None,
+        query_embedding_model: None,
         graph_boost: payload.graph_boost,
         limit: payload.limit,
         offset: payload.offset,
     };
+    let store = crate::storage::surreal::SurrealLoomSearchStore::new(state.surreal.clone());
     let resp = crate::loom_search::search(
-        state.storage.as_ref(),
+        &store,
         state.llm_client.as_ref(),
-        &workspace_id,
+        state.flight_recorder.as_ref(),
+        &scope,
         request,
     )
     .await
@@ -6702,14 +6746,12 @@ mod tests {
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{tests::embedded_test_backend, Database, NewWorkspace};
-    #[cfg(feature = "os-keychain")]
     use axum::{
         body::{to_bytes, Body},
         http::{HeaderMap, Request},
         Router,
     };
     use once_cell::sync::Lazy;
-    #[cfg(feature = "os-keychain")]
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
     use surrealdb::types::{RecordId, SurrealValue};
@@ -6837,7 +6879,6 @@ mod tests {
         Ok(ws.id)
     }
 
-    #[cfg(feature = "os-keychain")]
     struct LoomCreateBinding {
         _lock: std::sync::MutexGuard<'static, ()>,
         _directory: TempDir,
@@ -6845,7 +6886,6 @@ mod tests {
         channel: String,
     }
 
-    #[cfg(feature = "os-keychain")]
     impl LoomCreateBinding {
         fn new() -> Self {
             let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
@@ -6872,7 +6912,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "os-keychain")]
     impl Drop for LoomCreateBinding {
         fn drop(&mut self) {
             match &self.previous {
@@ -6882,7 +6921,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "os-keychain")]
     async fn loom_create_request(
         router: &Router,
         method: &str,
@@ -8473,6 +8511,23 @@ mod tests {
         .await
     }
 
+    struct Mt264EmbeddingCatalogClient {
+        inner: Arc<dyn crate::llm::LlmClient>,
+        catalog: Arc<crate::model_runtime::ModelCatalog>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::llm::LlmClient for Mt264EmbeddingCatalogClient {
+        async fn completion(&self, request: crate::llm::CompletionRequest) -> Result<crate::llm::CompletionResponse, crate::llm::LlmError> {
+            self.inner.completion(request).await
+        }
+        async fn embedding(&self, request: crate::llm::EmbeddingRequest) -> Result<crate::llm::EmbeddingResponse, crate::llm::LlmError> {
+            self.inner.embedding(request).await
+        }
+        fn profile(&self) -> &crate::llm::ModelProfile { self.inner.profile() }
+        fn model_catalog(&self) -> Option<Arc<crate::model_runtime::ModelCatalog>> { Some(self.catalog.clone()) }
+    }
+
     /// MT-264 blocker #2: a block created through the REAL `create_loom_block`
     /// API handler (with a configured embedding model) gets its embedding
     /// populated on the authority write path — not only when a test manually
@@ -8481,27 +8536,51 @@ mod tests {
     #[tokio::test]
     async fn mt264_api_create_and_update_refresh_embedding(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state_with_embedding().await?;
-        let workspace_id = create_workspace(&state).await?;
+        let binding = LoomCreateBinding::new();
+        let (mut state, _store) = setup_state_with_embedding().await?;
+        let owner = state.surreal.provision_local_operator(Some(&sha256_hex(binding.channel.as_bytes()))).await?;
+        let registration = crate::model_runtime::ModelRegistration {
+            model_id: crate::model_runtime::ModelId::new_v7(),
+            artifact_path: std::path::PathBuf::from("mt264-component-embedding"),
+            sha256: [0x5a; 32],
+            runtime_binding: crate::model_runtime::RuntimeBinding::Candle,
+            declared_capabilities: crate::model_runtime::ModelCapabilities { supports_embedding: true, embedding_dimension: Some(768), ..Default::default() },
+            base_model_tag: crate::model_runtime::BaseModelTag::new("mt264-component-embedding"),
+            registered_at_utc: chrono::Utc::now(),
+            registered_by: crate::model_runtime::OperatorId::new(owner.session.account_id.clone()),
+            provider: crate::model_runtime::ProviderKind::Local,
+        };
+        let mut registry = crate::model_runtime::ModelRegistry::default();
+        registry.register(registration.clone())?;
+        registry.mark_loaded(registration.model_id)?;
+        let catalog = crate::model_runtime::ModelCatalog::from_registry_with_roles(
+            Arc::new(registry), [(registration.model_id, crate::model_runtime::ModelRuntimeRole::Embedding)].into_iter().collect(),
+        );
+        state.llm_client = Arc::new(Mt264EmbeddingCatalogClient { inner: state.llm_client.clone(), catalog });
+        let router = crate::api::workspaces::routes(state.clone()).merge(routes(state.clone()));
+        let mut headers = HeaderMap::new();
+        headers.insert("x-hsk-channel-binding-token", binding.channel.parse()?);
+        headers.insert("x-hsk-session-token", owner.session.token.parse()?);
+        headers.insert("x-hsk-actor-id", owner.session.principal_id.parse()?);
+        headers.insert("x-hsk-actor-kind", "operator".parse()?);
+        headers.insert("x-hsk-kernel-task-run-id", "mt264-owned-embedding".parse()?);
+        headers.insert("x-hsk-session-run-id", "mt264-owned-embedding".parse()?);
+        let (status, workspace) = loom_create_request(&router, "POST", "/workspaces", &headers, serde_json::json!({"name":"MT264 owned embedding"})).await;
+        assert_eq!(status, StatusCode::CREATED, "owned workspace: {workspace}");
+        let workspace_id = workspace["id"].as_str().unwrap().to_owned();
+        let account = loom_workspace_account(&state, &headers, &workspace_id, crate::storage::surreal::resource_authority::ResourceAction::Create).await
+            .map_err(|(status, Json(body))| LoomApiTestCallError { status, code: body.error.to_string() })?;
+        let scope = loom_search_scope(&account.authority, &workspace_id)
+            .map_err(|(status, Json(body))| LoomApiTestCallError { status, code: body.error.to_string() })?;
+        account.run(&state, &workspace_id, async {
+            crate::storage::surreal::SurrealLoomSearchStore::new(state.surreal.clone())
+                .register_embedding_model(&scope, &crate::model_runtime::RoleBoundModelRegistration::embedding(registration)).await.map_err(map_storage_error)
+        }).await.map_err(|(status, Json(body))| LoomApiTestCallError { status, code: body.error.to_string() })?;
 
-        let created = create_loom_block(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Json(CreateLoomBlockRequest {
-                block_id: None,
-                content_type: LoomBlockContentType::Note,
-                title: Some("Embedding write path note".to_string()),
-                document_id: None,
-                asset_id: None,
-                pinned: None,
-                journal_date: None,
-            }),
-        )
-        .await
-        .map_err(|(status, Json(body))| LoomApiTestCallError {
-            status,
-            code: body.error.to_string(),
-        })?;
+        let (status, created) = loom_create_request(&router, "POST", &format!("/workspaces/{workspace_id}/loom/blocks"), &headers,
+            serde_json::json!({"content_type":"note","title":"Embedding write path note"})).await;
+        assert_eq!(status, StatusCode::OK, "authenticated create: {created}");
+        let created = Json(serde_json::from_value::<LoomBlock>(created)?);
         let block_id = created.0.block_id.clone();
 
         // The embedding was produced on the create authority write path.
@@ -8512,43 +8591,19 @@ mod tests {
         );
 
         // The semantic modality is reachable through the real search handler.
-        let resp = loom_search_v2(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Json(LoomSearchV2Body {
-                query: "Embedding write path note".to_string(),
-                ..Default::default()
-            }),
-        )
-        .await
-        .map_err(|(status, Json(body))| LoomApiTestCallError {
-            status,
-            code: body.error.to_string(),
-        })?;
+        let (status, response) = loom_create_request(&router, "POST", &format!("/workspaces/{workspace_id}/loom/search-v2"), &headers,
+            serde_json::json!({"query":"Embedding write path note"})).await;
+        assert_eq!(status, StatusCode::OK, "authenticated search: {response}");
+        let resp = Json(serde_json::from_value::<crate::storage::LoomSearchV2Response>(response)?);
         assert!(
             resp.0.semantic_available,
             "embedding model configured -> semantic available through API"
         );
 
         // Edit the title through the patch handler -> embedding re-refreshed.
-        let _ = patch_loom_block(
-            State(state.clone()),
-            Path((workspace_id.clone(), block_id.clone())),
-            axum::http::HeaderMap::new(),
-            Json(LoomBlockPatchRequest {
-                update: LoomBlockUpdate {
-                    title: Some("Edited embedding write path note".to_string()),
-                    ..Default::default()
-                },
-                add_tags: Vec::new(),
-                remove_tags: Vec::new(),
-            }),
-        )
-        .await
-        .map_err(|(status, Json(body))| LoomApiTestCallError {
-            status,
-            code: body.error.to_string(),
-        })?;
+        let (status, patched) = loom_create_request(&router, "PATCH", &format!("/workspaces/{workspace_id}/loom/blocks/{block_id}"), &headers,
+            serde_json::json!({"title":"Edited embedding write path note","add_tags":[],"remove_tags":[]})).await;
+        assert_eq!(status, StatusCode::OK, "authenticated patch: {patched}");
         assert_eq!(
             embedded_index_rows(&state, &block_id).await?,
             1,
@@ -8569,7 +8624,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         // The daily note is created under the authenticated account session (Master Spec
         // §2.3.13.12.4); the owner creates the workspace through the product route.
-        let (_router, headers, workspace_id) = owned_loom_session(&state, &binding).await;
+        let (router, headers, workspace_id) = owned_loom_session(&state, &binding).await;
 
         let journal = open_daily_journal(
             State(state.clone()),
@@ -8586,7 +8641,7 @@ mod tests {
         let reopened = open_daily_journal(
             State(state.clone()),
             Path((workspace_id.clone(), "2026-06-18".to_string())),
-            headers,
+            headers.clone(),
         )
         .await
         .map_err(|(status, Json(body))| LoomApiTestCallError {
@@ -8613,19 +8668,10 @@ mod tests {
         // And it is findable by its title text via LoomSearchV2 (FTS over the
         // "Daily Note 2026-06-18" title). No embedding model is configured here,
         // so this proves the keyword projection alone makes it searchable.
-        let resp = loom_search_v2(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Json(LoomSearchV2Body {
-                query: "Daily Note 2026-06-18".to_string(),
-                ..Default::default()
-            }),
-        )
-        .await
-        .map_err(|(status, Json(body))| LoomApiTestCallError {
-            status,
-            code: body.error.to_string(),
-        })?;
+        let (status, response) = loom_create_request(&router, "POST", &format!("/workspaces/{workspace_id}/loom/search-v2"), &headers,
+            serde_json::json!({"query":"Daily Note 2026-06-18"})).await;
+        assert_eq!(status, StatusCode::OK, "authenticated journal search: {response}");
+        let resp = Json(serde_json::from_value::<crate::storage::LoomSearchV2Response>(response)?);
         assert!(
             resp.0.hits.iter().any(|h| h.block.block_id == block_id),
             "journal block must be findable by LoomSearchV2 immediately after creation"

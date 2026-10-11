@@ -101,6 +101,8 @@ struct SessionRow {
     access_space_id: RecordId,
     session_id: RecordId,
     actor_id: String,
+    principal_kind: String,
+    actor_kind: String,
     policy_version: i64,
     delegation_chain: Vec<String>,
     delegated_capabilities: Vec<String>,
@@ -127,6 +129,8 @@ pub struct LocalSessionContext {
     pub identity: ProvisionedIdentity,
     pub session_id: String,
     pub actor_id: String,
+    pub principal_kind: String,
+    pub actor_kind: String,
     pub policy_version: i64,
     pub delegation_chain: Vec<String>,
     /// MT-155: the capabilities delegated to THIS session (copied from the principal when the
@@ -334,7 +338,7 @@ impl SurrealStorage {
             ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
             ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
                 params: SigninParams { token_hash, channel_binding_hash } }).await?;
-            let mut response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await?.check()?;
+            let mut response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, principal_id.principal_kind AS principal_kind, principal_id.actor_kind AS actor_kind, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await?.check()?;
             let mut rows: Vec<SessionRow> = response.take(0)?;
             Ok(rows.pop())
         })).await?;
@@ -349,6 +353,8 @@ impl SurrealStorage {
             },
             session_id: record_key(row.session_id)?,
             actor_id: row.actor_id,
+            principal_kind: row.principal_kind,
+            actor_kind: row.actor_kind,
             policy_version: row.policy_version,
             delegation_chain: row.delegation_chain,
             delegated_capabilities: row.delegated_capabilities,

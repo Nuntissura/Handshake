@@ -101,6 +101,12 @@ pub fn popout_window_author_id(pane_id: &str) -> String {
     format!("popout-window-{pane_id}")
 }
 
+/// Stable Argus transport identity for a detached pane viewport. This is deliberately derived from
+/// the durable pane id, not a window title or HWND, so merge/re-open cycles keep the same target.
+pub fn argus_window_id(pane_id: &str) -> String {
+    format!("popout-{pane_id}")
+}
+
 /// Stable `egui::Id` for a pane's merge-back button. For the four fixed grid panes this is the
 /// fixed-value id (so its AccessKit `NodeId` equals [`merge_back_node_id`]); for any other pane it is
 /// derived from the author_id string so it is still stable across frames. Mirrors

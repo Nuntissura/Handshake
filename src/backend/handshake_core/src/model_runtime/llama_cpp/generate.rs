@@ -9,7 +9,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 #[cfg(feature = "llama-cpp-runtime-engine")]
@@ -24,6 +24,7 @@ use crate::flight_recorder::{
 use crate::model_runtime::SpeculativeMode;
 use crate::model_runtime::{
     FinishReason, GenerateRequest, GeneratedToken, ModelRuntimeError, TokenStream,
+    MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
 };
 
 #[cfg(feature = "llama-cpp-runtime-engine")]
@@ -188,9 +189,11 @@ pub(super) fn native_generate_stream(
     generation_epoch: u64,
     perf_stats: Arc<std::sync::Mutex<LlamaCppPerfStats>>,
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
+    activity_guard: crate::model_runtime::RuntimeActivityGuard,
 ) -> TokenStream {
-    let (sender, receiver) =
-        tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
+    let (sender, receiver) = tokio::sync::mpsc::channel::<Result<GeneratedToken, ModelRuntimeError>>(
+        MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
+    );
     let recorder_runtime = tokio::runtime::Handle::try_current().ok();
 
     let spawn_result = std::thread::Builder::new()
@@ -198,6 +201,7 @@ pub(super) fn native_generate_stream(
         .spawn({
             let sender = sender.clone();
             move || {
+                let _activity_guard = activity_guard;
                 if let Err(error) = run_native_generation(
                     native,
                     req,
@@ -213,7 +217,7 @@ pub(super) fn native_generate_stream(
                     recorder_runtime,
                     &sender,
                 ) {
-                    let _ = sender.send(Err(error));
+                    let _ = sender.try_send(Err(error));
                 }
             }
         });
@@ -244,12 +248,17 @@ fn run_native_generation(
     perf_stats: Arc<std::sync::Mutex<LlamaCppPerfStats>>,
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
     recorder_runtime: Option<tokio::runtime::Handle>,
-    sender: &tokio::sync::mpsc::UnboundedSender<Result<GeneratedToken, ModelRuntimeError>>,
+    sender: &tokio::sync::mpsc::Sender<Result<GeneratedToken, ModelRuntimeError>>,
 ) -> Result<(), ModelRuntimeError> {
     use llama_cpp_2::{llama_batch::LlamaBatch, model::AddBos};
 
     if cancellation_requested(&req, &runtime_cancel) {
-        let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+        let _ = send_with_backpressure(
+            sender,
+            Ok(terminal_token(FinishReason::Cancelled)),
+            &req,
+            &runtime_cancel,
+        );
         return Ok(());
     }
 
@@ -392,7 +401,12 @@ fn run_native_generation(
                 flight_recorder.as_ref(),
                 recorder_runtime.as_ref(),
             )?;
-            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+            let _ = send_with_backpressure(
+                sender,
+                Ok(terminal_token(FinishReason::Cancelled)),
+                &req,
+                &runtime_cancel,
+            );
             record_speculative_stats(
                 &stats_sink,
                 current_generation_epoch.as_ref(),
@@ -431,7 +445,12 @@ fn run_native_generation(
                     flight_recorder.as_ref(),
                     recorder_runtime.as_ref(),
                 )?;
-                let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+                let _ = send_with_backpressure(
+                    sender,
+                    Ok(terminal_token(FinishReason::Cancelled)),
+                    &req,
+                    &runtime_cancel,
+                );
                 record_speculative_stats(
                     &stats_sink,
                     current_generation_epoch.as_ref(),
@@ -464,7 +483,12 @@ fn run_native_generation(
                 flight_recorder.as_ref(),
                 recorder_runtime.as_ref(),
             )?;
-            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+            let _ = send_with_backpressure(
+                sender,
+                Ok(terminal_token(FinishReason::Cancelled)),
+                &req,
+                &runtime_cancel,
+            );
             record_speculative_stats(
                 &stats_sink,
                 current_generation_epoch.as_ref(),
@@ -518,6 +542,8 @@ fn run_native_generation(
                 req.max_tokens,
                 &mut stop_detector,
                 sender,
+                &req,
+                &runtime_cancel,
             )?;
             if should_emit_token_event(generated) {
                 record_llm_infer_event(
@@ -574,7 +600,12 @@ fn run_native_generation(
                             flight_recorder.as_ref(),
                             recorder_runtime.as_ref(),
                         )?;
-                        let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+                        let _ = send_with_backpressure(
+                            sender,
+                            Ok(terminal_token(FinishReason::Cancelled)),
+                            &req,
+                            &runtime_cancel,
+                        );
                         record_speculative_stats(
                             &stats_sink,
                             current_generation_epoch.as_ref(),
@@ -636,7 +667,12 @@ fn run_native_generation(
                     flight_recorder.as_ref(),
                     recorder_runtime.as_ref(),
                 )?;
-                let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+                let _ = send_with_backpressure(
+                    sender,
+                    Ok(terminal_token(FinishReason::Cancelled)),
+                    &req,
+                    &runtime_cancel,
+                );
                 record_speculative_stats(
                     &stats_sink,
                     current_generation_epoch.as_ref(),
@@ -670,7 +706,12 @@ fn run_native_generation(
         generation_epoch,
         speculative_decoder.stats(),
     )?;
-    let _ = sender.send(Ok(terminal_token(FinishReason::Length)));
+    let _ = send_with_backpressure(
+        sender,
+        Ok(terminal_token(FinishReason::Length)),
+        &req,
+        &runtime_cancel,
+    );
     Ok(())
 }
 
@@ -873,44 +914,105 @@ fn spawn_speculative_event_record(
 }
 
 #[cfg(feature = "llama-cpp-runtime-engine")]
+fn send_with_backpressure(
+    sender: &tokio::sync::mpsc::Sender<Result<GeneratedToken, ModelRuntimeError>>,
+    mut item: Result<GeneratedToken, ModelRuntimeError>,
+    req: &GenerateRequest,
+    runtime_cancel: &CancellationToken,
+) -> bool {
+    let is_terminal = match &item {
+        Ok(token) => token.finish_reason.is_some(),
+        Err(_) => true,
+    };
+    loop {
+        if !is_terminal && sender.capacity() <= 1 {
+            if cancellation_requested(req, runtime_cancel) {
+                let _ = sender.try_send(Ok(terminal_token(FinishReason::Cancelled)));
+                return false;
+            }
+            std::thread::park_timeout(Duration::from_millis(2));
+            continue;
+        }
+        match sender.try_send(item) {
+            Ok(()) => return true,
+            Err(tokio::sync::mpsc::error::TrySendError::Closed(_item)) => return false,
+            Err(tokio::sync::mpsc::error::TrySendError::Full(returned)) => {
+                if !is_terminal && cancellation_requested(req, runtime_cancel) {
+                    let _ = sender.try_send(Ok(terminal_token(FinishReason::Cancelled)));
+                    return false;
+                }
+                item = returned;
+                std::thread::park_timeout(Duration::from_millis(2));
+            }
+        }
+    }
+}
+
+#[cfg(feature = "llama-cpp-runtime-engine")]
 fn emit_generated_token(
     model: &llama_cpp_2::model::LlamaModel,
     token: llama_cpp_2::token::LlamaToken,
     generated: u32,
     max_tokens: u32,
     stop_detector: &mut StopSequenceDetector,
-    sender: &tokio::sync::mpsc::UnboundedSender<Result<GeneratedToken, ModelRuntimeError>>,
+    sender: &tokio::sync::mpsc::Sender<Result<GeneratedToken, ModelRuntimeError>>,
+    req: &GenerateRequest,
+    runtime_cancel: &CancellationToken,
 ) -> Result<Option<FinishReason>, ModelRuntimeError> {
     if model.is_eog_token(token) {
         let text = stop_detector.flush();
-        let _ = sender.send(Ok(generated_token(token, text, Some(FinishReason::Stop))?));
+        if !send_with_backpressure(
+            sender,
+            Ok(generated_token(token, text, Some(FinishReason::Stop))?),
+            req,
+            runtime_cancel,
+        ) {
+            return Ok(Some(FinishReason::Cancelled));
+        }
         return Ok(Some(FinishReason::Stop));
     }
 
     let piece = token_to_string_lossy(model, token)?;
     let outcome = stop_detector.push(&piece);
     if outcome.stopped {
-        let _ = sender.send(Ok(generated_token(
-            token,
-            outcome.text,
-            Some(FinishReason::Stop),
-        )?));
+        if !send_with_backpressure(
+            sender,
+            Ok(generated_token(
+                token,
+                outcome.text,
+                Some(FinishReason::Stop),
+            )?),
+            req,
+            runtime_cancel,
+        ) {
+            return Ok(Some(FinishReason::Cancelled));
+        }
         return Ok(Some(FinishReason::Stop));
     }
 
     if generated == max_tokens {
         let mut text = outcome.text;
         text.push_str(&stop_detector.flush());
-        let _ = sender.send(Ok(generated_token(
-            token,
-            text,
-            Some(FinishReason::Length),
-        )?));
+        if !send_with_backpressure(
+            sender,
+            Ok(generated_token(token, text, Some(FinishReason::Length))?),
+            req,
+            runtime_cancel,
+        ) {
+            return Ok(Some(FinishReason::Cancelled));
+        }
         return Ok(Some(FinishReason::Length));
     }
 
     if !outcome.text.is_empty() {
-        let _ = sender.send(Ok(generated_token(token, outcome.text, None)?));
+        if !send_with_backpressure(
+            sender,
+            Ok(generated_token(token, outcome.text, None)?),
+            req,
+            runtime_cancel,
+        ) {
+            return Ok(Some(FinishReason::Cancelled));
+        }
     }
 
     Ok(None)
@@ -931,6 +1033,81 @@ fn generated_token(
         logprob: None,
         finish_reason,
     })
+}
+
+#[cfg(all(test, feature = "llama-cpp-runtime-engine"))]
+mod backpressure_tests {
+    use super::*;
+    use crate::model_runtime::{
+        GenPrompt, ModelId, SamplingParams, MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
+    };
+
+    fn request(cancel: CancellationToken) -> GenerateRequest {
+        GenerateRequest {
+            id: ModelId::new_v7(),
+            prompt: GenPrompt::from("llama backpressure probe"),
+            sampling: SamplingParams::default(),
+            lora_overrides: Vec::new(),
+            steering_overrides: Vec::new(),
+            kv_prefix_handle: None,
+            cancel,
+            max_tokens: u32::MAX,
+            stop_sequences: Vec::new(),
+            speculative_mode: None,
+            structured_decoding: None,
+        }
+    }
+
+    fn nonterminal(index: u32) -> GeneratedToken {
+        GeneratedToken {
+            token_id: index,
+            text: "x".to_string(),
+            logprob: None,
+            finish_reason: None,
+        }
+    }
+
+    #[test]
+    fn llama_stream_reserves_terminal_slot_under_saturated_cancellation() {
+        let (sender, mut receiver) =
+            tokio::sync::mpsc::channel(MODEL_RUNTIME_TOKEN_STREAM_CAPACITY);
+        let cancel = CancellationToken::new();
+        let req = request(cancel.clone());
+        let runtime_cancel = CancellationToken::new();
+        for index in 0..(MODEL_RUNTIME_TOKEN_STREAM_CAPACITY - 1) {
+            assert!(send_with_backpressure(
+                &sender,
+                Ok(nonterminal(index as u32)),
+                &req,
+                &runtime_cancel,
+            ));
+        }
+
+        let worker_sender = sender.clone();
+        let worker_req = req.clone();
+        let worker_runtime_cancel = runtime_cancel.clone();
+        let worker = std::thread::spawn(move || {
+            send_with_backpressure(
+                &worker_sender,
+                Ok(nonterminal(u32::MAX)),
+                &worker_req,
+                &worker_runtime_cancel,
+            )
+        });
+        std::thread::sleep(Duration::from_millis(20));
+        assert!(!worker.is_finished());
+        cancel.cancel();
+        assert!(!worker.join().expect("llama worker joins"));
+        let mut finish_reason = None;
+        let mut count = 0;
+        while let Ok(item) = receiver.try_recv() {
+            let token = item.expect("generated item");
+            finish_reason = token.finish_reason;
+            count += 1;
+        }
+        assert_eq!(count, MODEL_RUNTIME_TOKEN_STREAM_CAPACITY);
+        assert_eq!(finish_reason, Some(FinishReason::Cancelled));
+    }
 }
 
 #[cfg(feature = "llama-cpp-runtime-engine")]

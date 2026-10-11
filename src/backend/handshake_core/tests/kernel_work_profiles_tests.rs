@@ -147,10 +147,19 @@ fn profile() -> WorkProfileV1 {
 }
 
 fn route(role_id: &str, model_ref: &str) -> WorkProfileRoleRouteV1 {
+    // MT-014: provider_ref must resolve to a canonical provider id
+    // (`local_runtime` | `openai_compat`); `validate_work_profiles` now rejects an
+    // unresolvable dangle. Map the fixture route to the canonical provider its
+    // model_ref implies (local model -> local_runtime, otherwise openai_compat).
+    let provider_ref = if model_ref.contains("local") {
+        "local_runtime"
+    } else {
+        "openai_compat"
+    };
     WorkProfileRoleRouteV1 {
         role_id: role_id.to_string(),
         model_ref: model_ref.to_string(),
-        provider_ref: format!("provider://{role_id}").to_ascii_lowercase(),
+        provider_ref: provider_ref.to_string(),
         capability_profile_ref: format!("capability://{role_id}").to_ascii_lowercase(),
     }
 }

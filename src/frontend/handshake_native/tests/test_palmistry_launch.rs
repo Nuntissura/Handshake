@@ -345,3 +345,98 @@ fn live_spawn_handshake_then_clean_shutdown_no_crash() {
     );
     assert_no_local_artifact_dir();
 }
+
+#[test]
+#[ignore = "requires the current separately built watcher and admitted compile/runtime target"]
+fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
+    use handshake_diag_ring::ring::DiagRingWriterV2;
+    use handshake_native::diagnostics::palmistry_launch::launch_palmistry_signed_at;
+    let exe =
+        find_palmistry_binary().expect("current watcher binary required; never silently skip");
+    let dir = external_artifact_dir("wp-kernel-012-mt-094");
+    std::fs::create_dir_all(&dir).unwrap();
+    let session_id = uuid::Uuid::now_v7();
+    let instance = uuid::Uuid::now_v7();
+    let nonce = [0x66; 16];
+    let path = dir.join(format!("ring-signed-{session_id}.ring"));
+    let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, nonce).unwrap();
+    writer.write_heartbeat(1, 2);
+    let session = DiagSession {
+        session_id: session_id.to_string(),
+        ring_path: path.clone(),
+    };
+    let seed = zeroize::Zeroizing::new(vec![0x77; 32]);
+    let exact_seed = zeroize::Zeroizing::new(<[u8; 32]>::try_from(seed.as_slice()).unwrap());
+    let expected_verifier = ed25519_dalek::SigningKey::from_bytes(&exact_seed)
+        .verifying_key()
+        .to_bytes();
+    let transport_secret = zeroize::Zeroizing::new([0x88; 32]);
+    let transport_public =
+        curve25519_dalek::montgomery::MontgomeryPoint::mul_base_clamped(*transport_secret)
+            .to_bytes();
+    let mut handle = launch_palmistry_signed_at(
+        &exe,
+        &session,
+        &path,
+        &control_socket_name(&session.session_id),
+        instance,
+        nonce,
+        seed,
+        transport_public,
+    )
+    .unwrap();
+    let receipt = handle
+        .signed_ready()
+        .expect("Hello/Ack alone is not signed readiness");
+    assert_eq!(receipt.identity.session_id, session_id);
+    assert_eq!(receipt.identity.process_instance_id, instance);
+    assert_eq!(receipt.identity.watcher_pid, handle.child_id());
+    assert_eq!(receipt.identity.parent_pid, std::process::id());
+    assert_eq!(receipt.identity.launch_nonce, nonce);
+    assert_eq!(receipt.identity.ring_version, 2);
+    assert_eq!(receipt.identity.record_size, 120);
+    assert_eq!(receipt.public_verifier, expected_verifier);
+    assert_ne!(receipt.challenge, [0; 32]);
+    assert_eq!(receipt.transport_public_key, transport_public);
+    assert!(handle.handshake_acked());
+    let original_receipt = handle.signed_ready().unwrap().clone();
+    let child_pid = handle.child_id();
+    // The signed watcher closes an EMPTY frame after one second. No held startup stream is reusable.
+    std::thread::sleep(Duration::from_millis(1100));
+    let progress = dir.join(format!("signed-child-progress-{session_id}.txt"));
+    std::fs::write(&progress, "1").unwrap();
+    handle
+        .register_child_liveness_file(std::process::id(), 77, &progress, Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(handle.child_id(), child_pid);
+    assert_eq!(
+        handle.signed_ready().unwrap().signature,
+        original_receipt.signature
+    );
+    assert_eq!(
+        handle.signed_ready().unwrap().challenge,
+        original_receipt.challenge
+    );
+    std::thread::sleep(Duration::from_millis(1100));
+    handle.deregister_child(std::process::id(), 77).unwrap();
+    assert!(handle.deregister_child(std::process::id(), 77).is_err());
+    // A denied on-demand operation does not replace/remove the original verified launch receipt.
+    assert_eq!(
+        handle.signed_ready().unwrap().identity,
+        original_receipt.identity
+    );
+    assert_eq!(
+        handle.signed_ready().unwrap().signature,
+        original_receipt.signature
+    );
+    assert_eq!(
+        handle.signed_ready().unwrap().challenge,
+        original_receipt.challenge
+    );
+    std::thread::sleep(Duration::from_millis(1100));
+    match handle.request_shutdown_and_wait(Duration::from_secs(10)) {
+        ShutdownOutcome::ExitedCleanly(status) => assert!(status.success()),
+        other => panic!("same owned signed child must shutdown cleanly: {other:?}"),
+    }
+    drop(writer);
+}

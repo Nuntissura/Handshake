@@ -487,3 +487,205 @@ pub fn debug_corrupt_byte(path: &Path, offset: u64, value: u8) -> io::Result<()>
     file.flush()?;
     Ok(())
 }
+
+/// Additive v2 layout; existing v1 writer/reader and their golden bytes remain unchanged.
+pub const RING_VERSION_V2: u32 = 2;
+pub const RECORD_SLOT_SIZE_V2: usize = 128;
+const _: () = assert!(SLOT_EVENT_OFF + crate::schema::DIAG_EVENT_V2_SIZE == RECORD_SLOT_SIZE_V2);
+
+fn v2_region_size(capacity: u32) -> io::Result<usize> {
+    (capacity as usize)
+        .checked_mul(RECORD_SLOT_SIZE_V2)
+        .and_then(|size| size.checked_add(HEADER_SIZE))
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "v2 ring size overflow"))
+}
+
+fn v2_event_matches(event: &crate::schema::DiagEventV2, nonce: &[u8; 16]) -> bool {
+    if event.event.event_code == crate::schema::DiagEventCode::ModelLaneBehaviorObservation.as_u16()
+    {
+        event.launch_nonce == *nonce
+            && event.event._reserved == [0; 4]
+            && event.event.thread_id == 0
+            && event.event.counter_a == 0
+            && event.event.counter_b == 0
+            && event.event.metric_micros == 0
+            && event.event.timestamp_nanos == 0
+    } else {
+        (event.event.event_code <= 11 || event.event.event_code == 65535)
+            && event.observation_heartbeat_counter == 0
+            && event.observed_at_unix_ms == 0
+            && event.launch_nonce == [0; 16]
+            && event.correlation_hmac == [0; 32]
+    }
+}
+
+/// V2 publication substrate. Nonce matching is layout validation, not session authentication.
+/// Original-session/owned-process admission must be supplied by authenticated IPC before use.
+pub struct DiagRingWriterV2 {
+    inner: DiagRingWriter,
+    launch_nonce: [u8; 16],
+}
+
+impl DiagRingWriterV2 {
+    pub fn create(path: &Path, capacity: u32, launch_nonce: [u8; 16]) -> io::Result<Self> {
+        if capacity == 0 || launch_nonce == [0; 16] {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "v2 capacity and nonce must be nonzero",
+            ));
+        }
+        let file = open_backing_file(path, true, v2_region_size(capacity)? as u64)?;
+        // SAFETY: exact v2 region size was established before mapping.
+        let mut map = unsafe { MmapMut::map_mut(&file)? };
+        let header = HeaderInit {
+            magic: RING_MAGIC,
+            version: RING_VERSION_V2,
+            record_size: crate::schema::DIAG_EVENT_V2_SIZE as u32,
+            capacity,
+            write_index: 0,
+            hb_seq: 0,
+            _hb_pad: 0,
+            hb_counter: 0,
+            hb_timestamp: 0,
+            _header_pad: launch_nonce,
+        };
+        map[..HEADER_SIZE].copy_from_slice(bytemuck::bytes_of(&header));
+        map[HEADER_SIZE..].fill(0);
+        map.flush()?;
+        Ok(Self {
+            inner: DiagRingWriter {
+                map,
+                capacity,
+                _file: file,
+            },
+            launch_nonce,
+        })
+    }
+
+    /// Returns false without publishing when the record conflicts with the immutable nonce/layout.
+    pub fn write(&self, event: crate::schema::DiagEventV2) -> bool {
+        if !v2_event_matches(&event, &self.launch_nonce) {
+            return false;
+        }
+        let map = &self.inner.map;
+        let write_index = atomic_u32_at(map, OFF_WRITE_INDEX);
+        let idx = write_index.load(Ordering::Relaxed);
+        let base = HEADER_SIZE + (idx % self.inner.capacity) as usize * RECORD_SLOT_SIZE_V2;
+        let seq = atomic_u32_at(map, base + SLOT_SEQ_OFF);
+        let cur = seq.load(Ordering::Relaxed);
+        seq.store(cur.wrapping_add(1), Ordering::Release);
+        // SAFETY: the v2 slot contains all 120 POD bytes; single-producer ownership is unchanged.
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                bytemuck::bytes_of(&event).as_ptr(),
+                map.as_ptr().add(base + SLOT_EVENT_OFF) as *mut u8,
+                crate::schema::DIAG_EVENT_V2_SIZE,
+            );
+        }
+        seq.store(cur.wrapping_add(2), Ordering::Release);
+        write_index.store(idx.wrapping_add(1), Ordering::Release);
+        true
+    }
+
+    pub fn write_heartbeat(&self, counter: u64, timestamp_nanos: u64) {
+        self.inner.write_heartbeat(counter, timestamp_nanos);
+    }
+}
+
+/// Strict v2 reader: refuses v1, wrong record size and mismatched immutable launch nonce.
+/// The header does not establish original-session identity; signed IPC remains a predecessor.
+pub struct DiagRingReaderV2 {
+    inner: DiagRingReader,
+    launch_nonce: [u8; 16],
+}
+
+impl DiagRingReaderV2 {
+    pub fn open(path: &Path, expected_nonce: [u8; 16]) -> io::Result<Self> {
+        if expected_nonce == [0; 16] {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "v2 expected nonce must be nonzero",
+            ));
+        }
+        let file = open_backing_file(path, false, 0)?;
+        let len = file.metadata()?.len();
+        if len < HEADER_SIZE as u64 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "v2 header is truncated",
+            ));
+        }
+        // SAFETY: file length was checked before reading the header.
+        let map = unsafe { MmapMut::map_mut(&file)? };
+        let capacity = atomic_u32_at(&map, OFF_CAPACITY).load(Ordering::Acquire);
+        if atomic_u64_at(&map, OFF_MAGIC).load(Ordering::Acquire) != RING_MAGIC
+            || atomic_u32_at(&map, OFF_VERSION).load(Ordering::Acquire) != RING_VERSION_V2
+            || atomic_u32_at(&map, OFF_RECORD_SIZE).load(Ordering::Acquire) as usize
+                != crate::schema::DIAG_EVENT_V2_SIZE
+            || capacity == 0
+            || v2_region_size(capacity)? as u64 != len
+            || map[48..64] != expected_nonce
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "v2 ring layout or nonce mismatch",
+            ));
+        }
+        Ok(Self {
+            inner: DiagRingReader {
+                map,
+                capacity,
+                _file: file,
+            },
+            launch_nonce: expected_nonce,
+        })
+    }
+
+    /// Capacity from the header validated by the strict v2 open path.
+    pub fn capacity(&self) -> u32 {
+        self.inner.capacity
+    }
+
+    pub fn read_heartbeat(&self) -> Option<Heartbeat> {
+        self.inner.read_heartbeat()
+    }
+
+    fn read_slot(&self, slot: usize) -> Option<crate::schema::DiagEventV2> {
+        let map = &self.inner.map;
+        let base = HEADER_SIZE + slot * RECORD_SLOT_SIZE_V2;
+        let seq = atomic_u32_at(map, base + SLOT_SEQ_OFF);
+        for _ in 0..SEQLOCK_READ_RETRY_BOUND {
+            let before = seq.load(Ordering::Acquire);
+            if before != 0 && before & 1 == 0 {
+                let mut event = crate::schema::DiagEventV2::zeroed();
+                // SAFETY: validated v2 map/slot bounds; reject any raced copy below.
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        map.as_ptr().add(base + SLOT_EVENT_OFF),
+                        bytemuck::bytes_of_mut(&mut event).as_mut_ptr(),
+                        crate::schema::DIAG_EVENT_V2_SIZE,
+                    );
+                }
+                let after = seq.load(Ordering::Acquire);
+                if before == after {
+                    return v2_event_matches(&event, &self.launch_nonce).then_some(event);
+                }
+            }
+            core::hint::spin_loop();
+        }
+        None
+    }
+
+    pub fn read_last_n(&self, n: u32) -> Vec<crate::schema::DiagEventV2> {
+        let index = atomic_u32_at(&self.inner.map, OFF_WRITE_INDEX).load(Ordering::Acquire);
+        let want = n.min(self.inner.capacity).min(index);
+        let mut records = Vec::with_capacity(want as usize);
+        for back in 0..want {
+            let slot = index.wrapping_sub(1).wrapping_sub(back) % self.inner.capacity;
+            if let Some(event) = self.read_slot(slot as usize) {
+                records.push(event);
+            }
+        }
+        records
+    }
+}

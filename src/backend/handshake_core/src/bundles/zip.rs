@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
 use zip::write::FileOptions;
 
 use crate::bundles::exporter::BundleExportError;
@@ -15,12 +14,7 @@ pub struct BundleFileEntry {
     pub redacted: bool,
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    let hash = hasher.finalize();
-    hex::encode(hash)
-}
+pub use crate::storage::artifacts::sha256_hex;
 
 /// Create a deterministic ZIP archive.
 pub fn write_deterministic_zip(

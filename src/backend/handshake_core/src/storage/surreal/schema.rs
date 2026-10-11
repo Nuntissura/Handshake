@@ -2969,7 +2969,8 @@ fn indexed_grant_upgrade_statements() -> String {
 /// Exact revision-164 to accepted revision-163 W lookup reversal for predecessor proof only.
 #[cfg(test)]
 const MT168_LOOKUP_REPAIR_DELTAS: [(&str, &str); 2] = [
-    (r###"FOR $document IN $workspace_delete_rows_1 {
+    (
+        r###"FOR $document IN $workspace_delete_rows_1 {
     LET $document_id = $document.rich_document_id;
     LET $document_resources = SELECT * FROM protected_resources WHERE resource_kind = 'rich_document'
         AND external_resource_id = $document_id;
@@ -3000,7 +3001,8 @@ FOR $block IN $workspace_delete_rows_2 {
         };
     };
 };
-"###, r###"FOR $document IN $workspace_delete_rows_1 {
+"###,
+        r###"FOR $document IN $workspace_delete_rows_1 {
     IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
         AND external_resource_id = $document.rich_document_id AND parent_resource_id = $resource
         AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
@@ -3025,8 +3027,10 @@ FOR $block IN $workspace_delete_rows_2 {
         };
     };
 };
-"###),
-    (r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
+"###,
+    ),
+    (
+        r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
             LET $entity_key = $entity.entity_key;
             LET $entity_block = type::record('loom_blocks', $entity_key);
             LET $entity_loom_resources = SELECT * FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $entity_key;
@@ -3034,15 +3038,497 @@ FOR $block IN $workspace_delete_rows_2 {
             LET $entity_resources = array::concat($entity_loom_resources, $entity_document_resources);
             LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len($entity_resources) = 0 };
             IF !$view_entity AND array::len($entity_resources[WHERE id IN $resources.id AND lifecycle_state = 'active']) != 1 { RETURN false; };
-"###, r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
+"###,
+        r###"        IF $entity.entity_kind = 'loom_block' AND $entity.primary_source_id = NONE {
             LET $entity_block = type::record('loom_blocks', $entity.entity_key);
             LET $view_entity = IF record::exists($entity_block) { $entity_block.content_type = 'view_def' AND $entity_block.workspace_id = $workspace } ELSE { $entity.detection_provenance.content_type = 'view_def' AND array::len(SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key) = 0 };
             IF !$view_entity AND array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind IN ['loom_block','rich_document'] AND external_resource_id = $entity.entity_key AND lifecycle_state = 'active') != 1 { RETURN false; };
-"###),
+"###,
+    ),
 ];
+
+// Exact round08 source-only restoration; original revision164 proof remains independent.
+#[cfg(test)]
+fn restore_round08_context_schema(mut source: String) -> String {
+    const DELTAS: &[(&str, &str)] = &[
+        (r####"    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true)
+"####, r####"    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+"####),
+        (r####"DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE { $value = record::id($this.id) } ELSE { $this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND string::trim($this.workspace_id) != '' AND record::id($this.id) = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $value, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
+"####, r####"DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT $value = record::id($this.id);
+"####),
+        (r####"DEFINE FIELD OVERWRITE proposal_identity_key ON TABLE knowledge_crdt_ai_edit_proposals TYPE string VALUE IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE { $this.proposal_id } ELSE { crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $this.proposal_id, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
+DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_identity_key UNIQUE;
+"####, r####"DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_id UNIQUE;
+"####),
+        (r####"DEFINE FIELD OVERWRITE authority_grant_id ON TABLE kernel_event_ledger TYPE option<record<resource_grants>> PERMISSIONS FULL;
+
+"####, r####""####),
+        (r####"
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_lease_receipt($row: object, $write: bool) {
+    IF $row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_lease'
+        OR !($row.event_type IN ['KNOWLEDGE_CRDT_LEASE_CLAIMED', 'KNOWLEDGE_CRDT_LEASE_RENEWED', 'KNOWLEDGE_CRDT_LEASE_RELEASED', 'KNOWLEDGE_CRDT_LEASE_EXPIRED'])
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.lease_id OR $row.actor_id != $row.payload.actor_id
+        OR $row.event_version != 'kernel_event_v1' OR $row.event_id != record::id($row.id)
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    IF $write {
+        IF $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+            OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+            OR $row.authority_action != $wp012_original_action
+            OR $row.authority_capability_id != $wp012_original_capability
+            OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id) { RETURN false; };
+        RETURN ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_CLAIMED'
+                AND (($wp012_original_purpose = 'document_claim' AND $row.payload.scope_kind = 'document'
+                        AND $row.payload.document_id = $wp012_original_subject_id AND $row.payload.scope_id = $row.payload.crdt_document_id)
+                    OR ($wp012_original_purpose = 'workspace_claim' AND $row.payload.scope_kind = 'workspace' AND $row.payload.scope_id = $row.workspace_id)
+                    OR ($wp012_original_purpose = 'index_run_claim' AND $row.payload.scope_kind = 'index_run')))
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_RENEWED' AND $wp012_original_purpose = 'lease_renew')
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_RELEASED' AND $wp012_original_purpose = 'lease_release')
+            OR ($row.event_type = 'KNOWLEDGE_CRDT_LEASE_EXPIRED' AND $wp012_original_purpose = 'lease_expiry');
+    };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_lease', $row.payload.lease_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $lease = (SELECT * FROM ONLY type::record('knowledge_crdt_agent_lane_leases', $key));
+    RETURN $row.event_sequence >= $lease.recorded_event_id.event_sequence
+        AND $row.event_sequence <= $lease.last_transition_event_id.event_sequence
+        AND $row.actor_id = $lease.actor_id AND $row.actor_kind = $lease.actor_kind
+        AND $row.correlation_id = $lease.correlation_id
+        AND fn::wp012_model_lane_crdt_lease_access($lease, false)
+        AND fn::wp012_model_lane_crdt_lease_identity($lease);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_proposal_receipt($row: object, $write: bool) {
+    IF $row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_ai_edit_proposal'
+        OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED']
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.proposal_id OR $row.event_id != record::id($row.id)
+        OR $row.event_version != 'kernel_event_v1' OR $row.wsids != [$row.workspace_id]
+        OR !type::is_string($row.kernel_task_run_id) OR string::trim($row.kernel_task_run_id) = ''
+        OR !type::is_string($row.session_run_id) OR string::trim($row.session_run_id) = ''
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_proposal', $row.aggregate_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    IF !$write {
+        LET $source = SELECT * FROM ONLY type::record('knowledge_crdt_ai_edit_proposals', $key);
+        RETURN fn::wp012_model_lane_proposal_access($source, false)
+            AND fn::wp012_model_lane_proposal_identity($source)
+            AND $row.id IN [$source.recorded_event_id, $source.decided_event_id, $source.applied_event_id];
+    };
+    IF $wp012_original_subject_kind != 'rich_document' OR $wp012_original_action != 'update'
+        OR $wp012_original_capability != 'fs.write' OR $row.payload.document_id != $wp012_original_subject_id
+        OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $row.authority_session_id != $auth.id OR $row.authority_action != $wp012_original_action
+        OR $row.authority_capability_id != $wp012_original_capability
+        OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id) { RETURN false; };
+    IF $row.event_type = 'AI_EDIT_PROPOSAL_RECORDED' {
+        IF $wp012_original_purpose != 'proposal_record' OR $row.actor_kind NOT IN ['local_model', 'cloud_model']
+            OR $row.actor_kind != $row.payload.actor_kind OR $row.actor_id != $row.payload.actor_id
+            OR $row.session_run_id != $row.payload.session_id OR !type::is_object($row.payload.proposed_diff)
+            OR array::len($row.payload.source_span_citations) = 0 { RETURN false; };
+        LET $covering = SELECT * FROM knowledge_crdt_agent_lane_leases WHERE owner_account_id = $row.owner_account_id
+            AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id
+            AND claimed_at_utc <= time::now() AND expires_at_utc > time::now() AND released_at_utc = NONE AND expired_at_utc = NONE
+            AND ((scope_kind = 'workspace' AND scope_id = $row.workspace_id) OR (scope_kind = 'document'
+                AND document_id = $row.payload.document_id AND crdt_document_id = $row.payload.crdt_document_id
+                AND scope_id = $row.payload.crdt_document_id));
+        IF array::len($covering) != 1 { RETURN false; };
+        LET $lane_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'lane', $covering[0].lane_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+            $row.access_space_id, $row.workspace_id], '\u0000'));
+        LET $lane = SELECT * FROM ONLY type::record('model_lane_authority', $lane_key);
+        LET $body = encoding::json::decode($lane.record_json);
+        LET $bases = SELECT * FROM kernel_crdt_snapshots WHERE document_id = $row.payload.document_id
+            AND crdt_document_id = $row.payload.crdt_document_id AND covered_update_seq = $row.payload.base_update_seq
+            AND state_vector = $row.payload.base_state_vector AND owner_account_id = $row.owner_account_id
+            AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id;
+        RETURN fn::wp012_model_lane_source_identity($lane) AND $lane.run_id = $row.kernel_task_run_id
+            AND $body.session_id = $row.session_run_id AND $body.kind = $row.actor_kind
+            AND $body.locus_binding != NONE AND $body.locus_binding.session_id = $body.session_id
+            AND $body.locus_binding.model_session_id = $body.model_session_id AND $body.locus_binding.owner_session = $body.owner_session
+            AND array::len($bases) = 1 AND fn::wp012_model_lane_crdt_document_access($bases[0], false, true)
+            AND crypto::sha256(encoding::json::encode($row.payload.proposed_diff)) = $row.payload.diff_sha256
+            AND array::len(array::filter($row.payload.source_span_citations, |$citation| !type::is_string($citation) OR string::trim($citation) = '')) = 0
+            AND fn::wp012_model_lane_crdt_lease_identity($covering[0])
+            AND $covering[0].lease_id = $row.payload.lease_id AND $covering[0].actor_id = $row.actor_id
+            AND $covering[0].actor_kind = $row.actor_kind AND $covering[0].session_id = $row.session_run_id
+            AND $covering[0].correlation_id = $row.correlation_id;
+    };
+    LET $source = SELECT * FROM ONLY type::record('knowledge_crdt_ai_edit_proposals', $key);
+    IF !fn::wp012_model_lane_proposal_access($source, true) OR !fn::wp012_model_lane_proposal_identity($source)
+        OR $source.document_id != $row.payload.document_id OR $source.crdt_document_id != $row.payload.crdt_document_id
+        OR record::id($source.recorded_event_id) != $row.payload.recorded_event_id { RETURN false; };
+    IF $wp012_original_purpose = 'proposal_decide' {
+        RETURN $source.review_state = 'proposed' AND $source.decided_event_id = NONE
+            AND $row.payload.review_state IN ['approved', 'rejected']
+            AND $auth.principal_id.principal_kind IN ['human_account', 'break_glass_operator']
+            AND $auth.principal_id.status = 'enabled' AND $auth.principal_id.actor_kind = 'operator'
+            AND $row.actor_kind = 'operator' AND $row.actor_id = $auth.principal_id.actor_id
+            AND $row.payload.decided_by = $row.actor_id AND $row.session_run_id = record::id($auth.id)
+            AND $row.payload.reviewer_principal_id = record::id($auth.principal_id)
+            AND $row.payload.reviewer_authenticated_session_id = record::id($auth.id)
+            AND $row.payload.reviewer_resource_id = $wp012_original_resource
+            AND $row.payload.reviewer_grant_id = $wp012_original_grant
+            AND $row.payload.reviewer_action = $wp012_original_action
+            AND $row.payload.reviewer_capability_id = $wp012_original_capability
+            AND $row.payload.diff_sha256 = $source.diff_sha256;
+    };
+    LET $updates = SELECT * FROM kernel_crdt_updates WHERE update_id = $row.payload.update_id
+        AND owner_account_id = $source.owner_account_id AND actor_principal_id = $source.actor_principal_id
+        AND authenticated_session_id = $source.authenticated_session_id AND access_space_id = $source.access_space_id
+        AND workspace_id = $source.workspace_id AND document_id = $source.document_id
+        AND crdt_document_id = $source.crdt_document_id;
+    RETURN array::len($updates) = 1 AND fn::wp012_model_lane_application_evidence($source, $updates[0], $row)
+        AND $wp012_original_purpose = 'proposal_apply' AND $source.review_state = 'approved'
+        AND $source.applied_update_id = NONE AND $row.actor_id = $source.actor_id AND $row.actor_kind = $source.actor_kind
+        AND $row.session_run_id = $source.session_id AND $row.correlation_id = $source.correlation_id
+        AND $row.payload.approved_diff_sha256 = $source.diff_sha256
+        AND $row.payload.applied_update_sha256 = $source.diff_sha256
+        AND $row.payload.decided_event_id = record::id($source.decided_event_id)
+        AND $row.payload.base_update_seq = $source.base_update_seq
+        AND $row.payload.base_state_vector = $source.base_state_vector;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_receipt($row: object, $write: bool) {
+    IF $row.aggregate_type = 'knowledge_crdt_ai_edit_proposal' { RETURN fn::wp012_model_lane_proposal_receipt($row, $write); };
+    IF $row.aggregate_type = 'knowledge_crdt_lease' { RETURN fn::wp012_model_lane_crdt_lease_receipt($row, $write); };
+    IF $row.source_component != 'model_lane_crdt' OR $row.aggregate_type != 'knowledge_crdt_document'
+        OR !($row.event_type IN ['KNOWLEDGE_CRDT_UPDATE_RECORDED', 'KNOWLEDGE_CRDT_SNAPSHOT_RECORDED'])
+        OR !fn::wp012_model_lane_original_operation($row)
+        OR $row.aggregate_id != $row.payload.crdt_document_id
+        OR $row.event_version != 'kernel_event_v1' OR $row.event_id != record::id($row.id)
+        OR !type::is_string($row.kernel_task_run_id) OR string::trim($row.kernel_task_run_id) = ''
+        OR !type::is_string($row.session_run_id) OR string::trim($row.session_run_id) = ''
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    LET $snapshot = $row.event_type = 'KNOWLEDGE_CRDT_SNAPSHOT_RECORDED';
+    IF $write {
+        RETURN $wp012_original_subject_kind = 'rich_document' AND $wp012_original_action = 'update'
+            AND $row.payload.document_id = $wp012_original_subject_id
+            AND $row.authority_resource_id = type::record('protected_resources', $wp012_original_resource)
+            AND $row.authority_grant_id = type::record('resource_grants', $wp012_original_grant)
+            AND $row.authority_action = $wp012_original_action
+            AND $row.authority_capability_id = $wp012_original_capability
+            AND (($snapshot AND $wp012_original_purpose = 'crdt_snapshot')
+                OR (!$snapshot AND $wp012_original_purpose = 'crdt_update'));
+    };
+    LET $kind = IF $snapshot { 'crdt_snapshot' } ELSE { 'crdt_update' };
+    LET $identity = IF $snapshot { $row.payload.snapshot_id } ELSE { $row.payload.update_id };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', $kind, $identity,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $source = (SELECT * FROM ONLY type::record(IF $snapshot { 'kernel_crdt_snapshots' } ELSE { 'kernel_crdt_updates' }, $key));
+    RETURN $source.event_ledger_event_id = $row.id
+        AND fn::wp012_model_lane_crdt_document_access($source, false, $snapshot);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
+    IF $row.source_component = 'model_lane_crdt' { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };
+    IF $row.source_component != 'model_lane'
+        OR !($row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED'
+            OR ($row.aggregate_type = 'message' AND $row.event_type = 'MODEL_LANE_MESSAGE_RECORDED'))
+        OR !fn::wp012_model_lane_source_kind($row.aggregate_type)
+        OR $row.aggregate_type != $row.payload.record_kind OR $row.kernel_task_run_id != $row.payload.run_id
+        OR $row.payload.event_stream_version != 1 OR $row.event_version != 'kernel_event_v1'
+        OR $row.event_id != record::id($row.id) OR $row.idempotency_key != $row.event_id
+        OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+        OR $row.owner_account_id != record::id($auth.account_id)
+        OR $row.actor_principal_id != record::id($auth.principal_id)
+        OR $row.authenticated_session_id != record::id($auth.id)
+        OR $row.access_space_id != record::id($auth.access_space_id)
+        OR array::len($row.wsids) != 1 OR $row.wsids[0] != $row.workspace_id
+        OR ($write AND ($row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+            OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)))
+        OR $row.authority_session_id != $auth.id
+        OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash { RETURN false; };
+    LET $candidate = object::extend($row, { record_kind: $row.aggregate_type, run_id: $row.kernel_task_run_id, record_json: encoding::json::encode(encoding::json::decode($row.payload.event_payload_json).record) });
+    IF !fn::wp012_model_lane_source_access($candidate, $write) { RETURN false; };
+    IF $write AND ($row.authority_action != $wp012_original_action
+        OR $row.authority_capability_id != $wp012_original_capability) { RETURN false; };
+    LET $payload = encoding::json::decode($row.payload.event_payload_json);
+    LET $record = IF $row.aggregate_type = 'message' { $payload.record.inner } ELSE { $payload.record };
+    LET $identity = IF $row.aggregate_type = 'run' { $record.run_id }
+        ELSE IF $row.aggregate_type = 'lane' { $record.lane_id }
+        ELSE IF $row.aggregate_type = 'message' { $record.message_id }
+        ELSE IF $row.aggregate_type = 'context_artifact' { $record.artifact_binding_id }
+        ELSE { $record.handoff_id };
+    LET $schema = IF $row.aggregate_type = 'run' { 'hsk.model_lane_run@1' }
+        ELSE IF $row.aggregate_type = 'lane' { 'hsk.model_lane@1' }
+        ELSE IF $row.aggregate_type = 'message' { 'hsk.model_lane_message@1' }
+        ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
+        ELSE { 'hsk.model_lane_context_bundle_handoff@1' };
+    RETURN $payload.schema_id = $schema AND $payload.dexterity_kernel = 'Dexterity'
+        AND $payload.owner_account_id = $row.owner_account_id AND $payload.actor_principal_id = $row.actor_principal_id
+        AND $payload.authenticated_session_id = $row.authenticated_session_id
+        AND $payload.access_space_id = $row.access_space_id AND $payload.workspace_id = $row.workspace_id
+        AND $identity = $row.aggregate_id AND $record.run_id = $row.kernel_task_run_id
+        AND type::is_string($record.event_ledger_stream_id) AND string::trim($record.event_ledger_stream_id) != ''
+        AND $record.event_ledger_stream_id = $row.session_run_id;
+};
+"####, r####""####),
+    ];
+    for (current, previous) in DELTAS {
+        assert_eq!(source.matches(current).count(), 1, "round08 historical restoration delta must occur exactly once");
+        source = source.replacen(current, previous, 1);
+    }
+    source
+}
+
+// Exact pinned WP012 revision164 restoration for retained predecessor fixtures.
+// Test-only: current revision/INFO upgrade proof remains pending.
+#[cfg(test)]
+fn restore_pre_mt173_import_schema(mut source: String) -> String {
+    source = restore_round08_context_schema(source);
+    let connected_delta_2 = r###"    RETURN record::id($block.source_rich_document_id) = record::id($block)
+        AND fn::mt120_document_access(record::id($block), $workspace, $action, $capability);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_exact_loom_scope($owner: option<string>, $principal: option<string>, $session: option<string>, $space: option<string>, $workspace: string) {
+    RETURN fn::mt109_live_session() AND $owner = record::id($auth.account_id)
+        AND $principal = record::id($auth.principal_id) AND $session = record::id($auth.id)
+        AND $space = record::id($auth.access_space_id) AND string::trim($workspace) != '';
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_search_contributors($manifest: array<object>, $workspace: string) {
+    LET $keys = array::map($manifest, |$item| IF $item.kind = 'index' { 'index:' + $item.block_id } ELSE { 'edge:' + $item.edge_id });
+    IF array::len(array::distinct($keys)) != array::len($manifest) { RETURN false; };
+    FOR $item IN $manifest {
+        IF $item.kind = 'index' {
+            IF array::sort(object::keys($item)) != ['block_id', 'index_event_id', 'index_fingerprint', 'kind'] OR !type::is_string($item.block_id) OR string::trim($item.block_id) = '' OR !type::is_string($item.index_event_id) OR string::trim($item.index_event_id) = '' OR string::len($item.index_fingerprint) != 64 { RETURN false; };
+            LET $source = (SELECT block_id, mutation_fingerprint, index_event_id, lifecycle_state FROM loom_block_search_index WHERE id = type::record('loom_block_search_index', $item.block_id) AND workspace_id = type::record('workspaces', $workspace));
+            IF array::len($source) != 1 OR $source[0].lifecycle_state != 'active'
+                OR $source[0].mutation_fingerprint != $item.index_fingerprint
+                OR record::id($source[0].index_event_id) != $item.index_event_id
+                OR !fn::mt120_loom_endpoint_access($source[0].block_id, $workspace, 'read', 'fs.read') { RETURN false; };
+        } ELSE IF $item.kind = 'edge' {
+            IF array::sort(object::keys($item)) != ['edge_id', 'edge_type', 'kind', 'receipt_event_id', 'source_block_id', 'target_block_id'] OR !type::is_string($item.edge_id) OR string::trim($item.edge_id) = '' OR !type::is_string($item.receipt_event_id) OR string::trim($item.receipt_event_id) = '' { RETURN false; };
+            LET $source = (SELECT source_block_id, target_block_id, edge_type, event_ledger_event_id FROM loom_edges WHERE id = type::record('loom_edges', $item.edge_id) AND workspace_id = type::record('workspaces', $workspace));
+            IF array::len($source) != 1 OR record::id($source[0].source_block_id) != $item.source_block_id
+                OR record::id($source[0].target_block_id) != $item.target_block_id OR $source[0].edge_type != $item.edge_type
+                OR record::id($source[0].event_ledger_event_id) != $item.receipt_event_id
+                OR !fn::mt120_loom_endpoint_access($source[0].source_block_id, $workspace, 'read', 'fs.read')
+                OR !fn::mt120_loom_endpoint_access($source[0].target_block_id, $workspace, 'read', 'fs.read') { RETURN false; };
+        } ELSE { RETURN false; };
+    };
+    RETURN fn::mt109_has_workspace_access($workspace, 'read', 'fs.read');
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR !fn::wp012_exact_loom_scope($payload.owner_account_id, $payload.actor_principal_id, $payload.authenticated_session_id, $payload.access_space_id, $wsids[0])
+        OR $session != $auth.id OR $actor_kind != $auth.principal_id.actor_kind OR $actor_id != $auth.principal_id.actor_id
+        OR $resource = NONE OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id { RETURN false; };
+    IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
+        AND $aggregate_id = $payload.registry_row_id AND $payload.selection_revision = 1
+        AND $payload.action = 'model_runtime_selection_recorded' AND string::len($payload.artifact_sha256) = 64
+        AND string::len($payload.mutation_fingerprint) = 64 {
+        RETURN $capability = 'fs.write' AND $action = 'create'
+            AND IF $write { fn::mt109_ledger_access($resource, $session, $capability, $action) AND fn::mt109_has_workspace_access($wsids[0], 'create', 'fs.write') }
+                ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') };
+    };
+    RETURN $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'loom_search::surreal_search' AND $aggregate = 'loom_search_result_set'
+        AND $payload.action = 'loom_search_result_set_recorded' AND $payload.result_set_id = $aggregate_id
+        AND string::len($payload.query_fingerprint) = 64 AND string::len($payload.result_set_fingerprint) = 64
+        AND $capability = 'fs.read' AND $action = 'read'
+        AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+        AND type::is_array($payload.contributor_manifest) AND fn::wp012_search_contributors($payload.contributor_manifest, $wsids[0])
+        AND type::is_array($payload.ordered_hits) AND $payload.total = array::len($payload.ordered_hits)
+        AND array::len(array::distinct(array::map($payload.ordered_hits, |$hit| $hit.result_id))) = $payload.total
+        AND array::len(array::distinct(array::map($payload.ordered_hits, |$hit| $hit.block_id))) = $payload.total
+        AND array::all(array::map($payload.ordered_hits, |$hit| $hit.ordinal >= 0 AND $hit.ordinal < $payload.total
+            AND $payload.ordered_hits[$hit.ordinal] = $hit
+            AND array::len(array::filter($payload.contributor_manifest, |$item| $item.kind = 'index' AND $item.block_id = $hit.block_id AND $item.index_event_id = $hit.source_index_event_id AND $item.index_fingerprint = $hit.source_index_fingerprint)) = 1));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_search_evidence($row: object) {
+    LET $receipt = IF $row.receipt_event_id != NONE { $row.receipt_event_id } ELSE { $row.trace_receipt_event_id };
+    IF !fn::wp012_exact_loom_scope($row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, record::id($row.workspace_id))
+        OR !type::is_array($row.contributor_manifest)
+        OR !fn::wp012_search_contributors($row.contributor_manifest, record::id($row.workspace_id))
+        OR $receipt = NONE OR $receipt.event_type != 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED'
+        OR $receipt.source_component != 'loom_search::surreal_search' OR $receipt.aggregate_type != 'loom_search_result_set'
+        OR $receipt.aggregate_id != $receipt.payload.result_set_id
+        OR $receipt.payload.action != 'loom_search_result_set_recorded'
+        OR $receipt.payload.contributor_manifest != $row.contributor_manifest
+        OR $receipt.payload.query_fingerprint != $row.query_fingerprint
+        OR $receipt.payload.result_set_fingerprint != $row.result_set_fingerprint
+        OR $receipt.owner_account_id != $row.owner_account_id OR $receipt.payload.owner_account_id != $row.owner_account_id
+        OR $receipt.actor_principal_id != $row.actor_principal_id OR $receipt.payload.actor_principal_id != $row.actor_principal_id
+        OR $receipt.authenticated_session_id != $row.authenticated_session_id OR $receipt.payload.authenticated_session_id != $row.authenticated_session_id
+        OR $receipt.access_space_id != $row.access_space_id OR $receipt.payload.access_space_id != $row.access_space_id
+        OR $receipt.workspace_id != record::id($row.workspace_id) OR $receipt.payload.workspace_id != record::id($row.workspace_id)
+        OR !fn::wp012_api_receipt($receipt.authority_resource_id, $receipt.authority_session_id, $receipt.authority_capability_id, $receipt.authority_action, $receipt.wsids, $receipt.event_type, $receipt.source_component, $receipt.aggregate_type, $receipt.aggregate_id, $receipt.payload, $receipt.actor_kind, $receipt.actor_id, false)
+        OR !type::is_array($receipt.payload.ordered_hits) OR $receipt.payload.total != array::len($receipt.payload.ordered_hits) { RETURN false; };
+    IF $row.result_set_id != NONE {
+        RETURN $receipt.payload.result_set_id = $row.result_set_id AND $receipt.payload.trace_id = record::id($row.trace_id)
+            AND $receipt.payload.total = $row.total AND $receipt.payload.semantic_available = $row.semantic_available
+            AND $receipt.payload.embedding_model = $row.embedding_model;
+    };
+    RETURN $receipt.payload.trace_id = $row.trace_id AND $receipt.payload.query_text = $row.query_text
+        AND $receipt.payload.total = $row.decisions.result_count
+        AND $receipt.payload.semantic_available = $row.decisions.semantic_available
+        AND $receipt.payload.decisions = $row.decisions AND $receipt.payload.retrieval_mode = $row.retrieval_mode
+        AND $receipt.payload.mode_reason = $row.mode_reason AND $row.bundle_id = NONE;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+"###;
+    assert_eq!(source.matches(connected_delta_2).count(), 1, "connected admission delta 2 remains exact");
+    source = source.replacen(connected_delta_2, r###"    RETURN record::id($block.source_rich_document_id) = record::id($block)
+        AND fn::mt120_document_access(record::id($block), $workspace, $action, $capability);
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+"###, 1);
+    let connected_delta_1 = r###"DEFINE INDEX OVERWRITE pk_knowledge_context_bundle_items ON TABLE knowledge_context_bundle_items FIELDS bundle_id, item_ordinal UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_context_bundle_items_ref ON TABLE knowledge_context_bundle_items FIELDS ref_kind, ref_id;
+
+DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS FOR select WHERE IF trace_receipt_event_id.source_component = 'loom_search::surreal_search' { fn::wp012_search_evidence($this) } ELSE { fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') } FOR create WHERE (IF trace_receipt_event_id.source_component = 'loom_search::surreal_search' { fn::wp012_search_evidence($this) } ELSE { contributor_manifest = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') }) AND (bundle_id = NONE OR bundle_id.workspace_id = workspace_id) AND (trace_receipt_event_id = NONE OR trace_receipt_event_id.authority_session_id = $auth.id) FOR update WHERE !(trace_receipt_event_id.source_component = 'loom_search::surreal_search') AND !($before.trace_receipt_event_id.source_component = 'loom_search::surreal_search') AND contributor_manifest = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND (trace_receipt_event_id = NONE OR (trace_receipt_event_id.authority_session_id = $auth.id AND trace_receipt_event_id.wsids = [record::id(workspace_id)])) FOR delete NONE;
+DEFINE FIELD OVERWRITE contributor_manifest ON TABLE knowledge_retrieval_traces TYPE option<array<object>> FLEXIBLE;
+DEFINE FIELD OVERWRITE contributor_manifest.*.* ON TABLE knowledge_retrieval_traces TYPE any;
+DEFINE FIELD OVERWRITE trace_id ON TABLE knowledge_retrieval_traces TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_retrieval_traces TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_retrieval_traces TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag';
+"###;
+    assert_eq!(source.matches(connected_delta_1).count(), 1, "connected admission delta 1 remains exact");
+    source = source.replacen(connected_delta_1, r###"DEFINE INDEX OVERWRITE pk_knowledge_context_bundle_items ON TABLE knowledge_context_bundle_items FIELDS bundle_id, item_ordinal UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_context_bundle_items_ref ON TABLE knowledge_context_bundle_items FIELDS ref_kind, ref_id;
+
+DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') AND (bundle_id = NONE OR bundle_id.workspace_id = workspace_id) AND (trace_receipt_event_id = NONE OR trace_receipt_event_id.authority_session_id = $auth.id) FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND (trace_receipt_event_id = NONE OR (trace_receipt_event_id.authority_session_id = $auth.id AND trace_receipt_event_id.wsids = [record::id(workspace_id)])) FOR delete NONE;
+DEFINE FIELD OVERWRITE trace_id ON TABLE knowledge_retrieval_traces TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_retrieval_traces TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_retrieval_traces TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag';
+"###, 1);
+    let connected_delta_0 = r###"
+-- MT109_AUTHORITY_BEGIN
+DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+                FOR update, delete NONE;
+-- MT109_AUTHORITY_END
+DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
+"###;
+    assert_eq!(source.matches(connected_delta_0).count(), 1, "connected admission delta 0 remains exact");
+    source = source.replacen(connected_delta_0, r###"
+-- MT109_AUTHORITY_BEGIN
+DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+                FOR update, delete NONE;
+-- MT109_AUTHORITY_END
+DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
+"###, 1);
+    let scoped_ledger_fields = r###"DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+"###;
+    assert_eq!(
+        source.matches(scoped_ledger_fields).count(),
+        1,
+        "MT173 exact ledger scope delta must occur once"
+    );
+    source = source.replacen(scoped_ledger_fields, "", 1);
+    let current = r###"DEFINE FIELD OVERWRITE artifact_id ON TABLE assets TYPE option<string>;
+DEFINE FIELD OVERWRITE artifact_binding_state ON TABLE assets TYPE option<'reserved' | 'ready'>;
+DEFINE FIELD OVERWRITE artifact_retention_ttl_days ON TABLE assets TYPE option<int> ASSERT $value = NONE OR $value > 0;
+DEFINE FIELD OVERWRITE artifact_binding_event_id ON TABLE assets TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###""###, 1);
+    let current = r###"DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
+DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
+    VALUE IF $this.character_internal_id != NONE {
+        'character:' + type::string($this.character_internal_id) + '|' + $this.name
+    } ELSE {
+        'global|' + $this.name
+    };
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###""###, 1);
+    let current = r###"DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS collection_id UNIQUE;
+
+
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###"DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS collection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_collection_1 ON TABLE atelier_collection FIELDS name UNIQUE;
+
+"###, 1);
+    let current = r###"DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
+DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###""###, 1);
+    let current = r###"DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE);
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###"DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string> ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $value != NONE);
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string;
+"###, 1);
+    let current = r###"DEFINE FIELD OVERWRITE thread_id ON TABLE atelier_action_receipt TYPE string DEFAULT '' ASSERT string::trim($value) = $value;
+DEFINE FIELD OVERWRITE lease_claim_id ON TABLE atelier_action_receipt TYPE option<record<atelier_model_coordination_lease>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+"###;
+    assert_eq!(
+        source.matches(current).count(),
+        1,
+        "MT173 source delta must occur once"
+    );
+    source = source.replacen(current, r###""###, 1);
+    let start = source
+        .find("-- CKC 0337_atelier_ckc_search_tag_notes (MT-011). pg_trgm, pgvector and the")
+        .expect("MT173 appended table block");
+    let end = start
+        + source[start..]
+            .find("COMMIT TRANSACTION;")
+            .expect("canonical transaction end");
+    source.replace_range(start..end, "");
+    assert_eq!(
+        sha256_hex(source.as_bytes()),
+        "6fe8ffb1965993f3432f8978a08a6618408340b2e977ba4b18d9367f1f9861d3",
+        "exact pinned revision164 restoration"
+    );
+    source
+}
 
 #[cfg(test)]
 fn restore_pre_mt168_lookup_schema(mut source: String) -> String {
+    source = restore_pre_mt173_import_schema(source);
     for (current, previous) in MT168_LOOKUP_REPAIR_DELTAS {
         assert_eq!(
             source.matches(current).count(),
@@ -3299,8 +3785,9 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 // MT-168 CURRENT generated pin; schema-info awaits independent measurement.
+// MT-173 static candidate: exact LF bytes; INFO pins/revision/predecessor still require independent proof.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "6fe8ffb1965993f3432f8978a08a6618408340b2e977ba4b18d9367f1f9861d3";
+    "992f9cb7065caeb462484f5981b899c7d6823b83be16b20143495a35143825e9";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3328,7 +3815,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
 // with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "83e20821794146d8d30834bf038f067d35bc4ff79eae25fec457eb4d45010462";
+    "ccb12e58adf9e440f0db93f503edb757861721654e3e50a34371353690e67626";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -3798,14 +4285,14 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion); no REFERENCE field.
 // MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
 // record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
-const TABLE_DEFINITION_COUNT: usize = 294;
+const TABLE_DEFINITION_COUNT: usize = 306;
 // MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
 // MT-158 re-pin: +2 fields (mt_iterations.owner_account_id, dependencies.owner_account_id; D-154-3
 // extension).
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3358;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3526;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 251;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 181;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
     "DEFINE FIELD OVERWRITE capability_grants ON TABLE atelier_transcript_receipt TYPE any DEFAULT [];",
     "DEFINE FIELD OVERWRITE decisions ON TABLE knowledge_retrieval_traces TYPE any DEFAULT [];",
@@ -3815,11 +4302,12 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 // SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
+// Connected admission: engine-derived count and INFO/Atelier/Loom pins remain pending independent measurement.
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 56;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
 // MT-168: +1 index (protected_resources_parent_idx).
-const INDEX_DEFINITION_COUNT: usize = 817;
+const INDEX_DEFINITION_COUNT: usize = 853;
 const EVENT_DEFINITION_COUNT: usize = 42;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
@@ -3827,20 +4315,20 @@ const ACCESS_DEFINITION_COUNT: usize = 1;
 // MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
 // MT-159: +2 functions (fn::mt159_locus_key_id, fn::mt159_locus_key_is_own).
 // MT-166: +1 function (fn::mt166_resource_select_grant).
-const FUNCTION_DEFINITION_COUNT: usize = 56;
-const SOURCE_TABLE_COUNT: usize = 291;
+const FUNCTION_DEFINITION_COUNT: usize = 64;
+const SOURCE_TABLE_COUNT: usize = 303;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 556;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
+const SOURCE_NAMED_INDEX_COUNT: usize = 581;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 271;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 // MT-141 V2-R2: loom_block_view_fr_outbox.block_id lost its cascading REFERENCE (MT-027 0362).
 // 407: DDL (non-comment) REFERENCE clauses in schema.surql at 0cfbff64 and after; the pinned 406
 // predated one added REFERENCE field (kb-c5 static count, 2026-09-24).
 #[cfg(test)]
-const REFERENCE_FIELD_COUNT: usize = 407;
-const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 402;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;
+const REFERENCE_FIELD_COUNT: usize = 423;
+const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 418;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 242;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -4582,8 +5070,10 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_character_relationship_graph_projection",
     "atelier_character_script",
     "atelier_character_tag",
+    "atelier_ckc_search_projection",
     "atelier_collection",
     "atelier_collection_item",
+    "atelier_collection_item_unlink_receipt",
     "atelier_collection_metadata_application",
     "atelier_comfy_bridge_probe",
     "atelier_comfy_capability_registration",
@@ -4625,7 +5115,9 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_intake_batch",
     "atelier_intake_item",
     "atelier_intake_item_loom_projection",
+    "atelier_intake_item_metadata",
     "atelier_intake_item_rejection_audit",
+    "atelier_intake_request_guard",
     "atelier_md_allowlist_policy",
     "atelier_md_auth_context",
     "atelier_md_checkpoint",
@@ -4660,12 +5152,19 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_pose_sidecar",
     "atelier_pose_workspace_rig_state",
     "atelier_preference",
+    "atelier_prompt_feedback_case",
+    "atelier_prompt_feedback_export",
+    "atelier_prompt_feedback_rewrite",
+    "atelier_prompt_feedback_rule_pack",
+    "atelier_prompt_feedback_verdict",
     "atelier_reset_operation",
     "atelier_retrieval_policy",
     "atelier_saved_search",
     "atelier_saved_search_retrieval_projection",
     "atelier_screenshot_artifact_storage",
     "atelier_self_improve_sandbox_run",
+    "atelier_sheet_artifact_link",
+    "atelier_sheet_field_value_projection",
     "atelier_sheet_parse_snapshot",
     "atelier_sheet_version",
     "atelier_similarity_projection",
@@ -4683,6 +5182,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_story_card",
     "atelier_synthetic_input_guard",
     "atelier_tag",
+    "atelier_tag_note",
     "atelier_tag_rule",
     "atelier_transcript_artifact",
     "atelier_transcript_receipt",
@@ -4804,8 +5304,8 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_workbench_layout_states",
     "knowledge_workspace_search_bookmark_states",
     "knowledge_workspace_settings_states",
-    "local_accounts",
     "local_account_setup",
+    "local_accounts",
     "loom_ai_suggestions",
     "loom_block_knowledge_bridge",
     "loom_block_search_index",
@@ -6008,7 +6508,7 @@ fn post_mt109_upgrade_statements() -> String {
 /// Reuse the declarative receipt function verbatim so fresh installs and every supported
 /// predecessor carry the same permission predicate.
 fn mt120_loom_receipt_upgrade_statement() -> String {
-    const START: &str = "DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt(";
+    const START: &str = "DEFINE FUNCTION OVERWRITE fn::wp012_exact_loom_scope(";
     const END: &str = "\nDEFINE FUNCTION OVERWRITE fn::mt120_document_receipt";
     let start = SCHEMA
         .find(START)
@@ -6017,7 +6517,8 @@ fn mt120_loom_receipt_upgrade_statement() -> String {
     let end = receipt
         .find(END)
         .expect("mt120 loom receipt precedes document receipt");
-    receipt[..end].to_owned()
+    let (trace_start, trace_end) = schema_table_definition_bounds(SCHEMA, "knowledge_retrieval_traces");
+    format!("{}\n{}", &receipt[..end], &SCHEMA[trace_start..trace_end])
 }
 
 /// Reuse the complete LoomBlock declaration so the current standalone-owner
@@ -8579,7 +9080,10 @@ mod tests {
             // The authority core includes the existing document/workspace receipt helpers
             // plus mt120_loom_block_access, mt120_loom_endpoint_access (MT-109 C3) and
             // mt120_loom_receipt, and (MT-166) mt166_resource_select_grant.
-            assert_eq!(authority_catalog_names("function").len(), 17);
+            assert_eq!(authority_catalog_names("function").len(), 21);
+            for name in ["wp012_exact_loom_scope", "wp012_search_contributors", "wp012_api_receipt", "wp012_search_evidence"] {
+                assert!(authority_catalog_names("function").contains(name));
+            }
             assert!(authority_catalog_names("function").contains("mt166_resource_select_grant"));
             let mut saved = database
                 .query("RETURN (INFO FOR DB).functions.mt109_live_session;")
@@ -11710,7 +12214,10 @@ mod tests {
             .await
             .expect("restore exact revision-163 catalog");
 
-        storage.shutdown().await.expect("close exact revision-163 predecessor");
+        storage
+            .shutdown()
+            .await
+            .expect("close exact revision-163 predecessor");
         let storage = open_test_storage(&directory)
             .await
             .expect("reopen exact revision-163 predecessor before upgrade");

@@ -611,6 +611,8 @@ impl ScrollbarRail {
 ///   0.33 family; the equivalent is `spacing.scroll.bar_width`.)
 /// - `spacing.scroll.handle_min_length` = the rail min thumb (20px),
 /// - `spacing.scroll.bar_inner_margin` = 2px (the rail's breathing room),
+/// - `spacing.scroll.foreground_color = false` so egui paints handles from the configured widget
+///   background fills instead of the foreground text stroke,
 /// - the widget bg fills (`inactive`/`hovered`/`active`) = the rail idle/hover/grab colors so the
 ///   egui handle picks up the rail palette,
 /// - `floating = false` so the bar reserves space and reads as an integrated rail rather than an
@@ -626,6 +628,7 @@ pub fn apply_rail_scrollbar_style(ctx: &egui::Context, colors: RailColors, dims:
         style.spacing.scroll.bar_width = dims.hit_thickness;
         style.spacing.scroll.handle_min_length = dims.min_thumb_length;
         style.spacing.scroll.bar_inner_margin = 2.0;
+        style.spacing.scroll.foreground_color = false;
 
         // The egui scroll HANDLE is drawn with the interactive widget bg fills; point them at the
         // rail palette so egui's own scrollbar handle matches the rail. The handle is dim at rest,

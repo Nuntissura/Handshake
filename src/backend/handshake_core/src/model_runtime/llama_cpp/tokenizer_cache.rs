@@ -26,6 +26,33 @@ pub struct TokenizerCache {
 }
 
 impl TokenizerCache {
+    pub(super) fn insert_attested(
+        &self,
+        model_id: ModelId,
+        tokenizer: Arc<LlamaTokenizer>,
+    ) -> Result<(), ModelRuntimeError> {
+        let mut entries = self.entries.lock().map_err(|_| {
+            ModelRuntimeError::LoadError("tokenizer cache lock poisoned".to_string())
+        })?;
+        if entries.contains_key(&model_id) {
+            return Err(ModelRuntimeError::LoadError(format!(
+                "llama.cpp attested load minted duplicate tokenizer id {model_id}"
+            )));
+        }
+        entries.insert(model_id, tokenizer);
+        self.parse_count.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    pub(super) fn remove_attested(&self, model_id: ModelId) -> Result<(), ModelRuntimeError> {
+        let mut entries = self.entries.lock().map_err(|_| {
+            ModelRuntimeError::UnloadError("tokenizer cache lock poisoned".to_string())
+        })?;
+        entries.remove(&model_id).map(|_| ()).ok_or_else(|| {
+            ModelRuntimeError::UnloadError(format!("llama.cpp tokenizer is not loaded: {model_id}"))
+        })
+    }
+
     pub fn get_or_parse(
         &self,
         model_id: ModelId,
