@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running 2026-10-11T19:08:49Z (pin hayro-interpret + kurbo)"
+   "status": "idle 2026-10-11T19:18:40Z (pin sync 9ffe946; C17 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",

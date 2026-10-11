@@ -300,6 +300,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead acknowledgement 2026-10-11T19:16:40Z (web R12 remediation e409030): accepted — public DenyReason::SelfReference (self_reference); empty/valueless values denied in text-reading carriers (fail closed); whitespace-only values in image/navigation carriers report SameDocument; rel=search treated as manifest; object codebase as document-wide base; relative spellings that resolve to the document ('?', '.', './', own filename) are REPORTED to the port (not hidden), so the port decides.
 
+- Lead decision 2026-10-11T19:18:40Z (CX-CAP-001 review, steward sync 9ffe946): moxcms 0.8.1 enters through hayro-interpret inside press's flatten renderer while prism owns colour management on moxcms 0.9.1. Accepted as renderer-internal: flattened redaction pages are a safety raster, not colour-managed output; press must not expose or reuse that conversion as a colour capability, and the DESCRIPTOR lists 'flattened page colour is renderer-internal, not prism-managed' as a limitation.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
