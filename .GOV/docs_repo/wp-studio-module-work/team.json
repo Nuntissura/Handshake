@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:52:29Z",
+ "updated_at": "2026-10-11T02:56:47Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -445,7 +445,7 @@
    "model": "sonnet",
    "role": "web slice 1",
    "launched": "2026-10-11T02:28:30Z",
-   "status": "running"
+   "status": "done (slices 1-2; 7cd898d)"
   },
   {
    "name": "validator-r3",
@@ -509,6 +509,30 @@
    "model": "sonnet",
    "role": "package streaming save",
    "launched": "2026-10-11T02:53:18Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-folio-eng-4",
+   "agent_id": "a9032138507becdfd",
+   "model": "sonnet",
+   "role": "Folio design types",
+   "launched": "2026-10-11T02:56:47Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-prism-eng5",
+   "agent_id": "aaaa6a0a423732b8a",
+   "model": "sonnet",
+   "role": "prism ICC oracle fixtures",
+   "launched": "2026-10-11T02:56:47Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-motion-js-worker",
+   "agent_id": "ab809128fa15c006c",
+   "model": "sonnet",
+   "role": "motion-js worker isolation",
+   "launched": "2026-10-11T02:56:47Z",
    "status": "running"
   }
  ]

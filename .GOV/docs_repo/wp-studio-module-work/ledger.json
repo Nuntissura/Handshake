@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:55:46Z",
+ "updated_at": "2026-10-11T02:56:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -459,11 +459,12 @@
    "brief": null,
    "commits": [
     "b081975",
-    "da39753"
+    "da39753",
+    "7cd898d"
    ],
    "verdicts": [],
-   "candidate": "da39753",
-   "note": "span-preserving HTML subset parser, DOM keys, span patches bound to sha256, breakpoints; 5 tests; slice2 in progress"
+   "candidate": "7cd898d",
+   "note": "slices1-2: + refresh/KeyMap, collect_assets (all external schemes denied), preview_tree a11y, report(); 9 tests"
   },
   {
    "lane_id": "SMB-SCORE-DEVICE",
@@ -667,9 +668,9 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-prism-eng5",
    "commits": [],
    "verdicts": []
   },
@@ -900,9 +901,9 @@
    "crate": "hsk-studio-motion-js",
    "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
    "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-motion-js-worker",
    "commits": [],
    "verdicts": []
   },
@@ -939,9 +940,9 @@
    "crate": "hsk-studio-folio",
    "origin": "components builder Folio needs",
    "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types; + paint types (solid/gradient) for vector appearance (interop-vector folio_need)",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-4",
    "commits": [],
    "verdicts": []
   },
