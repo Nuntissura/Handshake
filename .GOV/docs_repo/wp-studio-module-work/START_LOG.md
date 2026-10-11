@@ -296,6 +296,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Operator approval 2026-10-11T19:10:48Z: delete GitHub branch gov_kernel-backup-studio-20261011T190442Z. Done after verifying its tip dc7d0df0 is an ancestor of origin/gov_kernel (no commit lost).
 
+- Operator directive 2026-10-11T19:13:24Z (handoff cadence): commit and push gov_kernel after every progress event (lane READY, verdict, decision, dispatch batch), and after every commit once weekly usage >= 85%, so another provider can take over from GitHub at any time. Lead rule: never branch gov_kernel, never force; if origin/gov_kernel moved, merge only with 0 overlapping paths (run gated commands from .GOV/docs_repo/wp-studio-module-work, whose local .gameplan-active points at the Studio gameplan), else stop and resolve. Product branch: agents push their own green work; the lead never commits other agents' uncommitted WIP onto the shared branch.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

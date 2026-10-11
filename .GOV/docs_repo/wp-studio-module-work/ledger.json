@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T19:08:49Z",
+ "updated_at": "2026-10-11T19:13:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2993,13 +2993,15 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-11T14:25:13Z",
+  "at": "2026-10-11T19:13:24Z",
+  "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. Wait for: rem-press-r9 (opus, positive-determination proof), rem-web-r9 (opus, normalised-text rule + F2-F4 + test gaps), rem-psd-budget (R9 FAIL_V1 remediation).",
-   "2. V4-13 pre-reviews before R10: SMB-PRESS (+DIFFERENCES) after rem-press-r9; SMB-WEB after rem-web-r9; SMB-REEL-AV1-ROUTE (reel changed by 0474906 after R9-prereview-reel).",
-   "3. Steward sync (check get_usage first, V4-17) + canary; round R10 lean (1 validator + 2 reviewers).",
-   "4. Queued: SMB-FMT-SWEEP (after verdicts), PLR-058 (pigment validate capability vs structure), PLR-059..061 (reel-native), SMB-PRESS-GEOMETRY (after press judged), SMB-PIGMENT-PLANLIMITS stub.",
-   "5. Blocked on Operator: D20 (render-gpu, round entrypoint, render-gpu probe), D22-D26 (ProRes / codecs / DNx / ISO 14496-15), D9, D17, D5, D13/STU-CON-044, repo-local target 3.8 GB, empty folder x at the C: root."
+   "1. In flight: steward-5 pinning press deps (dep-requests 58-59: hayro-interpret 0.7.0, kurbo 0.13.1) + canary C17; rem-web-r12 (web load-context fixes, sonnet).",
+   "2. After the pin: V4-13 pre-review SMB-PRESS (+DIFFERENCES) at the flatten head (d079292 + sync) against Operator D27 (flatten + narrow).",
+   "3. After rem-web-r12: V4-13 pre-review SMB-WEB; if FIX_FIRST again -> escalate a web assurance-level decision to the Operator (lead rule in START_LOG web R12 decision).",
+   "4. Round R12 (1 validator + 1 reviewer; steward sync + canary first): press and web if their pre-reviews are SAFE.",
+   "5. Queued follow-ups: PLR-058 (pigment validate capability vs structure), PLR-059..061 (reel-native), PLR-063..065 (psd budget), PLR-066..068 (reel), SMB-PRESS-GEOMETRY (Type3/vertical geometry, partly superseded by flatten), SMB-PIGMENT-PLANLIMITS, SMB-FMT-SWEEP, module-map status refresh (STUDIO_MODULES.json shows PLANNED_NOT_IMPLEMENTED for all 35 crates; stale).",
+   "6. Blocked on Operator: D20 (render-gpu, round entrypoint, render-gpu probe), D22-D26 (ProRes/codecs/DNx/ISO 14496-15), D9 (interop-media), D17 (Figma fixtures), D5 (Photoshop oracle), D13/STU-CON-044, repo-local target 3.8 GB, empty folder x at the C: root."
   ]
  },
  "r8_plan": {
