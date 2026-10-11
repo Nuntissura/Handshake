@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T16:55:12Z",
+ "updated_at": "2026-10-11T17:06:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3115,5 +3115,29 @@
   ],
   "fix_budget_events": [],
   "infra_notes": "idle sccache pid 354380 left running; hook picked up WP-KERNEL-012 gameplan for read-only commands run from the kernel (reran from studio-round)"
+ },
+ "round_R11": {
+  "candidate": "6956d3f",
+  "candidate_full": "6956d3f1180cbc9b3bcc59a98eacdb2beb114085",
+  "opened_at": "2026-10-11T17:06:51Z",
+  "sync": "steward-5 sync 6956d3f on b0a1887: two count-1 machine-path allowlist entries (web CSS-escape test strings); probe 46/46, licence OK",
+  "canary": "C16 on b0a1887 exit 72 (step 0); C16b on 6956d3f exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "excluded": [
+   "SMB-RENDER-GPU (D20)",
+   "SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)",
+   "SMB-WEB + SMB-WEB-PARITY + SMB-WEB-DIFFTEST (R11 pre-review FIX_FIRST; rem-web-r11)"
+  ],
+  "ready": [
+   "SMB-REEL-ENG-1 (R10 FAIL_V1 remediation e424f46+7cdf18e)",
+   "SMB-INTEROP-PSD-BUDGET (R10 FAIL_V2 remediation 85532ad; R11 pre-review SAFE)",
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (b8ce934; only if R11-prereview-press SAFE)"
+  ],
+  "two_fail_rechecks": {
+   "SMB-REEL-AV1-ROUTE": "R11-prereview-reel-route SAFE at 47f1588",
+   "SMB-INTEROP-PSD-BUDGET": "R11-prereview-psd-budget SAFE at 85532ad",
+   "SMB-PRESS": "R11-prereview-press (re-dispatched, pending)"
+  },
+  "team": "1 validator (opus) + 1 reviewer (sonnet: reel ENG-1 remediation + PSD budget advisory); press judged on its pre-review"
  }
 }

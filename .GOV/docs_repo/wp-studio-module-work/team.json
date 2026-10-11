@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T15:10:24Z (R10 candidate 62d8983 in sync; C15 exit 73 59/59)"
+   "status": "idle 2026-10-11T17:06:51Z (R11 sync 6956d3f + C16b exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",
@@ -1996,6 +1996,29 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T16:55:24Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r11",
+   "agent_id": "a38b9c7baf179bc6d",
+   "model": "opus",
+   "role": "WP validator STUDIO-R11 on 6956d3f",
+   "owns": [
+    "validation/round-R11.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T17:07:30Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r11-a",
+   "agent_id": "a5a14d0a8cbd550c1",
+   "model": "sonnet",
+   "role": "R11 single reviewer (reel ENG-1 remediation, PSD budget confirm, sweep)",
+   "owns": [
+    "validation/R11-review-a.json"
+   ],
+   "launched": "2026-10-11T17:07:30Z",
    "status": "running"
   }
  ]
