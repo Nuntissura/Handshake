@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-vector",
   "lane": "SMB-INTEROP-VECTOR-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-2-folio-design-records",
+  "phase": "R5-remediation-groupC",
   "commits": [
     {
       "sha": "f058a1b",
@@ -27,6 +27,10 @@
     {
       "sha": "30c3e64",
       "subject": "paint, stroke and appearance on Folio design records: import emits validated StudioDesignRecords (PAINT styles, fill_style_id node refs), export reads and Folio-validates them; crate-local Paint/Rgba/StrokeStyle/StyleProposal/AppearanceItem and VectorPath.fill_style_id removed"
+    },
+    {
+      "sha": "3561b12",
+      "subject": "R5 remediation: DOCTYPE classified in the XML prolog only, DTD processing never enabled (comment/PI decoy can no longer enable entity expansion); SVG export reports colour_profile_not_converted per paint use and surfaces Folio ResolutionIssues; 2 regression tests"
     }
   ],
   "capabilities_done": [
@@ -40,22 +44,48 @@
     "slice 2 appearance: StudioPaintStyle.rows = ordered Fill/Stroke StudioAppearanceRows (bottom to top, blend normal, visible); SVG paint-order maps to row order; export writes [Fill,Stroke] and [Stroke,Fill] as one element, any longer stack as one path per row under a group with Approximated appearance_stack_duplicated",
     "slice 2 stroke: width, cap (Butt/Round/Projecting wire 1..3), join (Miter/Round/Bevel wire 1..3), miter limit 1..500 (clamped and reported), dash array (odd list repeated, invalid or percent typed) and offset, StudioStrokeStyle with Length pt values (align CENTER), dash lists over Folio 256 are a typed loss, all exported",
     "slice 2 SVGZ: import_svg detects one gzip member, inflates with miniz_oxide decompress_to_vec_with_limit under Limits.max_decompressed_bytes (default 32 MiB), verifies CRC-32 and size, never unwraps twice; gzip_svg writes deterministic SVGZ",
-    "folio migration: import_svg returns VectorProposal.design (StudioDesignRecords, document_id = snapshot) as the single source of paint/stroke/appearance, validated by folio::validate_design_records against the validated document (retained records capped at 16 per max_nodes, BudgetExceeded design_records); solid alpha = row opacity percent, gradient alpha folded into stop opacity percent (row 100), values cleaned to 1e-10 so export/import is a fixed point; export_svg(paths, design, opts) / export_proposal read the style a layer names (fill_style_id), validate each with validate_paint_style, and report hidden rows, non-normal blend, non-CENTER align, gradient midpoint/interpolation/dither, off-8-bit colours, dangling style refs as typed losses"
+    "folio migration: import_svg returns VectorProposal.design (StudioDesignRecords, document_id = snapshot) as the single source of paint/stroke/appearance, validated by folio::validate_design_records against the validated document (retained records capped at 16 per max_nodes, BudgetExceeded design_records); solid alpha = row opacity percent, gradient alpha folded into stop opacity percent (row 100), values cleaned to 1e-10 so export/import is a fixed point; export_svg(paths, design, opts) / export_proposal read the style a layer names (fill_style_id), validate each with validate_paint_style, and report hidden rows, non-normal blend, non-CENTER align, gradient midpoint/interpolation/dither, off-8-bit colours, dangling style refs as typed losses",
+    "R5 remediation (3561b12): scan_prolog walks the XML prolog (declaration, comments, PIs, whitespace) and classifies the one real DOCTYPE; ParsingOptions.allow_dtd is always false; internal subset or unterminated DOCTYPE -> EntityDenied; a legacy external-id DOCTYPE is blanked (same byte length) before parsing and reported doctype_external_id_ignored; DOCTYPE text in comments, PIs and CDATA is inert; export reports colour_profile_not_converted (Unsupported) once per paint use (also for a shared gradient definition) when any colour has an Assigned profile, and maps Folio ResolutionIssues of validate_paint_style to colour_profile_unresolved|hash_mismatch|unauthorized|unsupported losses"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-vector --tests --no-fail-fast",
     "exit": 0,
-    "sha": "30c3e64",
-    "passed": 11,
+    "sha": "3561b12",
+    "passed": 13,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on 30c3e64 for crates/hsk-studio-interop-vector (11 tests: 9 existing adapted to Folio records + design_records_are_the_single_source + dash_and_design_budgets_are_bounded). Later: patterns, clip paths and masks, text, an Illustrator-saved fixture to confirm the AI private-data markers; pattern/image/CMYK/spot paints wait for Folio paint kinds.",
-  "updated_at": "2026-10-11T03:42:05Z",
+  "next": "Validator round on 3561b12 for crates/hsk-studio-interop-vector (13 tests: 11 existing + doctype_decoy_cannot_enable_entity_expansion + assigned_colour_profile_export_is_a_typed_loss). Later: patterns, clip paths and masks, text, an Illustrator-saved fixture to confirm the AI private-data markers; pattern/image/CMYK/spot paints wait for Folio paint kinds.",
+  "updated_at": "2026-10-11T05:34:50Z",
   "notes": {
-    "tests_tree": "11 focused tests pass (5 slice-1 + 4 slice-2 adapted to Folio records + 2 new: design_records_are_the_single_source, dash_and_design_budgets_are_bounded); clippy --tests --examples clean for this crate (warnings are in hsk-studio-observe); pathspec commit 30c3e64 on crates/hsk-studio-interop-vector only",
+    "remediation_R5": {
+      "source": "validation/R5-review-c.json lanes SMB-INTEROP-VECTOR (f058a1b) and SMB-INTEROP-VECTOR-FOLIO-MIGRATE (30c3e64), reviewed at 1d404f8",
+      "candidate": "3561b12",
+      "status": "READY_FOR_VALIDATION (builder claim only; no PASS claimed)",
+      "findings": {
+        "SMB-INTEROP-VECTOR CONFIRMED security (svg_adapter.rs scan_doctype)": {
+          "root_cause": "the first '<!DOCTYPE' substring anywhere in the text decided allow_dtd; a commented decoy returned ExternalIdOnly, so allow_dtd=true and roxmltree expanded the real internal subset",
+          "fix": "scan_prolog walks the prolog like roxmltree's grammar (XML declaration, PIs, comments, whitespace, then the single DOCTYPE); allow_dtd is never true; internal subset or unterminated DOCTYPE -> EntityDenied; an external-id-only DOCTYPE is blanked with spaces before parsing (legacy Illustrator files still import, reported doctype_external_id_ignored); DOCTYPE mentions in comments, PIs and CDATA are inert (this also removes the false refusal such a mention used to cause)",
+          "regression_test": "tests/vector_edit_roundtrip.rs::doctype_decoy_cannot_enable_entity_expansion (3 decoy prologs + internal-subset entity whose text is markup -> EntityDenied; benign mentions import; decoy before a legacy DOCTYPE imports with the loss code; undeclared entity ref -> MalformedXml). RED on pre-fix source (content of HEAD 35f197e == 30c3e64): the entity expanded and import returned Ok with a rect path; GREEN at 3561b12",
+          "note": "roxmltree internal-entity amplification bounds (UNVERIFIED in the review) are moot: DTD processing is never enabled"
+        },
+        "SMB-INTEROP-VECTOR-FOLIO-MIGRATE CONFIRMED silent_loss (svg_export.rs hex/style_of)": {
+          "root_cause": "export wrote Folio colour channels as sRGB hex ignoring colour_profile_id and discarded the ResolutionIssues returned by validate_paint_style",
+          "fix": "Defs::paint reports LossKind::Unsupported colour_profile_not_converted once per paint use (solid, or any gradient stop; also when a gradient definition is shared); style_of maps each ResolutionIssue (Absent, HashMismatch, Unauthorized, Unsupported) to colour_profile_unresolved|hash_mismatch|unauthorized|unsupported (Unsupported kind), once per style. No Prism conversion: the export holds no profile bytes (Folio Resolver::profile answers availability only) and this crate has no resolver port; no dependency or edge added",
+          "regression_test": "tests/vector_edit_roundtrip.rs::assigned_colour_profile_export_is_a_typed_loss (solid fill+stroke -> 2 not_converted + 1 unresolved, channels unchanged, flat export the same; an unassigned export has no colour_profile loss; a shared gradient used twice -> 2 not_converted). RED on pre-fix source: 0 entries; GREEN at 3561b12"
+        }
+      },
+      "plausible_items": {
+        "ledger PASS_V1 candidate f0cdb55 not in verdict tree 404ff3a": "kernel/lead record (ledger.json), not product code; left to the lead",
+        "CRC-32 table duplicate gzip.rs vs interop-layout container.rs (CX-CAP-001)": "cross-crate; needs a lead placement decision (neither crate may depend on the other); no code change here"
+      },
+      "tests": "focused tests at 3561b12 (--tests --no-fail-fast): paint_stroke_svgz 6 passed, vector_edit_roundtrip 7 passed (5 existing + 2 new), 0 failed; clippy --tests --examples clean for this crate (2 pre-existing warnings in hsk-studio-observe)",
+      "retry_guard_route": "(a) product failure fixed by a commit: red run on pre-fix source (HEAD 35f197e), then commit 3561b12 changed HEAD, then the identical green run; no flags changed, no gameplan step added",
+      "incident": "while making the pre-fix copy for the red run, a git show with a cwd-relative path lacking ./ failed after the shell redirect had truncated svg_adapter.rs to 0 bytes; restored from a scratchpad backup byte-identically before any build of the fixed code; the commit holds only the intended diff (4 files, +222/-34)"
+    },
+    "tests_tree": "13 focused tests pass at 3561b12 (6 paint_stroke_svgz + 7 vector_edit_roundtrip incl. the two R5 regressions); clippy --tests --examples clean for this crate (warnings are in hsk-studio-observe); pathspec commit 3561b12 on crates/hsk-studio-interop-vector only",
     "api_change_slice2": "StyleProposal.fill/stroke replaced by items: Vec<AppearanceItem> (fills()/strokes() helpers); StrokePaint removed; Limits gains max_decompressed_bytes; Provenance gains decoded_len; VectorError gains Gzip(&str); the slice-1 paint-server test now uses a pattern as the unsupported server because gradients are supported; FOLIO MIGRATION (30c3e64): VectorProposal.styles/StyleProposal and crate-local Paint, Rgba, StrokeStyle, StrokeAppearance, AppearanceItem, LinearGradient, RadialGradient, GradientStop, SpreadMethod, StrokeCap, StrokeJoin removed; VectorProposal gains design (StudioDesignRecords) and gradient_provenance, plus VectorProposal::layer_style()/gradient_units(), layer_style(design, layer_id), LAYER_STYLE_REF; VectorPath.fill_style_id removed (layer to style goes through design.nodes[].style_refs.fill_style_id, one style per layer); export_svg/export_svg_with_loss take &StudioDesignRecords instead of &[StyleProposal]; Limits.max_nodes also caps design records (16 per node)",
     "folio_need": "RESOLVED by Folio 0e6142c: paint, gradient, stroke and appearance rows live in StudioPaintStyle/StudioNodeDesign and this crate now uses them. Still not in Folio (typed losses here): pattern, image, CMYK, spot, gray, lab paints, gradient kinds angular/diamond/freeform/mesh, per-side stroke weights, arrowheads, gradient application mode on strokes, effect rows. Folio carries dash_offset and gradient spread without a spec field (STU-VEC-145 states no dash phase); SVG has no counterpart for gradient midpoints (STU-VEC-136), perceptual interpolation or dither, and none for per-row opacity/blend/visibility on a multi-row stack (reported on export)",
     "gradient_model": "StudioGradient keeps geometry in gradient space plus one affine to document points; objectBoundingBox is converted exactly with the tight bbox of the element geometry (curve extrema), so SVG gradientUnits survives only as provenance (VectorProposal.gradient_provenance / gradient_units(style_id, row)); export always writes userSpaceOnUse with the full matrix",

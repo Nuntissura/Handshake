@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:35:14Z",
+ "updated_at": "2026-10-11T05:35:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -369,8 +369,8 @@
    "lane_id": "SMB-INTEROP-VECTOR",
    "crate": "hsk-studio-interop-vector",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-vector",
-   "phase": "done",
-   "status": "PASS_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-vector",
    "brief": null,
    "commits": [
@@ -378,13 +378,14 @@
     "ebd2efd",
     "f95a3c0",
     "41d4ff1",
-    "f0cdb55"
+    "f0cdb55",
+    "3561b12"
    ],
    "verdicts": [
     "STUDIO-R3 PASS_V1 @404ff3a"
    ],
-   "candidate": "f0cdb55",
-   "note": "slices1-2: SVG import/export + gradients, appearance rows, strokes, SVGZ bomb-limited; 9 tests",
+   "candidate": "3561b12",
+   "note": "R5 remediation: allow_dtd always false, scan_prolog skips comment/PI/CDATA decoys, internal subset -> EntityDenied; regression red-first; 13 of 13 green",
    "r5_review_routed": {
     "to": "rem-vector",
     "at": "2026-10-11T05:31:12Z",
@@ -1296,11 +1297,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-vector-migrate",
    "commits": [
-    "30c3e64"
+    "30c3e64",
+    "3561b12"
    ],
    "verdicts": [],
-   "candidate": "30c3e64",
-   "note": "paint/stroke/appearance in folio design records (single source); 11 tests; retry-guard cleared by flag change (process finding, rule added)",
+   "candidate": "3561b12",
+   "note": "R5 remediation: Assigned profile export -> colour_profile_not_converted loss per paint use; folio ResolutionIssues surfaced as losses; regression red-first",
    "r5_review_routed": {
     "to": "rem-vector",
     "at": "2026-10-11T05:31:12Z",
@@ -1373,7 +1375,8 @@
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
  "dispatch_queue": [],
  "consolidation_candidates": [
-  "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16"
+  "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
+  "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
  "steward_next_sync": [
   "registry pins + probe approvals for hsk-studio-interop-fig dep requests (miniz_oxide, ruzstd, sha2, serde_json; all already locked)",
@@ -1403,6 +1406,8 @@
   "SMB-SCORE",
   "SMB-PRESS",
   "SMB-SCORE-DEVICE",
-  "SMB-RENDER-GPU"
+  "SMB-RENDER-GPU",
+  "SMB-INTEROP-VECTOR",
+  "SMB-INTEROP-VECTOR-FOLIO-MIGRATE"
  ]
 }
