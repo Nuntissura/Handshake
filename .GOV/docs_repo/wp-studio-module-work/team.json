@@ -1367,7 +1367,7 @@
   },
   {
    "name": "steward-4",
-   "agent_id": "PENDING-S4",
+   "agent_id": "aa47e9b1d09b20c5e",
    "model": "opus",
    "role": "workspace steward (fresh): sync for R7 rerun (kernel-bindings test-faults matrix, dep requests), canary, lock audit",
    "owns": [
