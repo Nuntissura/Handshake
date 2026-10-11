@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: batch
 assignment: STUDIO-MODULE-BUILD
 parent: null
-generation: 16
+generation: 24
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -25,9 +25,11 @@ steps:
 - {id: GP-007, role: any, at: before_round, do: forbid timeout wrapper around test entrypoint, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: retired}
 - {id: GP-009, role: any, at: before_round, do: confirm env vars|config files read by changed code set for test run, check: {type: confirm}, source: 'preset:build-round', state: retired}
-- {id: GP-010, role: coder, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'operator 2026-10-11: parallel crate builders; shared cargo-locked target', state: active}
-- {id: GP-011, role: coder, at: before_round, do: verify toolchain pin 1.97.1 present, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/rust-toolchain.toml, contains: 1.97.1}, source: CX-HOST-001; pinned compiler GP-015 WP gameplan, state: active}
-- {id: GP-012, role: wp_validator, at: before_round, do: 'require round on export of pushed SHA, not shared edit tree', check: {type: confirm}, source: 'operator 2026-10-11: parallel builders keep edit tree dirty; KB-CAD-VPX-002 export', state: active}
-- {id: GP-013, role: wp_validator, at: before_round, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true, repo: ../wt-studio-assets}, source: 'preset:build-round scoped to validator; operator 2026-10-11 role split', state: active}
-- {id: GP-014, role: wp_validator, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'preset:build-round scoped to validator', state: active}
-- {id: GP-015, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: CX-VAL-001 freeze candidate, state: active}
+- {id: GP-010, role: coder, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'operator 2026-10-11: parallel crate builders; shared cargo-locked target', state: retired}
+- {id: GP-011, role: coder, at: before_round, do: verify toolchain pin 1.97.1 present, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/rust-toolchain.toml, contains: 1.97.1}, source: CX-HOST-001; pinned compiler GP-015 WP gameplan, state: retired}
+- {id: GP-012, role: wp_validator, at: before_round, do: 'require round on export of pushed SHA, not shared edit tree', check: {type: confirm}, source: 'operator 2026-10-11: parallel builders keep edit tree dirty; KB-CAD-VPX-002 export', state: retired}
+- {id: GP-013, role: wp_validator, at: before_round, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true, repo: ../wt-studio-assets}, source: 'preset:build-round scoped to validator; operator 2026-10-11 role split', state: retired}
+- {id: GP-014, role: wp_validator, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'preset:build-round scoped to validator', state: retired}
+- {id: GP-015, role: wp_validator, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: CX-VAL-001 freeze candidate, state: retired}
+- {id: GP-016, role: any, at: before_round, do: verify free disk(CARGO_TARGET_DIR) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=50.0 else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'infra: hook ignores inline GAMEPLAN_ROLE; dev loop machine checks only, role any', state: active}
+- {id: GP-017, role: any, at: before_round, do: verify toolchain pin 1.97.1 present, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/rust-toolchain.toml, contains: 1.97.1}, source: CX-HOST-001; pinned compiler, state: active}

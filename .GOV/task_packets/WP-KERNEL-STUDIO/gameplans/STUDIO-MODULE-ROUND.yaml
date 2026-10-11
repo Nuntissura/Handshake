@@ -1,0 +1,29 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: batch
+assignment: STUDIO-MODULE-ROUND
+parent: null
+generation: 4
+confirm_binding:
+  repo: ../wt-studio-assets
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: before_round, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true, repo: ../wt-studio-assets}, source: 'preset:build-round', state: active}
+- {id: GP-002, role: any, at: before_round, do: verify tree clean, check: {type: git, clean: true, repo: ../wt-studio-assets}, source: 'preset:build-round', state: retired}
+- {id: GP-003, role: any, at: before_round, do: confirm heavy build|test processes on target disk == 0, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-004, role: any, at: before_round, do: verify free disk(CARGO_TARGET_DIR or repo) >= 50 GiB, check: {type: cmd, argv: [python, -c, 'import os,shutil,sys;g=shutil.disk_usage(os.environ.get(''CARGO_TARGET_DIR'') or ''.'').free/2**30;print(round(g,1),''GiB free'');sys.exit(0 if g>=float(''50'') else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'preset:build-round', state: active}
+- {id: GP-005, role: any, at: before_round, do: confirm deepest generated path < 260 chars or long paths enabled, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-006, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-007, role: any, at: before_round, do: forbid timeout wrapper around test entrypoint, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-008, role: any, at: before_round, do: record candidate SHA = pushed HEAD; later pushes -> next round, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-009, role: any, at: before_round, do: confirm env vars|config files read by changed code set for test run, check: {type: confirm}, source: 'preset:build-round', state: active}
+- {id: GP-010, role: any, at: before_round, do: require round on export of pushed SHA refreshed in place; identity record == SHA, check: {type: confirm}, source: 'operator 2026-10-11: parallel builders keep edit tree dirty; KB-CAD-VPX-002; GLOBAL-VALIDATION-023', state: active}
+- {id: GP-011, role: any, at: before_round, do: require per-test slow-timeout runner config in round entrypoint, check: {type: confirm}, source: CX-EXEC-005 per-test timeouts, state: active}

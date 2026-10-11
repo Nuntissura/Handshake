@@ -100,15 +100,20 @@ Message 2:
 
 ## Cargo rules (team standard)
 
+- OPERATOR 2026-10-11 (disk rule): C: is NOT used for any Studio cargo build, test or check (C: compile is reserved for WP-KERNEL-012 and is being withdrawn). Tools MAY be installed on C: (e.g. `~/.cargo/bin`), but their compilation also runs on D:. All cargo builds/tests/checks run under `Handshake_Artifacts/WP-KERNEL-STUDIO/<owner or MT>/`, with TMP/TEMP there too.
+- Env: `cd "<dir>" && source "<kernel>/.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh" && cargo ...` sets CARGO_TARGET_DIR, TMP/TEMP/TMPDIR (D:, owner `STUDIO_OWNER`, default `studio-team-dev`) and line-tables-only debug.
 - Workspace root: `wt-studio-assets/handshake-studio-assets` (toolchain pinned 1.97.1 by `rust-toolchain.toml`).
 - Shared warm target (one owner dir, Cargo's own build-dir lock serializes concurrent builders = one build at a time on D:):
   `CARGO_TARGET_DIR=<Handshake Worktrees>/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target`
 - `CARGO_PROFILE_DEV_DEBUG=line-tables-only`, `CARGO_PROFILE_TEST_DEBUG=line-tables-only` (disk cap; KB-CARGO-IO-001).
 - Builders: `cargo check -p <own-crate> --tests`, `cargo clippy -p <own-crate> --tests`, focused `cargo test -p <own-crate>` (operator: build it, break it, fix it). Never `--workspace` tests from builders; never link unrelated binaries.
-- Gameplan: `GAMEPLAN_ROLE=coder` for builders, `wp_validator` for rounds. Pointer `wt-studio-assets/.gameplan-active` -> `.GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-BUILD.yaml`. Always prefix cargo with `cd "<workspace root>" &&` so the hook finds the Studio pointer (not the kernel's WP-KERNEL-012 pointer).
+- Gameplans: dev loop `.GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-BUILD.yaml` (machine checks only: disk >= 50 GiB, toolchain pin); validator rounds `gameplans/STUDIO-MODULE-ROUND.yaml` (build-round preset minus clean-tree, plus export-identity and per-test-timeout confirms).
+- Pointers: `wt-studio-assets/.gameplan-active` and `Handshake_Artifacts/WP-KERNEL-STUDIO/.gameplan-active` -> BUILD; `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/.gameplan-active` -> ROUND.
+- The hook ignores inline `GAMEPLAN_ROLE=` prefixes (it reads its own process env), so role scoping is not used. Always prefix cargo with `cd "<dir>" &&` so the hook finds a Studio pointer. From the kernel root the hook resolves WP-KERNEL-012's gameplan, whose confirm binding is broken (other device; do not touch).
+- Gate patterns match anywhere in a command's text, including quoted strings and heredocs (e.g. the per-test runner's name). Use the Edit/Write tools, not shell, to write text containing those words.
 - No outer `timeout` wrappers (hook blocks; CX-EXEC-005).
 - Validator union rounds: one build + one test invocation over all ready crates, on an export of the pushed SHA refreshed in place at `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/` (GLOBAL-VALIDATION-023..025).
-- sccache: NOT installed (not on PATH, not in `~/.cargo/bin`). cargo-nextest NOT installed. Installed: cargo-deny, clippy, rustfmt, cargo-tarpaulin, cargo-miri, rust-analyzer, just (retired for governance). Tool installs allowed by operator if they cut time (record here).
+- sccache and cargo-nextest: NOT installed at session start (not on PATH, not in `~/.cargo/bin`). A first install attempt built in cargo's temp dir on C: (operator correction: not allowed); it was stopped and its two C: temp dirs (only `.rustc_info.json`) removed. Reinstall 2026-10-11T00:58Z builds on D: (`studio-team-dev/tool-install`, target + TMP on D:), binaries to `~/.cargo/bin`. Already installed: cargo-deny, clippy, rustfmt, cargo-tarpaulin, cargo-miri, rust-analyzer, just (retired for governance). Tool installs allowed by operator if they cut time (record here).
 - Only the workspace steward edits root `Cargo.toml` (members, workspace metadata/registry). Builders edit only their crate dir; dependency needs go to `builders/dep-requests.jsonl`.
 
 </topic>
@@ -130,6 +135,15 @@ Roles:
 Loop: brief -> build minimal slice -> check/clippy/focused test -> commit+push -> ledger READY -> validator round -> PASS or FAIL+diagnosis -> fix.
 
 State: `ledger.json` (lane status per CX-STATUS-001 values), `journal/tick-log.jsonl` (lead ticks), `team.json` (roster).
+
+</topic>
+
+<topic id="decisions" status="active" summary="Lead decisions with reasons">
+
+## Lead decisions
+
+- 2026-10-11T01:00Z — Operator asked whether to decompile the Adobe suite (at least the engines) to rewrite in Rust. Lead decision: NO decompilation/disassembly of Adobe binaries. Reasons: Adobe terms prohibit reverse engineering; EU Software Directive 2009/24/EC art. 6 allows decompilation only for interoperability of an independent program and not to develop a substantially similar program (lead reading of public text, not legal advice); derived code would taint the reusable GitHub asset; decompiled optimized C++ is slower to use than public specs. Instead: public specs/SDK docs (PSD/PSB, ISO 32000 blend modes, DNG, XMP, IDML, Photoshop/AE/UXP/ExtendScript object models) + black-box oracle testing as a licensed user (art. 5(3): observe, study, test) — controlled inputs rendered/exported by installed Adobe apps, compared to Studio output. Adobe apps open foreground windows -> oracle export sessions need Operator approval (scripted batch or one-time manual export). Research agents draft the oracle plan.
+- 2026-10-11T00:55Z — Lead session restart stopped all agents after ~8 min; resumed all 10 from saved transcripts with the D:-only cargo env.
 
 </topic>
 
