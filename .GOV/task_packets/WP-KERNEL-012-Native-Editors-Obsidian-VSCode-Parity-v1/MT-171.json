@@ -1,0 +1,2937 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-171",
+  "created_at_utc": "2026-10-10T04:43:44.286348+00:00",
+  "updated_at_utc": "2026-10-10T06:33:18.024983+00:00",
+  "identity": {
+    "mt_id": "MT-171",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Reconcile CKC-owned core import paths",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Reconcile CKC-owned core import paths",
+    "requirement_refs": [
+      "source_map original contracts applicable to owning module"
+    ],
+    "acceptance_refs": [
+      "WP012-P1-BOUNDARY-005"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "WP012-P1-MT-171-AC1",
+        "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+      },
+      {
+        "id": "WP012-P1-MT-171-AC2",
+        "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Use current packet declared role profile; no model override assumed",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis"
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/.gitattributes",
+      "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+      "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+      "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_intake_facial.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_ops.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs",
+      "src/backend/handshake_core/src/atelier/action_receipt.rs",
+      "src/backend/handshake_core/src/atelier/collections.rs",
+      "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+      "src/backend/handshake_core/src/atelier/core.rs",
+      "src/backend/handshake_core/src/atelier/documents.rs",
+      "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+      "src/backend/handshake_core/src/atelier/exports.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/identity.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/landmarks.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/models.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/ediffiqa.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/facet.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/imagededup.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/python_ofiq.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/media.rs",
+      "src/backend/handshake_core/src/atelier/model_lease.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/src/atelier/moodboards.rs",
+      "src/backend/handshake_core/src/atelier/pose.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/engine.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/model.rs",
+      "src/backend/handshake_core/src/atelier/refs.rs",
+      "src/backend/handshake_core/src/atelier/relationships.rs",
+      "src/backend/handshake_core/src/atelier/search.rs",
+      "src/backend/handshake_core/src/atelier/settings.rs",
+      "src/backend/handshake_core/src/atelier/sheet.rs",
+      "src/backend/handshake_core/src/atelier/sheet_artifacts.rs",
+      "src/backend/handshake_core/src/atelier/sheet_templates.rs",
+      "src/backend/handshake_core/src/atelier/source_evidence.rs",
+      "src/backend/handshake_core/src/atelier/sourcing.rs",
+      "src/backend/handshake_core/src/atelier/templates/CHARACTER_SHEET__v2.00.txt",
+      "src/backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json",
+      "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+      "src/backend/handshake_core/src/bundles/zip.rs",
+      "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "src/backend/handshake_core/src/governance_pack.rs",
+      "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+      "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+      "src/backend/handshake_core/src/loom_fs.rs",
+      "src/backend/handshake_core/src/memory/injection.rs",
+      "src/backend/handshake_core/src/mex/supply_chain.rs",
+      "src/backend/handshake_core/src/role_mailbox.rs",
+      "src/backend/handshake_core/tests/atelier_action_receipt_tests.rs",
+      "src/backend/handshake_core/tests/atelier_ckc_media_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_ckc_sheets_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_contact_sheet_tests.rs",
+      "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_quality_dedupe_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
+      "src/backend/handshake_core/tests/atelier_fixture_corpus_tests.rs",
+      "src/backend/handshake_core/tests/atelier_kernel_smoke_tests.rs",
+      "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_model_ops_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_moodboard_tests.rs",
+      "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+      "src/backend/handshake_core/tests/atelier_settings_preference_tests.rs",
+      "src/backend/handshake_core/tests/atelier_sheet_artifact_link_tests.rs",
+      "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+      "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+      "src/backend/handshake_core/tests/loom_media_tiers_tests.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "unrelated modules",
+      "other-device Studio/spec work"
+    ],
+    "stop_conditions": [
+      "Only the phase_02_imports predecessors apply",
+      "Source/tree/dirty drift",
+      "Need write outside exact owned paths",
+      "Foreign process action or shared-target conflict"
+    ],
+    "module_ref": "src/backend/handshake_core"
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "proof_contract",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-P1-MT-171-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "expected": "Compile exact reconciled candidate; no runtime verdict",
+        "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+        "evidence_required": [
+          "candidate commit/tree",
+          "exact source path/blob reconciliation",
+          "command/config/toolchain/target/features",
+          "result"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+    "consumed_source_checks": [
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --lib",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml contact_sheet --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml atelier_client_builds_contact_sheet_export_request --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml atelier_contact_sheet_export_parser_requires_layout_artifacts_and_lineage --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/5",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/6",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel posekit_and_ingest_controls_are_model_addressable -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/7",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_batch_metadata_and_contact_sheet_controls_update_argus_state -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/8",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_contact_sheet_backend_export_reaches_argus_artifact_refs -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "source_pointer": "/scope/proof_targets/9",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml atelier_facial_ingest_analysis_parser_requires_summary_artifacts_and_schema --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_facial_backend_analysis_reaches_argus_artifact_refs -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 2",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "source_pointer": "/handoff/proof/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native --lib -j 2 -- --nocapture (6 passed)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "source_pointer": "/handoff/proof/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -j 2 -- --nocapture (6 passed)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "source_pointer": "/handoff/proof/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_quality -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_dedupe -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_quality_dedupe_tests -j 2 -- --nocapture (6 passed before post-review compatibility patch; critical compatibility/read-only/keeper assertions were then mirrored into lib tests)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "source_pointer": "/verification_result/passed/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -j 2 -- --nocapture (8 passed after post-review fixes)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "source_pointer": "/verification_result/passed/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests ckc_posekit_quickstart_is_native_first_and_reachable -j 2 -- --exact --nocapture (1 passed before post-review compatibility patch; manual files were unchanged after that pass)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "source_pointer": "/verification_result/passed/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_identity -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --lib facial_native_run_selects_profile_features_and_degraded_reasons -- --nocapture (1 passed)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "source_pointer": "/verification_result/passed/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --lib facial_ingest_analysis_groups_duplicates_and_scores_quality -- --nocapture (1 passed)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "source_pointer": "/verification_result/passed/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --test atelier_facial_identity_tests -- --nocapture (5 passed, 1 ignored)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "source_pointer": "/verification_result/passed/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --test atelier_facial_quality_dedupe_tests -- --nocapture (7 passed)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "source_pointer": "/verification_result/passed/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_review -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_review_queue_is_argus_steerable -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_review_tests -j 1 --message-format short",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+        "source_pointer": "/verification_result/passed/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_api -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml facial_api_client --lib -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_api_tests -- atelier_facial_command_routes_round_trip_artifact_backed_review_flow --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "source_pointer": "/verification_result/passed/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib atelier_facial -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "source_pointer": "/verification_result/passed/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib backend_client::tests::atelier_client_builds_facial_command_and_review_requests -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "source_pointer": "/verification_result/passed/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_api_tests facial_command_failure_envelopes_are_durable -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib atelier_facial_command_response -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_media_album_large_library_pagination -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_loads_more_ckc_media_without_collapsing_loaded_members -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1 --test atelier_stealth_window_tests atelier_ckc_media_album_large_library_pagination -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/handoff/verification/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_atelier_panel argus_loads_more_ckc_media_without_collapsing_loaded_members -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/handoff/verification/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/handoff/verification/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "source_pointer": "/handoff/verification/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_media_album_unlink_reorder_and_link_ref_edit -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_manages_ckc_album_links_without_deleting_media_assets -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_source_refs_are_validated_and_link_scoped -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_folder_and_source_refs_as_structured_values -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_source_refs_are_validated_and_link_scoped -- --nocapture => PASS (1 passed; 0 failed; 22 filtered out)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "source_pointer": "/handoff/verification/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_folder_and_source_refs_as_structured_values -- --nocapture => PASS (1 passed; 0 failed; 43 filtered out)",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "source_pointer": "/handoff/verification/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_media_rows_preserve_actor_attribution -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_media_row_actor_attribution -- --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test result: 1 passed, 0 failed, 0 ignored; test runtime 104.31s after compile; no SKIP line emitted, so the PostgreSQL-unavailable skip path was not taken.",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-045.json",
+        "source_pointer": "/handoff/proof_results/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors -- --nocapture: 17 passed, 0 failed.",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json",
+        "source_pointer": "/handoff/scope_waiver_requested/validation",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test -j 2 --offline --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test atelier_media_bytes_api_tests -- --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.json",
+        "source_pointer": "/scope/proof_commands/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json",
+        "source_pointer": "/scope/proof_commands/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test <lane test file stem>",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json",
+        "source_pointer": "/scope/proof_commands/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": [
+          "CKC MT059..063 lane target placeholders",
+          "CKC MT065 incorrect handshake_native package spelling and no root workspace",
+          "CKC MT058/068 multiple positional libtest filters",
+          "WP1 older packet mixed_model_lane_integration_pg_tests not current Surreal target",
+          "CKC MT068 packet PENDING vs MT CLAIMED; keep MT original state"
+        ]
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test atelier_prompt_feedback_tests -j 2",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-063.json",
+        "source_pointer": "/lane_report/proof/command",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test <name> can no longer select a single scenario inside the umbrella",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-063.json",
+        "source_pointer": "/lane_report/risks/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": [
+          "CKC MT059..063 lane target placeholders",
+          "CKC MT065 incorrect handshake_native package spelling and no root workspace",
+          "CKC MT058/068 multiple positional libtest filters",
+          "WP1 older packet mixed_model_lane_integration_pg_tests not current Surreal target",
+          "CKC MT068 packet PENDING vs MT CLAIMED; keep MT original state"
+        ]
+      },
+      {
+        "command_or_method": "cargo test -j 2 --offline --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test loom_artifact_migration_tests --test loom_media_tiers_tests -- --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-068.json",
+        "source_pointer": "/scope/proof_commands/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test -j 2 --offline --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --lib -- declarative_schema_catalog_is_complete_and_content_sensitive schema_contract_is_wave_scoped_and_identity_safe mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin mt139_current_schema_info_pin_matches_fresh_mem_catalog mt138_readiness_inventory_matches_canonical_surreal_schema mt138_rejects_full_count_schemaless_projection mt138_atelier_readiness_is_idempotent_across_embedded_restart not_implemented_surface_is_declared loom_artifact_ready_event_failure_rolls_back_binding_and_retries bootstrap_rejects_simulated_pre_ckc_predecessor_without_mutation --test-threads=1 --nocapture",
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-068.json",
+        "source_pointer": "/scope/proof_commands/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/scope/proof_targets/5",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "source_pointer": "/v6_proof_command_normalization_2026_09_05/original_targets/5",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_context_bundle_surreal_tests -- --test-threads=1 --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_context_bundle_surreal_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_context_bundle_surreal_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_context_bundle_surreal_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils -q",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/scope/proof_targets/5",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/v6_proof_command_hygiene_2026_09_05/repairs/0/before",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils -q",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "source_pointer": "/v6_proof_command_hygiene_2026_09_05/repairs/1/before",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test model_lane_navigation_surreal_tests -- --test-threads=1 --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact --test-threads=1 --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt010_model_lane_navigation_is_operable_through_live_argus -- --exact --test-threads=1 --nocapture",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_navigation_api_tests -> exit 101, zero tests run.",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/observed_before_repair",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --features test-utils --test user_manual_behavior_coverage_tests => ok. 21 passed; 0 failed (1784.90s). Was 17 before this MT; the 4 new tests are the cross-tier substitution negatives.",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/v5_remediation_2026_08_04/proofs_executed_by_kernel_builder/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --features test-utils --test user_manual_api_tests => ok. 24 passed; 0 failed (583.67s)",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/v5_remediation_2026_08_04/proofs_executed_by_kernel_builder/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --features test-utils --test user_manual_storage_tests => ok. 12 passed; 0 failed (86.83s)",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/v5_remediation_2026_08_04/proofs_executed_by_kernel_builder/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/4",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --locked -j 1 --manifest-path 'src/frontend/handshake_native/Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/scope/proof_targets/5",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/0",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/1",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/2",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      },
+      {
+        "command_or_method": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact",
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "source_pointer": "/proof_command_repair_2026_08_04/changed_commands/3",
+        "executor_role": "WP_VALIDATOR",
+        "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
+        "original_command_defect_refs": []
+      }
+    ]
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "embedded_draft": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#microtask_plan_drafts/MT-171",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-171.json"
+  },
+  "markdown_projection": {
+    "status": "NOT_REQUIRED_TYPED_DRAFT",
+    "path": null,
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+  },
+  "scope": {
+    "summary": "Reconcile CKC-owned core import paths",
+    "allowed_paths": [
+      "src/backend/handshake_core/.gitattributes",
+      "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+      "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+      "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_intake_facial.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_ops.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs",
+      "src/backend/handshake_core/src/atelier/action_receipt.rs",
+      "src/backend/handshake_core/src/atelier/collections.rs",
+      "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+      "src/backend/handshake_core/src/atelier/core.rs",
+      "src/backend/handshake_core/src/atelier/documents.rs",
+      "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+      "src/backend/handshake_core/src/atelier/exports.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/identity.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/landmarks.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/models.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/ediffiqa.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/facet.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/imagededup.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/python_ofiq.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/media.rs",
+      "src/backend/handshake_core/src/atelier/model_lease.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/src/atelier/moodboards.rs",
+      "src/backend/handshake_core/src/atelier/pose.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/engine.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/src/atelier/prompt_feedback/model.rs",
+      "src/backend/handshake_core/src/atelier/refs.rs",
+      "src/backend/handshake_core/src/atelier/relationships.rs",
+      "src/backend/handshake_core/src/atelier/search.rs",
+      "src/backend/handshake_core/src/atelier/settings.rs",
+      "src/backend/handshake_core/src/atelier/sheet.rs",
+      "src/backend/handshake_core/src/atelier/sheet_artifacts.rs",
+      "src/backend/handshake_core/src/atelier/sheet_templates.rs",
+      "src/backend/handshake_core/src/atelier/source_evidence.rs",
+      "src/backend/handshake_core/src/atelier/sourcing.rs",
+      "src/backend/handshake_core/src/atelier/templates/CHARACTER_SHEET__v2.00.txt",
+      "src/backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json",
+      "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+      "src/backend/handshake_core/src/bundles/zip.rs",
+      "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "src/backend/handshake_core/src/governance_pack.rs",
+      "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+      "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+      "src/backend/handshake_core/src/loom_fs.rs",
+      "src/backend/handshake_core/src/memory/injection.rs",
+      "src/backend/handshake_core/src/mex/supply_chain.rs",
+      "src/backend/handshake_core/src/role_mailbox.rs",
+      "src/backend/handshake_core/tests/atelier_action_receipt_tests.rs",
+      "src/backend/handshake_core/tests/atelier_ckc_media_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_ckc_sheets_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_contact_sheet_tests.rs",
+      "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_quality_dedupe_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
+      "src/backend/handshake_core/tests/atelier_fixture_corpus_tests.rs",
+      "src/backend/handshake_core/tests/atelier_kernel_smoke_tests.rs",
+      "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_model_ops_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_moodboard_tests.rs",
+      "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+      "src/backend/handshake_core/tests/atelier_settings_preference_tests.rs",
+      "src/backend/handshake_core/tests/atelier_sheet_artifact_link_tests.rs",
+      "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+      "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+      "src/backend/handshake_core/tests/loom_media_tiers_tests.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "unrelated modules",
+      "other-device Studio/spec work"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-P1-MT-171-AC1",
+        "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+      },
+      {
+        "id": "WP012-P1-MT-171-AC2",
+        "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+      }
+    ],
+    "proof_targets": [
+      {
+        "check_id": "WP012-P1-MT-171-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "expected": "Compile exact reconciled candidate; no runtime verdict",
+        "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+        "evidence_required": [
+          "candidate commit/tree",
+          "exact source path/blob reconciliation",
+          "command/config/toolchain/target/features",
+          "result"
+        ]
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing native surfaces for changed owning module"
+    ],
+    "argus_targets": [
+      "Retain original MT exact stable IDs; no replacement name inferred"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Headless host proof retained; native consumer handled by dependent native unit"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Existing owning-module workflow/recovery/diagnostic entries; source-map obligations retained"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Mapped original owning-module resources"
+    ],
+    "identity_and_scope_contexts": [
+      "account",
+      "Principal",
+      "session",
+      "AccessSpace",
+      "resource grant"
+    ],
+    "enforcement_boundaries": [
+      "Host record-user/ResourceBroker and adapter admission"
+    ],
+    "same_project_private_resource_cases": [
+      "Private metadata and content default deny across actors"
+    ],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [
+      "Mixed-scope outputs retain narrowest contributing scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Pinned original context; invalidate revoked caches/handles"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-INT-009",
+    "HBR-MAN-001..004",
+    "HBR-PRIV-001..008",
+    "Retained source-MT exact HBR rows; pin adoption assessed before activation"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
+  },
+  "red_team": {
+    "required": true,
+    "risks": [
+      {
+        "id": "WP012-P1-RISK-001",
+        "scenario": "Import overwrites WP012 auth/timing/durability protections",
+        "control": "Serial shared-file reconciliation with exact three-source diffs, preserved WP012 source baselines and negative/rollback cases",
+        "proof": "MT168/167/153/154/157/169 protections plus original changed-input proofs"
+      },
+      {
+        "id": "WP012-P1-RISK-002",
+        "scenario": "Folder/crate moves retain heavyweight reverse dependencies",
+        "control": "Mechanics forbid AppState/DB/GUI imports; feature-closure audit including consumer feature unification",
+        "proof": "Measured focused rebuild/relink and manifest dependency closure; budget review"
+      },
+      {
+        "id": "WP012-P1-RISK-003",
+        "scenario": "UTF8 span or stale parked-editor save corrupts rich document",
+        "control": "Validated host coordinate conversion and session/editor/revision/generation fence; canonical SaveOutcome",
+        "proof": "NonASCII/combining text, stale generation/handle, canceled/failed save, undo, reopen, pending projections"
+      },
+      {
+        "id": "WP012-P1-RISK-004",
+        "scenario": "Dropped original work or accidental acceptance from imported source status",
+        "control": "Every original acceptance/proof has hash-bound destination; source status not transferred to combined candidate",
+        "proof": "Source reconciliation coverage and independent combined verdict"
+      },
+      {
+        "id": "WP012-P1-RISK-005",
+        "scenario": "Diagnostics/media leak protected metadata",
+        "control": "Host scope enforcement/allowlist/revocation, derived non-widening and limited tools",
+        "proof": "Record-user negatives, Argus denial state and scoped diagnostic/manual evidence"
+      }
+    ],
+    "minimum_controls": [
+      "one owner/module",
+      "serial manifests/schema/host wiring",
+      "original source acceptance retained",
+      "independent runtime proof"
+    ]
+  },
+  "draft_disposition": {
+    "state": "ACTIVATED_PHASE02_IMPORT_CONTRACT",
+    "official_id_not_claimed": false,
+    "phase": 2,
+    "hydration_required": "Exact path/source/compile contracts hydrated; record dispatch/claim in next authorized Phase2, verify current configuration before proof; no later asset decision or blanket signature gate",
+    "source_reconciliation_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "activation_blockers": []
+  },
+  "source_import_binding": {
+    "source_paths": [
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "7a92c3e69e29a3777ebd6a320a4fc77cbf0fbb06",
+        "path": "src/backend/handshake_core/.gitattributes",
+        "map_pointer": "/import_path_ownership/0/entries/0"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "51875acedf7cd330c4713ba3775faad93f0ab91e",
+        "path": "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+        "map_pointer": "/import_path_ownership/0/entries/4"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "e4ee5d4fac704267002ffbb34776247b866eef80",
+        "path": "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+        "map_pointer": "/import_path_ownership/0/entries/5"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "a1e9ac4dac9f848cb38c3fa3ae90f4c349ceb51b",
+        "path": "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+        "map_pointer": "/import_path_ownership/0/entries/6"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "d66b5e6969921be7ca5b4d5182479643470a5f21",
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_intake_facial.rs",
+        "map_pointer": "/import_path_ownership/0/entries/8"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "c17cf728971e9331cdd35b108235a894b6512b82",
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
+        "map_pointer": "/import_path_ownership/0/entries/9"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "3833841223470fb5ffe24de6ab044d90ee8b106f",
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_ops.rs",
+        "map_pointer": "/import_path_ownership/0/entries/10"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "726ac7c06940f59daa7c0fc43dc7907768eb38b0",
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs",
+        "map_pointer": "/import_path_ownership/0/entries/11"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "2d32ccfb3a174d1fd35c41e5e2dc8a9f9c0ca0f6",
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs",
+        "map_pointer": "/import_path_ownership/0/entries/12"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "0804d09ac5d2c866256028c30e032aa927105785",
+        "path": "src/backend/handshake_core/src/atelier/action_receipt.rs",
+        "map_pointer": "/import_path_ownership/0/entries/15"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "110a735d5ce838a0b3d80c15a3c726dd9c2d1e54",
+        "path": "src/backend/handshake_core/src/atelier/collections.rs",
+        "map_pointer": "/import_path_ownership/0/entries/16"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "729f1d1e5c893585f0d776cf89feae258684884c",
+        "path": "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+        "map_pointer": "/import_path_ownership/0/entries/17"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "6aea69e80796a81413998baa6f9ab52b582c2632",
+        "path": "src/backend/handshake_core/src/atelier/core.rs",
+        "map_pointer": "/import_path_ownership/0/entries/18"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "6e8537d1c6ef3195a044aa34bb3870cbfa3b4876",
+        "path": "src/backend/handshake_core/src/atelier/documents.rs",
+        "map_pointer": "/import_path_ownership/0/entries/19"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "5a2f855e4eb2d9903b8bf1d4031a26a4e2247c43",
+        "path": "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+        "map_pointer": "/import_path_ownership/0/entries/20"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "e5ca3d399c5c3eb44e8d85c63de72cdcc67f8dcb",
+        "path": "src/backend/handshake_core/src/atelier/exports.rs",
+        "map_pointer": "/import_path_ownership/0/entries/21"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "25a454902574a5f4b5fc5f44db7144210fb4fe03",
+        "path": "src/backend/handshake_core/src/atelier/facial.rs",
+        "map_pointer": "/import_path_ownership/0/entries/22"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "a821a5526aa9877699cf32e4653f797818ecd9de",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+        "map_pointer": "/import_path_ownership/0/entries/23"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "7681ef31f6ec96c33781b40d122214d06c49269e",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/identity.rs",
+        "map_pointer": "/import_path_ownership/0/entries/24"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "b8c64e84360f2af09206d6d0d5130bd86a7e82d4",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/landmarks.rs",
+        "map_pointer": "/import_path_ownership/0/entries/25"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "403c31a2e8e6be4d65b5369a8ac23f5d3fbd5f14",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+        "map_pointer": "/import_path_ownership/0/entries/26"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "501bfa2f1f9bf8116223ef5870a5dc0c29d385c7",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/models.rs",
+        "map_pointer": "/import_path_ownership/0/entries/27"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "fa35ee1060193065b0a195de429d8ce6c2747e21",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/ediffiqa.rs",
+        "map_pointer": "/import_path_ownership/0/entries/28"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "71aafd3e8e747c5914d3da634b22ca45f932854b",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/facet.rs",
+        "map_pointer": "/import_path_ownership/0/entries/29"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "59eee7272ea903069cf4dcc2290b141832fef9b2",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/imagededup.rs",
+        "map_pointer": "/import_path_ownership/0/entries/30"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "3cb6b275a92f40eeceb626ac2543ec79ace1a813",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+        "map_pointer": "/import_path_ownership/0/entries/31"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "a3e04a81ef434f1eb293c803a4d4acbff3ce589e",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/python_ofiq.rs",
+        "map_pointer": "/import_path_ownership/0/entries/32"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "c910c861784bac67ffedcbf7c05e0bac63b367cd",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+        "map_pointer": "/import_path_ownership/0/entries/33"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "4b29a1a96fc669e551d48988f585f3462d39e17c",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+        "map_pointer": "/import_path_ownership/0/entries/34"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "33e3bcd749458d4f47e80be17e1f22643aa5b439",
+        "path": "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+        "map_pointer": "/import_path_ownership/0/entries/35"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "702bf356d322becefc87e119ad14308cdacd4ff9",
+        "path": "src/backend/handshake_core/src/atelier/intake.rs",
+        "map_pointer": "/import_path_ownership/0/entries/36"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "c5e653127be5e3cb111796bd0597dc60677d89c5",
+        "path": "src/backend/handshake_core/src/atelier/media.rs",
+        "map_pointer": "/import_path_ownership/0/entries/37"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "f174756c90f3181d0d29c36d6d72abced5e92928",
+        "path": "src/backend/handshake_core/src/atelier/model_lease.rs",
+        "map_pointer": "/import_path_ownership/0/entries/39"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "7eb0bea94821e371b108eac09bd392d16933c7bb",
+        "path": "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+        "map_pointer": "/import_path_ownership/0/entries/40"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "02b02d63a6f60ed7786445611555ceb8272e3f0d",
+        "path": "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "map_pointer": "/import_path_ownership/0/entries/41"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "3429ff49c1595b5064c489838eb0a6dde9eb24d0",
+        "path": "src/backend/handshake_core/src/atelier/pose.rs",
+        "map_pointer": "/import_path_ownership/0/entries/42"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "ee20511a9c19fe2d07f8b4e7dd78e1772c349333",
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+        "map_pointer": "/import_path_ownership/0/entries/43"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "02808cb6ce3d076b05695448cea769c01bc552d5",
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/engine.rs",
+        "map_pointer": "/import_path_ownership/0/entries/44"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "7b8735b6bdb7d80a677c16b0ea23315f1d958a43",
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+        "map_pointer": "/import_path_ownership/0/entries/45"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "9b8fdce5c465c25472bb591c58f32a9486f69e2b",
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/model.rs",
+        "map_pointer": "/import_path_ownership/0/entries/46"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "92a71a6df567f7d0c816e2e36fa3016ad6b95471",
+        "path": "src/backend/handshake_core/src/atelier/refs.rs",
+        "map_pointer": "/import_path_ownership/0/entries/47"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "b20efdc0d41ea05fe707cbf7d65518830012a722",
+        "path": "src/backend/handshake_core/src/atelier/relationships.rs",
+        "map_pointer": "/import_path_ownership/0/entries/48"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "ba46649e45e737796e528e65c1813a31a11664f5",
+        "path": "src/backend/handshake_core/src/atelier/search.rs",
+        "map_pointer": "/import_path_ownership/0/entries/49"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "d68b03a97503a16cec6189ac294e803c0a772964",
+        "path": "src/backend/handshake_core/src/atelier/settings.rs",
+        "map_pointer": "/import_path_ownership/0/entries/50"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "43fd75265e69f6c574670273e79cf60a3ce51d25",
+        "path": "src/backend/handshake_core/src/atelier/sheet.rs",
+        "map_pointer": "/import_path_ownership/0/entries/51"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "3676877d9059063b38f027bb47a9628ebc6e5681",
+        "path": "src/backend/handshake_core/src/atelier/sheet_artifacts.rs",
+        "map_pointer": "/import_path_ownership/0/entries/52"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "2494da30e9c91369f323f714625521f22c88083a",
+        "path": "src/backend/handshake_core/src/atelier/sheet_templates.rs",
+        "map_pointer": "/import_path_ownership/0/entries/53"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "7fb82fb5d13d122d716c37be90f9c2a0143bbe44",
+        "path": "src/backend/handshake_core/src/atelier/source_evidence.rs",
+        "map_pointer": "/import_path_ownership/0/entries/54"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "99e2e8c9eabc5c5f5997450e45077bfa9e645b9d",
+        "path": "src/backend/handshake_core/src/atelier/sourcing.rs",
+        "map_pointer": "/import_path_ownership/0/entries/55"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "311b26045e40ff92d76bb5885d003f30c1ca348f",
+        "path": "src/backend/handshake_core/src/atelier/templates/CHARACTER_SHEET__v2.00.txt",
+        "map_pointer": "/import_path_ownership/0/entries/56"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "74dc3a7a1d3106b6f4d1fe552b109baf3df6ae59",
+        "path": "src/backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json",
+        "map_pointer": "/import_path_ownership/0/entries/57"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "e64db51137ef7f6d8aaf7fae81d4935f5c9abfa4",
+        "path": "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+        "map_pointer": "/import_path_ownership/0/entries/58"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "9c232ede754a8bbe5a0e8168f2dc1faacb33d79e",
+        "path": "src/backend/handshake_core/src/bundles/zip.rs",
+        "map_pointer": "/import_path_ownership/0/entries/60"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "1c72016bbb5d2681dbaebc6e82a29e9569655d9e",
+        "path": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "map_pointer": "/import_path_ownership/0/entries/61"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "b7fee88f8a79aaffe05be1635d9e5f95fe0494b1",
+        "path": "src/backend/handshake_core/src/governance_pack.rs",
+        "map_pointer": "/import_path_ownership/0/entries/63"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "6bb98748f9654908844593977bb1389e29359d5c",
+        "path": "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+        "map_pointer": "/import_path_ownership/0/entries/64"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "3cd1c1cb9b75a0fa1d1bb2905ac0270338b93fcd",
+        "path": "src/backend/handshake_core/src/kernel/context_bundle.rs",
+        "map_pointer": "/import_path_ownership/0/entries/65"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "431d81c38c778d0986b4bf1c874bee9891a72583",
+        "path": "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+        "map_pointer": "/import_path_ownership/0/entries/67"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "738c78403fef8f91dc681d2e865f976731a6fdbf",
+        "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "map_pointer": "/import_path_ownership/0/entries/68"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "87fbe22c08e8b1172727a4436f55707f7e83f6f9",
+        "path": "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+        "map_pointer": "/import_path_ownership/0/entries/69"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "f48bff1dcce3141dceb397ae48720e123575347f",
+        "path": "src/backend/handshake_core/src/loom_fs.rs",
+        "map_pointer": "/import_path_ownership/0/entries/72"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "c0b984d59dfe16a9593ddbaf8cdf19aeb6df34d2",
+        "path": "src/backend/handshake_core/src/memory/injection.rs",
+        "map_pointer": "/import_path_ownership/0/entries/73"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "84a7b7eaf42f97d0f0652b42be884bf96d32b4c3",
+        "path": "src/backend/handshake_core/src/mex/supply_chain.rs",
+        "map_pointer": "/import_path_ownership/0/entries/74"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "8dcebbae177fcd91adab8dd532e17cd8fb18fd73",
+        "path": "src/backend/handshake_core/src/role_mailbox.rs",
+        "map_pointer": "/import_path_ownership/0/entries/75"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "1d4fa0742ac3c6de98e59eb0531b0e2e59dd0ca6",
+        "path": "src/backend/handshake_core/tests/atelier_action_receipt_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/85"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "e88a73c95cc8978c43fa163ab51294f5773ca697",
+        "path": "src/backend/handshake_core/tests/atelier_ckc_media_api_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/86"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "410152b1ce166ec553a3b07b296f8ff85efb8405",
+        "path": "src/backend/handshake_core/tests/atelier_ckc_sheets_api_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/87"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "c46da3b106642017219fa42b58f047865dd3c58b",
+        "path": "src/backend/handshake_core/tests/atelier_contact_sheet_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/88"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "a74ad36954d159904faa95c42299db97f916f9db",
+        "path": "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/89"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "41ce1caba4eeb701570c11030885568ec8b65949",
+        "path": "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/90"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "b6bc129384ed3dd2e948e3709e37a6dea8eca20c",
+        "path": "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/91"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "fe6b4bdad8d352cfe6f7980eacf2710469c87dd4",
+        "path": "src/backend/handshake_core/tests/atelier_facial_quality_dedupe_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/92"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "4d01957e5a0707855ae565089f5ccefcfc3192ad",
+        "path": "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/93"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "827cd3286d9b92311663248b9dd879390abdc751",
+        "path": "src/backend/handshake_core/tests/atelier_fixture_corpus_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/94"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "bb0d09aef99fde2d061910005195a41d96ba0fb5",
+        "path": "src/backend/handshake_core/tests/atelier_kernel_smoke_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/95"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "82bb91991df01726be091ace7598bb367042a54e",
+        "path": "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/96"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "a4cb01036d0ae9873c79d5cbca3930bb6863fe68",
+        "path": "src/backend/handshake_core/tests/atelier_model_ops_api_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/97"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "966d2a00169be9d054ac5091d6060c2d183c416d",
+        "path": "src/backend/handshake_core/tests/atelier_moodboard_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/98"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "e58a275f440905a5f8a024b040f9f4c4e2d5f645",
+        "path": "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/99"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "aba253cff9e258772782f96802d672df074e9485",
+        "path": "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/100"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "1577b13154f1a21cdb053be4bfc6a91b1e1fc89d",
+        "path": "src/backend/handshake_core/tests/atelier_settings_preference_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/101"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "027f490166357da3042e88838e7b90e6d6f31051",
+        "path": "src/backend/handshake_core/tests/atelier_sheet_artifact_link_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/102"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "acddf355b6f69e67221238e917a86a355b1d3119",
+        "path": "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+        "map_pointer": "/import_path_ownership/0/entries/103"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "b2263620f45a234e69b241721b4d9573613fa59f",
+        "path": "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/104"
+      },
+      {
+        "source_wp": "WP-CKC-posekit-overhaul",
+        "source_head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "source_blob": "6b5e21809d844bb661e6010a2d4c45614d57a7f1",
+        "path": "src/backend/handshake_core/tests/loom_media_tiers_tests.rs",
+        "map_pointer": "/import_path_ownership/0/entries/105"
+      }
+    ],
+    "source_acceptance_records": [
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
+        "map_pointer": "/original_contract_records/187",
+        "acceptance_map_pointer": "/original_contract_records/187/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
+        "map_pointer": "/original_contract_records/188",
+        "acceptance_map_pointer": "/original_contract_records/188/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "map_pointer": "/original_contract_records/191",
+        "acceptance_map_pointer": "/original_contract_records/191/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+        "map_pointer": "/original_contract_records/192",
+        "acceptance_map_pointer": "/original_contract_records/192/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
+        "map_pointer": "/original_contract_records/193",
+        "acceptance_map_pointer": "/original_contract_records/193/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "map_pointer": "/original_contract_records/198",
+        "acceptance_map_pointer": "/original_contract_records/198/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "map_pointer": "/original_contract_records/199",
+        "acceptance_map_pointer": "/original_contract_records/199/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "map_pointer": "/original_contract_records/200",
+        "acceptance_map_pointer": "/original_contract_records/200/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+        "map_pointer": "/original_contract_records/201",
+        "acceptance_map_pointer": "/original_contract_records/201/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "map_pointer": "/original_contract_records/202",
+        "acceptance_map_pointer": "/original_contract_records/202/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
+        "map_pointer": "/original_contract_records/204",
+        "acceptance_map_pointer": "/original_contract_records/204/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "map_pointer": "/original_contract_records/206",
+        "acceptance_map_pointer": "/original_contract_records/206/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
+        "map_pointer": "/original_contract_records/207",
+        "acceptance_map_pointer": "/original_contract_records/207/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "map_pointer": "/original_contract_records/208",
+        "acceptance_map_pointer": "/original_contract_records/208/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+        "map_pointer": "/original_contract_records/209",
+        "acceptance_map_pointer": "/original_contract_records/209/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-042.json",
+        "map_pointer": "/original_contract_records/215",
+        "acceptance_map_pointer": "/original_contract_records/215/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
+        "map_pointer": "/original_contract_records/216",
+        "acceptance_map_pointer": "/original_contract_records/216/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-045.json",
+        "map_pointer": "/original_contract_records/218",
+        "acceptance_map_pointer": "/original_contract_records/218/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json",
+        "map_pointer": "/original_contract_records/223",
+        "acceptance_map_pointer": "/original_contract_records/223/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json",
+        "map_pointer": "/original_contract_records/225",
+        "acceptance_map_pointer": "/original_contract_records/225/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
+        "map_pointer": "/original_contract_records/228",
+        "acceptance_map_pointer": "/original_contract_records/228/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.json",
+        "map_pointer": "/original_contract_records/230",
+        "acceptance_map_pointer": "/original_contract_records/230/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json",
+        "map_pointer": "/original_contract_records/232",
+        "acceptance_map_pointer": "/original_contract_records/232/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-060.json",
+        "map_pointer": "/original_contract_records/233",
+        "acceptance_map_pointer": "/original_contract_records/233/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-061.json",
+        "map_pointer": "/original_contract_records/234",
+        "acceptance_map_pointer": "/original_contract_records/234/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-062.json",
+        "map_pointer": "/original_contract_records/235",
+        "acceptance_map_pointer": "/original_contract_records/235/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-063.json",
+        "map_pointer": "/original_contract_records/236",
+        "acceptance_map_pointer": "/original_contract_records/236/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-064.json",
+        "map_pointer": "/original_contract_records/237",
+        "acceptance_map_pointer": "/original_contract_records/237/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-068.json",
+        "map_pointer": "/original_contract_records/241",
+        "acceptance_map_pointer": "/original_contract_records/241/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "map_pointer": "/original_contract_records/247",
+        "acceptance_map_pointer": "/original_contract_records/247/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "map_pointer": "/original_contract_records/248",
+        "acceptance_map_pointer": "/original_contract_records/248/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "map_pointer": "/original_contract_records/253",
+        "acceptance_map_pointer": "/original_contract_records/253/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "map_pointer": "/original_contract_records/254",
+        "acceptance_map_pointer": "/original_contract_records/254/acceptance_and_requirement_map"
+      }
+    ],
+    "historical_requirements_policy": "Exact source requirements retained in source map; bind consumed items before combined acceptance; no blanket Phase08 deferral",
+    "unmatched_path_requirement": "Source compile/protection proof applies; identify runtime consumption owner before combined acceptance, never treat absent match as exemption",
+    "shared_owner": "PRIMARY_BUILDER_SERIAL",
+    "reference_only_and_governance_paths_import_forbidden": true
+  },
+  "spec_basis": {
+    "kind": "preservation_first_source_consolidation",
+    "source_requirement_refs": [
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
+        "map_pointer": "/original_contract_records/187",
+        "acceptance_map_pointer": "/original_contract_records/187/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
+        "map_pointer": "/original_contract_records/188",
+        "acceptance_map_pointer": "/original_contract_records/188/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+        "map_pointer": "/original_contract_records/191",
+        "acceptance_map_pointer": "/original_contract_records/191/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+        "map_pointer": "/original_contract_records/192",
+        "acceptance_map_pointer": "/original_contract_records/192/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
+        "map_pointer": "/original_contract_records/193",
+        "acceptance_map_pointer": "/original_contract_records/193/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+        "map_pointer": "/original_contract_records/198",
+        "acceptance_map_pointer": "/original_contract_records/198/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+        "map_pointer": "/original_contract_records/199",
+        "acceptance_map_pointer": "/original_contract_records/199/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+        "map_pointer": "/original_contract_records/200",
+        "acceptance_map_pointer": "/original_contract_records/200/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+        "map_pointer": "/original_contract_records/201",
+        "acceptance_map_pointer": "/original_contract_records/201/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+        "map_pointer": "/original_contract_records/202",
+        "acceptance_map_pointer": "/original_contract_records/202/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
+        "map_pointer": "/original_contract_records/204",
+        "acceptance_map_pointer": "/original_contract_records/204/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+        "map_pointer": "/original_contract_records/206",
+        "acceptance_map_pointer": "/original_contract_records/206/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
+        "map_pointer": "/original_contract_records/207",
+        "acceptance_map_pointer": "/original_contract_records/207/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+        "map_pointer": "/original_contract_records/208",
+        "acceptance_map_pointer": "/original_contract_records/208/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+        "map_pointer": "/original_contract_records/209",
+        "acceptance_map_pointer": "/original_contract_records/209/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-042.json",
+        "map_pointer": "/original_contract_records/215",
+        "acceptance_map_pointer": "/original_contract_records/215/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-043.json",
+        "map_pointer": "/original_contract_records/216",
+        "acceptance_map_pointer": "/original_contract_records/216/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-045.json",
+        "map_pointer": "/original_contract_records/218",
+        "acceptance_map_pointer": "/original_contract_records/218/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json",
+        "map_pointer": "/original_contract_records/223",
+        "acceptance_map_pointer": "/original_contract_records/223/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-052.json",
+        "map_pointer": "/original_contract_records/225",
+        "acceptance_map_pointer": "/original_contract_records/225/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
+        "map_pointer": "/original_contract_records/228",
+        "acceptance_map_pointer": "/original_contract_records/228/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.json",
+        "map_pointer": "/original_contract_records/230",
+        "acceptance_map_pointer": "/original_contract_records/230/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json",
+        "map_pointer": "/original_contract_records/232",
+        "acceptance_map_pointer": "/original_contract_records/232/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-060.json",
+        "map_pointer": "/original_contract_records/233",
+        "acceptance_map_pointer": "/original_contract_records/233/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-061.json",
+        "map_pointer": "/original_contract_records/234",
+        "acceptance_map_pointer": "/original_contract_records/234/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-062.json",
+        "map_pointer": "/original_contract_records/235",
+        "acceptance_map_pointer": "/original_contract_records/235/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-063.json",
+        "map_pointer": "/original_contract_records/236",
+        "acceptance_map_pointer": "/original_contract_records/236/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-064.json",
+        "map_pointer": "/original_contract_records/237",
+        "acceptance_map_pointer": "/original_contract_records/237/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-068.json",
+        "map_pointer": "/original_contract_records/241",
+        "acceptance_map_pointer": "/original_contract_records/241/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+        "map_pointer": "/original_contract_records/247",
+        "acceptance_map_pointer": "/original_contract_records/247/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+        "map_pointer": "/original_contract_records/248",
+        "acceptance_map_pointer": "/original_contract_records/248/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
+        "map_pointer": "/original_contract_records/253",
+        "acceptance_map_pointer": "/original_contract_records/253/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "map_pointer": "/original_contract_records/254",
+        "acceptance_map_pointer": "/original_contract_records/254/acceptance_and_requirement_map"
+      }
+    ],
+    "unchanged_product_requirement_policy": "Existing original source contracts and mapped spec/HBR obligations retained; no new boundary or asset behavior in Phase2",
+    "spec_disposition_ref": "WP-KERNEL-012-phase-01-consolidation-contract-v1.json#spec_dispositions"
+  },
+  "activation_record": {
+    "approval": "Operator-authorized Phase2 fresh delegation; KB-PREP-003 no repeated signature",
+    "source_pins": [
+      {
+        "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+        "worktree": "../wtc-WP-KERNEL-012",
+        "branch": "refs/heads/feat/WP-KERNEL-012",
+        "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+        "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+        "status": "",
+        "role": "Consolidation destination and existing implementation/acceptance to preserve",
+        "head_drift_from_phase00": false
+      },
+      {
+        "wp_id": "WP-CKC-posekit-overhaul",
+        "worktree": "../wtc-WP-CKC-posekit-overhaul-surreal",
+        "branch": "refs/heads/feat/WP-CKC-posekit-overhaul-surreal",
+        "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+        "status": "",
+        "role": "Active SurrealDB import source; remaining CKC/Posekit scope resumes after WP012",
+        "head_drift_from_phase00": false
+      },
+      {
+        "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "worktree": "../wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "branch": "refs/heads/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+        "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+        "status": "",
+        "role": "Active Dexterity/model-lane product import source; remaining orchestration scope resumes after WP012",
+        "head_drift_from_phase00": false
+      }
+    ],
+    "contract_sha256": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a",
+    "source_map_sha256": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58",
+    "scope": "Exact MT171–175 source/path reconciliation only; compile configuration binds before proof",
+    "runtime_acceptance": "Independent validator pending; no acceptance claimed"
+  },
+  "remediation_record": {
+    "batch_owner": "MT-171",
+    "covered_mts": [
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174",
+      "MT-175"
+    ],
+    "SESSION_MT_BATCH": [
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174",
+      "MT-175"
+    ]
+  },
+  "implementation_record": {
+    "source_reconciliation_artifact": "WP-KERNEL-012/MT-171/import-owner/mt171-import-reconciliation.json",
+    "reconciled_paths": [
+      {
+        "path": "src/backend/handshake_core/.gitattributes",
+        "action": "new_source_path",
+        "source_blob": "7a92c3e69e29a3777ebd6a320a4fc77cbf0fbb06",
+        "destination_sha256": "8b79f75c176bcdb19f8750c8f72a5d21610cd6812da2ad3fa8922384ed38666c"
+      },
+      {
+        "path": "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "51875acedf7cd330c4713ba3775faad93f0ab91e",
+        "destination_sha256": "0ea09f998886bf695a4e4efce4c35b45aa652780872dbe0c5f313592a2ee852d"
+      },
+      {
+        "path": "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "e4ee5d4fac704267002ffbb34776247b866eef80",
+        "destination_sha256": "3309ea9ffae082189a806a129802d2a39f097e7d41f28dfafe3c16616829a3f6"
+      },
+      {
+        "path": "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "a1e9ac4dac9f848cb38c3fa3ae90f4c349ceb51b",
+        "destination_sha256": "c79ba05056d9e43a33302d2dd77274b6fb72ebfe27787c7c52d4f81b422fea53"
+      },
+      {
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_intake_facial.rs",
+        "action": "new_source_path",
+        "source_blob": "d66b5e6969921be7ca5b4d5182479643470a5f21",
+        "destination_sha256": "d85c431007ef2980a01ca8ce3d939fb456abfb5e22c763c8f9ed6707e09db085"
+      },
+      {
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
+        "action": "new_source_path",
+        "source_blob": "c17cf728971e9331cdd35b108235a894b6512b82",
+        "destination_sha256": "3692bf196bc6541b430d06a203a1455424a39d9a723c8b9126666401c8af466c"
+      },
+      {
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_ops.rs",
+        "action": "new_source_path",
+        "source_blob": "3833841223470fb5ffe24de6ab044d90ee8b106f",
+        "destination_sha256": "1fdc1c7acda9538dcc7593f439b0c995c7cb9ddaa8bd7847778178e0ea921218"
+      },
+      {
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs",
+        "action": "new_source_path",
+        "source_blob": "726ac7c06940f59daa7c0fc43dc7907768eb38b0",
+        "destination_sha256": "6777f509bbdbd0ae049665e7a3e09b4f4bb9cc5fa5ec3cdeee185c12004e31ce"
+      },
+      {
+        "path": "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs",
+        "action": "new_source_path",
+        "source_blob": "2d32ccfb3a174d1fd35c41e5e2dc8a9f9c0ca0f6",
+        "destination_sha256": "c94217159f48b48328e9b13b953dc041627587cf929eab28d9378b7ab427c00a"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/action_receipt.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "0804d09ac5d2c866256028c30e032aa927105785",
+        "destination_sha256": "250da69a549cb453116853335731d0a37a4ea5032aaac2f96e9c58c59533bc69"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/collections.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "110a735d5ce838a0b3d80c15a3c726dd9c2d1e54",
+        "destination_sha256": "fa2acb86f956eefe1c2242d03fc79c9043b96bceacd5f0d14a151669d2e050a7"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+        "action": "new_source_path",
+        "source_blob": "729f1d1e5c893585f0d776cf89feae258684884c",
+        "destination_sha256": "c9c618f2ac644bd57928dc863ee7ae634f6d564ef4079f293a30629ab0a4effd"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/core.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "6aea69e80796a81413998baa6f9ab52b582c2632",
+        "destination_sha256": "64a5fb2609a25a0d908cc9c1ff542e9d7d33ff5a3c8f863c4ad711772a078776"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/documents.rs",
+        "action": "clean_three_way",
+        "source_blob": "6e8537d1c6ef3195a044aa34bb3870cbfa3b4876",
+        "destination_sha256": "0a0dc0f4d4bfaf7d0a5090d7832140c4db4fe43fc6e8d47de3f97cd611b7c909"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+        "action": "clean_three_way",
+        "source_blob": "5a2f855e4eb2d9903b8bf1d4031a26a4e2247c43",
+        "destination_sha256": "86dafa9d6ae3f4f359e746c7f9fb425fde882de6e20fcafd2c5f5e094cbd44de"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/exports.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "e5ca3d399c5c3eb44e8d85c63de72cdcc67f8dcb",
+        "conflict_count": 2,
+        "destination_sha256": "72787758a10176f47eb0767562d91fb1d1448427e1b420549996360d34ba0f93"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial.rs",
+        "action": "new_source_path",
+        "source_blob": "25a454902574a5f4b5fc5f44db7144210fb4fe03",
+        "destination_sha256": "583f8bac917c061fe6a50002b563e7fca24329599c14f23c4d0e23ed37eebc80"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+        "action": "new_source_path",
+        "source_blob": "a821a5526aa9877699cf32e4653f797818ecd9de",
+        "destination_sha256": "8ccb8c93473d69494f6d970a7fa6162a25bc5000c0bc9c0aad7b333d0d79867a"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/identity.rs",
+        "action": "new_source_path",
+        "source_blob": "7681ef31f6ec96c33781b40d122214d06c49269e",
+        "destination_sha256": "89a7bfffd6a82f148a0eb440d8c839a2dc95c4b7386033d46498580b6f71d920"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/landmarks.rs",
+        "action": "new_source_path",
+        "source_blob": "b8c64e84360f2af09206d6d0d5130bd86a7e82d4",
+        "destination_sha256": "b2de7aa47a797a6867229a549abb3d4bfbca5048f6597b29ac4d8ce8dc13f3dc"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+        "action": "new_source_path",
+        "source_blob": "403c31a2e8e6be4d65b5369a8ac23f5d3fbd5f14",
+        "destination_sha256": "7041eb8be7774f9ca414010b0ab323789d74374586c18a5298367762760c9913"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/models.rs",
+        "action": "new_source_path",
+        "source_blob": "501bfa2f1f9bf8116223ef5870a5dc0c29d385c7",
+        "destination_sha256": "568c575a807dd7dffe8e2d6d1e6d933895c43f4a5056efdaf31166190772c2ff"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/ediffiqa.rs",
+        "action": "new_source_path",
+        "source_blob": "fa35ee1060193065b0a195de429d8ce6c2747e21",
+        "destination_sha256": "ec15f3f18a2c75c9ad9c6f422781144c69d3ab588494511ae7a5aae1c776067d"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/facet.rs",
+        "action": "new_source_path",
+        "source_blob": "71aafd3e8e747c5914d3da634b22ca45f932854b",
+        "destination_sha256": "e87154a2029baef5dba1572ba91c66eaf8ad831f3c490da112f4be011f448fa5"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/imagededup.rs",
+        "action": "new_source_path",
+        "source_blob": "59eee7272ea903069cf4dcc2290b141832fef9b2",
+        "destination_sha256": "395ac28414602a3166807ab4c32bd803935af178d2f3b2605d5213b0ca85fffa"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+        "action": "new_source_path",
+        "source_blob": "3cb6b275a92f40eeceb626ac2543ec79ace1a813",
+        "destination_sha256": "ff0ec676663745578599b516579b1df4a30f3bffab0bc92708b51b663ca40cd6"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/plugins/python_ofiq.rs",
+        "action": "new_source_path",
+        "source_blob": "a3e04a81ef434f1eb293c803a4d4acbff3ce589e",
+        "destination_sha256": "b82b2cc5f87b1685a2eada2bf9db6a6c2f358b87d7e9792839f8d56d61dff37f"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+        "action": "new_source_path",
+        "source_blob": "c910c861784bac67ffedcbf7c05e0bac63b367cd",
+        "destination_sha256": "b1119f9d750bc7bff8b44f6ad8ca2bbe1064b40ebce96d6c5bc5aa2fc4ade738"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+        "action": "new_source_path",
+        "source_blob": "4b29a1a96fc669e551d48988f585f3462d39e17c",
+        "destination_sha256": "72aaa7d1f86f49c6e73c68478b618f7a204f60c4523b003a10726245a2a3bb18"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+        "action": "new_source_path",
+        "source_blob": "33e3bcd749458d4f47e80be17e1f22643aa5b439",
+        "destination_sha256": "7bc7207ef0cdc1ddc5026eb8142ab36da7753fb8f556911b88d1c209574a9236"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/intake.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "702bf356d322becefc87e119ad14308cdacd4ff9",
+        "conflict_count": 3,
+        "destination_sha256": "d9fe688c1f4deee155354d934657d7b9302a559ce2cc31932dfc6fc5f83250dc"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/media.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "c5e653127be5e3cb111796bd0597dc60677d89c5",
+        "conflict_count": 1,
+        "destination_sha256": "f64aee75a019d0ab2c421c04228db7522dc25a95ad1027ea65226f28f4d2c964"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/model_lease.rs",
+        "action": "clean_three_way",
+        "source_blob": "f174756c90f3181d0d29c36d6d72abced5e92928",
+        "destination_sha256": "d501dc04ef7f5e4010bc2a9420eb075dfd082a2177e9ed2971be7a58c71307b0"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+        "action": "clean_three_way",
+        "source_blob": "7eb0bea94821e371b108eac09bd392d16933c7bb",
+        "destination_sha256": "8a789366bf9f7f26f6bb6550d939b0622ca81ee0ae69d294b8a941650ec0bfec"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "02b02d63a6f60ed7786445611555ceb8272e3f0d",
+        "conflict_count": 7,
+        "destination_sha256": "5cd27f2fd4abfacaf40915684fce4719da17e220b4ccc485718c5804064ee1fb"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/pose.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "3429ff49c1595b5064c489838eb0a6dde9eb24d0",
+        "conflict_count": 1,
+        "destination_sha256": "5aa19a2af406dc5a470965d8fc4c4d64ffd44915d7384803caecfc9bf94e0d6d"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/adapter.rs",
+        "action": "new_source_path",
+        "source_blob": "ee20511a9c19fe2d07f8b4e7dd78e1772c349333",
+        "destination_sha256": "295e484307980c76516dd9711b8c2c87c54bede0cc2f746fedd47f0bf301aae7"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/engine.rs",
+        "action": "new_source_path",
+        "source_blob": "02808cb6ce3d076b05695448cea769c01bc552d5",
+        "destination_sha256": "a6e1e32144cb9fc76ae77a9aff5a2a0f48cf3caf0d51f0e70a7539b17bbdde23"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+        "action": "new_source_path",
+        "source_blob": "7b8735b6bdb7d80a677c16b0ea23315f1d958a43",
+        "destination_sha256": "09e5700f8bf43faa88088dad8e7444db600bdbd9e335512b73c02b281292e695"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/prompt_feedback/model.rs",
+        "action": "new_source_path",
+        "source_blob": "9b8fdce5c465c25472bb591c58f32a9486f69e2b",
+        "destination_sha256": "4fca059aa43044ed68061b9ac4763dbbc51dd024e58ab08c552f130c51a7bb81"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/refs.rs",
+        "action": "new_source_path",
+        "source_blob": "92a71a6df567f7d0c816e2e36fa3016ad6b95471",
+        "destination_sha256": "27644738d31139ea028b3155224efb8da66e65debebdf661d73b2f40a24c6f45"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/relationships.rs",
+        "action": "clean_three_way",
+        "source_blob": "b20efdc0d41ea05fe707cbf7d65518830012a722",
+        "destination_sha256": "b915f50de3e6eb71bcc3fc1416f50afc259877bd307b5fcf9e2a148f9ea88a55"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/search.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "ba46649e45e737796e528e65c1813a31a11664f5",
+        "conflict_count": 3,
+        "destination_sha256": "9293c1c605de3c0f765d2c9d32cf57cd7187919ed26180951cf2638d9d4dccb3"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/settings.rs",
+        "action": "clean_three_way",
+        "source_blob": "d68b03a97503a16cec6189ac294e803c0a772964",
+        "destination_sha256": "d44ef568788f605782ce532731bde4446c3066c15d522ac4b006aaa8b0b4db66"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/sheet.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "43fd75265e69f6c574670273e79cf60a3ce51d25",
+        "conflict_count": 1,
+        "destination_sha256": "fb0e52e7758ca7bfb5aed8953425a3980f1b0c3641063f46a5a42a5da64d5f0d"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/sheet_artifacts.rs",
+        "action": "new_source_path",
+        "source_blob": "3676877d9059063b38f027bb47a9628ebc6e5681",
+        "destination_sha256": "5c51e7ec38f438ad3847de942d31727270b34d6dd86a50d3e0d38dde165ec124"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/sheet_templates.rs",
+        "action": "new_source_path",
+        "source_blob": "2494da30e9c91369f323f714625521f22c88083a",
+        "destination_sha256": "570391bf2edc392a11f07ab354704519e81509761156e32651e459f92febdf67"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/source_evidence.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "7fb82fb5d13d122d716c37be90f9c2a0143bbe44",
+        "destination_sha256": "5cc6ad97389f357558da18a8c4d3378736da5d3a6ae1f82c6ae482d158c6eb58"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/sourcing.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "99e2e8c9eabc5c5f5997450e45077bfa9e645b9d",
+        "destination_sha256": "3028521b1dda1692663f2d4ef77e248e4548e7c1c8d07054a9a7aa5f92a377a8"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/templates/CHARACTER_SHEET__v2.00.txt",
+        "action": "new_source_path",
+        "source_blob": "311b26045e40ff92d76bb5885d003f30c1ca348f",
+        "destination_sha256": "a910ac9d8f1ed9a84535b0c106d38e9b806fcbbca5c10d8459a2d604ca8576c9"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json",
+        "action": "new_source_path",
+        "source_blob": "74dc3a7a1d3106b6f4d1fe552b109baf3df6ae59",
+        "destination_sha256": "2da6408d3a20a9acecdbbf96162e0cd48ef833e6f0c9b82c48b26c35f56193b4"
+      },
+      {
+        "path": "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "e64db51137ef7f6d8aaf7fae81d4935f5c9abfa4",
+        "destination_sha256": "d7354f828ed901bd5db3e7fd5dd24f3023f393d685bf05cc8e3a41fd2c8de39e"
+      },
+      {
+        "path": "src/backend/handshake_core/src/bundles/zip.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "9c232ede754a8bbe5a0e8168f2dc1faacb33d79e",
+        "destination_sha256": "3d329d083ae1bde74cd2055dfb43deb074f470515ae46aaab1604826d68886c8"
+      },
+      {
+        "path": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "1c72016bbb5d2681dbaebc6e82a29e9569655d9e",
+        "destination_sha256": "b70e0ee2c4700fda44bd52d27a3c47a8696fedc3c596e2361ce45b9f9925d637"
+      },
+      {
+        "path": "src/backend/handshake_core/src/governance_pack.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "b7fee88f8a79aaffe05be1635d9e5f95fe0494b1",
+        "destination_sha256": "fb948e8bc9c9861e907109d06a5b123a7f047d18afbf0543633b6f336760cc63"
+      },
+      {
+        "path": "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "6bb98748f9654908844593977bb1389e29359d5c",
+        "destination_sha256": "3361a393ba2907d8428f9be5ad4fd50177a6db0937f3f6477ca8df46d8f72f2e"
+      },
+      {
+        "path": "src/backend/handshake_core/src/kernel/context_bundle.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "3cd1c1cb9b75a0fa1d1bb2905ac0270338b93fcd",
+        "conflict_count": 1,
+        "destination_sha256": "4c24a9da96ed3c228f343bf191652c424ebb05ec729818ca69e3e29485c365b1"
+      },
+      {
+        "path": "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "431d81c38c778d0986b4bf1c874bee9891a72583",
+        "destination_sha256": "4d620d623c3311345c44979513a6ead6de4e54fcdd175b16a14b95d2d650ec22"
+      },
+      {
+        "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "action": "clean_three_way",
+        "source_blob": "738c78403fef8f91dc681d2e865f976731a6fdbf",
+        "destination_sha256": "b9110c0e7ba7d88b3f3151b7393b53bf7e4e8ab8d68985421d5a71b35c4fa5bf"
+      },
+      {
+        "path": "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "87fbe22c08e8b1172727a4436f55707f7e83f6f9",
+        "destination_sha256": "a3c8006a553a9c4d32653dc4637c2072eccae00b124b04ff3cb582c4302eddf7"
+      },
+      {
+        "path": "src/backend/handshake_core/src/loom_fs.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "f48bff1dcce3141dceb397ae48720e123575347f",
+        "destination_sha256": "14de7716d13a5b48e3612192a3a25bf93635794bf094ac422c14e107fb2cec39"
+      },
+      {
+        "path": "src/backend/handshake_core/src/memory/injection.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "c0b984d59dfe16a9593ddbaf8cdf19aeb6df34d2",
+        "destination_sha256": "4b7080a8dc41d15715ecfb85a20b49c9a602481ce0a35f60678f86016a742b51"
+      },
+      {
+        "path": "src/backend/handshake_core/src/mex/supply_chain.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "84a7b7eaf42f97d0f0652b42be884bf96d32b4c3",
+        "destination_sha256": "0ea24bd8de80c073f217a419368b1c151d11ff188d1f3f612540227fe5b121c2"
+      },
+      {
+        "path": "src/backend/handshake_core/src/role_mailbox.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "8dcebbae177fcd91adab8dd532e17cd8fb18fd73",
+        "destination_sha256": "cc9d03d4c9637e9ea207cb2348cf87ea7c4d8d4c1364b32a8815547334af101e"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_action_receipt_tests.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "1d4fa0742ac3c6de98e59eb0531b0e2e59dd0ca6",
+        "destination_sha256": "0aebf4f61b6c32936df71283ce8957bde3a323a399044a2e73f118eac6aea5c9"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_ckc_media_api_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "e88a73c95cc8978c43fa163ab51294f5773ca697",
+        "destination_sha256": "14cec9c9f43afa8c7b6db0793f869b5a45f163f7b7f7056bf1c284c11946c46d"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_ckc_sheets_api_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "410152b1ce166ec553a3b07b296f8ff85efb8405",
+        "destination_sha256": "bbe41db69d22617067bfb307344ba6b465c510715ce743a67a23c00c5a5e3c09"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_contact_sheet_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "c46da3b106642017219fa42b58f047865dd3c58b",
+        "destination_sha256": "9e02731c31e588359b2fab928166a6b275dc8b79afe3973bed41e3a7f2379682"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "a74ad36954d159904faa95c42299db97f916f9db",
+        "conflict_count": 2,
+        "destination_sha256": "cb94d43eaffb6017c78a7197d8adf5b351aac3f4c46f14efca43cd873954c213"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "41ce1caba4eeb701570c11030885568ec8b65949",
+        "destination_sha256": "a28195f9b2dbc2dbd438efdde6a8e84122cfbee7f129d07754d72db84ad89d70"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "b6bc129384ed3dd2e948e3709e37a6dea8eca20c",
+        "destination_sha256": "953786bcdb19e64119580a9468275fd9a814135a5e82adc51d205b6b0d7ac520"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_facial_quality_dedupe_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "fe6b4bdad8d352cfe6f7980eacf2710469c87dd4",
+        "destination_sha256": "d9e1ee9b4b6e9d6198b127eb431cbec5f97428ce587bad10da0bf9ef2ace5216"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "4d01957e5a0707855ae565089f5ccefcfc3192ad",
+        "destination_sha256": "e3a8911e6792f63fd6b80eeaba8dcd7e987316e70a2c5855502524d3d8f021aa"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_fixture_corpus_tests.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "827cd3286d9b92311663248b9dd879390abdc751",
+        "destination_sha256": "f72350010772ee1f244ec72eaf1d238a38bbdebe2277c1f53af89627a31fefb2"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_kernel_smoke_tests.rs",
+        "action": "source_delta_destination_unchanged",
+        "source_blob": "bb0d09aef99fde2d061910005195a41d96ba0fb5",
+        "destination_sha256": "dfd138706b00df82dd41c497d70a45e9402ec96ed94bb548ca2c26964c6dad32"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "82bb91991df01726be091ace7598bb367042a54e",
+        "destination_sha256": "335cc5a635d8020d1615a1ca1341395b566ef326a384e9ef1acf0e596f0d1adf"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_model_ops_api_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "a4cb01036d0ae9873c79d5cbca3930bb6863fe68",
+        "destination_sha256": "00c2c0a4f7d062d67be04f36c975b2210409983a6a02362c5bd20cdb82d61955"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_moodboard_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "966d2a00169be9d054ac5091d6060c2d183c416d",
+        "destination_sha256": "3857187c41dcb728e8f07212f079c9d6ec4cd40317970242501172b0bc9840e4"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+        "action": "clean_three_way",
+        "source_blob": "e58a275f440905a5f8a024b040f9f4c4e2d5f645",
+        "destination_sha256": "94a26ad3bc9df575420d3d25b61c21206a9ef1714729bdb6344a4ad8c1805d4a"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "aba253cff9e258772782f96802d672df074e9485",
+        "destination_sha256": "62d672c56b23f96bffea7a021782affaa4f274bcc0e39fd46f067b483c9ad2cd"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_settings_preference_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "1577b13154f1a21cdb053be4bfc6a91b1e1fc89d",
+        "destination_sha256": "6bda98267a64e1b35e65451261bd511c4687da3d9959e99f41b4ab37b33da80d"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_sheet_artifact_link_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "027f490166357da3042e88838e7b90e6d6f31051",
+        "destination_sha256": "c50c2af1c70b164c5e8e139ed3a3a821a9c25af5b3e0dccab5a50832b024918a"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+        "action": "retained_WP012_owned_temp_cleanup_and_fixture_root",
+        "source_blob": "acddf355b6f69e67221238e917a86a355b1d3119",
+        "conflict_count": 5,
+        "destination_sha256": "22a87e23bbfccd656ed442646d3f5389f3ba1fdbfb7b6b6eeadfb69e79488e4d"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+        "action": "new_source_path",
+        "source_blob": "b2263620f45a234e69b241721b4d9573613fa59f",
+        "destination_sha256": "7f7246d96937e0629cd3f48b58287210cd7747973cd89f4b4d311bb80ac2f89c"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/loom_media_tiers_tests.rs",
+        "action": "manual_three_way_preserve_WP012_guards",
+        "source_blob": "6b5e21809d844bb661e6010a2d4c45614d57a7f1",
+        "conflict_count": 3,
+        "destination_sha256": "5dc1e85e9a11bec2f568e1f26875e9876e4f232bf745106d70a556b85f2cf561"
+      }
+    ],
+    "proof": "NOT_RUN; no permitted configured Phase2 builder target; shared reconciliation still incomplete",
+    "current_blockers": [],
+    "manual_resolutions": {
+      "exports": "conditional NONE projection guards retained",
+      "intake": "CKC batch classifications plus all substantive WP012 LockKey/reset/media-id guards",
+      "media": "CKC atomic event/receipt bulk review guard",
+      "moodboards": "CKC stale head fence and query syntax; WP012 version-link provenance",
+      "pose": "WP012 structured state/deactivated result retained",
+      "search": "WP012 nested concat+rich projection retained",
+      "sheet": "CKC projection rows added, WP012 auth ledger fields retained",
+      "context_bundle": "existing handshake_storage_support canonical JSON owner retained",
+      "tests": "WP012 account/durability/cleanup guards; CKC additive coverage and required store macro"
+    },
+    "compile_blockers": [
+      "Independent compile review 01a12453-aa3d-7451-b7da-40e6ba40d5bd: Operator alternate build-output path + WP cap CX984014 and builder dispatch required; D absent, C WPV excluded KBOUT008, Z network not granted",
+      "Shared schema/catalog/manifests/locks/host dependency closure unresolved",
+      "CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority"
+    ],
+    "account_adapter_repair": {
+      "review_ref": "01a1244f-2416-75a0-89cd-7f38861e6398",
+      "paths": [
+        "src/backend/handshake_core/src/api/atelier.rs",
+        "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
+        "src/backend/handshake_core/src/api/mod.rs",
+        "src/backend/handshake_core/tests/atelier_ckc_media_api_tests.rs",
+        "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs"
+      ],
+      "implementation": "Existing account authorization/scope wraps all ten handlers and enrichment; authenticated actor; existing middleware; helper visibility only; calling_actor remains test-only; prompt-feedback six handlers likewise account-scoped with existing internal_error visibility only; media and prompt-feedback registered",
+      "proof": "NOT_RUN",
+      "remaining": "Independent narrow review pending; compile/runtime NOT_RUN; sheets/intake-facial/ops account adapters plus WP1 runtime/router union unresolved",
+      "fixture": "Nine tests seed/read under existing with_account_session; real same-account principals retain six attribution actors plus operator/race/event writer identities; spoof headers have no authority; missing credentials constant403 expected. Existing provisioning resolves account_key; fixture asserts same account_id."
+    },
+    "reviewed_repairs": {
+      "closure_test_ref": "01a12462-5473-7021-9801-c1674bf86907",
+      "test_sha256": "14cec9c9f43afa8c7b6db0793f869b5a45f163f7b7f7056bf1c284c11946c46d",
+      "lease_candidate": "13 ops + 24 sheets account-scoped; canonical actor/session, supplied IDs equality only; active/expiry/mode/thread checks retained; existing signed-in session projection adds persisted principal_kind+actor_kind for operator exception",
+      "freeze": "Six-file lease/sheets candidate frozen for narrow independent review; intake/facial registration queued",
+      "remaining": "Intake/facial arbitrary ArtifactStore read/review refs lack account-owned origin gate; source test fixtures and WP1 AppState/runtime union unresolved",
+      "proof": "NOT_RUN compile/runtime"
+    },
+    "facial_origin_reconciliation": {
+      "frozen_sha256": {
+        "src/backend/handshake_core/src/api/atelier_ckc_intake_facial.rs": "1860e92a2035b1d4b7f01f32a57636deff3b11e5fbb02be0bd1842e091347580",
+        "src/backend/handshake_core/tests/atelier_facial_api_tests.rs": "a4208def60f23e71dde3766e0c9aaeae5c2c8bd63438edee59a2b7a9db4a8584"
+      },
+      "read_boundary": "account-scoped get_intake_batch_by_id before payload return; one origin from manifest and Facial L1 source ancestry; reject missing/conflicting origins/source identity; content hashes verified",
+      "commands": "5 persisted sessions batch-checked; provided claim/decision origins and session equality before merge; discovery origin filter before payload read",
+      "writers": "success/error/degraded result and receipt manifest receives authorized batch context; reject payload batch mismatch",
+      "fixtures": "all6 original tests retained; existing account scope; same-account persisted operator/local_model principals; canonical issued lease sessions; genuine unauthenticated denial client",
+      "static_proof": "rustfmt +1.97.1 --edition2021 parsed/formatted owning2 files",
+      "compile": "NOT_RUN",
+      "runtime": "NOT_RUN",
+      "registration": "HELD pending owning schema/independent review",
+      "named_test_remediation": {
+        "review_ref": "01a12487-ecb9-77c0-834c-318a0d6eaa17",
+        "test_sha256": "b6f9286d5e0535faea5f67fb1f4cf80a6c564ea2aa2e083a9da025131b0f62b0",
+        "assertion_lines": [
+          678,
+          680,
+          860,
+          880,
+          1359,
+          1681,
+          1817
+        ],
+        "changes": "fresh unauthenticated transports; actual session-denial403; foreign/missing/conflicting GET origins; unique typed foreign matching-session receipt and recovery isolation within existing roundtrip",
+        "syntax": "rustfmt 1.97.1 edition2021 exit0",
+        "compile": "NOT_RUN",
+        "runtime": "NOT_RUN",
+        "freeze": "test+production API affected review",
+        "independent_recheck": {
+          "relay": "root independent review confirmed b6f928 exact bytes",
+          "scope": "original6names/144assertions retained; current152 assertions; named unauthorized transport/origin/recovery defects statically resolved",
+          "limits": "no compile/runtime/WP PASS",
+          "freeze": "test released required source work; production API remains hold"
+        }
+      }
+    },
+    "signed_watcher_required_manifest_edges": {
+      "owner": "MT-171",
+      "path": "src/frontend/palmistry/Cargo.toml",
+      "sha256": "20201cdc9883e00a545aa14986ec81efc6fb7ecfbd4bcd6891f2d24bf6f25140",
+      "authority_ref": "01a12533-1f0e-7002-8172-e20eddf4aa50",
+      "edges": "ed25519-dalek3/zeroize1/uuid serde/libc Unix/Windows Console,Pipes,IO only",
+      "metadata_status": "PENDING; watcher and native dev palmistry dependency graph affected, no compile/runtime",
+      "record_ref": "MT-175.json#/implementation_record/native_source_module_declarations/held_diagnostics_owner_bindings/bounded_owner_delta_mapping/signed_current_child_bootstrap/current_child_signing_source_preparation"
+    },
+    "canonical_adoption_shared_reader_edge": {
+      "path": "src/backend/handshake_core/Cargo.toml",
+      "sha256": "c2efbe841cbd5f6a3e99663c999481dc835e9eb38aef8005fbf5b3fbd379b63b",
+      "authority_ref": "01a1259c-23df-7831-b052-e69819f5627b",
+      "edge": "handshake-diag-ring path ../../frontend/handshake_native/diag_ring verifiedexists; actual sharedreader no ABI duplication/runtime owner",
+      "proof_ref": "MT-172.json#/implementation_record/canonical_adoption_wire_validation",
+      "core_metadata_status": "INVALIDATED_BY_REQUIRED_SHARED_READER_EDGE; no resolver/build run",
+      "current_challenge_ipc_edge": {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "sha256": "9fb57bfd971bba690d8a147bbd34ef27eb1a70a0f192cab5b22c8cd997dfffcc",
+        "edge": "interprocess2 currentwatchercontrol, source verified2.4.2 directWindowsTimeoutZERO/UnixConnectOptionsnonblock",
+        "authority_ref": "01a125b5-43ab-7752-be9d-a36650390de3",
+        "metadata": "CORE_INVALID_NO_RESOLVER_RUN",
+        "owner_record": "MT172canonical_adoption_wire_validation/fresh_backend_current_watcher_challenge"
+      },
+      "current_os_observation_sdk_edge": {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "sha256": "75e6500bb15ede6bc94cee01612d0c36014516d2831135a7683e7329b648dab7",
+        "edge": "Existing windows-sys0.61 feature Win32_System_Diagnostics_ToolHelp only",
+        "authority_ref": "01a125be-a285-7102-9a0c-9c4fe0de90ec",
+        "owner_record": "MT-172.json#/implementation_record/canonical_adoption_wire_validation/current_watcher_independent_os_observation",
+        "metadata": "CORE_INVALIDATED_REQUIRED_FEATURE; no resolver/build run; native-dev/watcher invalidations retained"
+      }
+    }
+  }
+}

@@ -327,7 +327,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-10-04T22:37:33.819162Z",
+  "updated_at_utc": "2026-10-09T19:38:56.511161+00:00",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -4097,5 +4097,29 @@
       ],
       "status_effect": "MT-168/169/170 created BLOCKED (MT-168/170 await dispatch, MT-169 awaits MT-168); MT-167 blocked_on MT-168; MT-043/MT-128 blocked_on MT-169 and MT-046 blocked_on MT-170 + MT-167, statuses unchanged (FAIL_Vn kept, MT-008 precedent)"
     }
-  ]
+  ],
+  "operator_decisions_20261009": [
+    {
+      "decision_id": "WP012-OPERATOR-DEFAULT-SCOPE-AND-SUPERVISED-TEAMS-20261009",
+      "authorized_by": "OPERATOR",
+      "state": "APPROVED",
+      "recorded_at_utc": "2026-10-09T19:38:56.511161+00:00",
+      "operator_quote": "added scope expantion is approved for this wp on default",
+      "scope": "Required WP-KERNEL-012 scope expansions approved by default; continuing selected MT168",
+      "coordination": "Operator explicitly authorized supervised subordinate chats with their own teams reporting to continuing lead",
+      "preserved": "One product writer; independent WPV acceptance; original assertions/timeouts/floors; later explicit stops override",
+      "handoff": "Old root01a11df3-6dc8-7cd1-b059-a7bc8cd34312 and retained team stopped; new lead01a12218-be60-7720-8b59-23e3fae1ac42; transferred existing heartbeat"
+    }
+  ],
+  "consolidation_phase_01": {
+    "phase_id": "PHASE-01",
+    "contract_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+    "contract_status": "PREPARATION_ONLY_NOT_ACTIVATED",
+    "source_reconciliation_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "original_scope_history_preserved": true,
+    "approval_disposition_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#approval_disposition",
+    "research_spec_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
+    "phase_owner": "KERNEL_BUILDER_PHASE01",
+    "no_product_permission_in_phase01": true
+  }
 }

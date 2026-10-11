@@ -1,0 +1,1596 @@
+{
+  "schema_id": "hsk.repo_state_snapshot@1",
+  "file_id": "WP012-SNAPSHOT-PHASE01-V1",
+  "file_kind": "phase_boundary_snapshot",
+  "captured_at_utc": "2026-10-10T05:24:51.803091+00:00",
+  "capture_boundary": "Nine worktrees and dirty bytes immediately before snapshot/handoff; these two closing records excluded to avoid circular hashes",
+  "limitations": [
+    "Point-in-time local refs/state/dirty copies, not full Git bundle/filesystem/runtime backup",
+    "No build/test/process/runtime/acceptance inspection",
+    "Remote freshness NOT_QUERIED; tracking refs observed only",
+    "No target/cache/model/DB copies"
+  ],
+  "worktrees": [
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\handshake-desktop-main",
+      "project_relative_root": "handshake-desktop-main",
+      "branch": "refs/heads/main",
+      "head": "7659138874df91ae258839a7fbd72cc894459fae",
+      "tree": "172d9177f3a4090620e2da305254cf28669668a5",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\handshake-desktop-backup-WP-KERNEL-004-wtc-dirt-20260530",
+      "project_relative_root": "handshake-desktop-backup-WP-KERNEL-004-wtc-dirt-20260530",
+      "branch": "refs/heads/backup/WP-KERNEL-004-wtc-dirt-20260530",
+      "head": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
+      "tree": "dca55f4985fcbed7087e9e96b565f0aa8e24654b",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel",
+      "project_relative_root": "wt-gov-kernel",
+      "branch": "refs/heads/gov_kernel",
+      "head": "cb7eae15c5603833790af7e7cb7efed36c426f6e",
+      "tree": "141385ba8c7ce100351f144ee3e6283c8f890407",
+      "porcelain_status": " M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+      "dirty_files": [
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+          "sha256": "2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a",
+          "bytes": 218506,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a-MT-168.json"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+          "sha256": "d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b",
+          "bytes": 639,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b-WPV-round-selection-targeted.sh"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json",
+          "sha256": "8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546",
+          "bytes": 2334,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546-WPV-round-selection.json"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml",
+          "sha256": "90f01c4fe0a8d6156f3193bd870a8cb387639f9b070044d87fc95d9475e5a38b",
+          "bytes": 490027,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/90f01c4fe0a8d6156f3193bd870a8cb387639f9b070044d87fc95d9475e5a38b-gameplan.confirmations.yaml"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+          "sha256": "f4a6e926ac1188d99132ef4c43ff8a789f3732c63c9d6b47f3c5e117e8c60774",
+          "bytes": 126228,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/f4a6e926ac1188d99132ef4c43ff8a789f3732c63c9d6b47f3c5e117e8c60774-gameplan.yaml"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+          "sha256": "30318854fb46a103394b526801029c8eb0cd0e92d6fff99007287ffd36ec5ec9",
+          "bytes": 364729,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/30318854fb46a103394b526801029c8eb0cd0e92d6fff99007287ffd36ec5ec9-packet.json"
+        },
+        {
+          "status": " M",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+          "sha256": "3a6128415344c32b9fbc2dd4892dafd884210eeeb02a0d58352ae39f7720d2a0",
+          "bytes": 21421,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/3a6128415344c32b9fbc2dd4892dafd884210eeeb02a0d58352ae39f7720d2a0-refinement.json"
+        },
+        {
+          "status": "??",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json",
+          "sha256": "f110a68d33353f9a61200fbcaeedea4f179a2ab6e27234d136682884ff8ac028",
+          "bytes": 57191,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/f110a68d33353f9a61200fbcaeedea4f179a2ab6e27234d136682884ff8ac028-WP-KERNEL-012-overall-consolidation-handoff-v1.json"
+        },
+        {
+          "status": "??",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json",
+          "sha256": "5b86f2ecb7c801c19ad203b780adb7219e16a37a23ed92fb2dad2d81e0d66198",
+          "bytes": 136153,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/5b86f2ecb7c801c19ad203b780adb7219e16a37a23ed92fb2dad2d81e0d66198-WP-KERNEL-012-phase-00-repo-snapshot-v1.json"
+        },
+        {
+          "status": "??",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+          "sha256": "fdd2b7ee2bc183b846d02cdbde3c41b61e490020d8d2b9521ff75f65eece5671",
+          "bytes": 207319,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/fdd2b7ee2bc183b846d02cdbde3c41b61e490020d8d2b9521ff75f65eece5671-WP-KERNEL-012-phase-01-consolidation-contract-v1.json"
+        },
+        {
+          "status": "??",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+          "sha256": "9bcf56b411ad95892bfd07c248a42c5c51305586991ca29f4f0a1412ab7bbd6a",
+          "bytes": 7034251,
+          "preserved_artifact_relative_path": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/9bcf56b411ad95892bfd07c248a42c5c51305586991ca29f4f0a1412ab7bbd6a-WP-KERNEL-012-phase-01-source-reconciliation-v1.json"
+        }
+      ],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-ilja",
+      "project_relative_root": "wt-ilja",
+      "branch": "refs/heads/user_ilja",
+      "head": "d07cffcf8f1334671205a5b332b543fbc8a2b5b2",
+      "tree": "c86affe75191b9f09da921d24c1d6c928ac10263",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "project_relative_root": "wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "branch": "refs/heads/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+      "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wtc-WP-CKC-posekit-overhaul",
+      "project_relative_root": "wtc-WP-CKC-posekit-overhaul",
+      "branch": "refs/heads/feat/WP-CKC-posekit-overhaul",
+      "head": "757e8e71a2ebdf5922597c56752192a685da2ba2",
+      "tree": "ff243db7109e5c1657163d79ce80c3a2b42b10fc",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wtc-WP-CKC-posekit-overhaul-surreal",
+      "project_relative_root": "wtc-WP-CKC-posekit-overhaul-surreal",
+      "branch": "refs/heads/feat/WP-CKC-posekit-overhaul-surreal",
+      "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+      "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wtc-WP-KERNEL-009-MT245",
+      "project_relative_root": "wtc-WP-KERNEL-009-MT245",
+      "branch": "refs/heads/feat/WP-KERNEL-009-MT245",
+      "head": "752fe0d52f2f2c7c590e37b79c992ce733171f94",
+      "tree": "2f3a99b4815610e0389c7772dfb559e9b125624b",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    },
+    {
+      "observed_absolute_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\wtc-WP-KERNEL-012",
+      "project_relative_root": "wtc-WP-KERNEL-012",
+      "branch": "refs/heads/feat/WP-KERNEL-012",
+      "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+      "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+      "porcelain_status": "",
+      "dirty_files": [],
+      "phase00_head_tree_unchanged": true
+    }
+  ],
+  "local_and_tracking_refs": "refs/codex/turn-diffs/captures/1791538812222/fbec519d-bb44-4aba-9d1c-adf80280b17f/base 1128fc2a56c4b9f358a1f3b0dd828d8ec8357829\nrefs/codex/turn-diffs/captures/1791545917108/761ad6ae-39e1-4b1d-a849-c5dcd4a3565e/base c22d1ac5e1add9b72d9d89efc3cfdbcd5433a4af\nrefs/codex/turn-diffs/captures/1791606749158/a45c718c-0e60-4d92-85eb-5a134ade6e09/base b9d0711135a65e437621cb5f729dcceaf6ba65a8\nrefs/codex/turn-diffs/checkpoints/113055cab0495b76f91d1cf1fad5442b/df4f2e19bed8117f4cce0ddb1b9ba6ca/1791606879187/0e0f586e-8393-49d6-9bf9-5b5e0685e87d 71f0bcef841daea11f7a41f4923d584141942b37\nrefs/codex/turn-diffs/checkpoints/1cf6b02152bdc19a55333f9741268c04/69d3dec77c06d19d7bf800203c36e045/1791538244344/514ec3aa-7ab2-4798-a7df-2b8d2f1b693c 1128fc2a56c4b9f358a1f3b0dd828d8ec8357829\nrefs/codex/turn-diffs/checkpoints/5ea075991412571c60929e5f6b31b37a/82cbab2c8264e085fdd6d1df0495be0a/1791503895656/146ae3d3-497e-41de-862d-61ac5e042783 7a67e1b5eb57d4bfb077464eb2d99a4390b94ed6\nrefs/codex/turn-diffs/checkpoints/6028024cb17ba63248ccd3953408ca38/d6ce0c1accee68777a19fa14bb7855a6/1791601531311/0a0992cd-e195-4f06-bfea-b0c2b2d6c893 05aa18f156ef6fea970b5a0689c533fc08c09810\nrefs/codex/turn-diffs/checkpoints/65c89b82cf059dea2b09e06f0a9188b8/b6053604488a0659309f8524484d79cb/1791402884050/bc712b3b-58b2-4a05-bbf2-d9adcf368fab 9122c72a4ab1d26af5c2da1250c6b51c69700fff\nrefs/codex/turn-diffs/checkpoints/8cef4e98a30e8f9ba614c57bc05c25bb/eb56bd941f144c6bc9a3ca415f556ff2/1791606994441/e593424a-7d61-484a-99ae-6d0a7592709d 71f0bcef841daea11f7a41f4923d584141942b37\nrefs/heads/backup/WP-KERNEL-004-wtc-dirt-20260530 f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d\nrefs/heads/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 98efa4d019c4f670186cd3ec1f048ece3adf0dcd\nrefs/heads/feat/WP-CKC-posekit-overhaul 757e8e71a2ebdf5922597c56752192a685da2ba2\nrefs/heads/feat/WP-CKC-posekit-overhaul-surreal 4c429a07906a24ff7be8e999e576d8b23fa60336\nrefs/heads/feat/WP-KERNEL-009-MT245 752fe0d52f2f2c7c590e37b79c992ce733171f94\nrefs/heads/feat/WP-KERNEL-012 00caeceafd6fc85c348e2bbb68408d92836e2a36\nrefs/heads/gov_kernel cb7eae15c5603833790af7e7cb7efed36c426f6e\nrefs/heads/main 7659138874df91ae258839a7fbd72cc894459fae\nrefs/heads/user_ilja d07cffcf8f1334671205a5b332b543fbc8a2b5b2\nrefs/remotes/origin/HEAD 7659138874df91ae258839a7fbd72cc894459fae\nrefs/remotes/origin/backup/WP-KERNEL-004-wtc-dirt-20260530 f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d\nrefs/remotes/origin/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 98efa4d019c4f670186cd3ec1f048ece3adf0dcd\nrefs/remotes/origin/feat/WP-CKC-posekit-overhaul 757e8e71a2ebdf5922597c56752192a685da2ba2\nrefs/remotes/origin/feat/WP-CKC-posekit-overhaul-surreal 4c429a07906a24ff7be8e999e576d8b23fa60336\nrefs/remotes/origin/feat/WP-KERNEL-009-MT245 752fe0d52f2f2c7c590e37b79c992ce733171f94\nrefs/remotes/origin/feat/WP-KERNEL-012 00caeceafd6fc85c348e2bbb68408d92836e2a36\nrefs/remotes/origin/gov_kernel 5d7e9077e4a74d717153d42a6067751caca1c8e6\nrefs/remotes/origin/main 7659138874df91ae258839a7fbd72cc894459fae\nrefs/remotes/origin/user_ilja d07cffcf8f1334671205a5b332b543fbc8a2b5b2",
+  "authority_hashes": {
+    "AGENTS.md": "3ad70cfeae7aeec75980e78c369582c1d79039b226986033c7078421d1fd89fb",
+    "CLAUDE.md": "ff770563388ca663727f833ca94495777a31dd5570a0c86c2b7cd329f371893d",
+    ".GOV/codex/Handshake_Codex_v1.4.md": "df95b86a92ed9c9dd4e902fafd852188cfcd63a019172e8007d2ed13e83b6993",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md": "b3fffc137dbd12096775bf9cc9d65b6f7acff88e872861e17bf6591861db7674",
+    ".GOV/spec/SPEC_CURRENT.md": "918f8e4ed12ec7b1b72ece03012dc5cfa4e6a4f20d9146131f8136d897245d79",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57"
+  },
+  "deliverable_hashes": {
+    "packet.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "sha256": "30318854fb46a103394b526801029c8eb0cd0e92d6fff99007287ffd36ec5ec9",
+      "bytes": 364729
+    },
+    "refinement.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+      "sha256": "3a6128415344c32b9fbc2dd4892dafd884210eeeb02a0d58352ae39f7720d2a0",
+      "bytes": 21421
+    },
+    "WP-KERNEL-012-phase-01-consolidation-contract-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+      "sha256": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a",
+      "bytes": 1215606
+    },
+    "WP-KERNEL-012-phase-01-source-reconciliation-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+      "sha256": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58",
+      "bytes": 7612800
+    },
+    "WP-KERNEL-012-overall-consolidation-handoff-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json",
+      "sha256": "fbd25e19354027dc2608805eab0e9c9e6bb390f378e7eeb6d7719e9dd63313b1",
+      "bytes": 59877
+    },
+    "WP-KERNEL-012-phase-00-repo-snapshot-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json",
+      "sha256": "5b86f2ecb7c801c19ad203b780adb7219e16a37a23ed92fb2dad2d81e0d66198",
+      "bytes": 136153
+    }
+  },
+  "wp012_microtasks": [
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-001.json",
+      "sha256": "e2b5e873110167db748091432598806c56cf61580171228729000a046b9b5661",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-002.json",
+      "sha256": "cc4f7e83798c8c3f326b14311d3bd90c787ca8474699d3c7d986b15b2d8fcf0d",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-003.json",
+      "sha256": "2569b4de0a9f7a3557136644ade48678325272d06771ed3ba2f4ff3e62a5a7f1",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-004.json",
+      "sha256": "694a3ad6bdde0a2c03df0ae4cd451d4f014cd7ed7c48d909e928f780e0d97744",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-005.json",
+      "sha256": "a48b3c8777b4b0c0d4bf0125989763ebd0d7e604663b7a54fb89156275d4cbdf",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-006.json",
+      "sha256": "9684dfcc46e6e469c51c06fa50d21b24ba0ce6be20316d07e1e0780eec2570e4",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-007.json",
+      "sha256": "41b17aac7ffddd20f75bf18ba105d474248c9e2080563ac2ccd267e0a8e36255",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
+      "sha256": "e6671cf19e9bb27765688912c1bea44deb2c75483a8835164276ffa77851df7c",
+      "status": "FAIL_V9",
+      "blocked_on": "MT-167 (code-nav index cost; Operator decision WP012-OPERATOR-DECISIONS-20260930-C)"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-009.json",
+      "sha256": "3c0f57255adad675ab3d5e2159028ef6a0ff2c136f6f56ad22acad1784e2d957",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-010.json",
+      "sha256": "e763848662a7c5988608bd0a31d103aefa85ed7f213a26058dd6800ff122950a",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-011.json",
+      "sha256": "74b21fedf284064ad3929515a529ee6ff0977463604c1559fba37aa2b46535b0",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-012.json",
+      "sha256": "c078e175ebbe5c403f21efa275abb24cd86adf5699919013b3ec7431ddcaed54",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-013.json",
+      "sha256": "2a33e0ceb38a09a29c0490cce92f65642d603f1d10ca85fc5d15613137f366ba",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-014.json",
+      "sha256": "08f2e88c8df9e4a166710fd308c9cf419d06bc52485c36b5c8ba2754bfb050c0",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-015.json",
+      "sha256": "c6630f7c3689a46517fd455b45c6c3af0610cc7da1ad75e52d5776450239787c",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-016.json",
+      "sha256": "78ce001638a2c1b9831cbd1362741c2c1b7c56f3f15e21d2453b95ef90109d4f",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-017.json",
+      "sha256": "d1b08c3b809e93524e8c081e7a08797a6d431d7b66930313f3582f567e2e58de",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-018.json",
+      "sha256": "fdf8602e803908187ee0e32c15be7e51af9957afa73034608a7d10b6f02fc6cc",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-019.json",
+      "sha256": "eb3f10d96e8fa637f45e127d83ed6400b9eaadd14cb49acff5fc1d0189f86003",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-020.json",
+      "sha256": "08a5a2014c4fdf54c3edb37d66a08d88a5060d58b420f1237a1340f7223449a7",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-021.json",
+      "sha256": "9a3b992229e61f88745c2033b175999ec977ea3bc0b1aaaaf110d7a5e5913ce3",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-022.json",
+      "sha256": "826fb25fb462d8574ea6bf45fe3751a27cf563508ebef3d1baf97f2c9bcf7d1b",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
+      "sha256": "c628b267c8acc8410f558d652aa6fa5415543db59b88dd53a77500af09867ff1",
+      "status": "PASS_V9",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-024.json",
+      "sha256": "acaea1f3faab53d4188992c9fafee9993368312ab2e4b5af0b45162a161efca4",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-025.json",
+      "sha256": "2ae89a17671c0c2bf763c8a96c4df34383f3d02f54120e235e17ac6cf87977a1",
+      "status": "PASS_V7",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
+      "sha256": "17fb664caddbfceb551bb37f9849b85fb39d46a8b4d1058778c0c9eabde396c9",
+      "status": "PASS_V8",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
+      "sha256": "609af222b0dfa212fa2dcf386d4e17fd08bed92e21a72d3bf1140c7facadaf79",
+      "status": "PASS_V18",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-028.json",
+      "sha256": "7d17d06b7ef13ce9eae220c8eec66a0b2e12ab5ad74657ce502aaf417c28c7bf",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
+      "sha256": "f3604d86dfd9d7e1d638eedc90dc397feaebe7126e47bd84baefe6069c4c2935",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-030.json",
+      "sha256": "400269fed0b675abc86ec1f639445ff41f17e41cd539569b5e92fcfa4891ecba",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-031.json",
+      "sha256": "465bbb0377b76a66f10857aa22bdd9f71632578d32054f3f884986fc4d634a2c",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
+      "sha256": "b1e08267d46244159d0d5c378e2e545d63030011e52522c7c003b4aa6061bf59",
+      "status": "PASS_V15",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
+      "sha256": "324abfaf71344d2d786b76a52edb0ec7da9da74cc304bd7a9c12880418c46fbd",
+      "status": "BLOCKED",
+      "blocked_on": "MT-032"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
+      "sha256": "e9d62f43fab1e03348d8124ac83d84df512534d2f66d0d26add7bbfa8584d228",
+      "status": "BLOCKED",
+      "blocked_on": "MT-008"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-035.json",
+      "sha256": "4b5b097d296117f8176d558ee5437d26f79484572bb19297cbb4a73da0ad838c",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
+      "sha256": "1b38d7f5ac26a851336af2e2e9ce7f52563bcf6db18e47c75c73aee7039f57bd",
+      "status": "PASS_V10",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-037.json",
+      "sha256": "4dc77aff6b31d386c9a48fefda997ebb7b8f6395b613a547e6263ea59b2d7cbb",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-038.json",
+      "sha256": "bc70a52d6d6ef2282b130e180fe4d85a79ca4c8653947c02c467b369d4612f66",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-039.json",
+      "sha256": "403c7ded58c14d9cc984726c866bc609b22f7d506cba16522ed6bd8e9ade62c4",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-040.json",
+      "sha256": "286b8411480091b1e8d2b0cb9cc093777b7f1531de1de5da73eb16c2a792c337",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-041.json",
+      "sha256": "6c1a70160ec2fdea30ee1bae08d41f5ccf836c4b38afbae9888fc322da338b43",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
+      "sha256": "ee08a36adbbe0072f2ea524c16568a33f6a687e35465a989849f892948d3ad09",
+      "status": "PASS_V13",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-043.json",
+      "sha256": "6e79a743fe6a117e4bc3e886a56883dab2a0596ec973c757eeb47916fbbd2931",
+      "status": "FAIL_V6",
+      "blocked_on": "MT-169 (document create cost; owner per WP012-OPERATOR-OWNERSHIP-20261002); MT-169 depends_on MT-168"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-044.json",
+      "sha256": "68eedb8e06d7361bbc67784340222a004debd1626a8159ad6df3e3deba9368b8",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
+      "sha256": "8bbd2097c9433dd585989d821b811e874e35fe15dbe66a09de20c5e6e561cce5",
+      "status": "BLOCKED",
+      "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (release-profile supervisor perf run (20 perf proofs))"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
+      "sha256": "b5b53607639fcb851d64c5f137294f0abd32a93bdc2f4416ccd2063106851862",
+      "status": "FAIL_V9",
+      "blocked_on": "MT-170 (ic04/ic10/ic12 wikilink -> loom_edges projection; owner per WP012-OPERATOR-OWNERSHIP-20261002); MT-167 (ic06 code-nav index cost)"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-047.json",
+      "sha256": "7dac1140173a47c780a9972f5114040e21e11df05aa5637f97cbc5eafa54f6e5",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-048.json",
+      "sha256": "c811f53cb6359fcb1dbc8a43a77d9a74d6a02718a742453ccf82082fea13aa60",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-049.json",
+      "sha256": "d2d4ba0824a31bda0acb01876b3bd2fa39115d14340c55845449a7bc9327e2de",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-050.json",
+      "sha256": "e9344f3d8323b90ce9f83659f91d71f0d82fbdb8f23b35224ceb84d4cee7cd07",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-051.json",
+      "sha256": "e38bcc777dc0f11eb3a61fdaddca675425c27271406e7e939833ed2b381c531a",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-052.json",
+      "sha256": "d8ce4107e20f5f064bf7caaa04da7739e508e3f8f7932878cacc4ad1c554ed8c",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-053.json",
+      "sha256": "14225e753af698c7647bd16c6c156d6b1f98cd4b195913af789ecb5fb769d2ee",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-054.json",
+      "sha256": "9d7b3e93eb87e2076950a3ca1018a1f9f553f3e58dcf3a41a1967a275bfe5e08",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-055.json",
+      "sha256": "616934e471ebea5c9112b4fe6432cc69eabd1f6c9ac5737daaca2f6ce62d3db0",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-056.json",
+      "sha256": "e321d5629cbd323c009a59560cb1c1285e4917a15cc0cdc17c1877a43964558e",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-057.json",
+      "sha256": "4534f756ca7b82c55fab97dd73ea5e77f3bc4e19c9a0ce40bc30b071d26d12b7",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-058.json",
+      "sha256": "c0d34b8845f4d28b3260a51433f49a541f07a88df4cb5b3f0749d18e287137cd",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-059.json",
+      "sha256": "16d4647603280e83212a0ed9589e75c18f27e94ccd9a4386eb1c95af07306f08",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-060.json",
+      "sha256": "9ec93aa503d3950e19f63c675c8f0c094f332ee3fbefe3d51fcbde1644580655",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-061.json",
+      "sha256": "28ecce55adbc167dd3b9f4709f529a094eb4f44ef0122845425a73800036d6a0",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-062.json",
+      "sha256": "30be62ce5a2995b331c8d81f449ba221a7293e648f7bd1d15e742197c0b63bee",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-063.json",
+      "sha256": "9f9916ab620825413faa5fd84b38dd13493ecda9f52b050f19090eb4ea64d88e",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
+      "sha256": "8dc1628aff6d4f888ee30f81403e1e7a9d5ca1a877d4d463ce2f84e79ca03d7e",
+      "status": "FAIL_V9",
+      "blocked_on": "MT-167 (code-nav index cost; Operator decision WP012-OPERATOR-DECISIONS-20260930-C)"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-065.json",
+      "sha256": "af1f9186a530f86c3e307f51dd60df7a7ca4f1f090d55743c59010b9dc217c3d",
+      "status": "FAIL_V9",
+      "blocked_on": "MT-167 (code-nav index cost; Operator decision WP012-OPERATOR-DECISIONS-20260930-C)"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
+      "sha256": "4bb8cc35ac26a8bef4cbb548a57a9395bacc3cda5ab5426a4bb14468735dc1bc",
+      "status": "PASS_V9",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
+      "sha256": "baf610dd3b19547821411a00fc9b2b02720cb0503416217865fe7c0683f87c19",
+      "status": "PASS_V8",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-068.json",
+      "sha256": "0b83658e92061c825b2bf53b0c1efe9434fe366fc43d1e2e06b08d08da75e7c1",
+      "status": "BLOCKED",
+      "blocked_on": "PC-068-02 ignored live Locus proof requires the contract-named bounded external supervisor (tests/run_mt068_locus_proof.ps1); schedule supervised proof without an additional Cargo build in the active union round"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-069.json",
+      "sha256": "922baf392b1f4ecf1b0a65123a5d65d0004f8a3258db2f48e34c2b90ebe64d24",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
+      "sha256": "b192f6fa0f89887df7925596db38db23d54561bd09b63cc57581dd520008e150",
+      "status": "BLOCKED",
+      "blocked_on": "MT-008"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-071.json",
+      "sha256": "27545d8ef550e9d3a369120c7de947f7c7f6fd09d92e4e43c77ae507a2132b14",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-072.json",
+      "sha256": "9d1a615606858d17250a033ed3c5e85524e4531e763c399701a8e7dc1acf47dc",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-073.json",
+      "sha256": "816ba457a3d9bc32bac3e0c2a151647b6c5fdd7845270bcde6fa8190ca228d2e",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
+      "sha256": "af511f25e7623c57b6434cc5a342a69d72bf2f57678d687954d5d754ee33dce7",
+      "status": "BLOCKED",
+      "blocked_on": "MT-068"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-075.json",
+      "sha256": "8060e691fce77ea224beff8781c0cedd559aae8ba4fb7635ec719cd5610e5d56",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-076.json",
+      "sha256": "af106b03921cc8b6ced479c176f45f7a0079761eaaf3ded7b6288e4a5dc5c7c8",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-077.json",
+      "sha256": "4c1b1695abb4c60bb86cc6ecb5d88b2d0a81301f99193e8a1b68cbdfc4db9e92",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-078.json",
+      "sha256": "c41679cfdeb37c88c330723dda2cc976ff875382fd36625b5d5510d3f4875d7f",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
+      "sha256": "21aefb9e808c4f5e41880a35699ff49f3a78bfd673f2499932b3ad5f5e095991",
+      "status": "FAIL_V8",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-080.json",
+      "sha256": "3e1ece81c9b85a4eefd39ef801303c73645ce854e877786b4084b2dcc01bb4f0",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-081.json",
+      "sha256": "69613d3b4806c8e50cb7798631016871e8f772a551b603ba0e334d292194103b",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-082.json",
+      "sha256": "ee3778440aaffe8b6a5da0a41ff69b5440fcca00bf41591000fa5a8c4f18c437",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-083.json",
+      "sha256": "47968dcfb6aaf68c8552a177da3d656483335a604f36389ae5f5ba287b1132c3",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-084.json",
+      "sha256": "c4c8926dc624c43e6e8cac0e41cade373fec6c850781e63022b9099461c95f08",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-085.json",
+      "sha256": "73eedb4da895fc939a4dd5d2982e125d5d50ac9320c7e6f66b142589ff0a594c",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-086.json",
+      "sha256": "8e1cbc6988416a0605bb1da44b42d633199ee268e98a85689b482f89681c1571",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-087.json",
+      "sha256": "146e2dd6ffb6de73b3409e308066f9bfbc797e956687a099f262480b07290175",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
+      "sha256": "8901f7b13e78fb30aafb3de95349bb9fdf1ba839116e1a27c19c0e4cd5de3743",
+      "status": "PASS_V8",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089.json",
+      "sha256": "e71f1a71fb99dcc3e6391912b4bf365b0df5d7da76e6ac17bb523f890900e441",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-090.json",
+      "sha256": "cfbec4747e8519c2cff585d408873c880c017c79c2492155b62a33034aa1b425",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-091.json",
+      "sha256": "983b6b2965e8cfac13144257bdbc8295a08c66ad01d43c64966f093ee3575414",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-092.json",
+      "sha256": "e06e0d151b5fdde735e884a8bd7b8e0b983105f8d387885b8060a505285a89f9",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-093.json",
+      "sha256": "de35fb59fbce0efccb84b5e42d6f94a409aea908bc2487af19a23dcc3b60d297",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-094.json",
+      "sha256": "e7fefd46a3e546ecf3f48ee92de8e9a6d2e41553c3d5e2393e3620c875b17eb0",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-095.json",
+      "sha256": "03248a79d653498e75e3c8b13391e3784db45dc324f364a15d7fe0502d4dfc53",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-096.json",
+      "sha256": "0eec0cb411695a48a406941f627735202b339387fc5130724dbd521bc31e7763",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-097.json",
+      "sha256": "0f9315d6398aca966e6ffa9127c2f0175958ce166a46b02b081559da30ef4b6d",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
+      "sha256": "a1ccbe6546aa6bfdb1e9e551f95c0a41b7c2e7cf75e6b4b952897e9069d19771",
+      "status": "BLOCKED",
+      "blocked_on": "PC-098-05 ignored MT-108 Argus real-server loop requires bounded process-observation supervisor; canonical runner starts its own Cargo test and cannot run inside the no-extra-build union round"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-099.json",
+      "sha256": "771f8c954dcead3415f2ac399cdfec7e7508629fd69054bd67710996376b490d",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json",
+      "sha256": "137a5c16afccf7e20490d57e034ed875f4babeaa7eb46af39224acb0e5178831",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-101.json",
+      "sha256": "16f0b3c96090e38703bb008af1d2e54dac6589fbac76c990971f959be2b22cdc",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-102.json",
+      "sha256": "44875be4e95403ae3fbb9f68b13496d8d8a4621941a1953a45b6e8db6005710c",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-103.json",
+      "sha256": "7cd512cfb877414124fc18b23c32c6d8ab7b5f54436f90cc1215f8c1b7ee23e9",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-104.json",
+      "sha256": "6ca10783c95d690c40c7cf998194252ce8508afd7d4e064224d5f6f5f4ade216",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-105.json",
+      "sha256": "2cec6a0277348a18bd42c85f30d03aa1c407ef34b6529601c25a1f7868200370",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-106.json",
+      "sha256": "60e604690c41f2f2803573ad4e87633eb2b7f6e8f158363b6d94917dfc66bcbd",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-107.json",
+      "sha256": "b17e18ef358869222f29bbf3609f732f087363bdb95e3e0dd4f429682294b60a",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
+      "sha256": "6b2e6b390aee357a7a0ad567e972da41e7dd019215f2c3929357110b3b01dbc8",
+      "status": "PASS_V7",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+      "sha256": "abac6695d2ae34dfc8361614123cb3feb2cafd29639d1804193de16adf35a680",
+      "status": "PASS_V18",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-110.json",
+      "sha256": "6bee7560d14433ef6f500a81141818c8351e5e3a29462995686799f2a08db606",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-111.json",
+      "sha256": "391e0590b078ee7c7b95335071250a286334078b9fb7681f9e72c216933a75f5",
+      "status": "PASS_V4",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-112.json",
+      "sha256": "a6aa5f8da969b172bc92cbc34c671939f54d299d2e618ac9f1a9c66ff51e4d33",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-113.json",
+      "sha256": "6d7592121f563caeaf1fa3a561ab1ffa150079dcbd931a2442dfed34c84a8771",
+      "status": "PASS_V4",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-114.json",
+      "sha256": "609e5fd7f8bbc93602bf87e9f88375ae7d0735ab15a95a9c0d96d2b59ff572f6",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115.json",
+      "sha256": "0991ccd797374cb70fd4448b77770140778321ea92077d34965dadf586da7eaf",
+      "status": "PASS_V5",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-116.json",
+      "sha256": "c38b51a6a84c1227591bea489789c1ccac57034f4ad4854b5985280c8e13c487",
+      "status": "BLOCKED",
+      "blocked_on": "MT-027"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-117.json",
+      "sha256": "66e5d42b19b386fc08f2ddce12c1b74d06b0277b9e331d0232282d2ff0fdc86a",
+      "status": "BLOCKED",
+      "blocked_on": "MT-074"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-118.json",
+      "sha256": "07f39b1cff56a8636cd6e8320967abe96500404ca703a1641a0f431cac66cb93",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-119.json",
+      "sha256": "f57115032706eedc96b56f20aaa3ea2466e1138b0ebd5c11f268da8171a2291f",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-120.json",
+      "sha256": "4765b9ce16d145407391a3b9d84f2ef5300591635dcb8b4cd08429ef15f93cfb",
+      "status": "BLOCKED",
+      "blocked_on": "MT-043"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-121.json",
+      "sha256": "10f1426844101daf652c910d300e727e22f52d523714b5d9921f133d6007e44e",
+      "status": "READY_FOR_VALIDATION",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-122.json",
+      "sha256": "108b88fab275dfd43514d9c57bcf625ce652b831ecaf18b415308fc83e5e3373",
+      "status": "READY_FOR_VALIDATION",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
+      "sha256": "a4ae45480cb30ff58eec5d0aa92489e7b594d2dc4835ca8a822f97dfdb696d2f",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-124.json",
+      "sha256": "55b61ed56f1ee0a8ed222f54aafdcba60917f6e0c841b29f650bde0d3185cb85",
+      "status": "BLOCKED",
+      "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (RED half (fix reverted, test must fail))"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json",
+      "sha256": "397cb7c7b29dfd8fb6985ef22413ad24efa40c673b7b1a3d82c381062b522382",
+      "status": "BLOCKED",
+      "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (RED half (fix reverted, test must fail))"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-126.json",
+      "sha256": "6868cf5c36b03efe30790cb6958c346930cc11091dd98d1852ba0ed4b20a1332",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
+      "sha256": "b7bf519b0c38599d17b33927d1addab7bb8c072824dd69d22af208c9c8b4b891",
+      "status": "BLOCKED",
+      "blocked_on": "end-of-WP MT-127 AC-127-3 separate governed ignored proofs (including controlled interactive desktop), AC-127-4 exclusive-host fat-LTO release packaging, and AC-127-6 final same-configuration full native sweep"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
+      "sha256": "12adb21ece95e24f5580c243207f06c039bd1cd162a9380e4f1a1977d1aa3fd2",
+      "status": "FAIL_V3",
+      "blocked_on": "MT-169 (document create cost; owner per WP012-OPERATOR-OWNERSHIP-20261002); MT-169 depends_on MT-168"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
+      "sha256": "427e07c532d5adc8e2b88156fb6d23490e13ba2a395acaa95ac61cd4435a825c",
+      "status": "PASS_V9",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-130.json",
+      "sha256": "b96383a32bae9a54134433cf9f16acb4a732994aa79ff279102effe95c35a828",
+      "status": "BLOCKED",
+      "blocked_on": "MT-117 (AC-130-2 folded into MT-117 AC-117-4; UserManual chip contract folded into MT-117 AC-117-6; WP012-OPERATOR-OWNERSHIP-20261002)"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-131.json",
+      "sha256": "91274f3d77042be11e22ade34af3cdb11a14c292a49b253c7a944e18aa58a32a",
+      "status": "PASS_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-132.json",
+      "sha256": "7aa4dca664ce63c4ab0502d6931e28f58d62bec73f452c279fcee46f904a1c17",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-133.json",
+      "sha256": "d53c405491ef465029e48d9271dc5a9e61d0dae051851cddd9d514768c74abb2",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-134.json",
+      "sha256": "466f11bffeb0d2fa80ff897af3208c0d133fdd8fc7d1a95bd1eabd3db804a6af",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-135.json",
+      "sha256": "796fb07dac23d1c029c760139d8783eeabb97dde5c486389fda2ff3ddbfff665",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136.json",
+      "sha256": "cadfc57f363f4e440a1f7ab8911c82f988f13ae9ab2b7db52b37362bfff000af",
+      "status": "PASS_V8",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137.json",
+      "sha256": "e380a39cc925bf6d240a61677139d962a4add54a400999fbf6a4fdae05d0d35f",
+      "status": "PASS_V7",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138.json",
+      "sha256": "ff953fc1b30ce8efc5b7d2dda506cd389f3e14250cc22829f042ae151499992e",
+      "status": "PASS_V7",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-139.json",
+      "sha256": "10a108755e2fac734a488be75280681a40fc1158a2a1c8973da3c9b1caaf6308",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-140.json",
+      "sha256": "25ea8d2c5c9c2be714e8553066fcbc225e90a368d4a46f2b34ff8764dbb71b33",
+      "status": "BLOCKED",
+      "blocked_on": "PC-140-06 includes the ignored live Locus proof requiring the bounded external supervisor also named by MT-068 PC-068-02; schedule supervised proof without an additional Cargo build in the active union round"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141.json",
+      "sha256": "c37ce10ac208f7c42effda20b716eb158d8d3d4e557e55ec3968dcde84cdd300",
+      "status": "PASS_V6",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142.json",
+      "sha256": "e9fabcdfc78eb5e5060111b152a2906252dc99d4625c145ee096e5b055707241",
+      "status": "BLOCKED",
+      "blocked_on": "end-of-WP proof run per operator_decision_2026_09_24 (PT-142-7 extended load rerun on an idle host, reusing the run50 binary (no build))"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-143.json",
+      "sha256": "27b828676283bc6ad782c694099f0ef7fbae7d3e1ebed845ab0604a9a59a80cc",
+      "status": "FAIL_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144.json",
+      "sha256": "d6262702a148be4e30cb72663d3759da2bf03b3ec4e4b79012a30631db9a84b6",
+      "status": "PASS_V7",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-145.json",
+      "sha256": "b003b4dddc2493860fe640a3c342f74819f0ef053b1c3f1a7046ac47190b6413",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-146.json",
+      "sha256": "c7b05355d69402d551b526cb920ec3744f382f9e2a9f7e7fe29fa8498255ef8d",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-147.json",
+      "sha256": "4eba1f1de76184cb19d6f97bf6c72bf49bcd77cbce2790ccd2dd37611a2933a8",
+      "status": "PASS_V6",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148.json",
+      "sha256": "94596a7f0b91b23657888d94c409a60f8b9dbab856d905af02fec21a87afce4b",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-149.json",
+      "sha256": "f870accf730ebe5ab2a18d0c37670d2f724f5ffd37369d14b40d44ba7d8a7485",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150.json",
+      "sha256": "e047f1034be438269f19b015cc2cbb3181a1732b6c6a8e761ba8f076e2720f65",
+      "status": "PASS_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-151.json",
+      "sha256": "94a3bae6e4d5c5d9cfb664f26cd28c703fb52344d7b6f6356aca6a061b2788f2",
+      "status": "PASS_V6",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152.json",
+      "sha256": "cd76ad6a955da9f3b642544a6744f0a26d1993bf31537e11bc4236dd84f5c17f",
+      "status": "PASS_V6",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-153.json",
+      "sha256": "17579e737e64681d2bf79365d497d05291b2ebea7e3878efb03520952302c978",
+      "status": "FAIL_V16",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-154.json",
+      "sha256": "32c1e99ca41d3e266eae0f9c6a968d1c95c7f7deada0d8dbcdecfaf4135dc0d7",
+      "status": "FAIL_V4",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-155.json",
+      "sha256": "c76b87a4f83b8b05f49e3e9f8ce6ea8917c9eb3b42835e38b5b78fa815ea61cf",
+      "status": "READY_FOR_VALIDATION",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-156.json",
+      "sha256": "3d638edd3aac83fe287d56390a0806ffb018074d7466b57f6ff8c257aeb91cd5",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-157.json",
+      "sha256": "5d75381aee21533f3ae16dd5e3bce9fd6b55438cdb71227aed32ae9c213d16ca",
+      "status": "FAIL_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-158.json",
+      "sha256": "d2933c399aea8878d00c2247e0d54a28d58f44e98999a085029d6c7187288bae",
+      "status": "READY_FOR_VALIDATION",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-159.json",
+      "sha256": "bc7e9f12fdd26ef9a240baf19387f526a6e891198db4ad89bde801ecf178d7af",
+      "status": "READY_FOR_VALIDATION",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-160.json",
+      "sha256": "bd81d171ea9e8c01cee82a056ceedb07f5f21dcd549eb4dfad76ce7935086990",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-161.json",
+      "sha256": "8bc1a40841b8ebf493f82a29ce162e658f306daebf84fd7713e467543d9201c2",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-162.json",
+      "sha256": "63fb5c92cf206e92805c3e2498719c5a2c6f5ae171be3ad2f5f5fd6cdc30c8a5",
+      "status": "PASS_V2",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-163.json",
+      "sha256": "ca2f0f8c1d5fb7998984c7b9136a8a82abfd481ba52bc6ca3c393b05aa0855f3",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-164.json",
+      "sha256": "956a6a8c793bbed1c9ade42dd58ce3caf10c6b38500f9279ad4c000378764f37",
+      "status": "PASS_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-165.json",
+      "sha256": "505169599cd1666490f586ee53dd3114747a606091c7dbb0bd0d2e873402a036",
+      "status": "PASS_V4",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-166.json",
+      "sha256": "d99f9d73d0a073f13924f00dacedffbdfbbab7d309eeb1b8c196fda50e243012",
+      "status": "PASS_V1",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json",
+      "sha256": "e63ea76eba9ab1e0e15bd346d57b542aaff6f736e63d388b4f5c55e70d7b3d65",
+      "status": "BLOCKED",
+      "blocked_on": "MT-168 (index-bound grant predicates and W scans; owner per WP012-OPERATOR-OWNERSHIP-20261002); AC-167-3 re-measured on the MT-168 candidate"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+      "sha256": "2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a",
+      "status": "FAIL_V3",
+      "blocked_on": null
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-169.json",
+      "sha256": "83114f36f040cc455729a987272c157cea5ca23ceb963e117af53bff70695adf",
+      "status": "BLOCKED",
+      "blocked_on": "MT-168"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-170.json",
+      "sha256": "e25e4bff34ede942c05b6f3d732b3c648532395dba69f50bc625f675bf887d34",
+      "status": "PASS_V2",
+      "blocked_on": null
+    }
+  ],
+  "wp012_status_census": {
+    "PASS_V1": 92,
+    "FAIL_V9": 4,
+    "PASS_V5": 9,
+    "PASS_V9": 3,
+    "PASS_V7": 5,
+    "PASS_V8": 4,
+    "PASS_V18": 2,
+    "PASS_V15": 1,
+    "BLOCKED": 18,
+    "PASS_V10": 1,
+    "PASS_V13": 1,
+    "FAIL_V6": 1,
+    "FAIL_V8": 1,
+    "PASS_V4": 3,
+    "READY_FOR_VALIDATION": 5,
+    "PASS_V2": 7,
+    "FAIL_V3": 4,
+    "PASS_V3": 3,
+    "PASS_V6": 4,
+    "FAIL_V16": 1,
+    "FAIL_V4": 1
+  },
+  "preexisting_dirty_preservation": {
+    "files": [
+      {
+        "status": " M",
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+        "sha256": "2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a",
+        "bytes": 218506,
+        "preserved_artifact_relative_path": "WP-KERNEL-012/phase-00-handoff-20261010-042350/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json"
+      },
+      {
+        "status": " M",
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+        "sha256": "d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b",
+        "bytes": 639,
+        "preserved_artifact_relative_path": "WP-KERNEL-012/phase-00-handoff-20261010-042350/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh"
+      },
+      {
+        "status": " M",
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json",
+        "sha256": "8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546",
+        "bytes": 2334,
+        "preserved_artifact_relative_path": "WP-KERNEL-012/phase-00-handoff-20261010-042350/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json"
+      },
+      {
+        "status": " M",
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml",
+        "sha256": "90f01c4fe0a8d6156f3193bd870a8cb387639f9b070044d87fc95d9475e5a38b",
+        "bytes": 490027,
+        "preserved_artifact_relative_path": "WP-KERNEL-012/phase-00-handoff-20261010-042350/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml"
+      },
+      {
+        "status": " M",
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+        "sha256": "f4a6e926ac1188d99132ef4c43ff8a789f3732c63c9d6b47f3c5e117e8c60774",
+        "bytes": 126228,
+        "preserved_artifact_relative_path": "WP-KERNEL-012/phase-00-handoff-20261010-042350/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml"
+      }
+    ],
+    "five_live_hashes_match_phase00": true,
+    "fresh_copies_verified": true
+  },
+  "source_contract_preservation": {
+    "root": "WP-KERNEL-012/phase-01-preparation-20261010-044056",
+    "records": 268,
+    "original_full_bytes_preserved": true,
+    "packet_refinement_semantics_except_additive_binding_equal": true
+  },
+  "source_wip_pins": [
+    {
+      "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "refs/heads/feat/WP-KERNEL-012",
+      "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+      "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+      "status": "",
+      "role": "Consolidation destination and existing implementation/acceptance to preserve",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-CKC-posekit-overhaul",
+      "worktree": "../wtc-WP-CKC-posekit-overhaul-surreal",
+      "branch": "refs/heads/feat/WP-CKC-posekit-overhaul-surreal",
+      "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+      "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+      "status": "",
+      "role": "Active SurrealDB import source; remaining CKC/Posekit scope resumes after WP012",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "worktree": "../wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "branch": "refs/heads/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+      "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+      "status": "",
+      "role": "Active Dexterity/model-lane product import source; remaining orchestration scope resumes after WP012",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-KERNEL-009-MT245",
+      "worktree": "../wtc-WP-KERNEL-009-MT245",
+      "branch": "refs/heads/feat/WP-KERNEL-009-MT245",
+      "head": "752fe0d52f2f2c7c590e37b79c992ce733171f94",
+      "tree": "2f3a99b4815610e0389c7772dfb559e9b125624b",
+      "status": "",
+      "role": "Historical recovery/reference material; not an agreed import source",
+      "head_drift_from_phase00": false
+    }
+  ],
+  "asset": {
+    "observed_absolute_root": "C:\\Projects\\LLM Projects\\.assets\\handpick",
+    "shared_binding": "assets.git exact revision; never machine path",
+    "head": "994fc055765a61b32e40df0b757c4816959285d3",
+    "tree": "2c6acdac01d6977c69e8e58950f92c679c72318a",
+    "status": "",
+    "file_bindings": [
+      {
+        "asset_relative_path": "Cargo.toml",
+        "sha256": "28fc687ea2a02303f54d6854f11eb3852d613d48cde2498b75f63e5087e88555",
+        "bytes": 575
+      },
+      {
+        "asset_relative_path": "src/writing.rs",
+        "sha256": "df9b638fa74eda996d8d329c8ab52977f2efd2149e085c78bc753789954fc1f4",
+        "bytes": 27953
+      },
+      {
+        "asset_relative_path": "src/session.rs",
+        "sha256": "ec0f0b68285b2a62d8085f30989239b8654327095ab381826e3f49a1550554ca",
+        "bytes": 13485
+      },
+      {
+        "asset_relative_path": "spec/handpick-spec.yaml",
+        "sha256": "213666ee3b2665878e0e327c30015a03390dcf4a82f918cc9b77747eb93a89c0",
+        "bytes": 63492
+      }
+    ]
+  },
+  "product_changes": "NONE",
+  "acceptance_state": "NONE_ADVANCED; all original statuses unchanged",
+  "new_record_paths_after_capture": [
+    "WP-KERNEL-012-phase-01-repo-snapshot-v1.json",
+    "WP-KERNEL-012-phase-01-handoff-v1.json"
+  ],
+  "repair_boundary": {
+    "prior_snapshot_ref": "WP-KERNEL-012/phase-01-repair-20261010-051912/WP-KERNEL-012-phase-01-repo-snapshot-v1.json",
+    "fresh_worktree_observations": [
+      {
+        "project_relative_root": "handshake-desktop-main",
+        "head": "7659138874df91ae258839a7fbd72cc894459fae",
+        "tree": "172d9177f3a4090620e2da305254cf28669668a5",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "handshake-desktop-backup-WP-KERNEL-004-wtc-dirt-20260530",
+        "head": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
+        "tree": "dca55f4985fcbed7087e9e96b565f0aa8e24654b",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wt-gov-kernel",
+        "head": "cb7eae15c5603833790af7e7cb7efed36c426f6e",
+        "tree": "141385ba8c7ce100351f144ee3e6283c8f890407",
+        "porcelain_status": "M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-handoff-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-repo-snapshot-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wt-ilja",
+        "head": "d07cffcf8f1334671205a5b332b543fbc8a2b5b2",
+        "tree": "c86affe75191b9f09da921d24c1d6c928ac10263",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+        "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-CKC-posekit-overhaul",
+        "head": "757e8e71a2ebdf5922597c56752192a685da2ba2",
+        "tree": "ff243db7109e5c1657163d79ce80c3a2b42b10fc",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-CKC-posekit-overhaul-surreal",
+        "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-KERNEL-009-MT245",
+        "head": "752fe0d52f2f2c7c590e37b79c992ce733171f94",
+        "tree": "2f3a99b4815610e0389c7772dfb559e9b125624b",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-KERNEL-012",
+        "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+        "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      }
+    ],
+    "preexisting_dirty_hashes": [
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json",
+        "sha256": "2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a",
+        "prior_preservation_ref": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/2472087b7ef1e60554ef97f4aa75c79983816396bf23945521c279b461e6764a-MT-168.json"
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh",
+        "sha256": "d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b",
+        "prior_preservation_ref": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b-WPV-round-selection-targeted.sh"
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json",
+        "sha256": "8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546",
+        "prior_preservation_ref": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546-WPV-round-selection.json"
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml",
+        "sha256": "90f01c4fe0a8d6156f3193bd870a8cb387639f9b070044d87fc95d9475e5a38b",
+        "prior_preservation_ref": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/90f01c4fe0a8d6156f3193bd870a8cb387639f9b070044d87fc95d9475e5a38b-gameplan.confirmations.yaml"
+      },
+      {
+        "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+        "sha256": "f4a6e926ac1188d99132ef4c43ff8a789f3732c63c9d6b47f3c5e117e8c60774",
+        "prior_preservation_ref": "WP-KERNEL-012/phase-01-preparation-20261010-044056/boundary-bytes/f4a6e926ac1188d99132ef4c43ff8a789f3732c63c9d6b47f3c5e117e8c60774-gameplan.yaml"
+      }
+    ],
+    "repair_backup_ref": "WP-KERNEL-012/phase-01-repair-20261010-051912",
+    "changed_fields": {
+      "contract": [
+        "change_control.activation_predecessors",
+        "microtask_plan_drafts[0:5] exact source/path ownership and compile/proof binding",
+        "dependency_plan consumed-source acceptance"
+      ],
+      "source_map": [
+        "import_path_ownership[].entries[] execution owner/exclusions",
+        "original_contract_records[] disposition",
+        "acceptance_and_requirement_map[] destination/proof_transfer"
+      ],
+      "unrelated_known_findings": "Untouched: MT179 command, later asset interface/packaging hydration, schema acceptance expansion; outside three confirmed repairs"
+    },
+    "original_history_bytes_preserved": true,
+    "acceptance_verdict": "NONE; independent review pending",
+    "capture_exclusions": [
+      "snapshot and handoff self hashes"
+    ]
+  },
+  "closure_boundary": {
+    "external_review": {
+      "source": "Coordinator-supplied external independent review",
+      "thread_id": "01a12415-c947-7cc1-aa65-60362f2c0bd4",
+      "turn_id": "01a12443-4ed7-7003-afe7-148a50d317a2",
+      "verdict": "PASS",
+      "scope": [
+        "Per-phase prerequisites",
+        "Exact Phase2 import ownership/contracts",
+        "Consumed source behaviour acceptance routing"
+      ],
+      "four_reviewed_hashes_match": true,
+      "product_runtime_or_integration_verdict": false
+    },
+    "fresh_worktree_observations": [
+      {
+        "project_relative_root": "handshake-desktop-main",
+        "head": "7659138874df91ae258839a7fbd72cc894459fae",
+        "tree": "172d9177f3a4090620e2da305254cf28669668a5",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "handshake-desktop-backup-WP-KERNEL-004-wtc-dirt-20260530",
+        "head": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
+        "tree": "dca55f4985fcbed7087e9e96b565f0aa8e24654b",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wt-gov-kernel",
+        "head": "cb7eae15c5603833790af7e7cb7efed36c426f6e",
+        "tree": "141385ba8c7ce100351f144ee3e6283c8f890407",
+        "porcelain_status": "M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-168.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection-targeted.sh\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WPV-round-selection.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json\n M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-handoff-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-repo-snapshot-v1.json\n?? .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wt-ilja",
+        "head": "d07cffcf8f1334671205a5b332b543fbc8a2b5b2",
+        "tree": "c86affe75191b9f09da921d24c1d6c928ac10263",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+        "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-CKC-posekit-overhaul",
+        "head": "757e8e71a2ebdf5922597c56752192a685da2ba2",
+        "tree": "ff243db7109e5c1657163d79ce80c3a2b42b10fc",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-CKC-posekit-overhaul-surreal",
+        "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+        "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-KERNEL-009-MT245",
+        "head": "752fe0d52f2f2c7c590e37b79c992ce733171f94",
+        "tree": "2f3a99b4815610e0389c7772dfb559e9b125624b",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      },
+      {
+        "project_relative_root": "wtc-WP-KERNEL-012",
+        "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+        "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+        "porcelain_status": "",
+        "prior_phase01_head_tree_unchanged": true
+      }
+    ],
+    "accepted_contract_source_hashes": {
+      "consolidation-contract": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a",
+      "source-reconciliation": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58"
+    },
+    "preexisting_dirty_bytes": "UNCHANGED_VERIFIED",
+    "capture_exclusions": [
+      "snapshot and handoff self hashes"
+    ],
+    "next_actor": "Coordinating root launches fresh Phase2; activation/claim/live scope verification remain; no repeated signature (KB-PREP-003)"
+  }
+}

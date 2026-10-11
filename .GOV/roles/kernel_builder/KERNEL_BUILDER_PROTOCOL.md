@@ -139,7 +139,7 @@
 
 [KB-OUT-007] Every MT this role hydrates names its blocking test or proof command and feature set.
 
-[KB-OUT-008] Build only on the target disk and directory named in the dispatch, never on the validator's build disk, and never while another build runs on the same physical disk (Codex CX-984-002). If the dispatch names no disk, ask before building.
+[KB-OUT-008] Build only on the target disk and directory named in the dispatch, never on the validator's build disk except under the WP-KERNEL-012-only sequential same-disk grant in `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-174.json#/operator_decision_20261010_phase02_builder_output_grant`, and never while another build runs on the same physical disk (Codex CX-984-002). If the dispatch names no disk, ask before building.
 
 [KB-OUT-009] Every test this role writes or changes removes what it creates outside the artifact root, including OS credential-store entries, on success and on failure (Codex CX-GIT-003).
 

@@ -1,10 +1,10 @@
 {
   "schema": "hsk.validator_round_selection@1",
-  "candidate": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+  "candidate": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
   "mode": "targeted",
   "selection_file": "WPV-round-selection-targeted.sh",
-  "output_suffix": "-mt168-link-r14",
-  "runner_output_suffix": "-targeted-mt168-link-r14",
+  "output_suffix": "-mt168-slot12-r20",
+  "runner_output_suffix": "-targeted-mt168-slot12-r20",
   "covers": [
     "MT-168"
   ],
@@ -20,7 +20,7 @@
   "native_filter": "none()",
   "extracted_crates": [],
   "named_case_count": 3,
-  "proof_basis": "Operator-approved declared-span-index link verification repair with byte-exact original MT167 test restored; independent original acceptance mounted-account boundary plus both MT167 cases",
+  "proof_basis": "Slot12 visibility guard WHERE id != NONE; unchanged mounted-account and both original MT167 acceptance cases",
   "backend_required": false,
   "prior_proof_reuse": {
     "runtime": "Original34aa exact163 and original51c unaffected authority/timing/catalog/native greens retain original input/binary bindings after engine-only asserted-behavior reconciliation. Originald4 account result retained historically; repaired link queries affect its producer and require fresh case. Instrumented128f diagnostic output supports diagnosis only; original MT167 tests restored byte-exact and require fresh parity/timing.",
@@ -35,5 +35,5 @@
   "work_owner_mt": "MT-168",
   "measurement_tests": [],
   "deferred_consumers": [],
-  "phase_predecessor": "Fresh292d mandatory builder compile numeric0, pushed/clean source and explicit warm target return; root/all execution-input writes closed before freeze"
+  "phase_predecessor": "Revised candidate clean/pushed; exact schema164 old/new78-case component native0; original R19 FAIL_V2 and D1 preserved; one mandatory original3 no-run compile in warm target"
 }

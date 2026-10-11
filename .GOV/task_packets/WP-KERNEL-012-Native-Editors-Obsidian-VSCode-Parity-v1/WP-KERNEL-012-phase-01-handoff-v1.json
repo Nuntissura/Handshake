@@ -1,0 +1,468 @@
+{
+  "schema_id": "hsk.wp_phase_handoff@1",
+  "file_id": "WP012-HANDOFF-PHASE01-V1",
+  "file_kind": "phase_handoff",
+  "updated_at_utc": "2026-10-10T05:24:51.803091+00:00",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "phase_id": "PHASE-01",
+  "status": "PHASE01_CLOSED_SCOPED_EXTERNAL_PASS_PHASE02_READY_FOR_FRESH_DELEGATION",
+  "primary_result": "Reviewable consolidation contract and full source reconciliation map, additive current packet/refinement bindings; no executable product activation claimed",
+  "lanes": {
+    "Handshake (Product)": "NONE_CHANGED; source/API/spec inspection only",
+    "Repo Governance": "Two owning contract links plus four Phase1 typed deliverables; requested fresh snapshot and dirty-byte preservation"
+  },
+  "exact_scoped_diff": {
+    "modified": [
+      "packet.json#consolidation_phase_01",
+      "refinement.json#consolidation_phase_01"
+    ],
+    "new": [
+      "WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+      "WP-KERNEL-012-phase-01-repo-snapshot-v1.json",
+      "WP-KERNEL-012-phase-01-handoff-v1.json"
+    ],
+    "tracked_diff": "23 insertions/1 deletion before final indentation only; original nested values unchanged",
+    "preserved_unmodified": [
+      "MT-168.json",
+      "WPV-round-selection-targeted.sh",
+      "WPV-round-selection.json",
+      "gameplan.yaml",
+      "gameplan.confirmations.yaml",
+      "root overall handoff",
+      "Phase0 snapshot",
+      "original MT001..170",
+      "authority/spec/taskboard/other-device Studio work",
+      "existing proof outputs"
+    ],
+    "commits_pushes_merges": "NONE",
+    "product_writes_builds_tests_imports_cleanup_topology_process_actions": "NONE"
+  },
+  "deliverables": {
+    "packet.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "sha256": "30318854fb46a103394b526801029c8eb0cd0e92d6fff99007287ffd36ec5ec9",
+      "bytes": 364729
+    },
+    "refinement.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+      "sha256": "3a6128415344c32b9fbc2dd4892dafd884210eeeb02a0d58352ae39f7720d2a0",
+      "bytes": 21421
+    },
+    "WP-KERNEL-012-phase-01-consolidation-contract-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+      "sha256": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a",
+      "bytes": 1215606
+    },
+    "WP-KERNEL-012-phase-01-source-reconciliation-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+      "sha256": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58",
+      "bytes": 7612800
+    },
+    "WP-KERNEL-012-overall-consolidation-handoff-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-overall-consolidation-handoff-v1.json",
+      "sha256": "fbd25e19354027dc2608805eab0e9c9e6bb390f378e7eeb6d7719e9dd63313b1",
+      "bytes": 59877
+    },
+    "WP-KERNEL-012-phase-00-repo-snapshot-v1.json": {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-00-repo-snapshot-v1.json",
+      "sha256": "5b86f2ecb7c801c19ad203b780adb7219e16a37a23ed92fb2dad2d81e0d66198",
+      "bytes": 136153
+    }
+  },
+  "snapshot": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-repo-snapshot-v1.json",
+    "sha256": "b94a4397bedb694e542942033226963f402bac9a673b900f3ea7f0db6f8e4ad6",
+    "capture_boundary": "closure_boundary fresh local observations; accepted contract/source map untouched"
+  },
+  "preservation": {
+    "root": "WP-KERNEL-012/phase-01-preparation-20261010-044056",
+    "records": 268,
+    "original_full_bytes_preserved": true,
+    "packet_refinement_semantics_except_additive_binding_equal": true
+  },
+  "kernel_boundary": {
+    "head": "cb7eae15c5603833790af7e7cb7efed36c426f6e",
+    "tree": "141385ba8c7ce100351f144ee3e6283c8f890407",
+    "branch": "gov_kernel",
+    "worktree": ".",
+    "five_original_dirty_hashes_match": true,
+    "nine_worktree_heads_trees_unchanged": true,
+    "full_status_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-repo-snapshot-v1.json#worktrees",
+    "post_capture_additions": [
+      "this phase handoff",
+      "snapshot itself"
+    ]
+  },
+  "retained_scope": {
+    "source_contract_records": 268,
+    "mapped_explicit_array_items": 3173,
+    "complete_source_reference_map": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "wp012": "Every original170 MT scope/status/signature/pin/waiver/failure/proof and parity/interop/diagnostic/manual/auth/timing/durability retained",
+    "ckc_wp1": "Exact implemented Surreal/native source pins retained for consolidation; all unproven original behavior carries to later CKC/WP1 acceptance. CKC MT068 original/derivative ArtifactStore and WP1 capstone/microVM/teardown remain explicit. Imported source status never transfers PASS.",
+    "reference_only": [
+      "Old CKC PostgreSQL",
+      "MT245 historical recovery",
+      "WP017 future ACP",
+      "Studio/other-device spec work outside Phase1"
+    ],
+    "additional_wip": "Three active/in-progress packets confirmed in inspected taskboard; any additional intended all-WIP source requires explicit Operator decision"
+  },
+  "source_pins": [
+    {
+      "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "refs/heads/feat/WP-KERNEL-012",
+      "head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+      "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+      "status": "",
+      "role": "Consolidation destination and existing implementation/acceptance to preserve",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-CKC-posekit-overhaul",
+      "worktree": "../wtc-WP-CKC-posekit-overhaul-surreal",
+      "branch": "refs/heads/feat/WP-CKC-posekit-overhaul-surreal",
+      "head": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+      "tree": "9894f1e00567fb2717ff555030218e7cc7dac33c",
+      "status": "",
+      "role": "Active SurrealDB import source; remaining CKC/Posekit scope resumes after WP012",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "worktree": "../wtc-WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "branch": "refs/heads/feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "head": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+      "tree": "b95a3ad3fc7a80a3094bf8179079adad4fdb8935",
+      "status": "",
+      "role": "Active Dexterity/model-lane product import source; remaining orchestration scope resumes after WP012",
+      "head_drift_from_phase00": false
+    },
+    {
+      "wp_id": "WP-KERNEL-009-MT245",
+      "worktree": "../wtc-WP-KERNEL-009-MT245",
+      "branch": "refs/heads/feat/WP-KERNEL-009-MT245",
+      "head": "752fe0d52f2f2c7c590e37b79c992ce733171f94",
+      "tree": "2f3a99b4815610e0389c7772dfb559e9b125624b",
+      "status": "",
+      "role": "Historical recovery/reference material; not an agreed import source",
+      "head_drift_from_phase00": false
+    }
+  ],
+  "contract_review_state": {
+    "independent_advisory": "PASS_ON_THREE_REPAIRED_FIELD_GROUPS",
+    "reference": {
+      "source": "Coordinator-supplied external independent review",
+      "thread_id": "01a12415-c947-7cc1-aa65-60362f2c0bd4",
+      "turn_id": "01a12443-4ed7-7003-afe7-148a50d317a2",
+      "verdict": "PASS",
+      "scope": [
+        "Per-phase prerequisites",
+        "Exact Phase2 import ownership/contracts",
+        "Consumed source behaviour acceptance routing"
+      ],
+      "four_reviewed_hashes_match": true,
+      "product_runtime_or_integration_verdict": false
+    },
+    "product_runtime_verdict": "NONE",
+    "integration_verdict": "NONE"
+  },
+  "approval_and_readiness": {
+    "approval_dispositions": [
+      {
+        "id": "WP012-P1-APPROVAL-001",
+        "scope": "Phase1 preparation and useful read-only teams",
+        "state": "AUTHORIZED",
+        "source": "WP-KERNEL-012-overall-consolidation-handoff-v1.json#operator_request.latest_authorization; fresh phase assignment"
+      },
+      {
+        "id": "WP012-P1-APPROVAL-002",
+        "scope": "Consolidate CKC Surreal and WP1 into WP012, then modularise; preserve remaining work for later completion",
+        "state": "DIRECTION_APPROVED_CONCRETE_AMENDMENT_REVIEW_PENDING",
+        "source": "overall handoff#operator_request.verbatim_scope; packet.json#operator_decisions_20261009"
+      },
+      {
+        "id": "WP012-P1-APPROVAL-003",
+        "scope": "Publish hskernel/Handpick/media asset and workspace durable architecture enrichment",
+        "state": "BLOCKED_ON_EXPLICIT_SPEC_ENRICHMENT_APPROVAL",
+        "source": "CX-SPEC-TRUTH-001; KB-SPEC-001",
+        "blocked_action": "Any dependent new asset/crate implementation or spec publication; preparation remains authorized"
+      },
+      {
+        "id": "WP012-P1-APPROVAL-004",
+        "scope": "Exact Handpick Git revision and consumer update compatibility policy",
+        "state": "REVIEW_PENDING",
+        "blocked_action": "Add consumer dependency or publish/update asset"
+      },
+      {
+        "id": "WP012-P1-APPROVAL-005",
+        "scope": "Additional WIP beyond three inspected active packets",
+        "state": "OPERATOR_CONFIRMATION_PENDING",
+        "blocked_action": "Import any additional source"
+      },
+      {
+        "id": "WP012-P1-APPROVAL-006",
+        "scope": "Facial current identity/provider and deployment destination",
+        "state": "UNAVAILABLE_EXTERNAL_CONTRACT",
+        "blocked_action": "Concrete Facial integration or deployment; editor trees and generic seam remain retained"
+      }
+    ],
+    "spec_dispositions": [
+      {
+        "id": "WP012-P1-SPEC-001",
+        "area": "Original editor parity and canonical document identity",
+        "anchors": [
+          "10-product-surfaces.md#10.2.1.1 EDIT-ID",
+          "10-product-surfaces.md#10.2.1.2 EDIT-AST",
+          "11-shared-dev-platform-and-oss-foundations.md#LM-BLOCK-002/003"
+        ],
+        "disposition": "RETAIN_CURRENT_BEHAVIOR; React reference preserved; existing DOCX/dual-view debt remains explicit later WP014 decision"
+      },
+      {
+        "id": "WP012-P1-SPEC-002",
+        "area": "Model lanes/Dexterity host persistence",
+        "anchors": [
+          "04-llm-infrastructure.md#4.3.9.2.5",
+          "04-llm-infrastructure.md#4.6",
+          "02-system-architecture.md#2.3.13"
+        ],
+        "disposition": "RETAIN_SURReal/EventLedger authority, coordinator-mediated launch and complete canonical lane fields; hskernel reusable boundary requires approved enrichment"
+      },
+      {
+        "id": "WP012-P1-SPEC-003",
+        "area": "Diagnostics/Argus/manual/privacy",
+        "anchors": [
+          "05-security-and-observability.md#5.8/5.9",
+          "06-mechanical-integrations.md#6.13",
+          "10-product-surfaces.md#10.12",
+          "HBR-INT-009",
+          "HBR-MAN-001..004",
+          "HBR-VIS-001..005",
+          "HBR-PRIV-001..008"
+        ],
+        "disposition": "Retain runtime requirements. WP015 build provenance differs from WP012 implementation; do not infer absence or rewrite provenance automatically."
+      },
+      {
+        "id": "WP012-P1-SPEC-004",
+        "area": "Handpick native reuse, media/CKC split, portable assets and compartment workspace",
+        "anchors": [],
+        "disposition": "BLOCKING_ENRICHMENT_PROPOSAL; Operator approves exact architecture/update contract then authorized spec owner publishes copy-first versioned bundle; no unrelated Studio edits"
+      }
+    ],
+    "hard_predecessors": {
+      "phase_02_imports": [
+        "Recorded consolidation scope and usable MT171–175 exact ownership/contracts; no product authority in Phase1",
+        "Fresh source HEAD/tree/dirty reconciliation against source_pins; preserve current WP012 protections",
+        "Resolve only import-dependent spec gaps against existing anchors or quoted spec_basis; no prerequisite for unrelated later assets",
+        "Bind exact owning compile/runtime configuration and exclusive target before the corresponding proof; runtime acceptance is not required merely to preserve/import source",
+        "Apply gates from WP governance pin and explicit Operator adoption; no repeated signature or new approval sequence"
+      ],
+      "phases_03_04_new_boundaries_assets": [
+        "Usable owning MT and dependent spec anchor/spec_basis",
+        "Explicit approval for actual spec publication (KB-SPEC-001/CX-105)",
+        "Applicable dependency-direction and build-budget review, resolved under WP pin/adoption; no blanket numeric/signature gate",
+        "Exact consumer pin/lock/interface and owning proof bindings"
+      ],
+      "phase_07_deployment": [
+        "Specified destination/channel and applicable deployment contract"
+      ],
+      "phase_08_remaining_source_work": [
+        "Combined WP012 independent acceptance/integration complete",
+        "Retained unfinished unconsumed source scope reconciled to new baseline"
+      ]
+    },
+    "build_budget": {
+      "state": "UNSETTLED",
+      "measures": [
+        "warm changed-package check latency",
+        "rebuilt package count",
+        "relinked test binary count"
+      ],
+      "numeric_limits": null,
+      "blocked_action": "Activate new compartment boundaries before Operator-approved budget review"
+    },
+    "mt_plan": "MT171–175 hydrated exact source/path/compile bindings, NOT_ACTIVATED. Later MT176–182 unchanged blocked extraction/asset drafts.",
+    "remaining_source_paths": "Every importable path has exactly one MT171–175 owner; excluded governance/legacy UI/toolchain paths remain explicit references. New paths require exact owning scope before edit.",
+    "independent_advisory": "PASS: external thread/turn in external_review; three repaired field groups only",
+    "product_runtime_verdict": "NONE",
+    "integration_verdict": "NONE"
+  },
+  "research_basis_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
+  "advisory_helpers": [
+    {
+      "agent": "source_reconciliation",
+      "role": "KERNEL_BUILDER_READ_ONLY_ADVISORY",
+      "scope": "CKC/WP1 source/contracts/spec/proof defects",
+      "writes": "NONE",
+      "canonical_output": "source map and explicit topology/proof dispositions"
+    },
+    {
+      "agent": "asset_research",
+      "role": "KERNEL_BUILDER_READ_ONLY_ADVISORY",
+      "scope": "Handpick/API/editor/kernel/media/diagnostic primary source research",
+      "writes": "NONE",
+      "canonical_output": "contract architecture/research/asset/proof fields"
+    }
+  ],
+  "do_and_dont": [
+    {
+      "id": "WP012-HANDOFF-001",
+      "do": "Preserve all included WP intent, source history, dirty bytes and existing evidence before adding new scope.",
+      "dont": "Delete or reset MT histories, reference branches or original tests to simplify consolidation."
+    },
+    {
+      "id": "WP012-HANDOFF-002",
+      "do": "Use current kernel authority and the assigned product worktree.",
+      "dont": "Copy governance from main, restore .GOV junctions or refresh active work from stale main."
+    },
+    {
+      "id": "WP012-HANDOFF-003",
+      "do": "Keep Handshake Product and Repo Governance ownership explicit.",
+      "dont": "Let implementation helpers edit unrelated governance/spec areas or root implement delegated product work."
+    },
+    {
+      "id": "WP012-HANDOFF-004",
+      "do": "Retain source branches and protected main/user_ilja/gov_kernel worktrees.",
+      "dont": "Merge/switch/reset/delete/force-push/cleanup from this planning handoff; no new topology without separately applicable authorization."
+    },
+    {
+      "id": "WP012-HANDOFF-005",
+      "do": "Respect real process ownership; inspect current state.",
+      "dont": "Stop foreign processes. If required, identify unchanged PIDs/consequences and obtain exact PROCESS_STOP_APPROVED:<PIDs>."
+    },
+    {
+      "id": "WP012-HANDOFF-006",
+      "do": "Preserve quiet, bounded, observable model operation.",
+      "dont": "Steal focus/keyboard, pop foreground windows or present detached liveness as UI acceptance."
+    },
+    {
+      "id": "WP012-HANDOFF-007",
+      "do": "Keep host DB adapters separate from reusable hskernel mechanics and media separate from CKC workflows.",
+      "dont": "Treat a file move or CLI bridge as proof of kernel independence or finished ACP."
+    },
+    {
+      "id": "WP012-HANDOFF-008",
+      "do": "Label unverified/uninspected state and resolve exact blockers.",
+      "dont": "Infer hardware causes, Git merge conflicts, Facial's current API, deployment destinations or speedups."
+    },
+    {
+      "id": "WP012-HANDOFF-009",
+      "do": "Use existing typed packet/refinement/MT surfaces for executable scope.",
+      "dont": "Make this overall handoff a competing WP or create unrelated governance polish/audit bundles."
+    }
+  ],
+  "failed_attempts_and_time_sinks": [
+    {
+      "id": "WP012-P1-PREPFAIL-001",
+      "action": "Metadata-only host-profile read",
+      "result": "Global hook applied before_round runtime checks; command blocked before execution; no runtime gate confirmed or bypassed",
+      "disposition": "Host effective profile remains NOT_INSPECTED; final combined activation must bind exact applicable configuration"
+    },
+    {
+      "id": "WP012-P1-PREPFAIL-002",
+      "action": "Preservation/map writer mirror assertion",
+      "result": "Overbroad Codex-to-Claude normalization rejected aligned mirrors; no packet/refinement/map write occurred",
+      "repair": "Compared only the three inspected agent-name adaptations; all copied source hashes reverified before reuse"
+    },
+    {
+      "id": "WP012-P1-PREPFAIL-006",
+      "action": "Boundary dirty-byte copy",
+      "result": "Long Windows nested preservation destination raised WinError3; no snapshot or handoff authored",
+      "repair": "Use short SHA-addressed filenames inside same verified owner; preserve literal porcelain leading spaces; independently compare each copy hash",
+      "partial_output": "Earlier boundary-dirty copies retained, never presented as complete preservation"
+    },
+    {
+      "id": "WP012-P1-PREPFAIL-003",
+      "action": "Final source path review",
+      "result": "Inherited media/Palmistry/diagnostic path shorthand and WP1-only storage adapter detected",
+      "repair": "Corrected exact roots/source origins; existence verified before final snapshot"
+    },
+    {
+      "id": "WP012-P1-PREPFAIL-004",
+      "action": "Oversized initial authority/packet reads",
+      "result": "Output truncated",
+      "repair": "Selected JSON sections and full hash-bound original copies; no facts inferred from truncation"
+    },
+    {
+      "id": "WP012-P1-PREPFAIL-005",
+      "action": "Taskboard lookup",
+      "result": "TASK_BOARD.json absent",
+      "repair": "rg found actual TASK_BOARD.md; no new board"
+    }
+  ],
+  "inherited_failure_history": {
+    "source_ref": "overall handoff#current_state_and_failure_history; preserved original MT168 full bytes",
+    "status": "MT168 FAIL_V3; original R20 timing FAIL, account/parity scoped PASS only",
+    "requirements_unchanged": "MT167 median<5s/max<30s; schema/auth/privacy/error/rollback/durability guards and original timeouts/features remain",
+    "preserved_attempts": "R19/R20/D1 and earlier exact round history, missing-record WHERE-removal rejection, consumed EXPLAIN allowance; no reset/new diagnostic grant",
+    "runtime_process_state": "NOT_INSPECTED; no job assumed running or stopped"
+  },
+  "cargo_and_proof": {
+    "runs": "NONE",
+    "product_proof_invalidation_in_phase01": "No product inputs changed. Historical proof not broadened to combined candidate.",
+    "future_invalidation": "Imports/manifests/locks/features/public contracts/source changes require dependent input/behavior/config reconciliation; valid unchanged independent proof reused only with exact binding",
+    "commands_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#proof_contract",
+    "cache_target_ownership": "Reuse compatible warm owned target only after fresh config/toolchain/feature/profile/disk/owner verification; no new target/copy/clean/intervention",
+    "effective_host_profile": "NOT_INSPECTED: metadata read blocked by before_round hook; no confirmation bypassed. New combined selection/config and HBR placeholder disposition remain activation blockers.",
+    "candidate_override": "Existing MT168 exact-candidate override not transferred to new candidate",
+    "independence": "Kernel Builder compile/static only; WP Validator runtime; Integration Validator whole-WP/current-main verdict/merge",
+    "speedup": "NOT_MEASURED_NONE_CLAIMED"
+  },
+  "next_actor_action": {
+    "actor": "Coordinating root",
+    "action": "Launch fresh Phase2 under existing authorization. Phase2 owner verifies live source/worktree/scope/config and records activation/claim before product execution; no repeated signature (KB-PREP-003).",
+    "remaining_requirements": [
+      "Live source/worktree/scope verification",
+      "Activation/claim for next fresh Phase2",
+      "Owning proof configuration verification before corresponding proof"
+    ],
+    "authority": [
+      "CX-620",
+      "KB-PREP-001",
+      "KB-PREP-003",
+      "CX-GOV-PIN-002/003"
+    ],
+    "phase_boundary": "Phase1 closed; no product execution in this chat"
+  },
+  "readiness_limit": "Reviewable preparation delivered; executable product activation NOT_READY. No independent acceptance, runtime completion or integration claimed.",
+  "repair": {
+    "authorization": "Coordinator delegated Operator steering and three confirmed reviewer defects; Phase1 repair only",
+    "changed_fields": {
+      "contract": [
+        "change_control.activation_predecessors",
+        "microtask_plan_drafts[0:5] exact source/path ownership and compile/proof binding",
+        "dependency_plan consumed-source acceptance"
+      ],
+      "source_map": [
+        "import_path_ownership[].entries[] execution owner/exclusions",
+        "original_contract_records[] disposition",
+        "acceptance_and_requirement_map[] destination/proof_transfer"
+      ],
+      "unrelated_known_findings": "Untouched: MT179 command, later asset interface/packaging hydration, schema acceptance expansion; outside three confirmed repairs"
+    },
+    "pre_repair_versions_ref": "WP-KERNEL-012/phase-01-repair-20261010-051912",
+    "ownership_counts": {
+      "171": 85,
+      "172": 301,
+      "173": 132,
+      "174": 16,
+      "175": 110
+    },
+    "required_review": "Completed: exact external PASS in external_review; scope limited to three repaired field groups",
+    "verification": "JSON reload, unique import owner, original field/requirement/history equality, five dirty SHA equality, nine fresh local worktree observations; no product proof"
+  },
+  "external_review": {
+    "source": "Coordinator-supplied external independent review",
+    "thread_id": "01a12415-c947-7cc1-aa65-60362f2c0bd4",
+    "turn_id": "01a12443-4ed7-7003-afe7-148a50d317a2",
+    "verdict": "PASS",
+    "scope": [
+      "Per-phase prerequisites",
+      "Exact Phase2 import ownership/contracts",
+      "Consumed source behaviour acceptance routing"
+    ],
+    "four_reviewed_hashes_match": true,
+    "product_runtime_or_integration_verdict": false
+  }
+}
