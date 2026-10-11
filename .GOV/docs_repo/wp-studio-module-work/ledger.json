@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:48:18Z",
+ "updated_at": "2026-10-11T05:52:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -478,22 +478,23 @@
    "lane_id": "SMB-CONTROLS",
    "crate": "hsk-studio-controls",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-controls",
-   "phase": "build",
-   "status": "FAIL_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-controls",
    "brief": null,
    "commits": [
     "a1d0fbd",
     "2ea0c1e",
     "62ea29a",
-    "605796f"
+    "605796f",
+    "fec865b"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
-   "candidate": "605796f",
-   "note": "slice1+2: spec gestures (STU-FX-149, SHL-188..192), undo coalescing, report(), integer domain, sections; 9 tests",
+   "candidate": "fec865b",
+   "note": "R5 remediation (opus, 2nd FAIL): one shared rule ControlSpec::moved for every step path (StepNoEffect incl i64 edges, no-direction); same class fixed in egui slider arrows (were clamping via egui step) and Observe report (no-change counted Success); V4-06 audit 35 sites (8 fixed, 27 n/a, each pinned); V4-01 on descriptor.rs; 16 of 16 green, red-first",
    "review_findings_r3": "R3 FAIL_V1 remediated 605796f (regression tests fail on old code)",
    "r5_review_routed": {
     "to": "rem-controls",
@@ -1527,6 +1528,7 @@
   "SMB-COMPONENTS-FOLIO-MIGRATE",
   "SMB-PRISM-ENG-6",
   "SMB-PRISM-ENG-5",
-  "SMB-SCORE-PLUGIN"
+  "SMB-SCORE-PLUGIN",
+  "SMB-CONTROLS"
  ]
 }

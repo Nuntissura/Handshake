@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:48:18Z",
+ "updated_at": "2026-10-11T05:52:30Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -841,7 +841,7 @@
     "crates/hsk-studio-controls/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:52:30Z (SMB-CONTROLS READY at fec865b)"
   },
   {
    "name": "rem-web",

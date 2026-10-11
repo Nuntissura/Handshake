@@ -2,7 +2,7 @@
   "crate": "hsk-studio-controls",
   "lane": "SMB-CONTROLS-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R3 remediation pushed at 605796f (precision-9 fine step effective, typed StepNoEffect); 12 focused tests green (5 slice-1 + 4 slice-2 + 3 step_effect)",
+  "phase": "R5 remediation pushed at fec865b: one no-effect rule (ControlSpec::moved) for every discrete move, slider arrows through the descriptor step, no-change reports by route, refused End documented; 16 focused tests green",
   "commits": [
     {
       "sha": "a1d0fbd",
@@ -19,6 +19,10 @@
     {
       "sha": "605796f18966caf9023d6be22e79a9fcfd617fb4",
       "subject": "Controls: noise-removal grid follows precision (fine step stays effective at precision 9, scrub too), number step that cannot change the value is refused with typed StepNoEffect; 3 regression tests (R3 remediation)"
+    },
+    {
+      "sha": "fec865be8545104b86fd009a4a525ce74f60f4dc",
+      "subject": "Controls R5 remediation: one no-effect rule for every discrete move (integer step at i64::MAX/MIN and directionless steps refused with StepNoEffect), slider arrows routed through the descriptor step, no-change reports by route (live sample at a hard stop not terminal, stray abort Canceled), refused gesture End documented; V4-01 overflow-safe text parser; 4 regression tests"
     }
   ],
   "capabilities_done": [
@@ -31,20 +35,21 @@
     "slice 2: gesture protocol in ValueStore (STU-SHL-194): Update* -> Live events (not undo steps), End -> ONE Committed event press value -> final value (single undo step; net-zero gesture emits none), Abort/Escape -> restores press value, Aborted event excluded from undo; writes during a gesture refused; label scrub and slider both gesture-aware in the egui renderer",
     "slice 2: report module: one Observe terminal frame per operation (Success; Canceled for abort or cancelled token; Failure Validation|Unsupported|Unavailable), live samples emit nothing, values and ids never reach the sink",
     "slice 2: integer domain (`integer` kind, STU-FX-112): Value::Int, four i64 bounds, step=coarse=fine=1 regardless of modifiers, strict integer parser, OutOfHardBoundsInt, scrub rounds",
-    "slice 2: SectionSpec (ordered, collapsible, collapsed_by_default, parent chain) + ControlSpec.group_path; registry validates chains and shared id space; egui CollapsingHeader tree (PanelFrame reports rendered ids + header rects), agent JSON `sections` + group_path + is_default, manual section topics, audit reports empty sections; JSON round trip byte-identical"
+    "slice 2: SectionSpec (ordered, collapsible, collapsed_by_default, parent chain) + ControlSpec.group_path; registry validates chains and shared id space; egui CollapsingHeader tree (PanelFrame reports rendered ids + header rects), agent JSON `sections` + group_path + is_default, manual section topics, audit reports empty sections; JSON round trip byte-identical",
+    "R5 remediation: ControlSpec::moved is the single no-effect rule for every discrete move (number, integer, directionless); slider ArrowLeft/Right use step_value; report::outcome_of/report take the gesture phase (unchanged live sample not terminal, abort without gesture Canceled); refused gesture End keeps the gesture open (documented, tested); descriptor.rs under deny(clippy::arithmetic_side_effects)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-controls --tests",
     "exit": 0,
-    "sha": "605796f",
-    "passed": 12,
+    "sha": "fec865b",
+    "passed": 16,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "validator round (no new crates.io deps in slice 2: observe is an allowed path edge; Cargo.toml gained only the observe path edge). Next slice candidates: AccessKit projection (descriptor -> role/label/value text, same string as display per STU-SHL-193), wheel gesture (400 ms finalize), double-click reset / secondary-click menu (STU-SHL-195), search + show-only-non-default filters (STU-SHL-165 items 5/6), read-only expression state (STU-MOT-072), gesture-role rebinding config (STU-FX-149), PERCENT display flag",
-  "updated_at": "2026-10-11T03:18:23Z",
+  "next": "validator round on fec865b or later (no new crates.io deps; public API change: report::report/outcome_of gained a gesture parameter, ControlSpec::moved is crate-private; hsk-studio-harness cargo check --tests green). Later slice candidates unchanged: AccessKit projection, wheel gesture, double-click reset, search filters, PERCENT flag, angle kind",
+  "updated_at": "2026-10-11T05:52:01Z",
   "notes": {
     "fine_step_vs_precision": "Interpretation (accepted by lead pending spec enrichment): precision = declared DISPLAY decimal places; step=10^-precision, fine_step=step/10 and coarse_step=step*10 are DERIVED (STU-FX-110), fine_step may be finer than the display precision. Stored/accepted values keep full parsed precision; nothing rounds to precision silently. Step arithmetic only strips binary noise (1e-9 grid below 1e6).",
     "modifier_defaults": "RESOLVED slice 2 from STU-FX-149 / STU-SHL-190 (14-studio-creative-suite.md l.19006, l.32910): coarse Shift x10, fine Ctrl (Windows/Linux) or Command (macOS) /10, both x100, Alt has no numeric role; implemented as roles_from(egui::Modifiers) using egui `command`. Slice-1 Shift/Alt pick removed.",
@@ -147,6 +152,293 @@
         "store.rs:207-209 gesture End with Err outcome leaves the gesture open",
         "descriptor.rs integer step saturating_add no-op at i64::MAX (same defect class; integer path unchanged)"
       ]
+    },
+    "remediation_R5": {
+      "round": "STUDIO-R5",
+      "lane": "SMB-CONTROLS",
+      "verdict_addressed": "FAIL_V2 integer-step-silent-noop-at-saturation (review validation/R5-review-a.json, CONFIRMED)",
+      "fixes_commit": "fec865be8545104b86fd009a4a525ce74f60f4dc",
+      "failure_class": "no-effect move reported as success: a step/nudge/increment/clamp result or no-change store answer returned as Ok/Success while the value did not change (R3 number path, R5 integer path)",
+      "root_cause": "the no-effect check lived inside the number arm of step_value only, a second step implementation (egui's slider arrows) fed the clamping pointer route, and report mapped every store Ok(None) to Success without knowing the route",
+      "shared_rule": "ControlSpec::moved (crate-private, descriptor.rs): a discrete move must name a direction and land on a value different from current, else StepNoEffect; a changed target then passes validate_value (hard bounds reject). Absolute routes (typed/model set, pointer target, reset, gesture End) are idempotent: unchanged = requested value holds = Success. Live samples with no change are not terminal; Abort is Canceled",
+      "search_regex": "saturating_|wrapping_|checked_|step_value\\(|pointer_value\\(|\\.drag\\(|\\.max\\(m\\)|\\.min\\(m\\)|Ok\\(None\\)|Outcome::Success|key_pressed\\(Key::Arrow|\\.changed\\(\\)",
+      "search_scope": "rg -n over crates/hsk-studio-controls/src and examples at fec865b (examples: 0 matches)",
+      "site_count": {
+        "regex_matches": 35,
+        "listed": 35,
+        "fixed": 8
+      },
+      "sites": [
+        {
+          "site": "src/descriptor.rs:86",
+          "what": "pow10_neg saturating_neg",
+          "verdict": "not_applicable",
+          "evidence": "V4-01 explicit arithmetic for derived step sizes; not a move"
+        },
+        {
+          "site": "src/descriptor.rs:94",
+          "what": "clean_digits saturating_add",
+          "verdict": "not_applicable",
+          "evidence": "noise-removal grid digits; not a move"
+        },
+        {
+          "site": "src/descriptor.rs:126",
+          "what": "fine_step saturating_add",
+          "verdict": "not_applicable",
+          "evidence": "derived step size; not a move"
+        },
+        {
+          "site": "src/descriptor.rs:129",
+          "what": "coarse_step saturating_sub",
+          "verdict": "not_applicable",
+          "evidence": "derived step size; not a move"
+        },
+        {
+          "site": "src/descriptor.rs:274",
+          "what": "ScrubGesture::drag raw.max(hard_min)",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "pointer clamp is spec (STU-FX-110a, STU-SHL-192); its unchanged live sample is now non-terminal (report.rs:48); pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/descriptor.rs:277",
+          "what": "ScrubGesture::drag raw.min(hard_max)",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "as :274; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/descriptor.rs:653",
+          "what": "pointer_value (one-shot pointer target)",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "absolute route, clamps hard bounds by spec; unchanged result = requested value holds (store Ok(None), Success); pin tests/foundation_controls.rs fixture_numeric_legality_store_and_undo"
+        },
+        {
+          "site": "src/descriptor.rs:662",
+          "what": "pointer_value v.max(hard_min)",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "as :653"
+        },
+        {
+          "site": "src/descriptor.rs:665",
+          "what": "pointer_value v.min(hard_max)",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "as :653"
+        },
+        {
+          "site": "src/descriptor.rs:680",
+          "what": "step_value (the single step owner)",
+          "verdict": "fixed",
+          "evidence": "result goes through moved(); dir 0 refused before noise removal; pins tests/step_effect.rs integer_and_directionless_steps_at_the_domain_edge_are_refused; tests/step_effect.rs a_step_below_f64_resolution_is_refused_not_reported_as_success + every_declared_precision_steps_by_its_derived_increments"
+        },
+        {
+          "site": "src/descriptor.rs:693",
+          "what": "integer step saturating_add (R5 CONFIRMED)",
+          "verdict": "fixed",
+          "evidence": "i64::MAX+1 / MIN-1 unchanged -> StepNoEffect via moved(), all roles, store untouched; pin tests/step_effect.rs integer_and_directionless_steps_at_the_domain_edge_are_refused"
+        },
+        {
+          "site": "src/descriptor.rs:716",
+          "what": "doc comment of moved",
+          "verdict": "not_applicable",
+          "evidence": "documentation"
+        },
+        {
+          "site": "src/egui_adapter.rs:94",
+          "what": "text-field ArrowUp/Down read",
+          "verdict": "not_applicable",
+          "evidence": "feeds step_value (:212) and inherits moved()"
+        },
+        {
+          "site": "src/egui_adapter.rs:140",
+          "what": "slider ArrowRight/Left read (new)",
+          "verdict": "fixed",
+          "evidence": "slider arrows read by the adapter, not egui; pin tests/step_effect.rs slider_arrow_keys_use_the_descriptor_step_at_every_position"
+        },
+        {
+          "site": "src/egui_adapter.rs:145",
+          "what": "slider step_value call (new)",
+          "verdict": "fixed",
+          "evidence": "descriptor step incl. roles; at the hard bound OutOfHardBounds(Int), not unchanged success; pin tests/step_effect.rs slider_arrow_keys_use_the_descriptor_step_at_every_position"
+        },
+        {
+          "site": "src/egui_adapter.rs:147",
+          "what": "slider r.changed()",
+          "verdict": "fixed",
+          "evidence": "keyboard changes no longer taken from egui's slider value (was pointer_value clamp: unchanged success at the hard bound, jump against the pressed direction beyond the track, silent stop at the track end, no roles); pin tests/step_effect.rs slider_arrow_keys_use_the_descriptor_step_at_every_position"
+        },
+        {
+          "site": "src/egui_adapter.rs:150",
+          "what": "slider drag Update pointer_value",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "pointer clamp, live sample non-terminal; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/egui_adapter.rs:153",
+          "what": "slider one-frame click pointer_value",
+          "verdict": "fixed",
+          "evidence": "source was mislabelled Keyboard, now Pointer; absolute target, idempotent when unchanged"
+        },
+        {
+          "site": "src/egui_adapter.rs:194",
+          "what": "label scrub g.drag",
+          "verdict": "not_applicable_by_spec",
+          "evidence": "pointer clamp, live sample non-terminal; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/egui_adapter.rs:212",
+          "what": "text-field step_value",
+          "verdict": "not_applicable",
+          "evidence": "already the single step owner; inherits moved(); pins tests/step_effect.rs integer_and_directionless_steps_at_the_domain_edge_are_refused; tests/step_effect.rs a_step_below_f64_resolution_is_refused_not_reported_as_success + every_declared_precision_steps_by_its_derived_increments"
+        },
+        {
+          "site": "src/egui_adapter.rs:235",
+          "what": "toggle r.changed()",
+          "verdict": "not_applicable",
+          "evidence": "absolute set of the flipped bool; a checkbox change differs from current"
+        },
+        {
+          "site": "src/egui_adapter.rs:253",
+          "what": "color r.changed()",
+          "verdict": "not_applicable",
+          "evidence": "absolute set; an equal colour is idempotent Ok(None)"
+        },
+        {
+          "site": "src/egui_adapter.rs:342",
+          "what": "show_panel_and_apply Ok(None) arm",
+          "verdict": "not_applicable",
+          "evidence": "no event appended, nothing counted as a change; refusals go to `rejected`"
+        },
+        {
+          "site": "src/store.rs:134",
+          "what": "doc comment of write",
+          "verdict": "not_applicable",
+          "evidence": "documentation"
+        },
+        {
+          "site": "src/store.rs:146",
+          "what": "write old == new -> Ok(None)",
+          "verdict": "not_applicable",
+          "evidence": "the store's no-change signal; reported by route in report.rs; pin tests/foundation_controls.rs fixture_numeric_legality_store_and_undo (set same value -> None)"
+        },
+        {
+          "site": "src/store.rs:160",
+          "what": "doc comment of set",
+          "verdict": "not_applicable",
+          "evidence": "documentation"
+        },
+        {
+          "site": "src/store.rs:210",
+          "what": "End without open gesture -> Ok(None)",
+          "verdict": "not_applicable",
+          "evidence": "release without movement: Success, no undo step; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/store.rs:216",
+          "what": "End net zero -> Ok(None)",
+          "verdict": "not_applicable",
+          "evidence": "gesture finished where it began: Success, no undo step; pin tests/gesture_panel_report.rs gesture_semantics_integer_domain_and_undo_coalescing"
+        },
+        {
+          "site": "src/store.rs:229",
+          "what": "Abort without open gesture -> Ok(None)",
+          "verdict": "fixed",
+          "evidence": "was reported Success; now Canceled (report.rs:48); pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/report.rs:33",
+          "what": "doc comment of outcome_of",
+          "verdict": "not_applicable",
+          "evidence": "documentation"
+        },
+        {
+          "site": "src/report.rs:46",
+          "what": "Discrete|Committed -> Success",
+          "verdict": "not_applicable",
+          "evidence": "value changed"
+        },
+        {
+          "site": "src/report.rs:48",
+          "what": "Ok(None) mapping (was unconditional Success)",
+          "verdict": "fixed",
+          "evidence": "Update -> not terminal (clamped sample at a hard stop), Abort -> Canceled; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/report.rs:51",
+          "what": "End|discrete Ok(None) -> Success",
+          "verdict": "not_applicable",
+          "evidence": "absolute/idempotent routes only; relative steps refuse before the store; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture"
+        },
+        {
+          "site": "src/report.rs:57",
+          "what": "doc comment of report",
+          "verdict": "not_applicable",
+          "evidence": "documentation"
+        },
+        {
+          "site": "src/report.rs:68",
+          "what": "report let-else Ok(None)",
+          "verdict": "not_applicable",
+          "evidence": "non-terminal operations emit nothing"
+        }
+      ],
+      "value_kinds_audited_outside_regex": [
+        {
+          "kind": "choice/enum",
+          "verdict": "not_applicable",
+          "evidence": "no cycling route exists; step_value -> TypeMismatch; ComboBox skips the selected option (egui_adapter.rs `&o.id != selected`); pin tests/step_effect.rs integer_and_directionless_steps_at_the_domain_edge_are_refused"
+        },
+        {
+          "kind": "toggle",
+          "verdict": "not_applicable",
+          "evidence": "no step route; step_value -> TypeMismatch; pin tests/step_effect.rs integer_and_directionless_steps_at_the_domain_edge_are_refused"
+        },
+        {
+          "kind": "angle wrap",
+          "verdict": "not_applicable",
+          "evidence": "angle kind not modelled (known_gaps)"
+        },
+        {
+          "kind": "percent",
+          "verdict": "not_applicable",
+          "evidence": "no percent kind or display flag yet (next-slice candidate)"
+        },
+        {
+          "kind": "color/text",
+          "verdict": "not_applicable",
+          "evidence": "absolute sets only, no step route"
+        },
+        {
+          "kind": "undo",
+          "verdict": "not_applicable",
+          "evidence": "store.undo refuses with Stale when the value no longer matches; events never have old == new; pin tests/foundation_controls.rs fixture_numeric_legality_store_and_undo"
+        },
+        {
+          "kind": "agent step_up/step_down (projection actions)",
+          "verdict": "not_applicable",
+          "evidence": "no executor in the crate; defined as step_value, so moved() applies"
+        }
+      ],
+      "plausible_items": [
+        {
+          "item": "store.rs End with Err outcome leaves the gesture open (R5-review-a PLAUSIBLE)",
+          "resolution": "documented as the protocol (refused End = store untouched incl. the open gesture; caller sends a legal End or Abort) on GesturePhase::End and apply; pin tests/step_effect.rs no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture (NonFinite and out-of-hard End refused, gesture open, set refused, legal End commits, Abort restores)"
+        }
+      ],
+      "v4_rules": {
+        "V4-01": "descriptor.rs (decodes typed text) carries deny(clippy::arithmetic_side_effects); 12 lint sites fixed: saturating step-size math, strict_decimal and parse_hex_color rewritten split/chunk-based without index arithmetic; pin tests/step_effect.rs typed_text_grammar_is_unchanged_by_the_overflow_safe_parser + existing junk list in tests/foundation_controls.rs fixture_numeric_legality_store_and_undo",
+        "V4-06": "class + regex + 35/35 sites listed above",
+        "V4-07": "doc claims added or edited in this change cite their tests (moved, step_value, clean_digits, slider, outcome_of, GesturePhase::End, report module); DESCRIPTOR gained steps.proof and hard_violation_proof; pre-existing never/always claims in untouched doc blocks were not swept",
+        "V4-09": "commit message via git commit -F"
+      },
+      "red_proof": "pre-fix behaviour restored in the working tree by script (integer arm without moved, dir-0 guard off, slider arrows via egui value, report Ok(None) -> Success): step_effect 4 passed / 3 failed (integer_and_directionless..., slider_arrow_keys..., no_change_is_reported...); restored, git diff --quiet on the crate = identical to fec865b. Note: the first slider assertion (0.5 -> 0.51) also held under egui's own arrows by coincidence; the coarse, track-end, beyond-track and hard-bound assertions discriminate",
+      "green_proof": "cargo test -p hsk-studio-controls --tests: 16 passed 0 failed (5 foundation + 4 gesture + 7 step_effect) on crate content byte-identical to fec865b; cargo clippy -p hsk-studio-controls --tests clean for controls; cargo check -p hsk-studio-harness --tests green",
+      "retry_guard": "no hook block. The intentional RED run (cargo test --test step_effect on reverted code) is a recorded failure; it was not rerun (route a: the fix is the committed code; GREEN came from the --tests run on identical content)",
+      "api": "report::outcome_of and report::report take gesture: Option<GesturePhase> (no external callers; harness uses neither); slider one-frame track click now has ChangeSource::Pointer (was Keyboard)",
+      "observed_out_of_class": [
+        "a rejected live sample (Update with Err) still emits a terminal Failure frame mid-gesture (report.rs Err arm); not a success report, left unchanged",
+        "number step at magnitudes where the f64 spacing exceeds the step (e.g. 1e16 at precision 0) can move by the spacing, not the declared step; changed value, so outside the no-effect class; spec silent",
+        "no ValueStore-level step executor: hosts executing agent step_up/step_down compute step_value from store.get; stale-input steps would reach the store as absolute sets"
+      ],
+      "format": "cargo fmt not applied (crate not rustfmt-clean at baseline); CRLF files kept CRLF"
     }
   }
 }
