@@ -64,7 +64,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "Independent validator round on 9468d33. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE coverage.rs per-pixel cost not charged at prepare. Pigment/composite/render-gpu could map pass-through fill < 1 to Operator::PassThroughOpacity at validate so every backend refuses it at admit; render-cpu refuses it in prepare, still before any sink call.",
-  "updated_at": "2026-10-11T03:18:00Z",
+  "updated_at": "2026-10-11T03:19:12Z",
   "notes": {
     "clip_lane": {
       "lane": "SMB-RENDER-CPU-CLIP",
@@ -137,7 +137,13 @@
       "red_before_fix": "verified: fill check disabled -> fill test FAILED; pre-fix plan_sink.rs (git HEAD blob) with the sink-panic test limited to threads 2/4 -> 30 s case deadline exceeded (the reported hang); fix restored byte-identical afterwards.",
       "tests_run": "render-cpu --lib --test cpu_plan --examples 11/11 (1 unit + 10 integration); clippy --tests --examples clean; no crate depends on render-cpu",
       "process": "first test invocations did not compile (missing import in the new test module, then another lane's transient hsk-studio-folio compile error); the identical-retry guard then blocked the same argv, so the targets were rerun as narrower per-target/filtered commands. No gameplan step added.",
-      "date": "2026-10-11T03:18:00Z"
+      "date": "2026-10-11T03:18:00Z",
+      "clip_base_pass_through_test": {
+        "test": "tests/cpu_plan.rs clip_to_base_hidden_base_lowering_shape_and_refusals (assertion at ~1881)",
+        "cause": "expectation change, not a regression: pigment 276e2a3 made RenderPlan::validate refuse a pass-through clip base, so admit() now returns BackendError::InvalidPlan(PlanError::ClipBasePassThrough{node:4}) before render-cpu prepare() could return Unsupported{clip_base_pass_through}; the plan, 0 sink calls and 0 scratch assertions are unchanged",
+        "fixed_in": "9468d33 (render-cpu); the test failed on the shared tree only between pigment 276e2a3 and render-cpu 9468d33 (pigment is committed first by assignment order)",
+        "verified": "render-cpu --lib --test cpu_plan --examples 11/11 and clip_to_base filter 3/3 on the pushed state"
+      }
     }
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:19:05Z",
+ "updated_at": "2026-10-11T03:21:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -94,23 +94,24 @@
    "lane_id": "SMB-COMPONENTS",
    "crate": "hsk-studio-components",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-components",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-components",
    "brief": null,
    "commits": [
     "69b63c1",
     "423cb0f",
     "556237d",
-    "f8b5328"
+    "f8b5328",
+    "0111960"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-components.json",
-   "candidate": "f8b5328",
+   "candidate": "0111960",
    "note": "slice1+2: + own auto-layout evaluator (taffy not adopted: semantics differ, UNVERIFIED); 9 tests + mutants",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 findings remediated 0111960"
   },
   {
    "lane_id": "SMB-PULSE",
@@ -396,20 +397,21 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pulse (reused)",
    "brief": "builders/briefs/hsk-studio-interop-media.md",
    "commits": [
-    "8be9cee"
+    "8be9cee",
+    "4a6bb19"
    ],
    "verdicts": [
     "STUDIO-R3 BLOCKED @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-media.json",
-   "candidate": "8be9cee",
-   "note": "CMX3600 EDL import/export fixed point; native formats detection-only blocked; 4 tests; time.rs duplicates pulse (pending edge D9)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "candidate": "4a6bb19",
+   "note": "CMX3600 EDL import/export fixed point; native formats detection-only blocked; 4 tests; time.rs duplicates pulse (pending edge D9); timecode label dup with pulse remains open on D9",
+   "review_findings_r3": "R3 findings remediated 4a6bb19"
   },
   {
    "lane_id": "SMB-CONTROLS",
@@ -436,8 +438,8 @@
    "lane_id": "SMB-SESSION",
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-session",
    "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [
@@ -446,15 +448,17 @@
     "6a162da",
     "c3bcecd",
     "0a6f920",
-    "6d0616f"
+    "6d0616f",
+    "63c1f5d",
+    "943a0d2"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-session.json",
-   "candidate": "6d0616f",
+   "candidate": "943a0d2",
    "note": "slices1-3: + lazy assets (measured residency), host previews; 11 tests + break-it; streaming save NOT met (needs package writer API)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 findings remediated 63c1f5d,943a0d2"
   },
   {
    "lane_id": "SMB-HARNESS",

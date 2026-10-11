@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-media",
   "lane": "SMB-INTEROP-MEDIA",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap",
+  "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap; R3 remediation: tick->frame math on accord (timecode label duplication with pulse remains: D9 pulse edge BLOCKED on Operator decision)",
   "commits": [
     {
       "sha": "8be9cee8603fec9bce780550b87d5a2d61d085dc",
@@ -11,6 +11,10 @@
     {
       "sha": "9575239193da1311816216cfe32b2f212264a92c",
       "subject": "Interop-media: rational_to_ticks, frame_rate_from_fraction, fps_fraction delegate to accord Timescale/FrameRate (CX-CAP-001); timecode label collapse onto pulse still pending the pulse path dependency"
+    },
+    {
+      "sha": "4a6bb19",
+      "subject": "Interop-media R3: tick->frame math and ratio reduction delegate to accord Timescale (D9 pulse edge stays blocked)"
     }
   ],
   "capabilities_done": [
@@ -22,13 +26,14 @@
     "time adapters: parse_frame_rate (integer, n/d, decimal aliases 23.976/29.97/59.94 with RateSpelling receipt), frame_rate_from_ticks (legacy normalization receipt), timecode_to_frames / frames_to_timecode incl. drop-frame, rational_to_ticks with Exactness (Exact / NormalizedLegacy / Approximate(HalfAwayFromZero))",
     "native gap: sniff_native (gzip magic = PRPROJ candidate, RIFX = AEP candidate, XML root sesx / AfterEffectsProject), import_native always blocked with Missing loss for 7 entity classes; detection strings are UNVERIFIED candidates (need black-box saves)",
     "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2",
-    "SMB-ACCORD-ENG-2 migration part 1 (9575239): rational_to_ticks -> Timescale::rational(num,den).ticks_from_units(.., NearestHalfUp) (Exactness/RoundingRule public types and every error kind unchanged; negative -> NegativeTime, zero -> InvalidRational, overflow -> TimecodeOverflow); frame_rate_from_fraction -> FrameRate::from_fps after the InvalidFrameRate zero check; fps_fraction -> FrameRate::fps_fraction. reduce/gcd stay (edl.rs derive_speed ratio reduction)."
+    "SMB-ACCORD-ENG-2 migration part 1 (9575239): rational_to_ticks -> Timescale::rational(num,den).ticks_from_units(.., NearestHalfUp) (Exactness/RoundingRule public types and every error kind unchanged; negative -> NegativeTime, zero -> InvalidRational, overflow -> TimecodeOverflow); frame_rate_from_fraction -> FrameRate::from_fps after the InvalidFrameRate zero check; fps_fraction -> FrameRate::fps_fraction. reduce/gcd stay (edl.rs derive_speed ratio reduction).",
+    "R3 remediation (4a6bb19): ticks_to_frames_exact = Timescale::rational(fps_fraction).units_from_ticks(Floor), remainder -> NotFrameAligned (was a local ticks-per-frame division); the local gcd/reduce is replaced by the reduced Timescale ratio (reduce() now returns Result, used by derive_speed in edl.rs, failure -> InvalidSpeed at the event line). Public API, error kinds and expected values unchanged."
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-interop-media --tests --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-interop-media --tests",
     "exit": 0,
-    "sha": "9575239193da1311816216cfe32b2f212264a92c",
-    "passed": 4,
+    "sha": "4a6bb19",
+    "passed": 6,
     "failed": 0
   },
   "blockers": [
@@ -40,8 +45,8 @@
   ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "D9 once the Cargo.toml edge is permitted: add hsk-studio-pulse = { path = \"../hsk-studio-pulse\", version = \"=0.1.0\", default-features = false }; add impl From<PulseError> for InteropError in error.rs (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode); time.rs: timecode_format() = pulse::TimecodeFormat::new; frames_to_timecode = pulse::frames_to_timecode + hours>99 -> TimecodeOverflow + Display; timecode_to_frames = interop syntax bound (len 11..13, <=3 digits/field) -> pulse::parse_timecode -> ';' with non-drop = DropMismatch -> set drop flag -> minutes/seconds/frames range pre-check = InvalidTimecode -> pulse::timecode_to_frames, whose only remaining InvalidTimecode is a dropped label = DroppedTimecode; ticks_to_frames_exact = pulse::ticks_to_frames_exact; delete nominal/Base/base. Then the steward adds the root allowed edge. Earlier next: OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
-  "updated_at": "2026-10-11T02:33:56Z",
+  "next": "Validator round on 4a6bb19. D9 once the Cargo.toml edge is permitted: add hsk-studio-pulse = { path = \"../hsk-studio-pulse\", version = \"=0.1.0\", default-features = false }; add impl From<PulseError> for InteropError in error.rs (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode); time.rs: timecode_format() = pulse::TimecodeFormat::new; frames_to_timecode = pulse::frames_to_timecode + hours>99 -> TimecodeOverflow + Display; timecode_to_frames = interop syntax bound (len 11..13, <=3 digits/field) -> pulse::parse_timecode -> ';' with non-drop = DropMismatch -> set drop flag -> minutes/seconds/frames range pre-check = InvalidTimecode -> pulse::timecode_to_frames, whose only remaining InvalidTimecode is a dropped label = DroppedTimecode; ticks_to_frames_exact = pulse::ticks_to_frames_exact; delete nominal/Base/base. Then the steward adds the root allowed edge. Earlier next: OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
+  "updated_at": "2026-10-11T03:20:58Z",
   "notes": {
     "mt": "MT-35552",
     "oracle_values": {
@@ -106,6 +111,35 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-INTEROP-MEDIA",
+      "commit": "4a6bb19",
+      "fixed": [
+        {
+          "finding": "time.rs:248 ticks_to_frames_exact did local tick/tpf division with is_multiple_of (duplicates pulse and accord Timescale::units_from_ticks; used by export at edl.rs:570)",
+          "fix": "delegates to accord Timescale::rational(rate.fps_fraction()).units_from_ticks(ticks, Floor); inexact -> NotFrameAligned",
+          "test": "ticks_to_frames_exact_is_exact_on_every_table_rate_and_refuses_off_frame_ticks (10 table rates, hand-computed ticks per frame, independent u128 oracle, frame 0..u64::MAX/tpf boundaries, +-1 tick refusals, export refuses an off-frame record)"
+        },
+        {
+          "finding": "(PLAUSIBLE) time.rs:18-29 local gcd/reduce for the speed span/duration ratio",
+          "fix": "reduce() returns Timescale::rational(num, den).units_per_second(); local gcd deleted",
+          "test": "tick_frame_and_ratio_math_has_no_local_copy (source guard: no local division in ticks_to_frames_exact, no fn gcd, no pulse in Cargo.toml) plus the unchanged M2 speed expectations in edl_fixture_ticks_losses_and_folio_sequence"
+        }
+      ],
+      "d9_recorded_not_fixed": {
+        "finding": "(CONFIRMED) nominal(), timecode_to_frames and frames_to_timecode re-implement pulse time.rs (nominal:87, frames_to_timecode:166, timecode_to_frames:195, parse_timecode:245) - CX-CAP-001 duplicate of the label arithmetic",
+        "status": "OPEN, BLOCKED on Operator decision D9: the interop-media -> pulse edge is not allowed; no pulse dependency was added and Cargo.toml is untouched. The label arithmetic stays in src/time.rs with the module NOTE updated to say so.",
+        "resolution_plan": "unchanged from `next`: after D9 and the steward's root edge, add the path dependency and collapse nominal/Base/timecode functions onto pulse. The guard in tests/foundation_contract.rs (tick_frame_and_ratio_math_has_no_local_copy) asserts the edge is absent and must be updated in that commit.",
+        "lane_state": "the lane stays BLOCKED on this one finding even though status is READY_FOR_VALIDATION for the rest"
+      },
+      "r3_plausible_not_in_this_pass": [
+        "folio_map.rs sanitize is not injective (reels R#1 and R$1 both become offline-reel-R_1)",
+        "import accepts 3-digit timecode hours but frames_to_timecode refuses hours > 99 (asymmetric round trip, typed TimecodeOverflow)"
+      ],
+      "evidence": "cargo test -p hsk-studio-interop-media --tests: 6 passed (4 earlier unchanged + 2 new); cargo clippy -p hsk-studio-interop-media --tests --examples clean; rustfmt applied to the crate",
+      "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
+    }
   }
 }
