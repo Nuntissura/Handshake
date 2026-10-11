@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:08:06Z",
+ "updated_at": "2026-10-11T06:08:54Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -665,7 +665,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running (correction: opaque text blocks proof); retire after this (context ~800k), next press slice -> fresh builder"
+   "status": "retired (dd1df63 done; context full; next press slice -> fresh builder)"
   },
   {
    "name": "validator-r5",

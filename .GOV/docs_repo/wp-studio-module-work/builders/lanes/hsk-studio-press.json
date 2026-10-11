@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press slice 5",
+  "lane": "MT-35557 press slice 5 + opaque_text correction",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 5 complete (raster_unsearchable class, RemoveImages, file targets, embedded-file names, XMP everywhere, ToUnicode in the payload proof, V4-01/02/07/08/09 applied); remediation R5 and slice 4 landed earlier",
+  "phase": "slice 5 complete (raster_unsearchable class, RemoveImages, file targets, embedded-file names, XMP everywhere, ToUnicode in the payload proof, V4-01/02/07/08/09 applied); lead correction landed: unreadable composite text blocks the proof (NotProven::OpaqueText)",
   "commits": [
     {
       "sha": "70b4c74",
@@ -55,6 +55,10 @@
     {
       "sha": "272909b",
       "subject": "Press V4-01: deny clippy::arithmetic_side_effects on the touched pdf_edit and error modules"
+    },
+    {
+      "sha": "dd1df63",
+      "subject": "Press: unreadable composite text blocks the proof (NotProven::OpaqueText), typed not_proven_reasons"
     }
   ],
   "capabilities_done": [
@@ -91,20 +95,21 @@
     "slice 5 (4) /Metadata XMP of pages, images, forms (and the catalog) is judged: a match drops the key (role Xmp, kind Dropped), info_fields flag",
     "slice 5 (5) payload proof reads /ToUnicode: show_text.rs reads page content, forms and appearances through each font's CMap (cached per font object, decoded under the shared budget); needle text comes from RedactionReport.removed_unicode (new) or the needle bytes; kept page text = collision, appearance text = hit (PayloadLocation::DecodedText); verify_payload_absent_unicode; composite-font text without a map is listed in PayloadProof.opaque_text_streams (not blocking)",
     "slice 5 (6) matching ignores case, runs of white space (incl. no-break space) and zero-width characters (Matcher normalizes both needle and text and maps spans back to the original); PDF string tokenization tests cover escapes (octal, hex, name #xx), nested parentheses, comment decoys, wrongly cased names",
-    "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F"
+    "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F",
+    "lead correction (class 'proven while some text was never checked'): PayloadProof.needles_searched counts the distinct needles searched; when it is > 0 and opaque_text_streams is not empty (composite-font text without a usable /ToUnicode), PayloadProof::is_clean, RedactedOutput::region_cleared / is_proven and TextRedactedOutput::is_proven are false with the typed reason NotProven::OpaqueText; PayloadProof::not_proven_reasons / RedactedOutput::not_proven_reasons / TextRedactedOutput::not_proven_reasons return every reason (codes leak, structure, undecodable_stream, opaque_text, region_incomplete, residual_in_region, text_fields_kept); press-consumer prints not_proven; test opaque_composite_text_blocks_the_proof fails on 272909b (RED run observed: reasons [] = proven)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
     "exit": 0,
-    "sha": "272909b",
-    "passed": 23,
+    "sha": "dd1df63",
+    "passed": 24,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on 272909b (one test target, 23 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4 + 5 slice 5). Then: V4-01 for the untouched decoder modules filters, reader, syntax, writer (crate-wide arithmetic deny); Acrobat-saved fixture oracle (outline, annotation text, destinations, file targets); other name trees, SubmitForm /Fields, embedded-file content; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T06:03:01Z",
+  "next": "Validator round on dd1df63 (one test target, 24 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4 + 5 slice 5 + 1 opaque_text). Then: V4-01 for the untouched decoder modules filters, reader, syntax, writer (crate-wide arithmetic deny); Acrobat-saved fixture oracle (outline, annotation text, destinations, file targets); other name trees, SubmitForm /Fields, embedded-file content; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T06:08:06Z",
   "notes": {
     "test_names": [
       "pdf_object_edit_save_independent_reopen",
@@ -129,7 +134,8 @@
       "file_targets_embedded_names_and_xmp_redacted",
       "proof_reads_tounicode_text_and_region_needles",
       "hostile_decoder_bounds_dims_and_aggregate",
-      "pdf_string_tokenization_adversarial"
+      "pdf_string_tokenization_adversarial",
+      "opaque_composite_text_blocks_the_proof"
     ],
     "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
@@ -203,6 +209,7 @@
       "The inline-image classification reads the BI dictionary operands; a malformed filter entry blocks as 'inline:filter_entry'.",
       "Proof text matching is case-sensitive exact spelling over the ToUnicode text, like the byte scan."
     ],
+    "opaque_text_decision": "The lead's exception clause (stream removed by policy, or wholly outside every region AND no text-needle search requested) is implemented as: a stream removed by policy is not in the saved file, so it is not listed; otherwise opaque text blocks exactly when a needle search ran (needles_searched > 0), wherever on the page it is, because the proof has no per-stream geometry. Two earlier tests that drew unreadable composite text next to is_proven (proof_reads_tounicode_text_and_region_needles, popup_irt_annotations_and_composite_font_appearances) now state NotProven::OpaqueText; the first also checks that the same page without the F3 text is proven. Route for the one failing full run after the rule: product expectation changed -> fix committed (dd1df63) -> rerun (route a). V4-11 acknowledged: the backup/restore of sanitized_save.rs for the RED run was followed by touch.",
     "slice5_infra_note": "One cargo test run failed to compile with errors saying the library lacked items that exist in the source (stale rlib after concurrent builds in the shared target dir); touching the sources fixed it and the identical command then ran. Cause: stale artifact in the shared warm target, not a product failure. No gameplan step added (no machine check can see it; the lead may want a mtime-based preparation check). Retry-guard: the later identical failure of pdf_string_tokenization_adversarial was a test-data bug (hex URI spelled only the needle) fixed by commit 5a91fd7 (route a: product failure -> commit -> rerun).",
     "verdicts": [
       {

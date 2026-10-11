@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:08:06Z",
+ "updated_at": "2026-10-11T06:08:54Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -593,13 +593,14 @@
     "1df11b2",
     "cb38b86",
     "e75bd5a",
-    "272909b"
+    "272909b",
+    "dd1df63"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)"
    ],
-   "candidate": "272909b",
-   "note": "slice 5 (6e95976, 5a91fd7, 70c2ace, 272909b): raster class per lead decision (decodable prefix still scanned), RemoveImages policy, file targets GoToR/GoToE/Launch/ImportData/SubmitForm/AF/FS, embedded-file names opaque, XMP on pages/images/forms, ToUnicode text in proof (DecodedText hits), case/whitespace/zero-width-insensitive matching, V4-01 on 10 modules; 23 of 23 green; CORRECTION requested: opaque_text_streams must block is_proven (R5 class)",
+   "candidate": "dd1df63",
+   "note": "correction: opaque composite text blocks is_clean/region_cleared/is_proven whenever a needle search ran (NotProven::OpaqueText), not_proven_reasons() listed and printed; red when check disabled; 24 of 24 green",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
