@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T08:05:44Z",
+ "updated_at": "2026-10-11T08:06:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -641,13 +641,14 @@
     "95dee5e",
     "2c78bfa",
     "a7d631c",
-    "be2ee84"
+    "be2ee84",
+    "111f4ed"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "be2ee84",
-   "note": "R5: tickets bound to account+principal+resource (release by other owner refused), canonical wire via re-encode byte equality, PLAUSIBLE lease_epoch u64::MAX fencing fixed (stale_epoch / epoch_not_issued), V4-01 on wire/host/adapter; 10 green; no red proof (break-it edits denied by permission system); V4-04 fault hooks -> follow-up dispatched",
+   "candidate": "111f4ed",
+   "note": "R5: tickets bound to account+principal+resource (release by other owner refused), canonical wire via re-encode byte equality, PLAUSIBLE lease_epoch u64::MAX fencing fixed (stale_epoch / epoch_not_issued), V4-01 on wire/host/adapter; 10 green; no red proof (break-it edits denied by permission system); V4-04 fault hooks -> follow-up dispatched; V4-04 111f4ed: fault hooks only under cfg(any(test, feature=test-faults)), source-scan + 3 compile_fail doctests, 11 green default/feature",
    "r5_review_routed": {
     "to": "rem-kb-harness",
     "at": "2026-10-11T05:31:12Z",
@@ -1981,7 +1982,9 @@
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
- "steward_next_sync": [],
+ "steward_next_sync": [
+  "round-features: hsk-studio-kernel-bindings = [[\"test-faults\"]] (111f4ed)"
+ ],
  "round_R4": {
   "candidate": "2abb984",
   "status": "ABANDONED",
@@ -2143,6 +2146,18 @@
    "SMB-MOTION-JS (FIX_FIRST)",
    "SMB-MOTION-JS-WORKER (judge with motion-js fix)",
    "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "status": "STOPPED",
+  "stopped_at": "2026-10-11T08:06:27Z",
+  "reason": "session usage limit: lead stopped validator + 3 reviewers to save the grace allowance; reviews were written incrementally (partial files may exist); rerun R7 on a fresh steward sync after the reset"
+ },
+ "resume_plan": {
+  "at": "2026-10-11T08:06:27Z",
+  "steps": [
+   "1. Check agents that were still running at the limit (rem-press-soundness opus, rem-motionjs-nul, builder-prism-eng8 (FIX_FIRST prism-eng-5/6 first), builder-develop-prereview, builder-psd-receipt (+ Blend-If clip losses), builder-vector-records, builder-blendif-adopt): read their lane files + git log; resume or relaunch with commit-what-is-green.",
+   "2. Fresh steward: sync with kernel-bindings test-faults matrix + any new dep requests; canary in steward-export target (disk lock @2).",
+   "3. Rerun R7 (validator + 3 reviewers) on the new sync; exclusions per ledger round_R7.excluded unless pre-review fixes landed (then judge them).",
+   "4. Workflow agent tick 4: plausible-findings decision register."
   ]
  }
 }

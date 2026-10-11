@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T08:05:44Z",
+ "updated_at": "2026-10-11T08:06:27Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1237,7 +1237,7 @@
     "crates/hsk-studio-kernel-bindings/**"
    ],
    "launched": "2026-10-11T07:47:52Z",
-   "status": "running"
+   "status": "done 2026-10-11T08:06:27Z (111f4ed)"
   },
   {
    "name": "builder-prism-eng8",
@@ -1305,7 +1305,7 @@
     "lane verdicts"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
   },
   {
    "name": "reviewer-r7-a",
@@ -1316,7 +1316,7 @@
     "validation/R7-review-a.json"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
   },
   {
    "name": "reviewer-r7-b",
@@ -1327,7 +1327,7 @@
     "validation/R7-review-b.json"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
   },
   {
    "name": "reviewer-r7-c",
@@ -1338,7 +1338,7 @@
     "validation/R7-review-c.json"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
   },
   {
    "name": "builder-blendif-adopt",

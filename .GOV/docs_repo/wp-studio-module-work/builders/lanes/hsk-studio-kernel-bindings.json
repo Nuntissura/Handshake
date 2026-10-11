@@ -2,26 +2,29 @@
   "crate": "hsk-studio-kernel-bindings",
   "lane": "MT-35556 slice 1 + R5 remediation",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation pushed (be2ee84): job tickets bound to owner, canonical-only wire decoding, host-owned lease epoch; 10 contract tests green at pushed HEAD c41b067",
+  "phase": "V4-04 pushed (111f4ed) on top of the R5 remediation (be2ee84): fault-injection hooks gated behind the non-default test-faults feature; 11 contract tests + 3 compile_fail doctests green at 111f4ed with and without the feature; the claim for validation is be2ee84 + 111f4ed (crate files only)",
   "commits": [
     {"sha": "95dee5e", "subject": "KernelBindings slice 1a: versioned strict wire envelopes, transient host, BridgePorts implementing session GrantPort/CommitPort/JobPort"},
     {"sha": "2c78bfa", "subject": "KernelBindings slice 1b: five contract tests, kernel-bindings-consumer example, revoked-vs-missing grant reasons, strict whitespace framing"},
     {"sha": "a7d631c", "subject": "KernelBindings slice 1c: clippy clean; break-it verified"},
-    {"sha": "be2ee84", "subject": "KernelBindings R5 remediation: job tickets bound to their owner, canonical-only wire decoding, host-owned lease epoch"}
+    {"sha": "be2ee84", "subject": "KernelBindings R5 remediation: job tickets bound to their owner, canonical-only wire decoding, host-owned lease epoch"},
+    {"sha": "111f4ed", "subject": "KernelBindings V4-04: fault-injection hooks only under cfg(test) or the non-default test-faults feature"}
   ],
   "capabilities_done": [
     "wire: Envelope{bridge_version,correlation_id,idempotency_key,actor,resource_id,expected_revision,lease_epoch,body} with bodies grant_check|commit|lookup|job_admit|job_release|diagnostic and Reply{bridge_version,correlation_id,result}; canonical compact JSON; decode refuses unknown/duplicate fields, foreign bridge_version (read first, alone), leading/trailing bytes, oversize, invalid DomainId, invalid actor/key, non-lowercase hex, and (R5) anything that does not re-encode to the input bytes (non_canonical); stable distinct codes (12 asserted in wire_strictness_and_descriptor, non_canonical in only_canonical_bytes_decode)",
     "host: HostBridge + TransientHost (memory only): grants per principal/resource/action with revoke, commit rechecks grant even for a known key, idempotency bound to principal+resource+binding, lease-epoch fence, expected-revision compare, successor == expected+1 (checked), monotonic receipts, FaultPlan, independent inspection API; R5: job tickets bound to account+principal+resource (admission needs a standing grant, release by another owner is job denied not_ticket_owner), lease epoch host-owned (older = stale_epoch, newer = rejected epoch_not_issued, never adopted)",
     "adapter: BridgePorts<H>.grants()/commits()/jobs() over session GrantPort/CommitPort/JobPort; no/undecodable/mismatched reply => denied grant, refused job, commit Unknown; lookup() for reconcile; one best-effort diagnostic per terminal commit result",
-    "DESCRIPTOR with storage NONE, later_host_adapters (7, all NOT_IMPLEMENTED_HOST_ONLY) and proven_by (claim -> test) ; example kernel-bindings-consumer"
+    "DESCRIPTOR with storage NONE, later_host_adapters (7, all NOT_IMPLEMENTED_HOST_ONLY) and proven_by (claim -> test) ; example kernel-bindings-consumer",
+    "V4-04: Fault, TransientHost::plan_fault and the host code behind them (src/host/faults.rs) exist only under cfg(any(test, feature = \"test-faults\")); default build has none; example --drop-ack needs the feature (default exits 2 with a message)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-kernel-bindings --tests",
+    "argv": "cargo nextest run -p hsk-studio-kernel-bindings [--features test-faults]; cargo test --doc -p hsk-studio-kernel-bindings [--features test-faults] (studio-env refuses plain cargo test)",
     "exit": 0,
-    "sha": "c41b067",
-    "passed": 10,
+    "sha": "111f4ed",
+    "passed": 11,
     "failed": 0,
     "names": [
+      "fault_hooks_exist_only_under_the_test_faults_feature",
       "roundtrip_envelopes_through_session_and_idempotent_replay",
       "fail_closed_on_absent_or_revoked_grant",
       "stale_epoch_conflict_and_unknown_outcome",
@@ -33,14 +36,52 @@
       "only_canonical_bytes_decode",
       "hostile_sizes_are_refused_typed"
     ],
-    "clippy": "cargo clippy -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests --examples at c41b067: clean (only the two pre-existing observe too_many_arguments warnings)"
+    "by_feature_set": "111f4ed: default features nextest 11 passed + 1 skipped (the ignored marker fault_scenarios_need_the_test_faults_feature); --features test-faults nextest 11 passed, 0 skipped; doctests default 3 compile_fail passed (FAULT_HOOKS_ARE_NOT_PUBLIC), with the feature 0 doctests (item compiled out)",
+    "clippy": "cargo clippy -p hsk-studio-kernel-bindings --tests --examples, default and --features test-faults, at 111f4ed: clean (only the two pre-existing observe too_many_arguments warnings). hsk-studio-harness has no dependency edge to kernel-bindings (grep of every crate manifest), so it is unaffected"
   },
   "blockers": [],
   "lock_wait_s": 120,
   "bg_pids": [],
-  "next": "Validator round (R5 group B re-check of SMB-KERNEL-BINDINGS). Open items for the lead: (1) V4-04: Fault/plan_fault (DropAck, RevokeBeforeCommit, BumpEpoch) is public in the default build; gating it behind a non-default test-faults feature needs .config/round-features.toml (steward-owned, outside this crate) so the round runs the tests with the feature; not done. (2) Undecodable/mismatched commit replies share the lost-reply path but have no dedicated test (DESCRIPTOR and adapter docs say so). (3) steward: serde/serde_json probe approval for this crate (older dep-request lines stand).",
-  "updated_at": "2026-10-11T07:44:08Z",
+  "next": "Validator round (R5 group B re-check of SMB-KERNEL-BINDINGS). Open items: (1) steward: add hsk-studio-kernel-bindings = [[\"test-faults\"]] to .config/round-features.toml (request appended to builders/dep-requests.jsonl, 2026-10-11T08:04:20Z); until then the round runs the default unit only, where the three fault scenarios are compiled out (the ignored marker fault_scenarios_need_the_test_faults_feature lists that gap). (2) Undecodable/mismatched commit replies share the lost-reply path but have no dedicated test (DESCRIPTOR and adapter docs say so). (3) steward: serde/serde_json probe approval for this crate (older dep-request lines stand).",
+  "updated_at": "2026-10-11T08:04:20Z",
   "notes": {
+    "v4_04": {
+      "commit": "111f4ed (pushed to codex/handshake-studio-assets; crate files only: Cargo.toml, examples/kernel-bindings-consumer.rs, src/host.rs, src/host/faults.rs (new), src/lib.rs, tests/bridge_contract.rs)",
+      "feature": "test-faults = [] in [features]; default = [] (checked by the scan test)",
+      "gate": "cfg(any(test, feature = \"test-faults\")) on mod faults, pub use faults::Fault, the State.faults field, the single call site in commit and the lib.rs re-export; cfg(feature = \"test-faults\") on the example scenario and on the three test blocks (examples and integration tests never see cfg(test) of the lib)",
+      "test_enable_route": "per-block cfg(feature) inside the two tests that need hooks (not required-features, not a self dev-dependency: both would drop or hide default-build coverage, and a self dev-dependency edits Cargo.lock which is steward-owned); default builds keep the non-fault halves and one ignored marker test; the round runs the fault halves via the requested round-features unit",
+      "default_build_proof": [
+        "tests/bridge_contract.rs fault_hooks_exist_only_under_the_test_faults_feature: walks src and examples, every line naming a hook word (Fault, plan_fault, DropAck, RevokeBeforeCommit, BumpEpoch, faults) needs the gate attribute on the line directly above it; exact site list asserted; Cargo.toml default = [] and test-faults = []",
+        "three compile_fail doctests on FAULT_HOOKS_ARE_NOT_PUBLIC (src/lib.rs): use ...::Fault; ...::Fault::DropAck; TransientHost::plan_fault as a path"
+      ],
+      "counterfactuals": "scratch edits to src/lib.rs only (saved copy restored byte-identical, sha256 19f764db..., then touched; nothing depends on this crate): (a) gate removed from pub use host::Fault, nextest --features test-faults: fault_hooks_exist_only_under_the_test_faults_feature FAILED with 'src/lib.rs:16: fault-injection hook without the test-faults gate directly above it: pub use host::Fault;'; (b) the const widened so it exists with the feature on, cargo test --doc --features test-faults: all 3 compile_fail doctests FAILED (the snippets compile when the hooks exist). Both failures are expected counterfactual results, not product failures, and were followed by the commit (HEAD change) before the final proof runs",
+      "route": "no gameplan step added: no infrastructure failure; the studio-env wrapper refuses plain cargo test, so tests ran as cargo nextest run (first attempt exited 2 before any compile); disk-lock waits were short",
+      "v4_06_site_list": {
+        "class": "public or reachable fault-injection hooks: items that let a caller force a failure mode (queued faults, forced revoke, forced epoch bump, forced lost reply) plus the code behind them",
+        "regex": "\\b(Fault|plan_fault|faults|DropAck|drop_ack|RevokeBeforeCommit|BumpEpoch|lose_reply|simulate\\w*|inject\\w*|fail_(next|once|after)|force_(fail|error)|chaos|sabotage)\\b",
+        "scope": "crates/hsk-studio-kernel-bindings/{src,examples,Cargo.toml} (tests listed separately); note \\b makes the token test-faults match 'faults'",
+        "matches_src_examples_manifest": 50,
+        "matches_tests": 37,
+        "sites": {
+          "hooks_fixed_gated": [
+            "src/host/faults.rs whole file (13 matching lines: Fault enum, plan_fault, before_commit); gated by mod faults",
+            "src/host.rs:27-28 mod faults; and :29-30 pub use faults::Fault;",
+            "src/host.rs:116-117 State.faults field",
+            "src/host.rs:372-373 let lose_reply = faults::before_commit(...) (the only call site)",
+            "src/lib.rs:16-17 pub use host::Fault;",
+            "examples/kernel-bindings-consumer.rs:107-108 plan_fault(Fault::DropAck) under cfg(feature), :109-110 default-build refusal (no hook)",
+            "tests/bridge_contract.rs plan_fault uses at lines 323 (RevokeBeforeCommit), 356 (BumpEpoch), 406 (DropAck), each inside a cfg(feature = test-faults) block"
+          ],
+          "not_applicable": [
+            "src/host.rs:374-375, 396, 458 lose_reply: constant false in a default build (cfg(not) branch), no caller input reaches it",
+            "src/host.rs:230, 235, 255, 511, 523 drop_ack: the reply-withheld flag threaded through dispatch/handle; always false unless a planned fault set it, so inert in a default build",
+            "cfg attribute lines and comments naming test-faults or faults (host.rs 24,25,27,29,116,371,372,374; lib.rs 16,26-29,33,37,41,43; examples 5,107,109; Cargo.toml 9,10; faults.rs 1,2,8): the gate or prose, not hooks",
+            "src/lib.rs DESCRIPTOR line: prose in a data string, skipped by the scan and weakened to 'only with the non-default test-faults feature' with proven_by citing the scan and doctests",
+            "tests/bridge_contract.rs scan test lines (891-909, 968-973): the word list and expected site list of the guard itself"
+          ]
+        }
+      }
+    },
     "oracle": "host state read through TransientHost inspection API (committed revision, receipt count, idempotency size, jobs in flight, diagnostics, lease epoch) and host-held document bytes parsed independently with folio::inspect_bytes; byte-level golden for the grant_check request",
     "break_it": "R1 slice: disabling the host expected-revision compare, the commit-time grant recheck, or mapping a lost reply to Rejected failed tests 2 and 3. R5 remediation: red proof on the 1d404f8 code was NOT run; the break-it edits (disable owner check, admit grant check, epoch guard, canonical check) were not permitted in this session. The new tests assert the exploit outcome directly (foreign release leaves jobs_in_flight unchanged; u64::MAX epoch leaves lease_epoch at the host value and the legitimate writer still commits; whitespace/key-order/escape/omitted-null variants return non_canonical); the pre-fix code accepts every one of those inputs by construction (decode had no re-encode check, release removed any ticket, commit stored envelope.lease_epoch).",
     "fixture": "tests/fixtures/doc-rev9.handshake (5099 bytes, session-consumer --demo, checked in)",
@@ -68,7 +109,7 @@
         "V4-01": "done for wire, host, adapter",
         "V4-02": "hostile_sizes_are_refused_typed: jobs u32::MAX, bytes u64::MAX, sum overflow, aggregate over the 64 MiB budget, document over max_document_bytes, update count over MAX_REVISION_UPDATES, u64::MAX fields round trip, successor wrap",
         "V4-03": "no test is vacuous; tests read no machine-local paths",
-        "V4-04": "NOT done, see next (1)",
+        "V4-04": "done at 111f4ed, see notes.v4_04 (round unit still needs the steward round-features entry, next (1))",
         "V4-05": "no duplicate added",
         "V4-07": "wire.rs, host.rs, adapter.rs docs and DESCRIPTOR claims cite their tests (DESCRIPTOR proven_by) or were weakened (never rejected -> lost reply tested only; no names/paths -> by construction)",
         "V4-08": "JSON wire: escape, whitespace, key-order, comment, case, single-quote and number-form decoys in only_canonical_bytes_decode",
