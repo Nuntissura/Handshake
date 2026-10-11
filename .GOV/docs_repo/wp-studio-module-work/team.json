@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:57:08Z",
+ "updated_at": "2026-10-11T06:04:14Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -573,7 +573,7 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
-   "status": "running (NOT_PROVEN accounting in round entrypoint + corpus root config; next sync pins fig + cpal) 2026-10-11T05:31:12Z"
+   "status": "idle (sync 9ab64c2 -> R6 candidate bd8533f, canary C8 exit 0 49 units; step-0 checks 71/72/73 live) 2026-10-11T06:04:14Z"
   },
   {
    "name": "builder-components-migrate",
@@ -641,7 +641,7 @@
     "builders/lanes/hsk-studio-score-plugin.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "done 2026-10-11T05:48:18Z (SMB-SCORE-PLUGIN READY at 67fdd10)"
+   "status": "running (CLAP fixture via corpus MANIFEST) 2026-10-11T06:04:14Z"
   },
   {
    "name": "builder-pulse-eng-1",
@@ -923,6 +923,51 @@
     "builders/lanes/hsk-studio-prism-eng7.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r6",
+   "agent_id": "a3516559ceb552c5d",
+   "model": "opus",
+   "role": "independent union round R6 on steward sync bd8533f",
+   "owns": [
+    "validation/round-R6.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r6-a",
+   "agent_id": "aebca1e5a6d01218e",
+   "model": "opus",
+   "role": "adversarial review R6 group A (pigment-eng-2, render-gpu, controls, develop, prism-eng-5/6, components)",
+   "owns": [
+    "validation/R6-review-a.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r6-b",
+   "agent_id": "ae3a58a1719c91bf6",
+   "model": "opus",
+   "role": "adversarial review R6 group B (score, score-device, score-plugin, press, web)",
+   "owns": [
+    "validation/R6-review-b.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r6-c",
+   "agent_id": "a04691cb1b5f34e1e",
+   "model": "opus",
+   "role": "adversarial review R6 group C (lrcat, interop-layout, interop-vector, interop-fig, pulse-eng-1)",
+   "owns": [
+    "validation/R6-review-c.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
    "status": "running"
   }
  ]

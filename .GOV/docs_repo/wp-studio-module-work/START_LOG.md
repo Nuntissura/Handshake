@@ -215,6 +215,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead acknowledgements 2026-10-11T05:47:08Z (prism ENG-6): (1) validated ENG-3 test changed to follow ICC.1:2022 8.10.2 intent fallback (spec-backed; ENG-3 is re-judged next round under CX-VAL-009); (2) Lab-indexed output CLUT interpolation is now trilinear to match lcms2 (ICC leaves CLUT interpolation implementation-defined) - PROVISIONAL, added to the D5 Photoshop oracle list; (3) re-pinned wide determinism digests and new WIDE_ENGINE_* receipt names accepted (prism moved to deterministic f64 evaluation; moxcms parse-only). D13 resolved in code: AdmittedWideEngine (e7cf81f) charges the caller ledger (STU-CON-044); develop adoption routed. Perf follow-up stub SMB-PRISM-ENG-7 (fast path with proven error bound).
 
+- Lead decision 2026-10-11T06:04:14Z: machine-local path check (round step 0, exit 72) uses pinned per-file hit counts in `.config/machine-paths.toml` for 10 files whose hits are hostile-input test vectors, synthetic catalog data, provenance records and corpus copy-script sources (none reads a host path); any new file or extra hit fails; deleting an entry makes that file strict. Accepted instead of corpus-config-only allow-list.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

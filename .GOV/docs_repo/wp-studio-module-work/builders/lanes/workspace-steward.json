@@ -2,14 +2,36 @@
  "crate": "workspace",
  "lane": "SMB-ROUND-ENTRYPOINT",
  "status": "READY_FOR_VALIDATION",
- "phase": "V4 step 0 policy + NOT_PROVEN + corpus convention + oracle fixture unit pushed; steward sync 9ab64c2 (fig, cpal, clack-host pins); R6 candidate bd8533f, canary C8 running",
+ "phase": "R6 candidate bd8533f (sync 9ab64c2 + entrypoint/policy/fixture config): steward canary C8 exit 0, 49 units; fc7822b adds motion-js quickjs+test-faults matrix for the next candidate",
  "commits": [
-  {"sha": "fd24723", "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"},
-  {"sha": "1d404f8", "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"},
-  {"sha": "4ea5171", "subject": "run-round: NOT_PROVEN accounting, commit-free oracle corpus root; registry-sync labels cpal native-ffi (R5 review A)"},
-  {"sha": "cf2e8c7", "subject": "run-round step 0 policy: V4-03 machine-local path gate, V4-05 frozen-duplicate fingerprints (workflow v4)"},
-  {"sha": "9ab64c2", "subject": "Steward sync: lock, registry pins and probe approvals for fec865b"},
-  {"sha": "bd8533f", "subject": "run-round: oracle fixture unit (CLAP gain), score-plugin feature matrix, frozen sites as exact files"}
+  {
+   "sha": "fd24723",
+   "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"
+  },
+  {
+   "sha": "1d404f8",
+   "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"
+  },
+  {
+   "sha": "4ea5171",
+   "subject": "run-round: NOT_PROVEN accounting, commit-free oracle corpus root; registry-sync labels cpal native-ffi (R5 review A)"
+  },
+  {
+   "sha": "cf2e8c7",
+   "subject": "run-round step 0 policy: V4-03 machine-local path gate, V4-05 frozen-duplicate fingerprints (workflow v4)"
+  },
+  {
+   "sha": "9ab64c2",
+   "subject": "Steward sync: lock, registry pins and probe approvals for fec865b"
+  },
+  {
+   "sha": "bd8533f",
+   "subject": "run-round: oracle fixture unit (CLAP gain), score-plugin feature matrix, frozen sites as exact files"
+  },
+  {
+   "sha": "fc7822b",
+   "subject": "round-features: motion-js quickjs+test-faults unit (tests/quickjs_worker.rs requires both)"
+  }
  ],
  "capabilities_done": [
   "NOT_PROVEN accounting: lines starting NOT_PROVEN: in nextest units' captured output (junit system-out/err) -> round.json not_proven [{unit, crate, binary, test, reason}], unit counts, tests.json; otherwise green round exits 73",
@@ -19,12 +41,18 @@
   "round-features: score-plugin [test-faults], [clap, test-faults]",
   "sync 9ab64c2: approvals interop-fig miniz_oxide/ruzstd/serde_json/sha2, score-device cpal (native-ffi label via registry-sync NATIVE_FFI_EXTRA), score-plugin clack-host (clap-sys native-ffi); 56 lock packages added; license gate OK; probe 35/35 + feature selections score-device/cpal-backend, score-plugin/clap, motion-js/quickjs, reel-native/av1 accepted"
  ],
- "tests": {"argv": "bash tools/run-round.sh --canary --all (steward export of 9ab64c2)", "exit": 0, "sha": "9ab64c2", "passed": null, "failed": 0},
+ "tests": {
+  "argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C8-bd8533f --target-dir studio-team-dev/target (export of bd8533f)",
+  "exit": 0,
+  "sha": "bd8533f",
+  "passed": 49,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "C8 canary result on bd8533f; report R6 candidate",
- "updated_at": "2026-10-11T05:58:00Z",
+ "next": "next steward sync: reel miniz_oxide 0.9.1 (added in b105e4c without a dep-requests line: needs a request line or a reviewed --allow-unrequested; same pin as 6 crates), motion-js test-faults; prism and score-plugin lanes to adopt .config/oracle-corpus.toml (+ score-plugin/clap-gain MANIFEST.json) instead of CARGO_MANIFEST_DIR-relative roots / HSK_* env",
+ "updated_at": "2026-10-11T06:01:36Z",
  "notes": {
   "C7_9ab64c2": "steward export canary exit 0, 44 units, not_proven 0, absent 0, timed_out 0",
   "C6_test_commit": "cab95be (unpublished: 1d404f8 + 4ea5171 tools) full prism + render-gpu: 125/125 passed, not_proven 0, oracle corpus recorded (10 files)",
@@ -32,6 +60,8 @@
   "machine_paths_baseline": "pinned 10 files (hostile-input vectors folio/package/web tests, lrcat synthetic catalog TSVs, Type provenance JSON, prism t1_lcms2.json populate-tool source dirs); deviation from 'allow-list only the corpus-root config': strict mode would fail every round on these non-read data hits; lead may delete entries to make files strict",
   "corpus_convention_for_lanes": "prism tests/oracle/corpus.json icc_root is CARGO_MANIFEST_DIR-relative and does not resolve from round exports (studio-round/src/... -> studio-round/Handshake_Artifacts/...): prism should name subdir icc under the .config/oracle-corpus.toml root; score-plugin clap_fixture.rs should read <corpus>/score-plugin/clap-gain/MANIFEST.json instead of HSK_SCORE_PLUGIN_CLAP_FIXTURE",
   "canary_export_choice": "steward canaries run in studio-team-dev/steward-export (rule d; validators own studio-round)",
-  "shared_index": "root file index entries reset to HEAD after each CAS commit; working Cargo.lock left as builders' local state"
+  "shared_index": "root file index entries reset to HEAD after each CAS commit; working Cargo.lock left as builders' local state",
+  "C8_bd8533f": "steward export canary 2026-10-11T05:55:25Z..06:01:04Z: step 0 lock/registry/policy clean; fixture score-plugin/clap-gain built (dll sha256 292c7583..., MANIFEST.json in oracle-corpus/score-plugin/clap-gain); default 34/34 (230 skipped); features motion-js+quickjs, reel+av1, reel-native+av1, score-plugin+test-faults, score-plugin+clap+test-faults, type+harfrust all exit 0; 39 doctest units exit 0; 49 units, not_proven 0, absent 0, timed_out 0, exit 0; round.json dbca8b2a..., tests.json bc515df1..., junit.xml 3e5bb203...",
+  "clap_fixture_gap": "canary runs one test per package, so clap_fixture.rs did not run; in a full round it prints NOT_PROVEN (it reads HSK_SCORE_PLUGIN_CLAP_FIXTURE, unset in rounds) until the score-plugin lane reads <corpus>/score-plugin/clap-gain/MANIFEST.json -> round exit 73"
  }
 }

@@ -1,0 +1,16 @@
+{
+ "schema": "hsk.studio.license-evidence@1",
+ "purpose": "license_gate.py fallback for pinned crates whose sources are not on this host (other-target packages that cargo never downloads on Windows). Each record is the crates.io API version record; the gate accepts it only when its checksum equals the pinned Cargo.lock checksum. No crate was downloaded.",
+ "checked_at": "2026-10-11T05:47:00Z",
+ "checked_by": "workspace steward (crates.io API /api/v1/crates/<name>/<version>, read via WebFetch; no personal data in requests)",
+ "records": {
+  "alsa@0.11.0": {"license": "Apache-2.0/MIT", "checksum": "812947049edcd670a82cd5c73c3661d2e58468577ba8489de58e1a73c04cbd5d", "source": "https://crates.io/api/v1/crates/alsa/0.11.0"},
+  "alsa-sys@0.4.0": {"license": "MIT", "checksum": "ad7569085a265dd3f607ebecce7458eaab2132a84393534c95b18dcbc3f31e04", "source": "https://crates.io/api/v1/crates/alsa-sys/0.4.0"},
+  "coreaudio-rs@0.14.2": {"license": "MIT/Apache-2.0", "checksum": "7d5d7dca3ebcf65a035582c9ad4385371a9d9ee6537474d2a278f4e1e475bb58", "source": "https://crates.io/api/v1/crates/coreaudio-rs/0.14.2"},
+  "mach2@0.6.0": {"license": "BSD-2-Clause OR MIT OR Apache-2.0", "checksum": "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b", "source": "https://crates.io/api/v1/crates/mach2/0.6.0"},
+  "objc2-audio-toolbox@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "6948501a91121d6399b79abaa33a8aa4ea7857fe019f341b8c23ad6e81b79b08", "source": "https://crates.io/api/v1/crates/objc2-audio-toolbox/0.3.2"},
+  "objc2-avf-audio@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "13a380031deed8e99db00065c45937da434ca987c034e13b87e4441f9e4090be", "source": "https://crates.io/api/v1/crates/objc2-avf-audio/0.3.2"},
+  "objc2-core-audio@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2", "source": "https://crates.io/api/v1/crates/objc2-core-audio/0.3.2"},
+  "objc2-core-audio-types@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "5a89f2ec274a0cf4a32642b2991e8b351a404d290da87bb6a9a9d8632490bd1c", "source": "https://crates.io/api/v1/crates/objc2-core-audio-types/0.3.2"}
+ }
+}
