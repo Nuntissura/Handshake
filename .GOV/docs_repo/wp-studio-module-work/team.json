@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:12:35Z",
+ "updated_at": "2026-10-11T10:16:47Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1248,7 +1248,7 @@
     "crates/hsk-studio-prism/**"
    ],
    "launched": "2026-10-11T07:54:48Z",
-   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
+   "status": "done 2026-10-11T10:16:47Z (8a9ef31)"
   },
   {
    "name": "builder-psd-receipt",

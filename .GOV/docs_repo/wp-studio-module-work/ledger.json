@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:12:06Z",
+ "updated_at": "2026-10-11T10:16:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1039,7 +1039,7 @@
    "origin": "research/engine-color.md",
    "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
    "phase": "validation",
-   "status": "FAIL_V2",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng5",
    "commits": [
     "baeecf3",
@@ -1049,8 +1049,8 @@
     "STUDIO-R5 FAIL_V1 @1d404f8",
     "STUDIO-R6 FAIL_V2 @bd8533f"
    ],
-   "candidate": "bac4790",
-   "note": "R5 remediation: installed profiles only via D: corpus root (tests/oracle/corpus.json + populate_corpus.py), missing -> NOT_PROVEN line, fails under HSK_PRISM_REQUIRE_CORPUS=1 (negative-tested); T0 known findings empty; T1 only DIV-* (D15); 2026-10-11T07:30:00Z fix 65a08c9 (+d7027c3) in tree; lane re-offered for R7 only after pre-review A (V4-13)",
+   "candidate": "8a9ef31",
+   "note": "R5 remediation: installed profiles only via D: corpus root (tests/oracle/corpus.json + populate_corpus.py), missing -> NOT_PROVEN line, fails under HSK_PRISM_REQUIRE_CORPUS=1 (negative-tested); T0 known findings empty; T1 only DIV-* (D15); 2026-10-11T07:30:00Z fix 65a08c9 (+d7027c3) in tree; lane re-offered for R7 only after pre-review A (V4-13); pre-review paperwork done: remediation_R6 for 65a08c9 (class, regex, 6 sites) + claim lists later prism commits",
    "r5_review_routed": {
     "to": "builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z",
@@ -1060,12 +1060,6 @@
     "to": "fixed after candidate in 65a08c9 (in R7 candidate 2074f5e)",
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
-   },
-   "r7_prereview": {
-    "result": "FIX_FIRST (paperwork: R6 fix notes, claim lists later prism commits)",
-    "at": "2026-10-11T07:59:09Z",
-    "ref": "validation/R7-prereview-a.json",
-    "head": "0e48167"
    }
   },
   {
@@ -1525,25 +1519,23 @@
    "commits": [
     "987af00",
     "d7027c3",
-    "e26f623"
+    "e26f623",
+    "efda89a",
+    "3312f72",
+    "9b66924",
+    "8a9ef31"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f"
    ],
-   "candidate": "e26f623",
-   "note": "R6 plausibles: (1) lease sizes measured with counting allocator for every lease kind (no under-estimate; plan lease tightest at 0.75), doc/DESCRIPTOR state exact charge + ratios; (2) destination curves with gamma<=0 / constant refused at plan build (WideError::NonInvertibleCurve, ICC.1:2022 Annex F.2/F.3, clause 10.18), sources unchanged; open: non-monotonic non-constant destination table not refused; (3) DIV-ABS-V2-DISPLAY-WTPT-001: AbsoluteReport carries media_white_rule + divergence, T1 asserts all 30 combinations; numeric behaviour unchanged; 137 green 0 NOT_PROVEN; red proofs on scratch tree; open for interop-psd: keeps only receipt.clip, drops receipt.absolute",
+   "candidate": "8a9ef31",
+   "note": "R6 plausibles: (1) lease sizes measured with counting allocator for every lease kind (no under-estimate; plan lease tightest at 0.75), doc/DESCRIPTOR state exact charge + ratios; (2) destination curves with gamma<=0 / constant refused at plan build (WideError::NonInvertibleCurve, ICC.1:2022 Annex F.2/F.3, clause 10.18), sources unchanged; open: non-monotonic non-constant destination table not refused; (3) DIV-ABS-V2-DISPLAY-WTPT-001: AbsoluteReport carries media_white_rule + divergence, T1 asserts all 30 combinations; numeric behaviour unchanged; 137 green 0 NOT_PROVEN; red proofs on scratch tree; open for interop-psd: keeps only receipt.clip, drops receipt.absolute; R7 pre-review FIX_FIRST fixed: deterministic chunk-edge cancel (efda89a), job band chunk record = 1024-byte stage (3312f72), cancel claim scoped + 3 more false claims fixed (9b66924), absolute claims cite tests (8a9ef31); site list 205=205",
    "r6_review_routed": {
     "to": "rem-prism-r6",
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
    },
-   "open_plausible": "R6 PLAUSIBLE not done: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT combos",
-   "r7_prereview": {
-    "result": "FIX_FIRST (cancel doc claim false, chunk scratch record wrong, stale site list, flaky timing test)",
-    "at": "2026-10-11T07:59:09Z",
-    "ref": "validation/R7-prereview-a.json",
-    "head": "0e48167"
-   }
+   "open_plausible": "R6 PLAUSIBLE not done: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT combos"
   },
   {
    "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
@@ -1922,11 +1914,15 @@
    "crate": "hsk-studio-prism",
    "origin": "prism R6 plausibles e26f623",
    "scope": "non-monotonic destination table curve inverse per ICC.1:2022 (refuse or monotonic envelope, cited)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng8",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "1f6a3d0"
+   ],
+   "verdicts": [],
+   "candidate": "1f6a3d0",
+   "note": "non-monotonic destination curv table -> WideError::NonInvertibleCurve at plan time (ICC.1:2022 Annex F.1-F.3; clause 10.6 allows it as source); plateaus follow F.1 a/b (old code returned 0/1 at flat ends); 155 of 155 prism green 0 NOT_PROVEN; 6 mutations -> 12/22 red on scratch"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-RECEIPT",

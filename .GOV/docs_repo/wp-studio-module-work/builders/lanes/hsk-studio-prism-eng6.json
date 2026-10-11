@@ -2,7 +2,7 @@
  "crate": "hsk-studio-prism",
  "lane": "SMB-PRISM-ENG-6",
  "status": "READY_FOR_VALIDATION",
- "phase": "R6 plausibles (review A): lease sizes measured per kind with a counting allocator (tests/wide_heap.rs), non-invertible destination curves refused at plan time (non_invertible_curve), absolute media-white rule + DIV-ABS-V2-DISPLAY-WTPT-001 in every receipt and asserted in T1; after R6 remediation d7027c3 (hostile mAB, descriptor, STU-CON-044 chunks)",
+ "phase": "R7 pre-review FIX_FIRST items fixed (cancel doc scoped + tested, job-band chunk record = the 1024-byte stage, FAIL-1 site list refreshed, deterministic cancel tests, V4-06 doc-claim sweep + V4-07 citations); R6 plausibles and R6 remediation as before",
  "commits": [
   {
    "sha": "3926709",
@@ -39,6 +39,22 @@
   {
    "sha": "e26f623",
    "subject": "Prism R6 plausibles (SMB-PRISM-ENG-6): measured lease heap, non-invertible destination curves refused at plan time, absolute media-white rule and DIV-ABS-V2-DISPLAY-WTPT-001 in every receipt"
+  },
+  {
+   "sha": "efda89a",
+   "subject": "Prism (SMB-PRISM-ENG-6 R7 pre-review fix 4): chunk-edge cancel tests are deterministic, no wall-clock"
+  },
+  {
+   "sha": "3312f72",
+   "subject": "Prism (SMB-PRISM-ENG-6 R7 pre-review fix 2): the chunk account of a job band reports the stage it really holds"
+  },
+  {
+   "sha": "9b66924",
+   "subject": "Prism (SMB-PRISM-ENG-6 R7 pre-review fix 1): docs and WIDE_DESCRIPTOR say exactly what a canceled call leaves"
+  },
+  {
+   "sha": "8a9ef31",
+   "subject": "Prism (SMB-PRISM-ENG-6 R7 pre-review fix 1, V4-07 sweep): absolute doc claims cite the test that proves them"
   }
  ],
  "capabilities_done": [
@@ -46,7 +62,7 @@
   "src/icc_eval.rs: deterministic ln/exp/pow from IEEE basic ops (const-evaluated 256-entry tables, Estrin polynomials, no libm, no FMA); curv identity/gamma/table, para 0-4 forward + sign-preserving inverse; CLUT 1D/2D/3D tetrahedral/4D first-input-linear; mft1/mft2/mAB/mBA with XYZ, Lab v4 and legacy v2 encodings; trilinear for Lab-indexed PCS->device CLUTs (lcms2 _cmsReadOutputLUT convention, verified 1e-6 on the 13^3 synthetic B2A1)",
   "Plan = Prism source stage -> PCS map -> Prism destination stage; moxcms only parses (ColorProfile public fields); BPC probes (vertices, local black, ISO ramp) on the same exact stages",
   "ICC.1:2022 8.10.2 tag precedence (intent table, table 0, matrix/TRC); MissingIntentTable only when none exists; WIDE_DESCRIPTOR updated",
-  "Matrix/TRC + Gray pairs fused into one affine 3x3 (A = Mdst^-1 diag(D50) map diag(1/D50) Msrc, b = Mdst^-1 diag(D50) o), identity curves skipped; WideEngine::set_matrix_fusion/matrix_fusion (additive; toggling clears the cache); tests/wide_fusion.rs: 7 pairs incl. BPC, absolute, curv 1.8, Gray: 100% bit-identical to the staged plan, identical clip reports",
+  "Matrix/TRC + Gray pairs fused into one affine 3x3 (A = Mdst^-1 diag(D50) map diag(1/D50) Msrc, b = Mdst^-1 diag(D50) o), identity curves skipped; WideEngine::set_matrix_fusion/matrix_fusion (additive; toggling clears the cache); tests/wide_fusion.rs: 7 pairs incl. BPC, absolute, curv 1.8, Gray: fused vs staged: max |diff| <= 2e-6 and >= 99% of values bit-identical, as tests/wide_fusion.rs asserts (R7 pre-review new_findings[7]: the earlier '100%' overclaimed), identical clip reports",
   "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)",
   "R5-A item 3: tests/oracle/corpus.json (checked-in config, root ../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc relative to the crate) + tests/oracle/populate_corpus.py (stdlib, reads the fixture's system default_locations, copies SHA-256-verified files, writes MANIFEST.json); oracle_t1 and wide_profiles read installed profiles only via wide_support::corpus_read; a missing/mismatched profile prints `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under HSK_PRISM_REQUIRE_CORPUS=1 or require_corpus=true; corpus populated on this host (9/9 profiles)",
   "D13 option b: AdmittedWideEngine<A: ProviderAdmission> (additive): provider lease (actor, cache vectors), plan lease kept with each cached plan, transient parse/build lease (bounds from the ICC tag table: parse 2x, plan 8x stored bytes, BPC 4 stages + ramp), per-request digest/frame lease, output lease carried by AdmittedWideTransform; denial before any parse; try_clear_cache/try_retire/set_matrix_fusion check retirement; AdmittedWideError Admission|Refused|Wide; pixels bit-identical to WideEngine; WIDE_DESCRIPTOR admitted_route",
@@ -55,17 +71,17 @@
   "R6 plausibles e26f623: tests/wide_heap.rs (counting-allocator proof per lease kind, 10 synthetic families + 12 installed CMYK conversions), WideError::NonInvertibleCurve + Curve::require_invertible in icc_eval::from_pcs, AbsoluteReport.media_white_rule/divergence + WideProfileDescriptor.profile_class/is_v2_display, T1 attribution assertion for the 30 DIV-ABS-V2-DISPLAY-WTPT-001 combinations"
  ],
  "tests": {
-  "argv": "cd wt-studio-assets/handshake-studio-assets && HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo nextest run -p hsk-studio-prism --no-fail-fast --success-output immediate (studio-env.sh now refuses cargo test; 2 ignored benches)",
+  "argv": "cd wt-studio-assets/handshake-studio-assets && HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo nextest run -p hsk-studio-prism --no-fail-fast (edit tree at 8a9ef31) and the same on the clean export Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/src (HEAD + the ENG-8 overlay, STUDIO_OWNER=prism-eng8-export, content identical to 1f6a3d0); 2 ignored benches",
   "exit": 0,
-  "sha": "e26f623",
-  "passed": 137,
+  "sha": "8a9ef31",
+  "passed": 155,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: re-judge the three R6 PLAUSIBLE items (notes.r6_plausibles) and the earlier R6 remediation items. Lead/Operator: D15 still decides which wtpt reading is normative (receipts now name the divergence); acknowledge the new WideError variant NonInvertibleCurve and the AbsoluteReport/WideProfileDescriptor fields. interop-psd owner: carry receipt.absolute (rule + divergence) into the import receipt. develop owner: convert.rs docs still say 64-pixel text is stale for Prism (unchanged). Optional tightening of the over-reserving parse/plan/build leases is a follow-up with the measured ratios in notes.r6_plausibles.item1_lease_sizes.",
- "updated_at": "2026-10-11T07:53:04Z",
+ "next": "Validator: re-judge SMB-PRISM-ENG-6 on the judged_head in notes.claim (R6 FAILs fixed d7027c3; R6 PLAUSIBLEs e26f623; R7 pre-review items notes.remediation_R7_prereview). Lead/Operator: D15 (wtpt reading) unchanged; SMB-PRISM-ENG-8 (1f6a3d0) is a separate lane and also touches icc_eval.rs/wide.rs.",
+ "updated_at": "2026-10-11T10:15:49Z",
  "notes": {
   "verdicts": [
    {
@@ -278,8 +294,16 @@
    "v4_06_class": "untrusted count indexes a fixed-size array/slice (and the panic constructs that can fire on it)",
    "v4_06_sites": {
     "regex": "[\\w\\)\\]]\\[[^\\]\\[;]+\\]|\\.take\\(|copy_from_slice|split_at|\\.chunks(_exact)?(_mut)?\\(|\\.windows\\(|\\bunreachable!|\\.expect\\(|\\.unwrap\\(\\)",
-    "count_hits": 177,
-    "count_listed": 177,
+    "at_commit": "8a9ef31",
+    "scope": "every .rs file under crates/hsk-studio-prism/src, including src/wide_job/tests.rs (cfg(test)); comment-only hits are listed",
+    "count_hits": 205,
+    "count_listed": 205,
+    "previous_listing": {
+     "at_commit": "d7027c3",
+     "count_hits": 181,
+     "count_listed": 177,
+     "note": "the 4 unlisted hits were comment lines; e26f623 (Curve::require_invertible, DIV-ABS record, descriptor fields), ENG-8 (monotonic scan) and the cfg(test) unit tests moved or added lines"
+    },
     "count_before_fix": "1 site fixed (icc_eval.rs Table::build grid_points[..inputs]) of the class; the regex also lists every other index/slice/expect in crates/hsk-studio-prism/src",
     "regions": [
      {
@@ -403,9 +427,9 @@
       "why": "Curve::Table always holds >= 2 entries (from_mox length >= 2, split_tables entries >= 2), i <= len - 2 and j = i + 1; table_inverse indexes 0, last and bounded bisection indexes",
       "count": 3,
       "sites": [
-       "icc_eval.rs:268",
-       "icc_eval.rs:342",
-       "icc_eval.rs:343"
+       "icc_eval.rs:308",
+       "icc_eval.rs:389",
+       "icc_eval.rs:390"
       ]
      },
      {
@@ -414,8 +438,8 @@
       "why": "inputs 1..=8 and outputs <= MAX_CH are refused first, strides/grid have exactly `inputs` entries, every stride product and the largest reachable index are checked against data.len() (tests/wide_hostile.rs dims_u32_max_and_oversized_tables_are_refused_typed); the grid slice that feeds it is now bounded by the ICC array in Table::build",
       "count": 2,
       "sites": [
-       "icc_eval.rs:432",
-       "icc_eval.rs:434"
+       "icc_eval.rs:495",
+       "icc_eval.rs:497"
       ]
      },
      {
@@ -424,29 +448,29 @@
       "why": "grid/strides/input indexes are below Clut.inputs (<= 8, validated in Clut::new, callers pass exactly `inputs` values) and data indexes below the checked total (largest reachable index < data.len())",
       "count": 23,
       "sites": [
-       "icc_eval.rs:464",
-       "icc_eval.rs:465",
-       "icc_eval.rs:466",
-       "icc_eval.rs:468",
-       "icc_eval.rs:469",
-       "icc_eval.rs:473",
-       "icc_eval.rs:474",
-       "icc_eval.rs:475",
-       "icc_eval.rs:478",
-       "icc_eval.rs:481",
-       "icc_eval.rs:487",
-       "icc_eval.rs:489",
-       "icc_eval.rs:491",
-       "icc_eval.rs:493",
-       "icc_eval.rs:502",
-       "icc_eval.rs:503",
-       "icc_eval.rs:504",
-       "icc_eval.rs:505",
-       "icc_eval.rs:506",
-       "icc_eval.rs:515",
-       "icc_eval.rs:520",
-       "icc_eval.rs:546",
-       "icc_eval.rs:548"
+       "icc_eval.rs:527",
+       "icc_eval.rs:528",
+       "icc_eval.rs:529",
+       "icc_eval.rs:531",
+       "icc_eval.rs:532",
+       "icc_eval.rs:536",
+       "icc_eval.rs:537",
+       "icc_eval.rs:538",
+       "icc_eval.rs:541",
+       "icc_eval.rs:544",
+       "icc_eval.rs:550",
+       "icc_eval.rs:552",
+       "icc_eval.rs:554",
+       "icc_eval.rs:556",
+       "icc_eval.rs:565",
+       "icc_eval.rs:566",
+       "icc_eval.rs:567",
+       "icc_eval.rs:568",
+       "icc_eval.rs:569",
+       "icc_eval.rs:578",
+       "icc_eval.rs:583",
+       "icc_eval.rs:609",
+       "icc_eval.rs:611"
       ]
      },
      {
@@ -455,19 +479,19 @@
       "why": "constant indexes into [[f64; 3]; 3] and [f64; 3]; chunks_exact(entries) with entries >= 2 checked on the line before (split_tables)",
       "count": 13,
       "sites": [
-       "icc_eval.rs:557",
-       "icc_eval.rs:561",
-       "icc_eval.rs:562",
-       "icc_eval.rs:563",
-       "icc_eval.rs:579",
-       "icc_eval.rs:580",
-       "icc_eval.rs:583",
-       "icc_eval.rs:586",
-       "icc_eval.rs:589",
-       "icc_eval.rs:591",
-       "icc_eval.rs:594",
-       "icc_eval.rs:599",
-       "icc_eval.rs:621"
+       "icc_eval.rs:620",
+       "icc_eval.rs:624",
+       "icc_eval.rs:625",
+       "icc_eval.rs:626",
+       "icc_eval.rs:642",
+       "icc_eval.rs:643",
+       "icc_eval.rs:646",
+       "icc_eval.rs:649",
+       "icc_eval.rs:652",
+       "icc_eval.rs:654",
+       "icc_eval.rs:657",
+       "icc_eval.rs:662",
+       "icc_eval.rs:684"
       ]
      },
      {
@@ -476,22 +500,22 @@
       "why": "v[..inputs], v[..outputs], tmp[..outputs] on [f64; MAX_CH = 16] arrays: Legacy inputs <= 8 / outputs <= 16 via Clut::new; Multi inputs <= min(grid array 16, ICC 16) by the new Table::build check (was unchecked for a table without CLUT, and sliced the 16-entry grid array for one with CLUT: the R6 panic), outputs <= 16 via Clut::new or == inputs; to_pcs/from_pcs also compare both counts with the device (tests/wide_hostile.rs mab_input_channel_counts_beyond_the_icc_clut_array_are_refused_typed)",
       "count": 16,
       "sites": [
-       "icc_eval.rs:713",
-       "icc_eval.rs:714",
-       "icc_eval.rs:716",
-       "icc_eval.rs:717",
-       "icc_eval.rs:718",
-       "icc_eval.rs:719",
-       "icc_eval.rs:724",
-       "icc_eval.rs:725",
-       "icc_eval.rs:730",
-       "icc_eval.rs:732",
-       "icc_eval.rs:737",
-       "icc_eval.rs:739",
-       "icc_eval.rs:741",
-       "icc_eval.rs:743",
-       "icc_eval.rs:745",
-       "icc_eval.rs:747"
+       "icc_eval.rs:776",
+       "icc_eval.rs:777",
+       "icc_eval.rs:779",
+       "icc_eval.rs:780",
+       "icc_eval.rs:781",
+       "icc_eval.rs:782",
+       "icc_eval.rs:787",
+       "icc_eval.rs:788",
+       "icc_eval.rs:793",
+       "icc_eval.rs:795",
+       "icc_eval.rs:800",
+       "icc_eval.rs:802",
+       "icc_eval.rs:804",
+       "icc_eval.rs:806",
+       "icc_eval.rs:808",
+       "icc_eval.rs:810"
       ]
      },
      {
@@ -500,16 +524,16 @@
       "why": "device slices carry the descriptor channel count (Rgb 3, Gray 1, Cmyk 4; table inputs == device channels is checked in to_pcs), v: [f64; 16] with outputs == 3 / == device channels (<= 4) checked in to_pcs/from_pcs; out[c] c < 3 only for RGB matrix destinations; unreachable! only behind linear() == Some",
       "count": 10,
       "sites": [
-       "icc_eval.rs:779",
-       "icc_eval.rs:782",
-       "icc_eval.rs:791",
-       "icc_eval.rs:802",
-       "icc_eval.rs:811",
-       "icc_eval.rs:814",
-       "icc_eval.rs:815",
-       "icc_eval.rs:822",
-       "icc_eval.rs:824",
-       "icc_eval.rs:829"
+       "icc_eval.rs:842",
+       "icc_eval.rs:845",
+       "icc_eval.rs:854",
+       "icc_eval.rs:865",
+       "icc_eval.rs:874",
+       "icc_eval.rs:877",
+       "icc_eval.rs:878",
+       "icc_eval.rs:885",
+       "icc_eval.rs:887",
+       "icc_eval.rs:892"
       ]
      },
      {
@@ -518,15 +542,15 @@
       "why": "table_index in 0..=2 of a [_; 3]; NEXT[r] with r < 3; expect(\"checked\") only after matrix_capable() proved the TRC fields present",
       "count": 9,
       "sites": [
-       "icc_eval.rs:845",
-       "icc_eval.rs:874",
-       "icc_eval.rs:882",
-       "icc_eval.rs:883",
-       "icc_eval.rs:885",
-       "icc_eval.rs:911",
-       "icc_eval.rs:912",
-       "icc_eval.rs:929",
-       "icc_eval.rs:937"
+       "icc_eval.rs:908",
+       "icc_eval.rs:937",
+       "icc_eval.rs:945",
+       "icc_eval.rs:946",
+       "icc_eval.rs:948",
+       "icc_eval.rs:974",
+       "icc_eval.rs:975",
+       "icc_eval.rs:995",
+       "icc_eval.rs:1006"
       ]
      },
      {
@@ -535,14 +559,14 @@
       "why": "src/dst hold 1 (Gray) or 3 (matrix) curves by construction, out has the destination channel count, a/b are [[f64; 3]; 3]/[f64; 3]",
       "count": 8,
       "sites": [
-       "icc_eval.rs:968",
-       "icc_eval.rs:974",
-       "icc_eval.rs:975",
-       "icc_eval.rs:976",
-       "icc_eval.rs:985",
-       "icc_eval.rs:987",
-       "icc_eval.rs:990",
-       "icc_eval.rs:994"
+       "icc_eval.rs:1041",
+       "icc_eval.rs:1047",
+       "icc_eval.rs:1048",
+       "icc_eval.rs:1049",
+       "icc_eval.rs:1058",
+       "icc_eval.rs:1060",
+       "icc_eval.rs:1063",
+       "icc_eval.rs:1067"
       ]
      },
      {
@@ -600,16 +624,16 @@
       "why": "b.len() >= 132 is tested first (short-circuit) before b[36..40]; count <= MAX_WIDE_TAGS and table_end <= b.len() checked before b[132..table_end]; entry[0..3] from chunks_exact(12); header reads in admit() run after frame() proved len >= 132; a[0..2] index a [&[u8; 4]; 3]; be32/s15 use get() and return 0 out of range",
       "count": 10,
       "sites": [
-       "wide.rs:307",
-       "wide.rs:320",
-       "wide.rs:321",
-       "wide.rs:361",
-       "wide.rs:365",
-       "wide.rs:368",
-       "wide.rs:374",
-       "wide.rs:400",
-       "wide.rs:401",
-       "wide.rs:402"
+       "wide.rs:344",
+       "wide.rs:357",
+       "wide.rs:358",
+       "wide.rs:398",
+       "wide.rs:402",
+       "wide.rs:405",
+       "wide.rs:411",
+       "wide.rs:437",
+       "wide.rs:438",
+       "wide.rs:439"
       ]
      },
      {
@@ -618,12 +642,12 @@
       "why": "scan_clip takes at most `channels` (0 or the RGB/Gray output count, <= 3) values and channels_clipped has 4 entries; Lab px has 3 channels (in_ch == 3 for a Lab source); PcsMap arrays are [f64; 3]",
       "count": 6,
       "sites": [
-       "wide.rs:590",
-       "wide.rs:599",
-       "wide.rs:615",
-       "wide.rs:616",
-       "wide.rs:653",
-       "wide.rs:654"
+       "wide.rs:657",
+       "wide.rs:666",
+       "wide.rs:682",
+       "wide.rs:683",
+       "wide.rs:720",
+       "wide.rs:721"
       ]
      },
      {
@@ -632,7 +656,7 @@
       "why": "self.cache[i] with i from position() on the same vector",
       "count": 1,
       "sites": [
-       "wide.rs:896"
+       "wide.rs:972"
       ]
      },
      {
@@ -641,8 +665,8 @@
       "why": "chunk sizes are 64 x in_ch / out_ch with in_ch, out_ch in {1, 3, 4} (never 0), so chunks()/chunks_exact() never panic on a zero size",
       "count": 2,
       "sites": [
-       "wide.rs:991",
-       "wide.rs:994"
+       "wide.rs:1067",
+       "wide.rs:1070"
       ]
      },
      {
@@ -651,8 +675,8 @@
       "why": "expect on a constant valid Budget and on a compute result tested for Err above",
       "count": 2,
       "sites": [
-       "wide.rs:1064",
-       "wide.rs:1107"
+       "wide.rs:1140",
+       "wide.rs:1183"
       ]
      },
      {
@@ -661,10 +685,10 @@
       "why": "groups of at most CHUNK_STAGE_BYTES / 4 values, so used <= CHUNK_STAGE_BYTES and stage[..used] is in range",
       "count": 4,
       "sites": [
-       "wide_job.rs:209",
-       "wide_job.rs:211",
-       "wide_job.rs:212",
-       "wide_job.rs:215"
+       "wide_job.rs:223",
+       "wide_job.rs:225",
+       "wide_job.rs:226",
+       "wide_job.rs:229"
       ]
      },
      {
@@ -673,12 +697,12 @@
       "why": "chunk sizes 64 x in_ch / out_ch (1, 3 or 4); in place requires in_ch == out_ch <= 4 so src[..ch] fits [f32; 4]; the band length equals pixels x channels (BandLength refusal before the claim)",
       "count": 6,
       "sites": [
-       "wide_job.rs:378",
-       "wide_job.rs:381",
-       "wide_job.rs:420",
-       "wide_job.rs:423",
-       "wide_job.rs:425",
-       "wide_job.rs:426"
+       "wide_job.rs:401",
+       "wide_job.rs:404",
+       "wide_job.rs:448",
+       "wide_job.rs:451",
+       "wide_job.rs:453",
+       "wide_job.rs:454"
       ]
      },
      {
@@ -687,7 +711,7 @@
       "why": "expect on a constant valid Budget",
       "count": 1,
       "sites": [
-       "wide_job.rs:498"
+       "wide_job.rs:525"
       ]
      },
      {
@@ -696,8 +720,84 @@
       "why": "src_mw and dst_mw are [f64; 3]",
       "count": 1,
       "sites": [
-       "wide_plan.rs:67"
+       "wide_plan.rs:73"
       ]
+     },
+     {
+      "id": "icc.require_invertible_scan",
+      "verdict": "not_applicable",
+      "why": "ENG-8 / e26f623 guard: windows(2) yields exactly two-element slices (pair[0], pair[1] in range); p[0] is a constant index into [f64; 7]",
+      "sites": [
+       "icc_eval.rs:278",
+       "icc_eval.rs:279",
+       "icc_eval.rs:280",
+       "icc_eval.rs:284"
+      ],
+      "count": 4
+     },
+     {
+      "id": "comments",
+      "verdict": "not_applicable",
+      "why": "comment-only hits (the four comment lines the d7027c3 count of 181 included but its list of 177 did not); text, not code",
+      "sites": [
+       "icc_eval.rs:436",
+       "icc_eval.rs:492",
+       "icc_eval.rs:770",
+       "icc_eval.rs:832"
+      ],
+      "count": 4
+     },
+     {
+      "id": "icc.unit_tests",
+      "verdict": "not_applicable",
+      "why": "cfg(test) unit-test helper indexing literal test arrays (ENG-8)",
+      "sites": [
+       "icc_eval.rs:1095"
+      ],
+      "count": 1
+     },
+     {
+      "id": "wide.admit_profile_class",
+      "verdict": "not_applicable",
+      "why": "b[12..15] read in admit() after frame() proved the profile is at least 132 bytes (e26f623)",
+      "sites": [
+       "wide.rs:527"
+      ],
+      "count": 1
+     },
+     {
+      "id": "job.cfg_test_unit_tests",
+      "verdict": "not_applicable",
+      "why": "cfg(test) unit tests (src/wide_job/tests.rs, #![allow(clippy::arithmetic_side_effects)]): literal sizes, valid constant profiles and ids, unwrap on known-good values, no untrusted input",
+      "sites": [
+       "wide_job/tests.rs:30",
+       "wide_job/tests.rs:31",
+       "wide_job/tests.rs:32",
+       "wide_job/tests.rs:33",
+       "wide_job/tests.rs:56",
+       "wide_job/tests.rs:71",
+       "wide_job/tests.rs:78",
+       "wide_job/tests.rs:101",
+       "wide_job/tests.rs:102",
+       "wide_job/tests.rs:103",
+       "wide_job/tests.rs:145",
+       "wide_job/tests.rs:146",
+       "wide_job/tests.rs:147",
+       "wide_job/tests.rs:149",
+       "wide_job/tests.rs:160",
+       "wide_job/tests.rs:214",
+       "wide_job/tests.rs:216"
+      ],
+      "count": 17
+     },
+     {
+      "id": "plan.lcms2_alt_scale",
+      "verdict": "not_applicable",
+      "why": "alt_src / alt_dst are [f64; 3] (e26f623)",
+      "sites": [
+       "wide_plan.rs:84"
+      ],
+      "count": 1
      }
     ]
    }
@@ -797,6 +897,652 @@
     "T1 oracle now asserts the D50-wtpt attribution for all 30 registered combinations (proof, not a threshold change)"
    ],
    "scratch": "Handshake_Artifacts/WP-KERNEL-STUDIO/prism-plausibles-redproof (3 mutations, own target); session scratchpad smb-prism-plausibles/ (ICC text, outputs, this script)"
+  },
+  "remediation_R7_prereview": {
+   "scope": "R7-prereview-a (kernel validation/R7-prereview-a.json, head 0e48167) SMB-PRISM-ENG-6 new_findings[0..4] (FIX_FIRST), fixed on 4 separate commits; new_findings[5] (lib.rs deny attribute) and [6] (require_invertible residual, now SMB-PRISM-ENG-8 1f6a3d0) and [7] (fusion exactness note, fixed below in capabilities_done) are PLAUSIBLE and handled as stated",
+   "commits": {
+    "fix4_deterministic_cancel": "efda89a",
+    "fix2_chunk_record": "3312f72",
+    "fix1_cancel_doc_and_class_sweep": "9b66924",
+    "v4_07_citations": "8a9ef31"
+   },
+   "fix1_cancel_doc": {
+    "finding": "WIDE_DESCRIPTOR.recovery 'canceled: nothing was produced' contradicted partial band output (a canceled convert_band leaves the converted chunks, an in-place band leaves the caller's input partly overwritten)",
+    "fix": "behaviour unchanged, claims scoped in WIDE_DESCRIPTOR recovery, convert_band, convert_band_in_place, WideError::Canceled and BandClaimed docs: request/finish return no result; band = whole 64-pixel chunks converted before the cancel edge (none before the first chunk, all after the last), in-place = converted prefix + untouched rest, never convert that buffer again, band stays claimed, input-check refusals write nothing, nonfinite_output leaves the chunks up to and including the failing one (by construction: seal_chunk runs after the chunk is written; no test, a non-finite plan output needs a hostile profile)",
+    "tests": "src/wide_job/tests.rs (lib unit tests): a_band_canceled_at_a_chunk_edge_leaves_exactly_the_chunks_before_it (edges 0/1/5/20), a_cancel_after_the_last_chunk_still_fails_with_every_chunk_converted, an_in_place_band_canceled_mid_band_is_partly_overwritten, input_refusals_write_nothing_before_any_chunk, a_request_canceled_mid_request_returns_no_pixels; tests/wide_doc_claims.rs pins the descriptor text"
+   },
+   "fix2_chunk_record": {
+    "finding": "WideChunkAccount.scratch_bytes = 64 x destination channels x 4 for job bands too, but every band stages through a fixed [u8; CHUNK_STAGE_BYTES] = 1024-byte stack array",
+    "fix": "wide_job.rs type Stage + band_account(): the job-band and job-receipt scratch_bytes is size_of::<Stage>() = 1024 (derived from the type); requests keep the exact heap buffer 64 x channels x 4 (Gray 256, RGB 768, CMYK 1024); docs and descriptor name which buffer is which; the in-place 16-byte pixel copy is stated as outside the record",
+    "tests": "tests/wide_chunks.rs expected_band, staging_record_matches_the_buffer_a_request_and_a_job_band_really_hold (Gray/RGB/CMYK, plain and in-place), admitted values; src/wide_job/tests.rs the_job_chunk_account_reports_the_stage_a_band_really_holds"
+   },
+   "fix3_site_list": "notes.remediation_R6.v4_06_sites refreshed at 8a9ef31: 205 hits = 205 listed (previous 181 hits / 177 listed at d7027c3; comment-only lines and the cfg(test) unit tests are now listed)",
+   "fix4_deterministic_cancel": {
+    "finding": "tests/wide_chunks.rs cancellation_is_checked_between_chunks_of_at_most_64_pixels timed a 2 Mi-pixel band and canceled from a sleeping thread (false red when the band finished first)",
+    "fix": "wide.rs canceled_at_chunk(token, chunk_index) replaces canceled() at every chunk edge (before chunk k, and after the last chunk); under cfg(test) only, chunk_trip::arm(k) cancels the token at that exact edge on the calling thread (V4-04: no hook in a non-test build); the timing test is replaced by a_canceled_token_stops_a_band_before_its_first_chunk (pre-canceled token) plus the unit tests above"
+   },
+   "v4_06_doc_claim_class": {
+    "class": "a doc comment or WIDE_DESCRIPTOR / DESCRIPTOR clause claims more than the code or a test establishes about what a call leaves behind, allocates, charges, delivers or guarantees",
+    "regex": "\\b(nothing|never|always|allocates nothing|no allocation|bit-identical|bit identity|at most once|nowhere|cannot|exactly once|scratch|guarantee[sd]?|proves?)\\b over `//`, `///`, `//!` lines and per key clause of the DESCRIPTOR / WIDE_DESCRIPTOR constants (helper: scratch smb-prism-eng8/eng8_sites.py)",
+    "at_commit": "8a9ef31",
+    "count_hits": 55,
+    "count_listed": 55,
+    "verdict_counts": {
+     "carried_unchanged": 4,
+     "fixed": 23,
+     "not_applicable": 3,
+     "ok_spec_quote": 3,
+     "ok_tested": 22
+    },
+    "found_false_or_unscoped": [
+     "wide.rs WIDE_DESCRIPTOR.recovery 'canceled: nothing was produced' (fixed 9b66924)",
+     "wide.rs WIDE_DESCRIPTOR.chunking / wide_job.rs docs 'only Prism-owned memory is a stack staging buffer of scratch_bytes' (fixed 3312f72)",
+     "wide.rs WideError::BandClaimed 'every band converts exactly once' (fixed 9b66924)",
+     "wide.rs WIDE_DESCRIPTOR.privacy 'ids never enter telemetry' (fixed 9b66924; the frame carries the resource and actor attribution ids)",
+     "wide.rs EngineBuild.fma_contraction 'never contracts: always false' (weakened 9b66924; not matched by the regex words after the rewrite)"
+    ],
+    "sites": [
+     {
+      "site": "admitted.rs:10",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "carried_unchanged",
+      "evidence": "legacy AdmittedPrism doc (SMB-PRISM-ENG-3), no R6/R7 commit changes its claim; capacities derived from the pinned moxcms/rustc provenance in the same header; not re-proven in this pass"
+     },
+     {
+      "site": "icc_eval.rs:254",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_spec_quote",
+      "evidence": "quotes ICC.1:2022 F.1-F.3; the refusal it describes is tested (tests/wide_r6_plausibles.rs, tests/wide_eng8_monotonic.rs, unit tests in src/icc_eval.rs)"
+     },
+     {
+      "site": "icc_eval.rs:469",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "cites tests/wide_hostile.rs"
+     },
+     {
+      "site": "icc_eval.rs:1104",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_spec_quote",
+      "evidence": "test comment quoting ICC.1:2022 F.2/F.3"
+     },
+     {
+      "site": "lib.rs:177",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "carried_unchanged",
+      "evidence": "legacy route; tests/foundation_contract.rs:79 sends private project text and asserts the frame lacks it"
+     },
+     {
+      "site": "lib.rs:417",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "not_applicable",
+      "evidence": "policy comment on tag handling, not a behaviour claim"
+     },
+     {
+      "site": "lib.rs:631",
+      "kind": "desc:admitted_api",
+      "hits": [
+       "cannot",
+       "guarantee"
+      ],
+      "verdict": "carried_unchanged",
+      "evidence": "legacy; 'cannot detach' is the borrow checker, 'guarantee synchronous infallible Drop' is the contract on the caller's token enforced by synchronous_retirement(); unchanged"
+     },
+     {
+      "site": "lib.rs:631",
+      "kind": "desc:privacy",
+      "hits": [
+       "never"
+      ],
+      "verdict": "carried_unchanged",
+      "evidence": "legacy route; same test as lib.rs:177; the Observe wire v1 frame has no field for profile bytes, paths or pixels"
+     },
+     {
+      "site": "wide.rs:8",
+      "kind": "doc",
+      "hits": [
+       "exactly once"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_bpc.rs matrix_destination_black_maps_exactly_once and tests/wide_absolute.rs"
+     },
+     {
+      "site": "wide.rs:53",
+      "kind": "doc",
+      "hits": [
+       "scratch"
+      ],
+      "verdict": "fixed",
+      "evidence": "3312f72: scratch_bytes is the size of the buffer really held (request heap 64 x channels x 4, job band 1024-byte stack stage); tests/wide_chunks.rs staging_record_matches_the_buffer_a_request_and_a_job_band_really_hold"
+     },
+     {
+      "site": "wide.rs:200",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "NonInvertibleCurve doc, extended by ENG-8 to non-monotonic tables with the F.1-F.3 citation; tests/wide_r6_plausibles.rs and tests/wide_eng8_monotonic.rs"
+     },
+     {
+      "site": "wide.rs:203",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_spec_quote",
+      "evidence": "quotes ICC.1:2022 F.2/F.3"
+     },
+     {
+      "site": "wide.rs:231",
+      "kind": "doc",
+      "hits": [
+       "at most once"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: 'every band converts exactly once' was false (a band may never be converted: finish reports JobIncomplete); tests/wide_job.rs band_contract_is_typed_and_finish_reports_the_lowest_failed_band"
+     },
+     {
+      "site": "wide.rs:232",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: same doc; 'never converted' describes the JobIncomplete event; src/wide_job/tests.rs asserts BandClaimed after a canceled band"
+     },
+     {
+      "site": "wide.rs:236",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "event description of WideError::JobIncomplete; tests/wide_job.rs band_contract_is_typed_and_finish_reports_the_lowest_failed_band"
+     },
+     {
+      "site": "wide.rs:379",
+      "kind": "doc",
+      "hits": [
+       "prove"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_inputs.rs (a cache hit re-proves identity and hash, parses nothing)"
+     },
+     {
+      "site": "wide.rs:570",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "not_applicable",
+      "evidence": "field doc (BpcReport::rule), not a universal claim"
+     },
+     {
+      "site": "wide.rs:576",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_bpc.rs engine_builtin_black_scaling_is_suppressed_never_doubled"
+     },
+     {
+      "site": "wide.rs:621",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "table destinations clamp; ClipMethod::Unavailable asserted in tests/wide_absolute.rs:156 and stated in the receipt"
+     },
+     {
+      "site": "wide.rs:636",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "table destinations clamp; ClipMethod::Unavailable asserted in tests/wide_absolute.rs:156 and stated in the receipt"
+     },
+     {
+      "site": "wide.rs:803",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_inputs.rs:88 'a cache hit must parse nothing' (WideCacheStats.parses)"
+     },
+     {
+      "site": "wide.rs:883",
+      "kind": "doc",
+      "hits": [
+       "prove"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_fusion.rs (staged vs fused within 2e-6)"
+     },
+     {
+      "site": "wide.rs:943",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_inputs.rs"
+     },
+     {
+      "site": "wide.rs:965",
+      "kind": "doc",
+      "hits": [
+       "nothing",
+       "proves"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_inputs.rs:88 'a cache hit must parse nothing' (WideCacheStats.parses)"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:refused",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "ENG-8 text: constant, gamma <= 0 or non-monotonic curv table, ICC.1:2022 F.1-F.3; tests/wide_r6_plausibles.rs, tests/wide_eng8_monotonic.rs"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:stages",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "same refusal sentence plus flat-run rule; tests/wide_eng8_monotonic.rs, unit tests in src/icc_eval.rs; moxcms-only-parses claim: tests/wide_bpc.rs"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:job_route",
+      "hits": [
+       "at most once",
+       "bit-identical",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: 'no allocation' now 'no heap allocation inside a band' with the counting test; bit-identical cites tests/wide_job.rs; 'a canceled or failed band leaves what recovery describes'"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:cache",
+      "hits": [
+       "nothing",
+       "proves"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_inputs.rs:88 'a cache hit must parse nothing' (WideCacheStats.parses)"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:chunking",
+      "hits": [
+       "allocates nothing",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "3312f72: scratch_bytes per buffer really held; 9b66924: cancel tests cited"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:recovery",
+      "hits": [
+       "never",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: 'canceled: nothing was produced' scoped (request/finish no result; band keeps converted chunks, in-place = prefix + untouched rest, band stays claimed); tests/wide_doc_claims.rs pins the text, src/wide_job/tests.rs proves the behaviour"
+     },
+     {
+      "site": "wide.rs:1209",
+      "kind": "desc:privacy",
+      "hits": [
+       "never",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: 'ids never enter telemetry' was false (the Observe wire v1 frame carries the caller's resource and actor attribution ids); tests/wide_doc_claims.rs wide_telemetry_frame_carries_attribution_ids_but_no_profile_or_pixel_data decodes a real frame"
+     },
+     {
+      "site": "wide_admitted.rs:70",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_doc_claims.rs admitted_refusals_found_before_the_engine_ran_deliver_nothing (recording sink: admission denial and framing refusal deliver 0 frames)"
+     },
+     {
+      "site": "wide_admitted.rs:71",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_doc_claims.rs admitted_refusals_found_before_the_engine_ran_deliver_nothing (recording sink: admission denial and framing refusal deliver 0 frames)"
+     },
+     {
+      "site": "wide_admitted.rs:110",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "stored_tag_bytes reads the tag table only; tests/wide_hostile.rs aggregate_over_budget_is_denied_before_any_parse (parses 0)"
+     },
+     {
+      "site": "wide_admitted.rs:118",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_doc_claims.rs"
+     },
+     {
+      "site": "wide_admitted.rs:191",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "not_applicable",
+      "evidence": "describes try_retire's Some(engine) return, tests/foundation_contract.rs and tests/wide_admitted.rs"
+     },
+     {
+      "site": "wide_admitted.rs:243",
+      "kind": "doc",
+      "hits": [
+       "allocates nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_chunks.rs chunk_accounting_is_bounded_deterministic_and_allocation_free and tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count"
+     },
+     {
+      "site": "wide_admitted.rs:244",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: same citations"
+     },
+     {
+      "site": "wide_admitted.rs:247",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: tests/wide_doc_claims.rs; layout refusal before any charge: tests/wide_job.rs"
+     },
+     {
+      "site": "wide_admitted.rs:287",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "tests/wide_job.rs:325 (denied job: parses 0, entries 0, ledger at the provider lease); tests/wide_eng8_monotonic.rs refused admitted job"
+     },
+     {
+      "site": "wide_job.rs:6",
+      "kind": "doc",
+      "hits": [
+       "at most once"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "claimed flag; tests/wide_job.rs band_contract_is_typed_and_finish_reports_the_lowest_failed_band, src/wide_job/tests.rs"
+     },
+     {
+      "site": "wide_job.rs:9",
+      "kind": "doc",
+      "hits": [
+       "cannot"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "compile-time: WideJob holds &mut WideEngine (borrow checker)"
+     },
+     {
+      "site": "wide_job.rs:11",
+      "kind": "doc",
+      "hits": [
+       "bit identity"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "cites tests/wide_job.rs job_bands_are_bit_identical_to_the_serial_path_for_every_thread_count"
+     },
+     {
+      "site": "wide_job.rs:15",
+      "kind": "doc",
+      "hits": [
+       "scratch"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: adds the counting test citation"
+     },
+     {
+      "site": "wide_job.rs:25",
+      "kind": "doc",
+      "hits": [
+       "allocates nothing",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "3312f72: the buffer named is the 1024-byte Stage; cites tests/wide_chunks.rs"
+     },
+     {
+      "site": "wide_job.rs:34",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "event description; cites tests/wide_job.rs"
+     },
+     {
+      "site": "wide_job.rs:235",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "prepare_job takes no sink: type-level; finish delivers (tests/wide_job.rs)"
+     },
+     {
+      "site": "wide_job.rs:237",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "fixed",
+      "evidence": "8a9ef31: cites tests/wide_r6_plausibles.rs and tests/wide_eng8_monotonic.rs refused-job tests (cache entries 0)"
+     },
+     {
+      "site": "wide_job.rs:373",
+      "kind": "doc",
+      "hits": [
+       "at most once"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: failed-call paragraph added; tested in src/wide_job/tests.rs"
+     },
+     {
+      "site": "wide_job.rs:377",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: input-check refusals; src/wide_job/tests.rs input_refusals_write_nothing_before_any_chunk"
+     },
+     {
+      "site": "wide_job.rs:380",
+      "kind": "doc",
+      "hits": [
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: src/wide_job/tests.rs a_band_canceled_at_a_chunk_edge_leaves_exactly_the_chunks_before_it"
+     },
+     {
+      "site": "wide_job.rs:381",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: instruction (retry on a new job), band_claimed asserted in src/wide_job/tests.rs"
+     },
+     {
+      "site": "wide_job.rs:426",
+      "kind": "doc",
+      "hits": [
+       "never",
+       "nothing"
+      ],
+      "verdict": "fixed",
+      "evidence": "9b66924: instruction; in-place prefix + untouched rest asserted in src/wide_job/tests.rs an_in_place_band_canceled_mid_band_is_partly_overwritten"
+     },
+     {
+      "site": "wide_job.rs:471",
+      "kind": "doc",
+      "hits": [
+       "never"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "finish loop reports the lowest failed or unconverted band; tests/wide_job.rs"
+     },
+     {
+      "site": "wide_plan.rs:75",
+      "kind": "doc",
+      "hits": [
+       "nowhere"
+      ],
+      "verdict": "ok_tested",
+      "evidence": "cites tests/wide_r6_plausibles.rs absolute_receipt_names_the_media_white_rule_and_the_v2_display_divergence_on_every_route"
+     }
+    ]
+   },
+   "tests": {
+    "argv": "cd wt-studio-assets/handshake-studio-assets && HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo nextest run -p hsk-studio-prism --no-fail-fast (edit tree at 8a9ef31) and the same on the clean export Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/src (HEAD + the ENG-8 overlay, STUDIO_OWNER=prism-eng8-export, content identical to 1f6a3d0); 2 ignored benches",
+    "exit": 0,
+    "sha": "8a9ef31",
+    "passed": 155,
+    "failed": 0
+   },
+   "red_proof": {
+    "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-redproof/src (git archive of HEAD + the edit-tree prism crate, STUDIO_OWNER=prism-eng8-redproof, own target; never the edit tree's)",
+    "mutations": [
+     "M1 icc_eval require_invertible table arm `rises != falls` -> `rises || falls` (monotonic check gone, only constant refused)",
+     "M2 table_inverse: the two flat-run returns (flat start x2, flat end x1) removed",
+     "M3 wide_job band_account scratch -> 768 (request formula)",
+     "M4 WIDE_DESCRIPTOR recovery: scoped cancel text -> 'canceled: nothing was produced'",
+     "M5 convert_band: cancellation read after the last chunk removed",
+     "M6 WIDE_DESCRIPTOR privacy: 'caller resource and actor attribution ids' -> 'ids'"
+    ],
+    "result": "nextest --lib --test wide_eng8_monotonic --test wide_chunks --test wide_doc_claims: 22 run, 12 FAILED, 10 passed (require_invertible_accepts_monotonic_tables_and_refuses_the_rest, table_inverse_follows_annex_f1..., non_monotonic_destination_tables_are_refused_at_plan_time_on_rgb_and_gray, non_monotonic_destination_is_refused_on_the_job_and_admitted_routes..., monotonic_destination_tables_are_inverted_per_annex_f1_on_gray_and_rgb, flat_runs_at_the_ends_follow_f1_a_and_b, chunk_accounting_is_bounded_deterministic_and_allocation_free, staging_record_matches_the_buffer..., admitted_transform_and_job_report_their_chunks, the_job_chunk_account_reports_the_stage_a_band_really_holds, a_cancel_after_the_last_chunk_still_fails_with_every_chunk_converted, descriptor_scopes_what_a_canceled_call_leaves_and_what_telemetry_carries); M6 is caught by the same descriptor test only after M4 passes (single test, both needles)"
+   },
+   "dependents": "cargo check --tests PASS on the clean export for hsk-studio-pigment, interop-psd, develop, render-cpu, render-gpu (composite does not depend on prism); suites interop-psd + develop: 65 passed, 1 skipped",
+   "clippy": "clippy -p hsk-studio-prism --tests --examples: no prism warnings at 8a9ef31",
+   "scope_kept": "crates/hsk-studio-prism/** only; Cargo.toml/Cargo.lock untouched; no new dependency; no digest re-pinned (155 tests incl. wide_determinism digests green)",
+   "retry_guard_route": "no identical rerun was blocked; two gate blocks came from the command shape (the gameplan hook resolves the Studio pointer only from a LEADING cd): reissued with the cd first, no flag or filter change, no gameplan step added",
+   "infra": "the session usage limit cut the run once between 3312f72 and the next item; resumed from git status (clean tree) and the commit log; ICC.1:2022 pages re-read from the saved PDF (printed p.101 = PDF page 115)",
+   "open_plausible": [
+    "R7 pre-review new_findings[5]: lib.rs has no #![deny(clippy::arithmetic_side_effects)] (legacy parse_profile ~lib.rs:405-450); not requested in this pass",
+    "tests/oracle_t1_lcms2.rs de_vs_lcms_lab only printed, not asserted (carried PLAUSIBLE, ENG-5 file)"
+   ]
+  },
+  "claim": {
+   "judged_head": "8a9ef31",
+   "lane_commits": [
+    "3926709",
+    "fdd57ee",
+    "dc42e34",
+    "d9a8ce8",
+    "bac4790",
+    "e7cf81f",
+    "987af00",
+    "d7027c3",
+    "e26f623",
+    "efda89a",
+    "3312f72",
+    "9b66924",
+    "8a9ef31"
+   ],
+   "other_commits_touching_this_lanes_files_or_the_judged_tree": [
+    {
+     "sha": "65a08c9",
+     "lane": "SMB-PRISM-ENG-5 / ENG-7 (committed under ENG-7)",
+     "touches": "tests/wide_support/mod.rs, tests/oracle_t1_lcms2.rs, tests/oracle/corpus.json, tests/oracle/populate_corpus.py"
+    },
+    {
+     "sha": "8634765",
+     "lane": "SMB-PRISM-ENG-7",
+     "touches": "src/lib.rs, src/wide.rs, src/wide_admitted.rs, src/wide_job.rs, tests/wide_job.rs"
+    },
+    {
+     "sha": "d7027c3",
+     "lane": "SMB-PRISM-ENG-6 (R6 remediation)",
+     "touches": "src/icc_eval.rs, src/wide.rs, src/wide_admitted.rs, src/wide_job.rs, tests/wide_admitted.rs, tests/wide_chunks.rs, tests/wide_hostile.rs"
+    },
+    {
+     "sha": "e26f623",
+     "lane": "SMB-PRISM-ENG-6 (R6 plausibles)",
+     "touches": "src/icc_eval.rs, src/wide.rs, src/wide_admitted.rs, src/wide_plan.rs, tests/oracle_t1_lcms2.rs (ENG-5 file), tests/wide_heap.rs, tests/wide_r6_plausibles.rs"
+    },
+    {
+     "sha": "efda89a",
+     "lane": "SMB-PRISM-ENG-6 (R7 fix 4)",
+     "touches": "src/wide.rs, src/wide_job.rs, src/wide_job/tests.rs, tests/wide_chunks.rs"
+    },
+    {
+     "sha": "3312f72",
+     "lane": "SMB-PRISM-ENG-6 (R7 fix 2)",
+     "touches": "src/wide.rs, src/wide_job.rs, src/wide_job/tests.rs, tests/wide_chunks.rs"
+    },
+    {
+     "sha": "9b66924",
+     "lane": "SMB-PRISM-ENG-6 (R7 fix 1)",
+     "touches": "src/wide.rs, src/wide_job.rs, tests/wide_doc_claims.rs"
+    },
+    {
+     "sha": "1f6a3d0",
+     "lane": "SMB-PRISM-ENG-8 (new feature lane, V4-15)",
+     "touches": "src/icc_eval.rs (require_invertible table arm, table_inverse flat ends), src/wide.rs (descriptor refused/model/recovery, NonInvertibleCurve doc), tests/wide_eng8_monotonic.rs"
+    },
+    {
+     "sha": "8a9ef31",
+     "lane": "SMB-PRISM-ENG-6 (R7 fix 1, V4-07)",
+     "touches": "src/wide.rs, src/wide_admitted.rs, src/wide_job.rs (doc comments only)"
+    }
+   ],
+   "rule": "V4-14: every prism commit after the R6 candidate bd8533f is listed with its lane and files; none is unfinished work"
   }
  }
 }

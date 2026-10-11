@@ -1,0 +1,360 @@
+{
+ "crate": "hsk-studio-prism",
+ "lane": "SMB-PRISM-ENG-8",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "non-monotonic destination curv tables refused at plan time (NonInvertibleCurve, ICC.1:2022 F.1-F.3); flat runs of monotonic tables inverted per F.1 a/b; RGB and Gray across plain/admitted/job; red proof on a scratch export",
+ "commits": [
+  {
+   "sha": "1f6a3d0",
+   "subject": "Prism (SMB-PRISM-ENG-8): non-monotonic destination curv tables are refused at plan time; flat runs are inverted per ICC.1:2022 F.1"
+  },
+  {
+   "sha": "8a9ef31",
+   "subject": "Prism (SMB-PRISM-ENG-6 R7 pre-review fix 1, V4-07 sweep): absolute doc claims cite the test that proves them (docs only, after 1f6a3d0)"
+  }
+ ],
+ "capabilities_done": [
+  "destination curv table that rises somewhere and falls somewhere -> WideError::NonInvertibleCurve (code non_invertible_curve) when the plan is built, on RGB (v2 and v4) and Gray destinations, plain / admitted / job routes, fusion on and off, relative / BPC / perceptual / absolute, Lab or profile source; nothing cached; the same bytes stay valid as a source",
+  "table_inverse follows ICC.1:2022 F.1 a)/b) for flat runs: a run [x1, x2] inverts to x2, or to x1 when the run reaches 1; a value outside the range at a flat end takes the closest value in the range (the old code returned 0 for a flat start and 1 for a flat end); sloped ends still extrapolate as before",
+  "WIDE_DESCRIPTOR refused / model / recovery and WideError::NonInvertibleCurve docs state the rule, the citation and the LittleCMS 2 difference"
+ ],
+ "tests": {
+  "argv": "cd wt-studio-assets/handshake-studio-assets && HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo nextest run -p hsk-studio-prism --no-fail-fast (edit tree at 8a9ef31) and the same on the clean export Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/src (HEAD + the ENG-8 overlay, STUDIO_OWNER=prism-eng8-export, content identical to 1f6a3d0); 2 ignored benches",
+  "exit": 0,
+  "sha": "8a9ef31",
+  "passed": 155,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 5,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-PRISM-ENG-8 at 8a9ef31 (code identical to 1f6a3d0). Operator/lead: none required; the lcms2 difference is documented (a non-monotonic destination table converts in lcms2 and is refused here).",
+ "updated_at": "2026-10-11T10:15:49Z",
+ "notes": {
+  "rule_and_citation": {
+   "decision": "REFUSE (same typed error as constant curves), not an invented monotonic-envelope inverse",
+   "icc": "ICC.1:2022-05 (archive.color.org/specification/ICC.1-2022-05.pdf, printed page = PDF page - 14): Annex F (normative) F.1 p.101: a one-dimensional non-constant curve is invertible if it is monotonically increasing or monotonically decreasing over its domain; special cases a) flat subdomain [x1, x2] mapped to y1 with x2 != 1 inverts to the highest x (x2), a flat subdomain whose end point is 1 inverts to the lowest x (x1); b) a y with no x in the domain of the inverse takes the closest y in the range of the curve. F.2 grayTRCTag and F.3 red/green/blueTRC p.101-102: if the TRC function is not invertible the behaviour of the inverse is undefined; a constant curve cannot be inverted. Clause 10.6 curveType p.48: table entries are not required to be monotonic, so a non-monotonic table is valid data (forward use defined); clause 10.18 p.70-71: parametric curve values outside [0, 1] are clipped",
+   "lcms2": "Little-CMS master src/cmsgamma.c (fetched with WebFetch, summarized by the fetch model, snippets quoted from its answer): cmsReverseToneCurveEx has no refusal path for tables; Ascending = !cmsIsToneCurveDescending (first entry <= last entry only); GetInterval scans from the highest index down for an ascending table (lowest index up otherwise) and returns the first interval containing y, so a non-monotonic table inverts silently by scan order; collapsed intervals use Ascending ? y2 : y1 (the highest x for ascending tables, also at an end run, where F.1 a) says the lowest); y outside the table range reuses the last fitted line. Neither the standard nor lcms2 documents an 'envelope'; Prism differs from lcms2 on purpose (refusal; F.1 end-run rule)",
+   "why_not_tolerance": "F.1 gives no tolerance and u16 table entries compare exactly; a table with one count against the direction is refused (tested); real profiles with measurement-noise reversals would be refused as destinations (not as sources); no test of the 155-test prism suite (corpus required), of the 65 interop-psd + develop dependents tests or of the synthetic fixtures converts to a non-monotonic destination table, so no existing expectation moved; whether a real-world profile with noisy tables exists is UNVERIFIED (no evidence either way in the corpus)"
+  },
+  "behaviour_change_to_acknowledge": [
+   "WideError::NonInvertibleCurve now also covers non-monotonic curv tables on destination matrix/Gray profiles (no new variant, no new code)",
+   "table_inverse flat-run results change for tables with a flat first or last run (was 0 / 1, now x2 / x1 per F.1); no pinned digest or corpus profile uses such a table (155 tests green, no re-pin)",
+   "WIDE_DESCRIPTOR text (refused, model, recovery) and WideError::NonInvertibleCurve doc updated"
+  ],
+  "tests_added": {
+   "src/icc_eval.rs (unit)": [
+    "require_invertible_accepts_monotonic_tables_and_refuses_the_rest (6 accepted incl. every plateau position and direction, 8 refused incl. one count against the direction)",
+    "table_inverse_follows_annex_f1_for_slopes_flat_runs_and_out_of_range_values (exact values for increasing, decreasing, flat start / middle / end in both directions)"
+   ],
+   "tests/wide_eng8_monotonic.rs": [
+    "non_monotonic_destination_tables_are_refused_at_plan_time_on_rgb_and_gray (6 tables)",
+    "non_monotonic_destination_is_refused_on_the_job_and_admitted_routes_before_any_charge_is_kept",
+    "monotonic_destination_tables_are_inverted_per_annex_f1_on_gray_and_rgb (8 tables vs spec_inverse, an independent segment scan)",
+    "flat_runs_at_the_ends_follow_f1_a_and_b",
+    "accepted_tables_give_the_same_bits_on_the_plain_admitted_and_job_routes",
+    "descriptor_states_the_monotonic_rule_and_the_flat_run_rule"
+   ]
+  },
+  "red_proof": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-redproof/src (git archive of HEAD + the edit-tree prism crate, STUDIO_OWNER=prism-eng8-redproof, own target; never the edit tree's)",
+   "mutations": [
+    "M1 icc_eval require_invertible table arm `rises != falls` -> `rises || falls` (monotonic check gone, only constant refused)",
+    "M2 table_inverse: the two flat-run returns (flat start x2, flat end x1) removed",
+    "M3 wide_job band_account scratch -> 768 (request formula)",
+    "M4 WIDE_DESCRIPTOR recovery: scoped cancel text -> 'canceled: nothing was produced'",
+    "M5 convert_band: cancellation read after the last chunk removed",
+    "M6 WIDE_DESCRIPTOR privacy: 'caller resource and actor attribution ids' -> 'ids'"
+   ],
+   "result": "nextest --lib --test wide_eng8_monotonic --test wide_chunks --test wide_doc_claims: 22 run, 12 FAILED, 10 passed (require_invertible_accepts_monotonic_tables_and_refuses_the_rest, table_inverse_follows_annex_f1..., non_monotonic_destination_tables_are_refused_at_plan_time_on_rgb_and_gray, non_monotonic_destination_is_refused_on_the_job_and_admitted_routes..., monotonic_destination_tables_are_inverted_per_annex_f1_on_gray_and_rgb, flat_runs_at_the_ends_follow_f1_a_and_b, chunk_accounting_is_bounded_deterministic_and_allocation_free, staging_record_matches_the_buffer..., admitted_transform_and_job_report_their_chunks, the_job_chunk_account_reports_the_stage_a_band_really_holds, a_cancel_after_the_last_chunk_still_fails_with_every_chunk_converted, descriptor_scopes_what_a_canceled_call_leaves_and_what_telemetry_carries); M6 is caught by the same descriptor test only after M4 passes (single test, both needles)"
+  },
+  "v4_06_class": {
+   "class": "a destination tone curve is inverted without the invertibility (constant / gamma / monotonic) check",
+   "regex_fixed_strings": [
+    ".inverse(",
+    "table_inverse",
+    "require_invertible",
+    "Curve::from_mox",
+    "Gamma(",
+    "Curve::table"
+   ],
+   "at_commit": "8a9ef31",
+   "count_hits": 53,
+   "count_listed": 53,
+   "unguarded_after": 0,
+   "sites": [
+    {
+     "site": "icc_eval.rs:201",
+     "verdict": "not_applicable",
+     "why": "enum variant definition"
+    },
+    {
+     "site": "icc_eval.rs:214",
+     "verdict": "not_applicable",
+     "why": "from_mox constructor: forward use is defined; the guard sits at the destination use (from_pcs)"
+    },
+    {
+     "site": "icc_eval.rs:225",
+     "verdict": "not_applicable",
+     "why": "from_mox constructor (para type 0): forward use defined; guard at from_pcs"
+    },
+    {
+     "site": "icc_eval.rs:261",
+     "verdict": "ok",
+     "why": "doc of the guard"
+    },
+    {
+     "site": "icc_eval.rs:267",
+     "verdict": "ok",
+     "why": "doc of the guard"
+    },
+    {
+     "site": "icc_eval.rs:271",
+     "verdict": "fixed",
+     "why": "ENG-8: the table arm now refuses non-monotonic tables (rises != falls), constant tables stay refused"
+    },
+    {
+     "site": "icc_eval.rs:274",
+     "verdict": "fixed",
+     "why": "e26f623 guard arm (g > 0)"
+    },
+    {
+     "site": "icc_eval.rs:294",
+     "verdict": "not_applicable",
+     "why": "Curve::eval forward arm"
+    },
+    {
+     "site": "icc_eval.rs:302",
+     "verdict": "not_applicable",
+     "why": "comment"
+    },
+    {
+     "site": "icc_eval.rs:341",
+     "verdict": "fixed",
+     "why": "Curve::inverse; reached only through the guarded destination curves (from_pcs)"
+    },
+    {
+     "site": "icc_eval.rs:342",
+     "verdict": "fixed",
+     "why": "Curve::inverse; table_inverse precondition (monotonic, not constant) now enforced by require_invertible before a destination plan exists; flat-run rule per F.1 a/b changed in ENG-8"
+    },
+    {
+     "site": "icc_eval.rs:377",
+     "verdict": "ok",
+     "why": "doc of table_inverse"
+    },
+    {
+     "site": "icc_eval.rs:378",
+     "verdict": "ok",
+     "why": "doc of table_inverse"
+    },
+    {
+     "site": "icc_eval.rs:385",
+     "verdict": "fixed",
+     "why": "ENG-8: F.1 a)/b) flat start (x2) and flat end (x1 when the run reaches 1), exact unit tests in src/icc_eval.rs"
+    },
+    {
+     "site": "icc_eval.rs:677",
+     "verdict": "fixed",
+     "why": "trc3 builds source AND destination TRCs: the destination use is guarded in from_pcs (for curve in &trc { curve.require_invertible()? })"
+    },
+    {
+     "site": "icc_eval.rs:684",
+     "verdict": "not_applicable",
+     "why": "split_tables: A/M/B curves of mAB/mft pipelines, evaluated forward (B2A curves are stored in evaluation direction)"
+    },
+    {
+     "site": "icc_eval.rs:874",
+     "verdict": "fixed",
+     "why": "FromPcs::encode_linear Matrix: curves are the guarded from_pcs curves"
+    },
+    {
+     "site": "icc_eval.rs:877",
+     "verdict": "fixed",
+     "why": "FromPcs::encode_linear Gray: curve guarded in from_pcs"
+    },
+    {
+     "site": "icc_eval.rs:918",
+     "verdict": "not_applicable",
+     "why": "to_pcs source TRCs, forward"
+    },
+    {
+     "site": "icc_eval.rs:974",
+     "verdict": "not_applicable",
+     "why": "source Gray TRC, forward"
+    },
+    {
+     "site": "icc_eval.rs:991",
+     "verdict": "ok",
+     "why": "comment of the guard in from_pcs"
+    },
+    {
+     "site": "icc_eval.rs:995",
+     "verdict": "fixed",
+     "why": "from_pcs Gray destination: built, then guarded on the next line"
+    },
+    {
+     "site": "icc_eval.rs:996",
+     "verdict": "fixed",
+     "why": "from_pcs guard (Gray and the three matrix TRCs)"
+    },
+    {
+     "site": "icc_eval.rs:1008",
+     "verdict": "fixed",
+     "why": "from_pcs guard (Gray and the three matrix TRCs)"
+    },
+    {
+     "site": "icc_eval.rs:1067",
+     "verdict": "fixed",
+     "why": "Fused::encode: dst curves are the guarded FromPcs curves (Fused::build takes the FromPcs)"
+    },
+    {
+     "site": "icc_eval.rs:1092",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1102",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1114",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1127",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1132",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1136",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1137",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1138",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1139",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1140",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1143",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1144",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1145",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1146",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1150",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1151",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1155",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1156",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1157",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1161",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1162",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1163",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1167",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1168",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1169",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1172",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1173",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    },
+    {
+     "site": "icc_eval.rs:1174",
+     "verdict": "unit_test",
+     "why": "cfg(test) unit test of require_invertible / table_inverse (ENG-8)"
+    }
+   ]
+  },
+  "v4_rules_applied": "V4-01 deny(arithmetic_side_effects) kept on icc_eval.rs (new code uses saturating_add/sub; the scan uses windows(2) comparisons); V4-03 admitted cases print NOT_PROVEN off x86_64-windows-msvc, no machine-local path; V4-04 no hook or env read in src; V4-06 above; V4-07 the new absolute claims ('refused', 'at plan time') cite their tests; V4-09 commit via git commit -F; V4-11/12 scratch trees have their own STUDIO_OWNER (prism-eng8-redproof, prism-eng8-export), helper scripts under scratchpad/smb-prism-eng8; V4-15 new lane id",
+  "dependents": "cargo check --tests PASS on the clean export: hsk-studio-pigment, interop-psd, develop, render-cpu, render-gpu; suites interop-psd + develop 65 passed (1 skipped)",
+  "clippy": "clippy -p hsk-studio-prism --tests --examples: no prism warnings",
+  "scope_kept": "crates/hsk-studio-prism/** only; Cargo.toml/Cargo.lock untouched; no new dependency",
+  "related_lane_work_same_session": "SMB-PRISM-ENG-6/5 R7 pre-review FIX_FIRST items (efda89a, 3312f72, 9b66924, 8a9ef31) were done first on the coordinator's priority; see hsk-studio-prism-eng6.json notes.remediation_R7_prereview",
+  "scratch": "Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-redproof and prism-eng8-export (own targets); session scratchpad smb-prism-eng8/ (ICC text, outputs, helper scripts)"
+ }
+}
