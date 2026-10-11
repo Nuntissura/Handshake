@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:25:36Z",
+ "updated_at": "2026-10-11T07:26:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1750,11 +1750,15 @@
    "crate": "hsk-studio-folio",
    "origin": "interop-vector slice 3 (42fba02) blockers",
    "scope": "StudioPattern paint kind (STU-VEC-017/138), vector clip and mask records with mask mode ALPHA|VECTOR|LUMINANCE (STU-VEC-053), clip/mask reference field on layers; additive; then interop-vector maps them",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-7",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "aa0351a"
+   ],
+   "verdicts": [],
+   "candidate": "aa0351a",
+   "note": "sidecar StudioVectorRecords (hsk.studio.vector_records@1): StudioPattern (STU-COL-195 tile / STU-VEC-138 live), StudioPatternPaint binding PAINT row N (stand-in paint kept; StudioPaint enum unchanged so interop-vector exhaustive matches compile), StudioVectorClip, StudioVectorMask (ALPHA|VECTOR|LUMINANCE), StudioMaskAttachment, validate_vector_records (typed, cycles iterative DFS); 44 of 44 green; spec gaps recorded"
   },
   {
    "lane_id": "SMB-CHRONICLE-TABLE",
@@ -1785,12 +1789,32 @@
    "verdicts": [],
    "candidate": "379a56f",
    "note": "effect_math::window: window_matte / render_layer_window over AlphaSource accessor + window_cost/layer_window_cost/stack_support_px; to_bits identical to reference_matte/render_layer_reference across wave 1+2 kinds (14 variants), splits, straddling and padded domains, 6-effect stack, 4e9 px layers; exact peak-bytes prediction before reads/allocs (limit-1 refused); V4-01 + hostile sizes typed; 42 pigment green; a797b67 code, 379a56f test fix, f3e75bf comments"
+  },
+  {
+   "lane_id": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "origin": "follow-up",
+   "scope": "adopt pigment windowed matte; remove 24 px margin refusal",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-cpu-window",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-VECTOR-RECORDS",
+   "crate": "hsk-studio-interop-vector",
+   "origin": "follow-up",
+   "scope": "map SVG pattern/clip/mask to StudioVectorRecords; export round trip",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-vector-records",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
- "dispatch_queue": [
-  "SMB-RENDER-CPU-WINDOW"
- ],
+ "dispatch_queue": [],
  "consolidation_candidates": [
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
@@ -1873,7 +1897,8 @@
   "SMB-CHRONICLE-TABLE",
   "SMB-MOTION-JS-SANDBOX-2",
   "SMB-COMPOSITE-ADJ",
-  "SMB-PIGMENT-WINDOW"
+  "SMB-PIGMENT-WINDOW",
+  "SMB-FOLIO-ENG-7"
  ],
  "round_R6": {
   "candidate": "bd8533f",

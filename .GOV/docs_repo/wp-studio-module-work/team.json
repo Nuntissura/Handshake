@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:25:36Z",
+ "updated_at": "2026-10-11T07:26:25Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1123,7 +1123,7 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T06:40:19Z",
-   "status": "done 2026-10-11T07:25:36Z (SMB-PIGMENT-WINDOW READY at 379a56f)"
+   "status": "done 2026-10-11T07:26:25Z"
   },
   {
    "name": "builder-render-gpu-fx",
@@ -1159,7 +1159,7 @@
     "builders/lanes/hsk-studio-interop-psd.json"
    ],
    "launched": "2026-10-11T06:52:45Z",
-   "status": "done 2026-10-11T07:07:15Z (SMB-INTEROP-PSD-ADJ READY at cbed946)"
+   "status": "done 2026-10-11T07:26:25Z"
   },
   {
    "name": "builder-folio-eng-7",
@@ -1171,6 +1171,28 @@
     "builders/lanes/hsk-studio-folio-eng-7.json"
    ],
    "launched": "2026-10-11T06:52:45Z",
+   "status": "done 2026-10-11T07:26:25Z"
+  },
+  {
+   "name": "builder-vector-records",
+   "agent_id": "PENDING-1",
+   "model": "sonnet",
+   "role": "interop-vector maps SVG pattern/clip/mask to folio StudioVectorRecords + export round trip",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**"
+   ],
+   "launched": "2026-10-11T07:26:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-cpu-window",
+   "agent_id": "PENDING-2",
+   "model": "sonnet",
+   "role": "render-cpu adopts pigment windowed matte; lifts 24 px margin refusal",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**"
+   ],
+   "launched": "2026-10-11T07:26:25Z",
    "status": "running"
   }
  ]
