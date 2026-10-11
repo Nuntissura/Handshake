@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:13:39Z",
+ "updated_at": "2026-10-11T05:16:39Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -750,7 +750,7 @@
     "builders/lanes/hsk-studio-score.json"
    ],
    "launched": "2026-10-11T05:06:03Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:16:39Z (SMB-SCORE READY at 2fe5f36)"
   }
  ]
 }
