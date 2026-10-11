@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:06:03Z",
+ "updated_at": "2026-10-11T05:13:39Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -373,12 +373,16 @@
    "lane_id": "SMB-INTEROP-FIG",
    "crate": "hsk-studio-interop-fig",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-fig",
    "brief": "builders/briefs/hsk-studio-interop-fig.md",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "4cfbf0f"
+   ],
+   "verdicts": [],
+   "candidate": "4cfbf0f",
+   "note": "foundation: bounded ZIP / bare canvas.fig container byte-exact + sha256, version gate (default admits none), opaque-preserved unsupported versions, typed loss, StaleSource, Kiwi schema census, decode_semantic -> EditableDecoderBlocked; 5/5 tests synthetic; Figma parity NOT_PROVEN; own ZIP reader (3rd bounded ZIP reader -> D16)"
   },
   {
    "lane_id": "SMB-INTEROP-LAYOUT",
@@ -1236,9 +1240,11 @@
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
  "dispatch_queue": [],
  "consolidation_candidates": [
-  "general bounded ZIP reading: interop-layout (in-crate) vs package (strict canonical container, no deflate) -> consider one owner for general bounded ZIP read (e.g. package exposing a non-canonical bounded reader) later"
+  "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16"
  ],
- "steward_next_sync": [],
+ "steward_next_sync": [
+  "registry pins + probe approvals for hsk-studio-interop-fig dep requests (miniz_oxide, ruzstd, sha2, serde_json; all already locked)"
+ ],
  "round_R4": {
   "candidate": "2abb984",
   "status": "ABANDONED",
@@ -1258,6 +1264,7 @@
   "gameplan_change": "ROUND GP-006 retired -> GP-013 (unchanged entrypoint OR canary exit 0 on candidate)"
  },
  "next_round_after_R5": [
-  "SMB-PULSE-ENG-1"
+  "SMB-PULSE-ENG-1",
+  "SMB-INTEROP-FIG"
  ]
 }

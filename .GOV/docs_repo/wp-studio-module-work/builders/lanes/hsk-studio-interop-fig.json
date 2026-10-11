@@ -1,0 +1,55 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "foundation slice complete: container/identity/opaque/loss/version-reject + Kiwi schema summary and bounded census; editable decode BLOCKED (NOT_PROVEN)",
+  "commits": [
+    {"sha": "e09a491", "subject": "interop-fig slice 1: bounded .fig container, version policy gate, loss list, stale-source + sanitized policy, blocked semantic decode, DESCRIPTOR, report(), consumer example, 5 focused synthetic-fixture tests"},
+    {"sha": "a3808f8", "subject": "interop-fig slice 2: hand-written Kiwi schema reader + bounded schema-driven census (type histogram, source ids verbatim s:l, DOCUMENT roots) over raw-deflate schema and zstd/deflate message chunks; soft decode failures are typed loss entries, bound hits hard errors"},
+    {"sha": "4cfbf0f", "subject": "interop-fig: descriptor documents Kiwi census/limits/loss codes; consumer --inspect prints schema summary, census and loss under an explicit inspection policy"}
+  ],
+  "capabilities_done": [
+    "container.rs: open_fig(bytes, Limits, token) -> FigContainer: ZIP (PK 03 04) with bounded entries/entry bytes/inflated bytes/ratio, exact + case-folded duplicate names, traversal/absolute/backslash/drive/control names, local-vs-central header check, overlap check, CRC-32, STORE/DEFLATE only; or bare canvas.fig stream; prelude fig-kiwi/fig-jam./fig-deck else Unknown (bare unknown = NotFig, in-ZIP unknown = opaque Unknown with no chunk table); u32 LE version; length-prefixed chunk table (ChunkOverflow); every part byte-exact with sha256, chunks as ranges with sha256; meta.json top-level keys only",
+    "version_map.rs: VersionPolicy (default admits NOTHING: no real version observed; OBSERVED_VERSIONS empty), check_version -> UnsupportedVersion{kind,found}; unsupported returns FigOutcome::OpaqueOnly with the container, nothing decoded",
+    "import.rs: import_fig(bytes, Limits, VersionPolicy, expected_sha256, token) -> FigOutcome; FigImport{container, kind, version, source_sha256, parts_sha256, schema_summary, census, loss, editable: NotProven}; LossEntry{part, PreservedOpaque|Unsupported, code}; StaleSource; sanitized_summary(Preservation|Sanitized); report() -> FigReceipt{receipt, editable: NotProven}",
+    "kiwi.rs: Kiwi binary schema reader (wire format verified against evanw/kiwi binary.ts/bb.ts) + schema-driven bounded walker: schema = first of chunks 0/1 that inflates as raw deflate and parses; message = next chunk (zstd by magic else raw deflate); census {node_type_histogram, node_count, root_ids as SourceId session:local verbatim} only when the whole message decodes; soft failures (unknown field id, truncation, trailing bytes, unrecognised compression, schema errors) = typed loss entry and no census; bound hits/cancel = hard errors",
+    "semantic_decode.rs: decode_semantic always Err(EditableDecoderBlocked NOT_PROVEN)",
+    "examples/interop-fig-consumer: --descriptor, --inspect FILE.fig (identity, parts, chunks, schema, census, loss)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-interop-fig --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "4cfbf0f",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "Independent validator round on 4cfbf0f. Then (needs operator): Figma-authored .fig files at tests/fixtures/*.fig to record real versions in version_map::OBSERVED_VERSIONS and confirm chunk numbering, field names and zstd use; only after original-produced semantic/render proof: node-to-Folio/Components mapping (variants, variables, modes, auto-layout, prototypes), images/fonts, .jam/.deck/.buzz/.site/.make, writer",
+  "updated_at": "2026-10-11T05:12:04Z",
+  "notes": {
+    "mt": "MT-35550 foundation (fig_import)",
+    "not_proven": [
+      "editable .fig import and Figma parity: NOT_PROVEN. No Figma-authored .fig exists on this machine; every fixture is synthetic and built from public community format notes (UNVERIFIED against a real file)",
+      "VersionPolicy default admits nothing; OBSERVED_VERSIONS is empty until the operator supplies real files at tests/fixtures/*.fig (the real-file branch of actual_fig_instance_variable_prototype_edit_reopen then asserts they open and their version is recorded)",
+      "UNVERIFIED against a real file: chunk numbering (schema chunk 0/1, message next), u32 LE chunk length prefix, Message/nodeChanges/guid/sessionID/localID/type names, DOCUMENT as root type, 9-byte int64/uint64 varint skip rule"
+    ],
+    "validation_evidence": {
+      "tests": "PASS 5/5 on the tree equal to pushed 4cfbf0f (run before the commit, identical content): fig_container_bounded_identity_loss, unsupported_version_duplicate_key_bomb_cancel, actual_fig_instance_variable_prototype_edit_reopen (blocked-decoder branch), stale_import_and_sanitized_policy, legacy_bare_and_foreign_kinds; 0.34 s",
+      "clippy": "PASS no hsk-studio-interop-fig warnings (--tests --examples); hsk-studio-observe emits its own 2 pre-existing too_many_arguments warnings",
+      "rustfmt": "cargo fmt -p hsk-studio-interop-fig applied to this crate only",
+      "break_it": "on 4cfbf0f, three mutations at once (case-fold duplicate check removed, ratio check disabled, guid session/local swapped) made 2 of 5 tests fail (duplicate case-fold assertion and the root-id assertion '70000:4294967295' vs '4294967295:70000'); the ratio mutant was not isolated because the case-fold assertion panicked first; sources restored byte-identical (git diff empty)",
+      "example": "interop-fig-consumer --descriptor prints the descriptor; --inspect on a missing file prints unreadable_input and exits 2; --inspect on a real .fig not run (none exists)"
+    },
+    "gameplan_route": "one retry-guard block after the first failed run (a test fixture bug: the node list edit did not apply after rustfmt reflowed it); route (a): fixing commit a3808f8 changed HEAD, then rerun. No gameplan steps added; no flags or filters changed to pass the guard",
+    "decisions_for_lead": [
+      "ZIP: own bounded reader over miniz_oxide =0.9.1 (same as interop-layout/psd/vector/press) instead of the brief's zip =8.6.0: zip is not in Cargo.lock, and hostile fixtures (duplicate names) need a hand writer anyway. Dep-requests appended for miniz_oxide, ruzstd (=0.9.0, package pin), sha2, serde_json (all already in Cargo.lock; steward sync must add this crate's registry pins)",
+      "Observe mapping: UnsupportedVersion and NotFig -> Failure(Unsupported) (FailureCode::Unsupported exists; interop-layout uses it for unsupported input) rather than the brief's Failure(Unavailable); EditableDecoderBlocked/DecoderUnavailable -> Failure(Unavailable); hostile -> Validation; Canceled -> Canceled",
+      "Hand-written Kiwi reader (no kiwi-schema dep): kiwi-schema is not in Cargo.lock and its generic decode is UNVERIFIED; the wire format is small and was verified against evanw/kiwi js/binary.ts + js/bb.ts",
+      "Unsupported version returns Ok(FigOutcome::OpaqueOnly{container, error}) (container preserved, nothing decoded); hostile, stale and canceled input is Err with no container",
+      "ruzstd zstd frames use the crate default window limit (not raised); a zstd chunk over the default window is a soft message_invalid loss, not a hard error",
+      "Cargo.lock in the shared worktree is modified by local cargo runs (this crate's deps); not staged"
+    ]
+  }
+}

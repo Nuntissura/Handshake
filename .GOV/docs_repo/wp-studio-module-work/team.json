@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:06:03Z",
+ "updated_at": "2026-10-11T05:13:39Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -617,7 +617,7 @@
     "builders/lanes/hsk-studio-interop-fig.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:13:39Z (SMB-INTEROP-FIG READY at 4cfbf0f)"
   },
   {
    "name": "builder-score-device",
