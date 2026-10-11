@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T08:02:20Z",
+ "updated_at": "2026-10-11T08:04:23Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1215,7 +1215,7 @@
     "validation/R7-prereview-b.json"
    ],
    "launched": "2026-10-11T07:30:00Z",
-   "status": "running"
+   "status": "done 2026-10-11T08:04:23Z (web + motion-js-worker SAFE; press, motion-js FIX_FIRST)"
   },
   {
    "name": "builder-pigment-blendif-clip",
@@ -1270,6 +1270,74 @@
     "crates/hsk-studio-develop/**"
    ],
    "launched": "2026-10-11T07:59:09Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-press-soundness",
+   "agent_id": "ae12f5b706787c4c0",
+   "model": "opus",
+   "role": "press proof soundness (pre-review B N1-N7; backstop raw-byte scan; diagnosis)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "diagnostics/press-proof-soundness.md"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-motionjs-nul",
+   "agent_id": "a854c9e92d9fe4fec",
+   "model": "sonnet",
+   "role": "motion-js NUL validator + input errors never poison (pre-review B N1)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r7",
+   "agent_id": "aff6ffac7b9580b83",
+   "model": "opus",
+   "role": "independent union round R7 on 0e48167",
+   "owns": [
+    "validation/round-R7.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r7-a",
+   "agent_id": "aac557c9e04e83445",
+   "model": "opus",
+   "role": "R7 review A render + colour",
+   "owns": [
+    "validation/R7-review-a.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r7-b",
+   "agent_id": "a2e70cd64f8960943",
+   "model": "opus",
+   "role": "R7 review B formats + media",
+   "owns": [
+    "validation/R7-review-b.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r7-c",
+   "agent_id": "adec6570c63b64c5c",
+   "model": "opus",
+   "role": "R7 review C runtime + security",
+   "owns": [
+    "validation/R7-review-c.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
    "status": "running"
   }
  ]
