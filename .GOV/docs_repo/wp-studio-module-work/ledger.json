@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T18:03:46Z",
+ "updated_at": "2026-10-11T18:32:40Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -803,8 +803,15 @@
    },
    "blockers": [
     {
-     "kind": "awaiting V4-13 pre-review at 5cd8c9e",
-     "recorded_at": "2026-10-11T18:03:46Z"
+     "kind": "V4-13 pre-review FIX_FIRST (crate)",
+     "ref": "validation/R12-prereview-web.json",
+     "items": [
+      "R12-F1",
+      "R12-F2",
+      "R12-F3",
+      "P1-P4 (lead decided)"
+     ],
+     "recorded_at": "2026-10-11T18:32:40Z"
     }
    ]
   },
@@ -2200,8 +2207,8 @@
    "crate": "hsk-studio-web",
    "origin": "rem-web-r6 suggestion; root class = parser/browser disagreement",
    "scope": "test-only differential check: html5ever (dev-dependency, MIT/Apache) parses generated/adversarial inputs; compare element namespaces, raw-text/RCDATA boundaries and decoded attribute values with hsk-studio-web's model; disagreements fail; needs steward lock sync",
-   "phase": "validation (with SMB-WEB-PARITY)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "FIX_FIRST (rem-web-r12)",
+   "status": null,
    "owner": "builder-web-difftest",
    "commits": [
     "eefe44d",
@@ -2228,7 +2235,20 @@
     ],
     "owning_lane": "SMB-WEB-PARITY",
     "note": "comparator normalisations N1/N2 and generator guards changed in the parity lane; difftest judged together with SMB-WEB-PARITY"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST (crate)",
+     "ref": "validation/R12-prereview-web.json",
+     "items": [
+      "R12-F1",
+      "R12-F2",
+      "R12-F3",
+      "P1-P4 (lead decided)"
+     ],
+     "recorded_at": "2026-10-11T18:32:40Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-CPU-FX2",
@@ -2687,8 +2707,8 @@
    "crate": "hsk-studio-web",
    "origin": "SMB-WEB-DIFFTEST disagreements D1-D9 (lead decision 2026-10-11T12:47:22Z)",
    "scope": "fix D1-D8 per WHATWG; D9 implied-element normalisation documented, re-parenting/reordering inputs refused with typed errors; make SMB-WEB-DIFFTEST's 5 red tests green; crate rustfmt-clean",
-   "phase": "validation (V4-13 pre-review SMB-WEB before R12)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "FIX_FIRST (rem-web-r12)",
+   "status": null,
    "owner": "builder-web-parity",
    "lane_file": "builders/lanes/hsk-studio-web-parity.json",
    "commits": [
@@ -2711,7 +2731,20 @@
    ],
    "verdicts": [],
    "candidate": "5cd8c9e",
-   "note": "D1-D8 fixed per WHATWG (image->void img; NUL->U+FFFD in names/values/RCDATA/foreign text, dropped from HTML text; CR/CRLF->LF before references; first LF after pre/listing/textarea dropped incl. CR/CRLF/reference); local_name()/attr_local_name() decoded, spans keep source bytes (pinned); D9 rule table in src/dom/construction.rs with spec steps, typed refusals (implied_end_tag, adoption_agency, table_content, ignored_token, document_structure); N1 implied elements + N2 boundary whitespace normalised in comparator only; 35 disagreeing inputs -> 5 normalised, 30 refused; 32 accepted inputs match html5ever; 56/56 web tests; 9 parity tests red on scratch 471b679; corpora 0 disagreements (127,550 + 100,000 fuzz + 25,000 noise); V4-06 97 (56 fixed, 41 n/a); commits 1c67557 (rustfmt only), 6d1c591, e849d4c, 4d80e50; R9 pre-review fixes 77ed037/8298898/62d8983: one style text (WebDoc::stylesheet_text) feeds asset scan, preview and media scan (V4-06 class raw-text consumers 58 sites: 16 FIXED, 11 OK, 31 n/a); F1 CDATA CR hide fixed; F2 </image> in colgroup refused + every D9 row has a refusing input; F3 </> no token; F4 foreign insert rules; P1 N2 whitespace-only nodes only; P2 lint; P3/P4 pinned; image srcset pinned; 66/66; red proofs smb-web-r9-red (7) + mutant (16); soak 123,385 docs 0 disagreements; R10 pre-review fix: cssurl.rs follows CSS Syntax 3 \u00a73.3/\u00a74.3.1-4.3.15 (one function per algorithm); R10-F1 + <!--url( + Gecko bad-url holes fixed; URLs from url/bad-url (denied)/url()/src()/image-set()/-webkit-image-set()/image()/cross-fade()/@import; Denied(ComputedUrl) for var/attr/env/if/unknown inside URL functions; limit_depth 1024; three readings unioned; CC0 css-parsing-tests vendored (50/50); scratch Gecko cssparser differential 300,010 inputs 0 disagreements (not committed, MPL); 94/94; soak 153,385 + 150,042 CSS docs 0 disagreements; V4-06 40; R11 remediation 787cbad..5cd8c9e: src/carriers.rs inventory (53 rows, spec-cited, every row has path + fixture test) drives collect_assets; SMIL values split on ';'; every inventory CSS property is an animation target (marker); data: text/css decoded and scanned recursively (depth 8, max_bytes), document-capable data: denied inline_document, relative refs in payloads denied; speculation rules denied; xml:base as base; attributionsrc scanned; 110/110; V4-06 URL carriers 110 sites; soak 0 disagreements"
+   "note": "D1-D8 fixed per WHATWG (image->void img; NUL->U+FFFD in names/values/RCDATA/foreign text, dropped from HTML text; CR/CRLF->LF before references; first LF after pre/listing/textarea dropped incl. CR/CRLF/reference); local_name()/attr_local_name() decoded, spans keep source bytes (pinned); D9 rule table in src/dom/construction.rs with spec steps, typed refusals (implied_end_tag, adoption_agency, table_content, ignored_token, document_structure); N1 implied elements + N2 boundary whitespace normalised in comparator only; 35 disagreeing inputs -> 5 normalised, 30 refused; 32 accepted inputs match html5ever; 56/56 web tests; 9 parity tests red on scratch 471b679; corpora 0 disagreements (127,550 + 100,000 fuzz + 25,000 noise); V4-06 97 (56 fixed, 41 n/a); commits 1c67557 (rustfmt only), 6d1c591, e849d4c, 4d80e50; R9 pre-review fixes 77ed037/8298898/62d8983: one style text (WebDoc::stylesheet_text) feeds asset scan, preview and media scan (V4-06 class raw-text consumers 58 sites: 16 FIXED, 11 OK, 31 n/a); F1 CDATA CR hide fixed; F2 </image> in colgroup refused + every D9 row has a refusing input; F3 </> no token; F4 foreign insert rules; P1 N2 whitespace-only nodes only; P2 lint; P3/P4 pinned; image srcset pinned; 66/66; red proofs smb-web-r9-red (7) + mutant (16); soak 123,385 docs 0 disagreements; R10 pre-review fix: cssurl.rs follows CSS Syntax 3 \u00a73.3/\u00a74.3.1-4.3.15 (one function per algorithm); R10-F1 + <!--url( + Gecko bad-url holes fixed; URLs from url/bad-url (denied)/url()/src()/image-set()/-webkit-image-set()/image()/cross-fade()/@import; Denied(ComputedUrl) for var/attr/env/if/unknown inside URL functions; limit_depth 1024; three readings unioned; CC0 css-parsing-tests vendored (50/50); scratch Gecko cssparser differential 300,010 inputs 0 disagreements (not committed, MPL); 94/94; soak 153,385 + 150,042 CSS docs 0 disagreements; V4-06 40; R11 remediation 787cbad..5cd8c9e: src/carriers.rs inventory (53 rows, spec-cited, every row has path + fixture test) drives collect_assets; SMIL values split on ';'; every inventory CSS property is an animation target (marker); data: text/css decoded and scanned recursively (depth 8, max_bytes), document-capable data: denied inline_document, relative refs in payloads denied; speculation rules denied; xml:base as base; attributionsrc scanned; 110/110; V4-06 URL carriers 110 sites; soak 0 disagreements",
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST (crate)",
+     "ref": "validation/R12-prereview-web.json",
+     "items": [
+      "R12-F1",
+      "R12-F2",
+      "R12-F3",
+      "P1-P4 (lead decided)"
+     ],
+     "recorded_at": "2026-10-11T18:32:40Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-FMT-SWEEP",

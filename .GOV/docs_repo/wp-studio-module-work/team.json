@@ -1996,7 +1996,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T16:55:24Z",
-   "status": "done 2026-10-11T18:03:46Z (5cd8c9e)"
+   "status": "done (5cd8c9e; retired)"
   },
   {
    "name": "validator-r11",
@@ -2042,6 +2042,19 @@
     "validation/R12-prereview-web.json"
    ],
    "launched": "2026-10-11T18:04:13Z",
+   "status": "done 2026-10-11T18:32:40Z (FIX_FIRST: R12-F1..F3)"
+  },
+  {
+   "name": "rem-web-r12",
+   "agent_id": "a45a8c6ff48043746",
+   "model": "sonnet",
+   "role": "web R12 remediation (load context first, self-reference, trim, P1-P4)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T18:32:51Z",
    "status": "running"
   }
  ]
