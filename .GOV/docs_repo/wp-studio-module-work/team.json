@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:18:52Z",
+ "updated_at": "2026-10-11T05:31:12Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -573,7 +573,7 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
-   "status": "idle (sync 1d404f8 pushed, canary C5 exit 0 44 units; 2026-10-11T05:02:18Z)"
+   "status": "running (NOT_PROVEN accounting in round entrypoint + corpus root config; next sync pins fig + cpal) 2026-10-11T05:31:12Z"
   },
   {
    "name": "builder-components-migrate",
@@ -688,7 +688,7 @@
     "validation/R5-review-a.json"
    ],
    "launched": "2026-10-11T05:02:18Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
   },
   {
    "name": "reviewer-r5-b",
@@ -699,7 +699,7 @@
     "validation/R5-review-b.json"
    ],
    "launched": "2026-10-11T05:02:18Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
   },
   {
    "name": "reviewer-r5-c",
@@ -710,7 +710,7 @@
     "validation/R5-review-c.json"
    ],
    "launched": "2026-10-11T05:02:18Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
   },
   {
    "name": "architect-adjustments",
@@ -738,7 +738,7 @@
     "builders/lanes/hsk-studio-render-gpu.json"
    ],
    "launched": "2026-10-11T05:06:03Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:31:12Z (SMB-RENDER-GPU READY at 167dc28)"
   },
   {
    "name": "builder-score-2",
@@ -774,6 +774,107 @@
     "builders/lanes/hsk-studio-develop.json"
    ],
    "launched": "2026-10-11T05:18:52Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-lrcat",
+   "agent_id": "a3dd453765ffb145b",
+   "model": "sonnet",
+   "role": "R5 remediation interop-lrcat (overflow chain OOM, reconciles tautology)",
+   "owns": [
+    "crates/hsk-studio-interop-lrcat/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-layout",
+   "agent_id": "a4ad9f5374fb4a95f",
+   "model": "sonnet",
+   "role": "R5 remediation interop-layout (Properties clone amplification)",
+   "owns": [
+    "crates/hsk-studio-interop-layout/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-components",
+   "agent_id": "a64f987b72f9b14e3",
+   "model": "opus",
+   "role": "R5 remediation components (2nd FAIL: swap/switch binding type check, Design duplicate ids)",
+   "owns": [
+    "crates/hsk-studio-components/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-vector",
+   "agent_id": "a3c266a471ce3400b",
+   "model": "sonnet",
+   "role": "R5 remediation interop-vector (DOCTYPE comment decoy entity bypass, Assigned profile export loss)",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-motionjs-reelnative",
+   "agent_id": "a229681526cda8782",
+   "model": "opus",
+   "role": "R5 remediation motion-js + reel-native (overflows, fault-mode gating, rav1d host link split, classify from engine signals)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**",
+    "crates/hsk-studio-reel-native/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-controls",
+   "agent_id": "a8888645be589d9f1",
+   "model": "opus",
+   "role": "R5 remediation controls (2nd FAIL: unchanged-value-as-success class audit)",
+   "owns": [
+    "crates/hsk-studio-controls/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-web",
+   "agent_id": "a4c6c00da713d3a50",
+   "model": "sonnet",
+   "role": "R5 remediation web (CSS escape decoding, base href, URL attribute coverage)",
+   "owns": [
+    "crates/hsk-studio-web/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-kb-harness",
+   "agent_id": "a3bdce1470a50926e",
+   "model": "sonnet",
+   "role": "R5 remediation kernel-bindings (ticket ownership, canonical wire) + harness (verify nothing_checked)",
+   "owns": [
+    "crates/hsk-studio-kernel-bindings/**",
+    "crates/hsk-studio-harness/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-psd",
+   "agent_id": "ad300e07eb9c23042",
+   "model": "sonnet",
+   "role": "R5 remediation interop-psd gray BPC drop",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
    "status": "running"
   }
  ]

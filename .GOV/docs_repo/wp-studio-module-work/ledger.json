@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:17:48Z",
+ "updated_at": "2026-10-11T05:31:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -90,7 +90,12 @@
    "candidate": "d40d553",
    "note": "11 tests + 1 ignored real-DNG; prism output route; 24MP full develop 3.3s scalar; real CC0 DNGs await Operator download approval (D10)",
    "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)",
-   "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)"
+   "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)",
+   "r5_review_routed": {
+    "to": "builder-develop-2",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -113,7 +118,12 @@
    "lane_file": "builders/lanes/hsk-studio-components.json",
    "candidate": "0111960",
    "note": "slice1+2: + own auto-layout evaluator (taffy not adopted: semantics differ, UNVERIFIED); 9 tests + mutants",
-   "review_findings_r3": "R3 findings remediated 0111960"
+   "review_findings_r3": "R3 findings remediated 0111960",
+   "r5_review_routed": {
+    "to": "rem-components",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PULSE",
@@ -286,15 +296,21 @@
     "989d91d",
     "7e7579f",
     "0551b8d",
-    "b7d90dc"
+    "b7d90dc",
+    "167dc28"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
-   "candidate": "b7d90dc",
-   "note": "slice1+2: 12 modes generated from pigment MODES, masks, groups, clip-to-base; parity 2.4e-7 DX12+Vulkan; typed no-adapter path; slice 3 dispatched 2026-10-11T05:06:03Z (builder-render-gpu-3)",
-   "review_findings_r3": "R3 findings remediated b7d90dc (regression tests fail on old code)"
+   "candidate": "167dc28",
+   "note": "slice 3: +14 modes, 26 executed on device; WGSL generated from pigment mode table; max err 3.6e-7 random, non-separable lattice 1.61e-6 (lead accepts 2e-6 for that family); dissolve refused (no plan seed); commits 159cf9c,167dc28; 12 of 12 green",
+   "review_findings_r3": "R3 findings remediated b7d90dc (regression tests fail on old code)",
+   "r5_review_routed": {
+    "to": "steward-2 (NOT_PROVEN accounting)",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PACKAGE",
@@ -368,7 +384,13 @@
     "STUDIO-R3 PASS_V1 @404ff3a"
    ],
    "candidate": "f0cdb55",
-   "note": "slices1-2: SVG import/export + gradients, appearance rows, strokes, SVGZ bomb-limited; 9 tests"
+   "note": "slices1-2: SVG import/export + gradients, appearance rows, strokes, SVGZ bomb-limited; 9 tests",
+   "r5_review_routed": {
+    "to": "rem-vector",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "ledger_correction": "R5 reviewer: PASS_V1 was issued at 404ff3a; candidate field f0cdb55 (slice 2) is NOT in that tree -> slice 2 has no verdict yet (2026-10-11T05:31:12Z)"
   },
   {
    "lane_id": "SMB-INTEROP-FIG",
@@ -401,7 +423,12 @@
    ],
    "verdicts": [],
    "candidate": "5e058ae",
-   "note": "slices1-2: + reflow/overset via layout (fixed-advance shaper port), Folio->IDML export, group frames typed loss, first-baseline mapping UNVERIFIED; 9 tests"
+   "note": "slices1-2: + reflow/overset via layout (fixed-advance shaper port), Folio->IDML export, group frames typed loss, first-baseline mapping UNVERIFIED; 9 tests",
+   "r5_review_routed": {
+    "to": "rem-layout",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-INTEROP-MEDIA",
@@ -421,7 +448,11 @@
    "lane_file": "builders/lanes/hsk-studio-interop-media.json",
    "candidate": "4a6bb19",
    "note": "CMX3600 EDL import/export fixed point; native formats detection-only blocked; 4 tests; time.rs duplicates pulse (pending edge D9); timecode label dup with pulse remains open on D9",
-   "review_findings_r3": "R3 findings remediated 4a6bb19"
+   "review_findings_r3": "R3 findings remediated 4a6bb19",
+   "r5_review_routed": {
+    "to": "BLOCKED on Operator D9 (timecode duplicate)",
+    "at": "2026-10-11T05:31:12Z"
+   }
   },
   {
    "lane_id": "SMB-CONTROLS",
@@ -442,7 +473,12 @@
    ],
    "candidate": "605796f",
    "note": "slice1+2: spec gestures (STU-FX-149, SHL-188..192), undo coalescing, report(), integer domain, sections; 9 tests",
-   "review_findings_r3": "R3 FAIL_V1 remediated 605796f (regression tests fail on old code)"
+   "review_findings_r3": "R3 FAIL_V1 remediated 605796f (regression tests fail on old code)",
+   "r5_review_routed": {
+    "to": "rem-controls",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-SESSION",
@@ -484,7 +520,12 @@
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-harness.json",
    "candidate": "c47e256",
-   "note": "headless studio-harness: help/descriptors/providers/open/panel/edit/verify; explicit providers; deterministic JSON; generated manual; 4 tests; desktop GUI pending D11"
+   "note": "headless studio-harness: help/descriptors/providers/open/panel/edit/verify; explicit providers; deterministic JSON; generated manual; 4 tests; desktop GUI pending D11",
+   "r5_review_routed": {
+    "to": "rem-kb-harness",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-KERNEL-BINDINGS",
@@ -501,7 +542,12 @@
    ],
    "verdicts": [],
    "candidate": "a7d631c",
-   "note": "strict versioned wire envelopes over session ports; TransientHost; exactly-once; 5 tests + break-it"
+   "note": "strict versioned wire envelopes over session ports; TransientHost; exactly-once; 5 tests + break-it",
+   "r5_review_routed": {
+    "to": "rem-kb-harness",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PRESS",
@@ -521,7 +567,12 @@
    ],
    "verdicts": [],
    "candidate": "cb38b86",
-   "note": "slice 3: redact_text_fields over outline /Title + annotation /Contents,/T,/Subj,/RC (PDFDocEncoding/UTF-16BE/LE/UTF-8 BOM; encoding preserved), Replace|Remove, widget /V,/DV only with explicit option, matching /AP dropped, per-object outcomes, KeptByPolicy stays a proof hit; proof change: /AP show operands now hits; 14/14; not covered: named dests, action URIs, /Opt,/TU, struct tree, popups outside /Annots, composite-font AP codes; ISO 32000 via secondary sources"
+   "note": "slice 3: redact_text_fields over outline /Title + annotation /Contents,/T,/Subj,/RC (PDFDocEncoding/UTF-16BE/LE/UTF-8 BOM; encoding preserved), Replace|Remove, widget /V,/DV only with explicit option, matching /AP dropped, per-object outcomes, KeptByPolicy stays a proof hit; proof change: /AP show operands now hits; 14/14; not covered: named dests, action URIs, /Opt,/TU, struct tree, popups outside /Annots, composite-font AP codes; ISO 32000 via secondary sources",
+   "r5_review_routed": {
+    "to": "builder-press-3",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-WEB",
@@ -538,7 +589,12 @@
    ],
    "verdicts": [],
    "candidate": "7cd898d",
-   "note": "slices1-2: + refresh/KeyMap, collect_assets (all external schemes denied), preview_tree a11y, report(); 9 tests"
+   "note": "slices1-2: + refresh/KeyMap, collect_assets (all external schemes denied), preview_tree a11y, report(); 9 tests",
+   "r5_review_routed": {
+    "to": "rem-web",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-SCORE-DEVICE",
@@ -591,7 +647,12 @@
    ],
    "verdicts": [],
    "candidate": "bab2221",
-   "note": "bounded read-only SQLite-byte decoder (no engine, CX-503R), WAL overlay gated, fingerprint SourceChanged; 5 tests + break-it; Lightroom schema UNVERIFIED (D12)"
+   "note": "bounded read-only SQLite-byte decoder (no engine, CX-503R), WAL overlay gated, fingerprint SourceChanged; 5 tests + break-it; Lightroom schema UNVERIFIED (D12)",
+   "r5_review_routed": {
+    "to": "rem-lrcat",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-MOTION-JS",
@@ -614,7 +675,12 @@
    "candidate": "a53c52d",
    "note": "slice2 quickjs feature (off by default) per prep controls; finding: hostile async syntax can abort host -> worker-process lane mandatory",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round",
-   "review_findings_r3": "R3 FAIL_V1 remediated a53c52d (getter loop, InternalError classification)"
+   "review_findings_r3": "R3 FAIL_V1 remediated a53c52d (getter loop, InternalError classification)",
+   "r5_review_routed": {
+    "to": "rem-motionjs-reelnative",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PRISM-ENG-1",
@@ -691,7 +757,12 @@
    ],
    "verdicts": [],
    "candidate": "dcc1b37",
-   "note": "AV1 via rav1d 1.1.0 behind feature av1 (asm off), bit-exact vs libdav1d; TRUSTED INPUT ONLY: 9.7% of 1-byte mutations abort the process (uncatchable unwrap in rav1d extern C)"
+   "note": "AV1 via rav1d 1.1.0 behind feature av1 (asm off), bit-exact vs libdav1d; TRUSTED INPUT ONLY: 9.7% of 1-byte mutations abort the process (uncatchable unwrap in rav1d extern C)",
+   "r5_review_routed": {
+    "to": "builder-reel-2",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PULSE-ENG-1",
@@ -785,7 +856,12 @@
    ],
    "verdicts": [],
    "candidate": "baeecf3",
-   "note": "T0 41 analytic (max 7.8e-6) + T1 42 vs lcms2 2.19.0 (imagecodecs wheel venv on D:); 11 findings pinned as expected-fail; 3 divergences pending Photoshop T3; retry-guard flag-change disclosed"
+   "note": "T0 41 analytic (max 7.8e-6) + T1 42 vs lcms2 2.19.0 (imagecodecs wheel venv on D:); 11 findings pinned as expected-fail; 3 divergences pending Photoshop T3; retry-guard flag-change disclosed",
+   "r5_review_routed": {
+    "to": "builder-prism-eng6",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-TYPE-DOCTEST",
@@ -847,7 +923,12 @@
    "candidate": "276e2a3",
    "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it; clip-to-base route 4e533d5 (supports_clip_to_base default false)",
    "review_findings": "R2-review-a: PASS recommendation (no CONFIRMED findings); formal verdict pending next round",
-   "review_findings_r3": "R3 findings remediated 276e2a3 (regression tests fail on old code)"
+   "review_findings_r3": "R3 findings remediated 276e2a3 (regression tests fail on old code)",
+   "r5_review_routed": {
+    "to": "architect-adjustments",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-ROUND-ENTRYPOINT",
@@ -1063,7 +1144,12 @@
    ],
    "verdicts": [],
    "candidate": "a53c52d",
-   "note": "worker process isolation (CREATE_NO_WINDOW, deadline/cancel kill, crash -> engine_crashed, bounded respawn); in-process only via unsafe_in_process; Job Object/WerFault suppression NOT_PROVEN (needs unsafe)"
+   "note": "worker process isolation (CREATE_NO_WINDOW, deadline/cancel kill, crash -> engine_crashed, bounded respawn); in-process only via unsafe_in_process; Job Object/WerFault suppression NOT_PROVEN (needs unsafe)",
+   "r5_review_routed": {
+    "to": "rem-motionjs-reelnative",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -1126,7 +1212,12 @@
    ],
    "verdicts": [],
    "candidate": "213b30a",
-   "note": "CMYK/Lab/gray via WideEngine; clamp recorded; originals preserved; 18 tests"
+   "note": "CMYK/Lab/gray via WideEngine; clamp recorded; originals preserved; 18 tests",
+   "r5_review_routed": {
+    "to": "rem-psd",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-DEVELOP-WIDE",
@@ -1141,7 +1232,11 @@
    ],
    "verdicts": [],
    "candidate": "d40d553",
-   "note": "WideEngine output + speed tables (byte-identical); 24MP demosaic 1628->398ms"
+   "note": "WideEngine output + speed tables (byte-identical); 24MP demosaic 1628->398ms",
+   "r5_review_routed": {
+    "to": "BLOCKED: STU-CON-044 accounting; lead decision D13 option b -> Prism admission-ledger hook queued on builder-prism-eng6",
+    "at": "2026-10-11T05:31:12Z"
+   }
   },
   {
    "lane_id": "SMB-PACKAGE-STREAM-SAVE",
@@ -1184,7 +1279,12 @@
    ],
    "verdicts": [],
    "candidate": "992cca1",
-   "note": "components evaluate folio StudioDesignRecords via Design index; duplicates deleted; 13 tests; 5 mutants caught"
+   "note": "components evaluate folio StudioDesignRecords via Design index; duplicates deleted; 13 tests; 5 mutants caught",
+   "r5_review_routed": {
+    "to": "rem-components",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
@@ -1199,7 +1299,12 @@
    ],
    "verdicts": [],
    "candidate": "30c3e64",
-   "note": "paint/stroke/appearance in folio design records (single source); 11 tests; retry-guard cleared by flag change (process finding, rule added)"
+   "note": "paint/stroke/appearance in folio design records (single source); 11 tests; retry-guard cleared by flag change (process finding, rule added)",
+   "r5_review_routed": {
+    "to": "rem-vector",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-REEL-NATIVE-AV1-WORKER",
@@ -1214,7 +1319,12 @@
    ],
    "verdicts": [],
    "candidate": "e95163a",
-   "note": "AV1 worker: equivalence with in-process decode, 6 aborting mutations contained (typed decoder_crashed), bounded respawn, quiet spawn; Job Object NOT_PROVEN; feature matrix entry needed"
+   "note": "AV1 worker: equivalence with in-process decode, 6 aborting mutations contained (typed decoder_crashed), bounded respawn, quiet spawn; Job Object NOT_PROVEN; feature matrix entry needed",
+   "r5_review_routed": {
+    "to": "rem-motionjs-reelnative",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-REEL-AV1-ROUTE",
@@ -1229,7 +1339,12 @@
    ],
    "verdicts": [],
    "candidate": "bfef27f",
-   "note": "SourceTrust routing (untrusted->external decoder), DecoderFault variant, AV1 parser always compiled; 25/28 tests; broke one reel-native test -> fix dispatched"
+   "note": "SourceTrust routing (untrusted->external decoder), DecoderFault variant, AV1 parser always compiled; 25/28 tests; broke one reel-native test -> fix dispatched",
+   "r5_review_routed": {
+    "to": "builder-reel-2",
+    "at": "2026-10-11T05:31:12Z",
+    "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   }
   },
   {
    "lane_id": "SMB-PIGMENT-ENG-2",
@@ -1239,6 +1354,17 @@
    "phase": "build",
    "status": null,
    "owner": "architect-adjustments",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-MOTION-JS-SANDBOX-2",
+   "crate": "hsk-studio-motion-js",
+   "origin": "R5 review group B CONFIRMED: SMB-MOTION-JS-WORKER undelivered scope split (lead decision)",
+   "scope": "AST validator for admitted expression syntax + OS-level RSS/CPU cap for the worker process (Windows Job Objects; Linux rlimit/cgroup later)",
+   "phase": "stub",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }
@@ -1275,6 +1401,7 @@
   "SMB-INTEROP-FIG",
   "SMB-SCORE",
   "SMB-PRESS",
-  "SMB-SCORE-DEVICE"
+  "SMB-SCORE-DEVICE",
+  "SMB-RENDER-GPU"
  ]
 }

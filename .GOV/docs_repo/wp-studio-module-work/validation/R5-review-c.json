@@ -1,0 +1,414 @@
+{
+ "round": "STUDIO-R5",
+ "group": "C",
+ "reviewed_commit": "1d404f8c4b72a849da064c4709e025bd05369b78",
+ "reviewer": "independent adversarial reviewer (Opus), group C, read-only, committed blobs at 1d404f8 only (git archive export), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "updated_at": "2026-10-11T05:25:42Z",
+ "scope_note": "Group C = the 10 lanes listed in the dispatch. Every other READY_FOR_VALIDATION lane in ledger.json is in group A, group B or R4-review.json (entrypoint, type-eng-1, type-doctest, prism-eng-3), so no extra lane was added. SMB-ROUND-ENTRYPOINT has R4-remediation commits fd24723/1d404f8 after its R4 review; it is out of group C scope and not reviewed here.",
+ "severity_rule": "CONFIRMED = file:line read at 1d404f8 by this reviewer; PLAUSIBLE = reasoning or cross-crate contract inference not proven by a run",
+ "summary": {
+  "SMB-INTEROP-LRCAT": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 2,
+   "PLAUSIBLE": 1
+  },
+  "SMB-INTEROP-LAYOUT": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 1
+  },
+  "SMB-LAYOUT-FOLIO-MIGRATE": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-FOLIO-ENG-4": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-COMPONENTS": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 1
+  },
+  "SMB-COMPONENTS-FOLIO-MIGRATE": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 0
+  },
+  "SMB-INTEROP-VECTOR": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 2
+  },
+  "SMB-INTEROP-VECTOR-FOLIO-MIGRATE": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 0
+  },
+  "SMB-SESSION": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 3
+  },
+  "SMB-PACKAGE-STREAM-SAVE": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  }
+ },
+ "recommendation_rule": "FAIL when the lane has at least one CONFIRMED finding; PLAUSIBLE findings alone leave PASS with notes (validator decides)",
+ "lanes": [
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "candidate_commits": [
+    "e478186",
+    "bab2221"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "unbounded_allocation",
+     "file_line": "crates/hsk-studio-interop-lrcat/src/catalog_bytes.rs:489-521 (seen set at :504 is per cell); src/extract.rs:504-518,598-604,635-639; src/source.rs:96-100",
+     "evidence": "No aggregate decoded or retained byte budget. The overflow visited set is local to one payload() call, so many leaf cells may share one overflow chain. Each Adobe_images row copies its text columns into PhotoProposal (global_id, file_format, color_label, capture_time, orientation); collection and keyword names are copied the same way. Only develop text has a retention budget (max_retained_opaque_bytes). Defaults allow 16M page reads x 64 KiB pages. About 62k rows x 16 MiB (max_payload) can be retained from an input under 1 GiB, which ends in OOM and an abort rather than a typed Limit. A legitimate file never shares overflow pages.",
+     "remediation": "Extraction-wide visited set for overflow pages (Cycle on reuse) plus an aggregate retained-text budget",
+     "commit": "e478186"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "test_integrity",
+     "file_line": "crates/hsk-studio-interop-lrcat/src/extract.rs:254-261,183-187; tests/catalog_decode.rs:167,482",
+     "evidence": "count() sets lost = seen.saturating_sub(mapped), so reconciles() (rows_seen == mapped + lost) is true by construction. Both test asserts of p.reconciles() check nothing. Per-entity loss-note counts are never compared with `lost`. Example: AgLibraryRootFolder/Folder/File call count(n, n), so a row whose text failed to decode is logged as a loss and still counted as mapped. The explicit tuple asserts at :458/:470/:479 are real, but they cover only develop and count-only tables.",
+     "remediation": "Derive `lost` from per-row loss events and assert seen == mapped + lost independently, or drop the claim",
+     "commit": "e478186"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "forbidden",
+     "file_line": "crates/hsk-studio-interop-lrcat/tests/fixtures/generate_fixtures.py:1-23",
+     "evidence": "The fixtures are produced by a committed Python script that imports sqlite3 and writes SQLite databases. The script lives in the product crate. It is outside the cargo graph and the Rust closure test passes, but the repo-rules digest for CX-503R says 'no SQLite/Postgres in Studio (lrcat = bounded byte decoder only)'. No recorded lead exemption for an offline SQLite generator was found in START_LOG decisions. Prism ENG-5's lcms2 generator was placed outside the workspace graph.",
+     "remediation": "Record a lead CX-503R exemption for the offline generator, or move it out of the product repo with provenance kept",
+     "commit": "e478186"
+    }
+   ],
+   "verified_fixes": [],
+   "checked": "No prior verdict (new lane). CX-503R: manifest deps are accord, observe and sha2 only. The closure test (catalog_decode.rs:546-571) parses the manifest and greps the sources. lib.rs exposes only extract_catalog and report; catalog_bytes, wal_snapshot and extract internals are pub(crate). Hostile-page bounds read at 1d404f8: page size 512..=65536 and power of two; usable size >= 480; payload fractions checked; page_count vs file length; read_page checks the page number against page_count and counts page reads; walk_table has a depth cap, a per-walk visited set, cell-pointer array <= usable, interior cell p+5 <= usable, leaf p < usable, varints sliced to [p..usable], local_size per the SQLite formulas, end+4 <= usable when spilling, overflow pointer <= page_count and max_payload before allocation. decode_record checks header_size <= payload, column cap, checked_add offsets <= payload. Overflow walks have a per-cell cycle check, a short/long chain check and a needed-pages cap. WAL: magic/version/page-size/header checksum, cumulative checksum and salts, committed prefix only, frame count bounded by max_wal_bytes. Fingerprint is taken before and after. The CREATE TABLE tokenizer terminates on unterminated quote/bracket/comment; schema SQL is capped at 64 KiB. No panic path on hostile bytes was found. Test 'real_catalog_*' uses a SQLite-generated synthetic catalog, not a Lightroom-written one: a real Lightroom catalog is still UNVERIFIED (D12, disclosed). LimitKind::SchemaRows/SchemaText are declared but never raised (dead variants).",
+   "counts": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "candidate_commits": [
+    "d575678",
+    "958f431",
+    "198a8e5",
+    "5e058ae"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "unbounded_allocation",
+     "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737",
+     "evidence": "character_range builds proto with props = opaque(Properties) (:768). opaque copies text[n.range()] (:95-99), and proto is deep-cloned for every <Content> (:779) and every bare <Br> (:814). ensure_paragraph likewise clones the paragraph template, including its Properties XML, for each new paragraph (:725). Memory is about (#Content elements) x |Properties|, and the model is built before the Folio budget applies (decode_idml :174-175). A single story part within the default limits (64 MiB entry, 1M nodes, highly compressible), for example 1 MiB of Properties text plus 100k <Content/> elements, needs about 100 GB, ending in OOM and an abort instead of BudgetExceeded.",
+     "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte against a decode budget",
+     "commit": "d575678"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-interop-layout/src/container.rs:1-341 (own ZIP reader/writer + own CRC-32 table); cf. crates/hsk-studio-package/src/zip.rs",
+     "evidence": "A second in-house bounded ZIP reader and deterministic writer, with its own CRC-32 table, next to package's in-house ZIP reader/writer (crc32fast). The brief prescribed the zip =8.6.0 pin shared with package. interop-layout cannot depend on package (allowed edges), so CX-CAP-001 needs a lead decision on a single container owner. Also, the module doc claims local headers are 'cross-checked against the central directory', but only the name is compared (:233). Local method, sizes, CRC and flags are ignored, which leaves a differential-parsing gap against readers that trust local headers.",
+     "remediation": "Lead decision: one ZIP container owner (or record the duplicate); compare local method/sizes/crc with central",
+     "commit": "d575678"
+    }
+   ],
+   "verified_fixes": [],
+   "checked": "No prior verdict (new lane). container.rs: EOCD search bounded; ZIP64, multi-disk, encryption and method !=0/8 refused; safe_name rejects traversal, absolute, backslash, colon, control characters and empty segments; exact and case-fold duplicates refused; entry-size, aggregate-inflated and ratio (>1 MiB) limits checked before inflating; decompress_to_vec_with_limit(uncomp), then a size check and CRC-32; data spans <= cd_off with overlap refused; mimetype must be first, stored and the exact value. XML: roxmltree with allow_dtd=false (EntityDenied), nodes_limit 1M, no external access. Threads: duplicate Self refused, reciprocity checked, chain walk capped at linked.len() plus a visited==linked check (cycle). Mixed-story chains are not checked here, but Folio validation of the proposal refuses them (InvalidThread). replace_content requires part sha256 equality, an element span that is <Content> with text-only children, and XML-legal characters, then escapes. reflow_import refuses non-certified (RTL/CJK/complex) stories before shaping. The tests in layout_reflow_folio_export.rs assert hand-computed overset spans (45..54 / 45..59), refusals and round-trip byte equality, so they are not echoes. InDesign parity: no InDesign fixture or reopen exists (disclosed). Note: reflow_import clones the whole Folio document once per certified story (reflow.rs:159). The cost is O(stories x doc), but it is cancellable per story.",
+   "counts": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "candidate_commits": [
+    "64dd62d"
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-layout/src/folio_input.rs:199,208,232; cf. crates/hsk-studio-interop-layout/src/reflow.rs:170-181, src/proposal.rs:386",
+     "evidence": "layout reads Folio minimum_first_baseline_offset as an absolute offset from the frame top: first_baseline_pt = value, and value < inset_top is refused as InvalidGeometry. The IDML importer stores InDesign's MinimumFirstBaselineOffset in the same Folio field (proposal.rs:386), and InDesign measures that from the top inset. interop-layout reconciles the two only on a derived copy (value := inset_top + max(min, metric)), even for FixedHeight frames. Any other consumer that passes an IDML-derived Folio document to layout::reflow gets the baseline inset_top too high, or a refusal when min < inset. Folio's doc (folio layout.rs:147-148) does not state the reference edge, so the contract is ambiguous (STU-LAY-118 not re-read here).",
+     "remediation": "Fix the reference edge of minimum_first_baseline_offset in Folio docs/spec and make layout and interop-layout agree",
+     "commit": "64dd62d"
+    }
+   ],
+   "verified_fixes": [
+    "Crate-local Page/Spread/Margins/TextFrame model deleted (geometry.rs keeps only Rect); lib.rs re-exports only Rect and FrameObstacles; ReflowRequest now takes Folio StudioDocument + StudioTextStory (+ resolved_text for stored content).",
+    "folio_input::resolve re-walks the thread rather than trusting Folio validation: exactly one chain per story, chain covers every frame layer of the story, the last frame's next must be absent (cycle vs stray), reciprocal previous links, pt-only finite lengths, positive page and frame sizes, insets inside the frame. Unsupported properties (RTL story/paragraph, columns != 1, vertical justification != top, auto-size, first baseline != fixed, frame_grid) are refused typed.",
+    "layout -> folio edge is in the allowed list (workspace metadata studio.dependencies.hsk-studio-layout); tests/threaded_reflow.rs keeps the 5 oracle tests and adds folio_inputs_select_the_story_thread_and_unsupported_properties_are_refused with InvalidInput/Cyclic/Unsupported asserts."
+   ],
+   "checked": "Diff 259ea44..1d404f8 on crates/hsk-studio-layout read in full for src/ and Cargo.toml; paragraph/breaker unchanged. paragraph source.end <= story.byte_len() checked before build_items.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "candidate_commits": [
+    "6567f43",
+    "efeeaa2",
+    "0e6142c"
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-folio/src/records.rs:452-473",
+     "evidence": "check_instances checks only that an instance property name exists among the component or set definitions with an equal type, and that bound variables are compatible. It never checks that a VARIANT value is one of set.variant_group_properties[name]. It also never checks that every VARIANT definition has a matching variant group, or that the instance's VARIANT selection agrees with its main member's variant_properties. Folio therefore accepts an instance with size='huge' that components later refuses as UnknownVariantValue (components instance_resolution.rs:343-347). Whether STU-DS-104/110 require this at record level was not re-read.",
+     "remediation": "In check_instances, refuse VARIANT values outside the set's declared values and VARIANT defs without a group",
+     "commit": "6567f43"
+    }
+   ],
+   "verified_fixes": [],
+   "checked": "No prior verdict (new lane). The change is additive: StudioDocument/StudioLayer/LayerAppearance are untouched (the design is a standalone StudioDesignRecords sidecar). validate_design_records reviewed in full. Component and set ids are unique across both kinds (records.rs:616-627; this closes components R3 'duplicate member id' at Folio level), and layer ids are unique per definition. Variant completeness and duplicate assignments are checked, and variant_properties are allowed only on members. Variables must cover exactly their collection's modes, and collection.variable_ids must equal the members. Alias targets must exist with an equal type. The iterative grey/black DFS alias-cycle check is correct, including self-alias. A value's type must equal the variable's resolved_type (components.rs validate_variable). Node entries: kind match, uniqueness, auto_layout only on a container, child_layout only under a flow parent, constraints refused on a root or a non-ABSOLUTE flow child, style_refs only on the six STU-DS-136 fields with SSTY ids and unknown ids reported through the Resolver, explicit modes only on containers with existing modes. Budget: nodes and payload bytes are charged per record and text, and cancellation is checked per record. Tests in design_records_contract.rs assert specific Code and target suffixes (93 Code:: asserts, 3 is_err). Declared gaps such as no record-set revision and is_extension refused are disclosed in the lane notes. inside() (records.rs:194-204) is O(depth) per definition, so check_nodes is O(nodes x definitions x depth) with cancellation only per node. Bounded, so not filed.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "candidate_commits": [
+    "69b63c1",
+    "423cb0f",
+    "556237d",
+    "f8b5328",
+    "0111960"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:457-475 (check_shape), :473 build_overrides(..., None), :433-436, :682-722",
+     "evidence": "The R3 remediation claims switch_variant/swap_component never return Ok for an instance that cannot resolve (doc :682, :699). check_shape still calls build_overrides with vars=None (:473), so variable_clash (:433-436) is skipped. A kept override whose type differs from the target node's variable binding passes swap or switch and is then refused as TypeMismatch by resolve_instance, which passes Some(design.variables()) at :538. Since c6251f0 the Design holds the VariableTable, so the 'no registry at hand' reason in the doc at :397-399 no longer applies. check_shape also skips type-checking property values bound to a variable (:466-468), while resolve_instance does check them (:528-535). The R3 test switch_variant_and_swap_never_return_an_unresolvable_instance has no variable-binding case.",
+     "remediation": "check_shape: pass Some(design.variables()) and check bound property variable types; add a binding-clash swap test",
+     "commit": "0111960,c6251f0"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:810-826",
+     "evidence": "The R3-review PLAUSIBLE is still present. The write footprint keys are (definition node_id, field), not scoped to the instance. Two instances of one component that override the same definition node/field share one key, so committing one marks the other's proposal stale_property even though they write different instances.",
+     "remediation": "Key writes by (instance_id, node_id, field), or record the shared key as intended in DESCRIPTOR",
+     "commit": "69b63c1"
+    }
+   ],
+   "verified_fixes": [
+    "R3 FAIL override-type-unchecked-for-bound-fields: FIXED for resolve_instance/propose_overrides. build_overrides (instance_resolution.rs:424-439) refuses TypeMismatch when the override type differs from the definition literal, the referenced component property type (prop_value_ok) or the bound variable resolved_type; alias overrides are resolved and type-checked in materialize (:483-500). Test override_value_type_is_checked_against_property_and_variable_types (tests/instance_resolution.rs:1458).",
+    "R3 FAIL dead-action-reachability: FIXED. prototype.rs:129-172 adds an edge only while `ended` is false; NODE/BACK/CLOSE end the array (STU-PRO-104), later actions are warned and add no edge. Test actions_after_the_first_add_no_reachability_edge (:1566).",
+    "R3 FAIL duplicate-member-id-accepted: FIXED at validation. Design::validate -> folio validate_design_records refuses repeated component/set ids (folio records.rs:616-627); test set_members_must_have_distinct_ids asserts E::Duplicate for a repeated member id and for a member id equal to the set id (:1518-1564). The unvalidated-Design residual is filed under SMB-COMPONENTS-FOLIO-MIGRATE.",
+    "R3-review CONFIRMED switch_variant Ok on a non-set instance: FIXED. switch_variant inserts the VARIANT property and check_shape -> check_property refuses VARIANT when set is None (UnsupportedProperty, :370-376). Test :1656-1662."
+   ],
+   "checked": "auto_layout build is recursive with max_depth 32 and max_nodes 4096 checks before recursing (auto_layout.rs:141-172); rects are finite-checked. resolve_variable walks aliases with a visited list, a depth cap and mode/type checks. prototype owner() walk is bounded by the node count.",
+   "counts": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "candidate_commits": [
+    "c6251f0",
+    "992cca1"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-components/src/design.rs:16-19,101-104,112-123,183-193; src/instance_resolution.rs:351-356",
+     "evidence": "Design::new never refuses, and the module doc promises that 'an unvalidated set yields a typed refusal and never a loop or a silent value' (:16-19). With two component records sharing one id, component() returns the first (:101-104) and member_of is keyed by id. members() then returns every record carrying that id (:183-193), even one whose layer is not under the set. select_member can pick the second record by variant assignment (:351-356), so resolve_instance silently resolves the second definition's layers under the shared id. This is the R3 ambiguity. Only Design::validate and the propose_overrides -> validate_with_instance path refuse it. resolve_instance, swap_component, switch_variant, resize_component and solve_auto_layout do not.",
+     "remediation": "Refuse repeated component/set/layer ids in Design::new (Result) or require a validated Design typestate in evaluators",
+     "commit": "c6251f0"
+    }
+   ],
+   "verified_fixes": [
+    "Duplicates really deleted: no crate-local ComponentDef/ComponentSet/Instance/OverrideRecord/Variable/VarRegistry/AutoLayout/Constraints/Reaction/Trigger types remain at 1d404f8. The remaining public structs are evaluator outputs/limits (Resolution, OverrideProposal, PlacedBox, RectPt/SizePt, FlowReport, PrototypeFlow{flow_id,start_frame_id}) plus LocalContent/NodeLocal for data Folio declares it does not hold (definition literals, bindings, geometry), which is consistent with folio-eng-4 left_out notes. OVERRIDABLE_FIELDS comes from Folio (instance_resolution.rs:35-37).",
+    "Proposals are validated by Folio with the successor instance (design.rs:283-307; instance_resolution.rs:809); test 992cca1 asserts Folio's code/path for a bad scale factor and a set id as main.",
+    "components -> folio edge allowed (workspace metadata); DESCRIPTOR states Folio is the single authority."
+   ],
+   "checked": "Diff 0111960..1d404f8 on the crate (10 files, +3068/-1517) read for src/design.rs and instance_resolution.rs in full, prototype.rs and the auto_layout build() section, and the test list.",
+   "counts": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 0
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "candidate_commits": [
+    "f058a1b",
+    "ebd2efd",
+    "f95a3c0",
+    "41d4ff1",
+    "f0cdb55"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-interop-vector/src/svg_adapter.rs:380-395,450-467",
+     "evidence": "scan_doctype classifies the document by the first '<!DOCTYPE' substring anywhere in the raw text (text.find) and does not skip comments, PIs or CDATA. Input `<!-- <!DOCTYPE x> --><!DOCTYPE svg [<!ENTITY e \"...\">]><svg ...>&e;</svg>` hits the commented copy first and finds '>' before any '[', so it returns ExternalIdOnly. That sets allow_dtd=true (:452-460), and roxmltree then parses the real internal subset and expands its entities. This bypasses the EntityDenied policy for internal subsets that R3 spot-checked as 'XXE refused'. External fetch remains impossible (entity_resolver None). Whether roxmltree bounds internal-entity text amplification is UNVERIFIED.",
+     "remediation": "Never set allow_dtd=true; or locate the DOCTYPE only in the XML prolog after skipping comments/PIs",
+     "commit": "f058a1b"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process",
+     "file_line": "kernel ledger.json lanes[SMB-INTEROP-VECTOR] (status PASS_V1, candidate f0cdb55, verdict 'STUDIO-R3 PASS_V1 @404ff3a')",
+     "evidence": "`git merge-base --is-ancestor f0cdb55 404ff3a` is false. The R3 PASS_V1 verdict tree does not contain slice 2 (gzip.rs, gradients, appearance rows, strokes, paint_stroke_svgz tests; +1611/-167 lines), yet the ledger shows the lane as PASS_V1/done with candidate f0cdb55 and '9 tests'. R3 ran 5/5 slice-1 tests. Fact verified with git; held at PLAUSIBLE only because the evidence is a kernel record, not a 1d404f8 blob.",
+     "remediation": "Set SMB-INTEROP-VECTOR back to READY_FOR_VALIDATION with candidate f0cdb55 (or 30c3e64) until a round covers it",
+     "commit": "f0cdb55"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-interop-vector/src/gzip.rs:15-39 vs crates/hsk-studio-interop-layout/src/container.rs:22-47",
+     "evidence": "Byte-identical CRC-32 table builders exist in two crates, each with its own miniz_oxide deflate wrapper. package uses crc32fast for the same mechanic. CX-CAP-001 asks for one owner of the container/checksum mechanic. Neither crate may depend on the other, so this needs a lead placement decision (for example accord, or one container crate).",
+     "remediation": "Lead: name one owner for CRC-32/deflate container helpers, or record the duplicate as accepted",
+     "commit": "f0cdb55"
+    }
+   ],
+   "verified_fixes": [],
+   "checked": "Slice-2 surface at 1d404f8. gunzip: header flags (reserved refused, FEXTRA/FNAME/FCOMMENT/FHCRC skipped with bounds), inflate via decompress_to_vec_with_limit(max_decompressed_bytes) (HasMoreOutput -> BudgetExceeded), CRC-32 and ISIZE trailer verified; a multi-member file fails checksum (fail closed). Gradients: in-file href chain only, depth 8, cycle refused; gradientUnits/spreadMethod/gradientTransform inherited across kinds, geometry only from the same kind (SVG rule); stops <= MAX_GRADIENT_STOPS (Folio's 1024) with offsets clamped non-decreasing; a single stop or zero-length linear/r=0 radial becomes solid; a degenerate bbox or singular transform is a typed loss; transform finite-checked. Dash: percent refused, negative or non-finite invalid, odd list doubled, > 256 a typed loss (reported as stroke_dasharray_invalid, not _too_long, when the token count exceeds 256). Element opacity goes to the layer appearance, not into paints. Records are metered by design_unit_cap (max_nodes x 16).",
+   "counts": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 2
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "candidate_commits": [
+    "30c3e64"
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "silent_loss",
+     "file_line": "crates/hsk-studio-interop-vector/src/svg_export.rs:33-44,445-452",
+     "evidence": "Since the migration, export reads Folio StudioColor, which carries colour_profile_id. hex() writes r/g/b as 8-bit sRGB hex and only reports quantization; its doc says 'The colour-profile binding is not interpreted'. style_of validates each style with validate_paint_style(..., &Unresolved) and discards the returned ResolutionIssues (only Err is mapped). A Folio paint style with an assigned non-sRGB profile (for example from interop-psd or a design tool) is therefore exported with a changed colour and no LossEntry, while midpoint, interpolation, dither and blend mode drops are all reported.",
+     "remediation": "Report a typed loss (or convert via prism) when colour_profile_id is Assigned; surface the ResolutionIssues",
+     "commit": "30c3e64"
+    }
+   ],
+   "verified_fixes": [
+    "Duplicates deleted: model.rs at 1d404f8 holds no crate-local Paint/Rgba/StrokeStyle/StyleProposal/AppearanceItem and VectorPath has no fill_style_id; the public types are Limits/ImportPolicy/LossKind/LossEntry/GradientUnits/GradientProvenance/VectorPath/Provenance/VectorProposal/ExportOptions. Paint, stroke and appearance live only in folio StudioPaintStyle rows plus StudioNodeDesign.style_refs (single source).",
+    "Import validates the emitted StudioDesignRecords against the validated snapshot with a budget equal to the importer's design_unit_cap (svg_adapter.rs:648-664) and refuses any unresolved issue (DanglingReference). gradientUnits is kept only as provenance (GradientProvenance)."
+   ],
+   "checked": "Diff f0cdb55..1d404f8 (7 files, +1072/-470): model.rs, svg_export.rs writer/style_of/layer_paths/Defs, and the svg_adapter import validation section read. Export validates only the styles it uses (not the whole record set against the document); exports have no cancel token (pre-existing API).",
+   "counts": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 0
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "candidate_commits": [
+    "371ac82",
+    "a7640e7",
+    "6a162da",
+    "c3bcecd",
+    "0a6f920",
+    "6d0616f",
+    "63c1f5d",
+    "943a0d2"
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-session/src/session.rs:374-414 (seed_revisions), :420-449 (mask_property, new in 63c1f5d); cf. crates/hsk-studio-chronicle/src/lib.rs:67-70,279,303-341",
+     "evidence": "The R3-review PLAUSIBLE was not remediated and has grown. Session now holds two hand-written copies of chronicle's addressable-property table: seed_revisions, and the new lineage mask_property, whose `_ => false` fallback means a new chronicle Property variant still compiles. Any proposal that writes a property chronicle adds later would be refused as proposal_not_derived (fail-closed) and would never be seeded (revision_unavailable). CX-CAP-001 expects chronicle to own property addressing.",
+     "remediation": "Have chronicle export seed/mask helpers (or an exhaustive address table) and call them from session",
+     "commit": "63c1f5d"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-session/src/session.rs:743-744,1012-1020,712-719",
+     "evidence": "Two R3-review PLAUSIBLEs are unchanged at 1d404f8. (1) Committed receipts are never evicted, so after max_receipts (1024) keyed submits every keyed submit returns receipts_full. With a CommitPort a key is mandatory, which caps a session at 1024 edits. (2) A Diverged pending entry is put back as Pending forever, and every later submit returns reconciliation_required. There is still no discard/resync API (no such fn in src). The tests still never exercise ReceiptsFull, ReceiptMismatch/Diverged or ProposalInconsistent (grep of tests/session_contract.rs is empty).",
+     "remediation": "Evict committed receipts below current revision; add an operator discard/resync API; test both paths",
+     "commit": "6a162da"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "overclaim",
+     "file_line": "crates/hsk-studio-session/src/lib.rs:31 (DESCRIPTOR 'authority' text); src/session.rs:569; cf. crates/hsk-studio-package/src/stream.rs:199-200,338-344",
+     "evidence": "The DESCRIPTOR says save streams raw assets in chunks and handles 'zstd or shuffle_zstd assets one blob at a time', then concludes 'so save peak heap does not grow with asset size'. That is true only for raw entries. Session inherits the save codec from the source manifest (ShuffleZstd if any entry uses it, session.rs:569). The streaming writer buffers and encodes each codec blob whole in both passes, and verify_all decodes it whole. The package lane itself measured about 7 MiB of heap per 1 MiB shuffle_zstd blob, so peak grows with the largest codec asset. The session test save_peak_memory_does_not_grow_with_asset_size exercises raw assets only.",
+     "remediation": "Qualify the DESCRIPTOR claim to raw assets and state the codec-blob peak; or stream codec decode/encode",
+     "commit": "943a0d2"
+    }
+   ],
+   "verified_fixes": [
+    "R3 FAIL successor-not-derived-from-snapshot: FIXED. propose_checked calls derives_from(snapshot, successor, revision_updates) after the slot checks (session.rs:927-931). derives_from (:454-466) clones both documents, aligns revision, masks every declared address on both (refusing an unknown address) and requires full equality. The refusal is SessionError::ProposalNotDerived and happens before publish or any commit-port call. Test successor_that_does_not_derive_from_the_live_snapshot_is_refused_before_commit (tests/session_contract.rs:891) asserts the code, unchanged snapshot bytes/revisions, commit_calls()==0 and receipt_count, then that an honest proposal on the live snapshot commits."
+   ],
+   "checked": "Undo safety: Applied.inverse is returned to the caller and re-enters as a normal submit, so it also passes derives_from. The streaming save path (LazyAssets AssetStream over package save_atomic_streaming, 943a0d2) is reviewed with SMB-PACKAGE-STREAM-SAVE.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 3
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "candidate_commits": [
+    "0dfac5e"
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_coverage",
+     "file_line": "crates/hsk-studio-package/src/save.rs:458-524 (save_atomic_streaming_with / stream_and_publish); tests/streaming_save.rs:558-690",
+     "evidence": "The failure-safety claim is exercised only for content faults (flipped byte, short and long stream), a missing asset, a pre-cancelled token and a directory target, all through StdFs. The injectable StreamingFs seam is never used in tests. As a result, cancel during the stream, the read-back ReadbackMismatch branch (file length vs receipt, document id/revision), a verify_all failure on a corrupted temp, and a failed replace on the streaming path are untested. The code paths read correctly: temp and BufWriter/reader are dropped before fs_port.remove(&temp), and replace is the last step.",
+     "remediation": "Add StreamingFs-injected tests: mid-stream cancel, corrupt temp before read-back, replace failure; assert last-good bytes",
+     "commit": "0dfac5e"
+    }
+   ],
+   "verified_fixes": [
+    "Peak-heap claim (64 MiB asset, 1283 KiB) is backed by a real measurement. tests/streaming_save.rs:18-84 installs a test-only per-thread counting global allocator. The body runs on its own thread, and no thread::spawn/scope/rayon exists in package src. The asset is generated as a stream (GeneratedAsset, never resident). The test asserts peak < 8 MiB, then reopens the file with PackageReader and checks the entry sha/len/codec. Scope: Raw codec only. Codec blobs are bounded per blob, not constant (lane note: about 7 MiB per 1 MiB shuffle_zstd blob).",
+    "Byte identity: streamed local header is written with CRC 0, then the 4-byte CRC field is patched via seek (zip.rs:415-479; BufWriter flushes on seek), with no data descriptors. Test streaming_output_is_byte_identical_and_strictly_readable (:331) compares against write_package_with for Raw/Zstd/ShuffleZstd x Zip64 Auto/Always.",
+    "Failure safety / lying stream: write_streamed refuses bytes beyond the declared size and end_streamed refuses short entries (LengthMismatch); copy_verified compares SHA-256 after the entry; read_blob reads len+1 to detect long streams and checks the hash. All structural checks run in the plan pass before any byte is written. save_atomic_streaming_with removes only the temp/marker on any Err; it does flush + sync_all, a length check, then reopens the temp with PackageReader::open + verify_all (an independent reader, re-hashing every entry) before replace. Test lying_stream_aborts_typed_and_keeps_last_good asserts the target is byte-identical and the directory listing is unchanged."
+   ],
+   "checked": "Diff 64ece87..1d404f8 on package src read: stream.rs in full; save.rs streaming section; write.rs AssetStream/AssetReader/MemoryAssetSource; zip.rs streamed writer. The session consumer LazyAssets (session source.rs:260-365) seeks per read under a mutex (Handle), so the forked raw cursor and the PackageReader never disturb each other. A raw asset is handed out as take(stored) with the manifest stored length and is SHA/length-verified by the writer; codec assets are decoded via read_asset (hash-verified). Pre-existing R3-review PLAUSIBLEs (PreviewInfo::byte_len unchecked mul, ShuffleZstd 2x raw_len decode) are out of this lane's diff and were not re-reviewed.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "PASS"
+  }
+ ],
+ "pending_lanes": []
+}

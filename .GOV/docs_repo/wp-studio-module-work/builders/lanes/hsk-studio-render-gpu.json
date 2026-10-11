@@ -2,7 +2,7 @@
   "crate": "hsk-studio-render-gpu",
   "lane": "MT-35546",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R3 remediation pushed (b7d90dc): leaf-root class Fitted, typed pipeline failure (never a skip), loss detected by the wgpu callback (no manual latch), checked residency arithmetic; slice 2 (0551b8d) and slice 1 contract otherwise unchanged",
+  "phase": "slice 3 pushed (159cf9c, 167dc28): non-separable hue/saturation/colour/luminosity, 8 Approximate separable modes and whole-pixel darker/lighter colour generated from pigment MODES facts (26 modes executed on device, only dissolve refused among layer modes); R3 remediation b7d90dc and slice 1-2 contracts unchanged",
   "commits": [
     {
       "sha": "a813cf3",
@@ -23,6 +23,14 @@
     {
       "sha": "b7d90dc",
       "subject": "R3 test-integrity remediation: leaf root normal: fitted; GpuError::Pipeline + Failed state + strict GPU-proof gate; destroy-only loss injection detected by the wgpu lost callback; checked residency arithmetic; one regression test per finding"
+    },
+    {
+      "sha": "159cf9c",
+      "subject": "slice 3: non-separable (hue, saturation, colour, luminosity) and Approximate separable (linear_burn, linear_dodge_add, vivid_light, linear_light, pin_light, hard_mix, subtract, divide) blend modes generated from pigment MODES facts; pigment class travels into the receipt; hand + 343x343 lattice + random + group/mask/clip parity vs blend_math"
+    },
+    {
+      "sha": "167dc28",
+      "subject": "slice 3b: whole-pixel darker_colour and lighter_colour (Approximate in pigment, channel-sum compare, tie keeps backdrop); only dissolve stays refused among layer modes; lattice ties bit-exact vs blend_math"
     }
   ],
   "capabilities_done": [
@@ -31,20 +39,23 @@
     "layer coverage masks coverage_u8 / coverage_u16le (+ inverted), host-side conversion identical to render-cpu, opacity * fill_opacity; density != 1 and mask on pass-through refused",
     "isolated groups (one chunk buffer per nesting level, composited with the layer mode/opacity/mask) and pass-through groups (onto the running backdrop); non-isolated blended groups and pass-through opacity/fill < 1 refused at admission/prepare",
     "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, clipped...] evaluated as isolated unit G per pigment doc (G = base content with base mask; clipped layers composite with source alpha * base alpha, G alpha held; G composited with BASE mode/opacity/fill); operator class Approximate; isolated-group members supported; pass-through base refused",
-    "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1"
+    "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1",
+    "slice 3 blend modes: gpu_blend_qualifies now = layer-applicable, pigment class != Unsupported, Normal or family Separable|NonSeparable|WholePixel; FORMULAS (per-channel bodies) gained linear_burn linear_dodge_add vivid_light linear_light pin_light hard_mix subtract divide; new FORMULAS_RGB (whole-colour bodies) holds hue saturation colour luminosity (WGSL helpers hsk_lum/hsk_clip_color/hsk_set_lum/hsk_sat/hsk_set_sat in kernel.wgsl, operation order of blend_math; set_sat uses a stable-rank formulation = pigment's stable sort, no dynamic indexing) and darker_colour lighter_colour (channel sums left to right, tie keeps backdrop)",
+    "class discipline: pigment's class travels (Approximate modes stay Approximate in ledger and receipt, the backend only lowers; a Fitted or Exact floor refuses them as Unsupported{mode, approximate}); Exact non-separable modes are Fitted on the GPU like the slice-2 modes",
+    "refusal discipline: REFUSED_MODES (pass_through, dissolve, behind, clear, average, negation, reflect, glow, erase) pinned in tests independently of the predicate; every other pigment mode must be generated AND executed on the device (tested == MODES.len() - REFUSED_MODES.len() = 26); never replaced by Normal"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan|none)",
     "exit": 0,
-    "sha": "b7d90dc",
-    "passed": 10,
+    "sha": "167dc28",
+    "passed": 12,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 3 candidates (not started): non-separable modes hue/saturation/colour/luminosity (Exact in pigment) and the Approximate separable modes, each with a FORMULAS body + parity case; vector coverage; content-addressed tile cache (ResidentKey::Tile); Metal/other-vendor qualification",
-  "updated_at": "2026-10-11T03:18:28Z",
+  "next": "slice 4 candidates (not started): dissolve needs a plan-level seed + a WGSL u64-equivalent of pigment site_unit (pigment/plan owner decision); vector coverage; content-addressed tile cache (ResidentKey::Tile); Metal/other-vendor qualification; knife-edge policy for colour_burn/dodge and non-separable gray ties on GPU-derived backdrops",
+  "updated_at": "2026-10-11T05:26:35Z",
   "notes": {
     "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
     "runs": {
@@ -139,6 +150,60 @@
       "slice2_claims_at_head": "verified at b7d90dc (contains 0551b8d): FORMULAS has 11 bodies + Normal = 12 modes, list generated from pigment MODES (gpu_blend_qualifies; drift test supported == qualifies for every MODES entry); coverage_u8/u16le masks; isolated + pass-through groups; supports_clip_to_base() true with eval_clip_run; runtime MODES tested 12 on dx12 and vulkan, worst 2.4e-7. Claims do NOT hold at 57ce0fa (review finding 5): ledger candidate must point at 0551b8d or later, not 57ce0fa",
       "not_addressed": "PLAUSIBLE items not in this remediation brief: WGSL formula ownership (cap_duplicate), sink.accept under the backend mutex (reentrancy), block_on_bounded timeout reach; prepare() clip_base_pass_through refusal now also refused earlier by pigment validate (276e2a3), left as defence in depth",
       "lesson": "scratchpad script names collide across agents (another lane edit_*.py ran against lib.rs and aborted on its first assert, no write); use lane-prefixed names"
+    },
+    "slice3": {
+      "sha": "167dc28 (159cf9c + 167dc28; crate dependency closure at test time: pigment/prism as in the shared tree, render-gpu byte-identical to 167dc28)",
+      "added_modes": {
+        "non_separable_exact_in_pigment": [
+          "hue",
+          "saturation",
+          "colour",
+          "luminosity"
+        ],
+        "separable_approximate_in_pigment": [
+          "linear_burn",
+          "linear_dodge_add",
+          "vivid_light",
+          "linear_light",
+          "pin_light",
+          "hard_mix",
+          "subtract",
+          "divide"
+        ],
+        "whole_pixel_approximate_in_pigment": [
+          "darker_colour",
+          "lighter_colour"
+        ],
+        "still_refused": "dissolve (stochastic; plan carries no seed, pigment site_unit is a u64 hash) among layer modes; pass_through is a group mode, behind/clear tool-only, average..erase unspecified"
+      },
+      "tests": {
+        "total": 12,
+        "new_or_changed": [
+          "slice3_hand_oracles_and_lattice_parity (NEW): 18 hand-derived pixels (also checked against pigment blend_rgb on the CPU before any GPU call) + exhaustive 343x343 lattice (7^3 colours, channel values 0/0.1/0.25/0.5/0.75/0.9/1: ties, clip edges, exact sums of 1) for all 14 slice-3 modes vs pigment composite_over",
+          "slice3_modes_in_groups_masks_clip_parity (NEW): isolated group, u8 mask, fill opacity, clip run with Hue/Saturation/Luminosity/VividLight/Divide/PinLight; receipt carries Approximate and Fitted per operator",
+          "gpu_modes_masks_groups_clip_parity (CHANGED): sweeps every non-refused pigment mode (26) with the per-mode class (pigment class lowered to Fitted), ledger must carry it",
+          "admission_refusals_run_without_adapter (CHANGED, hardware-independent): pinned REFUSED_MODES vs gpu_blend_supported, backend exactness per mode, Approximate/Fitted/Exact floor behaviour of linear_burn hard_mix hue luminosity divide darker_colour"
+        ]
+      },
+      "runs": {
+        "auto_dx12": "12 passed, 0 failed; every GPU test executed on dx12 NVIDIA GeForce RTX 3090 discrete, no NOT_PROVEN",
+        "vulkan": "12 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter); every GPU test executed",
+        "no_adapter": "12 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); GPU proofs print NOT_PROVEN (incl. slice-3 parity x2); the hand table vs pigment, admission and residency ran",
+        "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/rendergpu-full-{auto,vulkan,none}.log, rendergpu-counterfactual.log"
+      },
+      "observed_max_error": {
+        "hand_18_pixels": "4.2e-7 (dx12), same on vulkan",
+        "random_tiles_every_mode_2_layers_26_modes": "3.6e-7 dx12, 3.9e-7 vulkan",
+        "lattice_approximate_separable_and_whole_pixel": "3.0e-8 (vivid_light), all others 0 incl. hard_mix thresholds and darker/lighter ties (decisions bit-identical to pigment)",
+        "lattice_non_separable": "1.07e-6 dx12 (saturation at source col 5 / backdrop row 341), 1.61e-6 vulkan; tolerance asserted 2e-6",
+        "groups_masks_clip_with_slice3_modes": "3.6e-7"
+      },
+      "tolerance_decision_for_lead": "Non-separable family is ill-conditioned next to its clip boundaries (colour over white: Lum = 1 +- 1 ulp, clip scale (1-l)/(x-l) divides by a near-zero). An independent f32/f64 emulation of pigment's own algorithm differs from exact f64 by up to 1.6e-6 at the worst lattice pixels (same value as the vulkan lattice maximum), so a GPU-vs-pigment difference of 1.1e-6 to 1.6e-6 there is input conditioning, not a formula difference. The 1e-6 per-layer budget of slice 1-2 therefore does not hold for hue/saturation/colour/luminosity on knife-edge inputs; the asserted bound for them is 2e-6 per composite. Random tiles and hand pixels stay at 5e-7 or less.",
+      "knife_edges": "Discontinuous cases: non-separable set_sat at exactly equal channels (gray) and whole-pixel / hard_mix thresholds are decided by exact comparisons. They are bit-identical to the CPU when the backdrop enters bit-exact (first layer, tile backdrops: lattice proves this). On a GPU-derived backdrop that is within 1 ulp of gray / a threshold the GPU may take the other branch than the CPU (same caveat as colour_burn/dodge in slice 2); validators must not use such inputs as a parity oracle.",
+      "counterfactual": "kernel.rs mutated locally (NOT committed, reverted, crate diff empty afterwards): hue body used hsk_lum(cs) instead of hsk_lum(cb), pin_light used max instead of min below 0.5 -> gpu_modes_masks_groups_clip_parity FAILED (pin_light error 7.8e-1) and slice3_hand_oracles_and_lattice_parity FAILED (Hue hand error 1.36e-1), exit 101. Tests are not vacuous.",
+      "clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps: clean. Without --no-deps clippy stops in hsk-studio-prism (another lane): approx_constant deny errors at crates/hsk-studio-prism/src/icc_eval.rs:31-32 (LOG2E, SQRT2 literals) plus 8 warnings; not touched. check --tests --examples clean.",
+      "retry_guard_route": "no gameplan block hit; no step added; no flag/filter changes to dodge a guard (each distinct command ran once per HEAD or succeeded)",
+      "pigment_dependency": "pigment blend_math.rs last committed at 4c3ac91; the architect's uncommitted additive edits seen in the shared tree (BlendError::Adjustment, StackNode::Adjustment) do not touch MODES, Family, Exactness, blend_rgb or composite_over, and render-gpu matches neither enum; WGSL bodies are transcriptions checked by parity, not a second definition of the math; if pigment adds a Layer-applicable Separable/NonSeparable/WholePixel mode without a FORMULAS body the drift test (supported == qualifies) and the pinned REFUSED_MODES test fail until a body with a parity case exists"
     }
   }
 }
