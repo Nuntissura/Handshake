@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-ADJUSTMENTS-ADVANCED-BLENDING
 file_kind: architecture_decision
-updated_at: 2026-10-11T05:52:02Z
+updated_at: 2026-10-11T07:57:25Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5
 owner: pigment-folio-architect
@@ -251,5 +251,55 @@ Two online researcher agents produced these reports. helpx.adobe.com returned 40
   - Shared admission refuses a `Solid` colour outside [0,1] as `sample_range_outside_unit`.
   - Both use the operator keys the backends already report, so the render-cpu and render-gpu tests stay green.
 - Brightness/contrast: modern mode is a typed refusal (`AdjustError::Unsupported("brightness_contrast.modern")`, `PlanError::AdjustmentUnsupported`). No documented formula exists; psd-tools carries a reverse-engineered spline and polynomial that a later lane may evaluate against the D5 oracle.
+
+</topic>
+
+<topic id="blend-if-clip-roles" status="decided" version="1" wp="WP-KERNEL-STUDIO" owner="SMB-PIGMENT-BLENDIF-CLIP" summary="Blend-If on a clip base and on a clipped layer: no public definition, pigment refuses both for every backend" updated_at="2026-10-11T07:57:25Z">
+
+## Blend-If on a clip base and on a clipped layer (decision: option b, refuse)
+
+Problem: `evaluate_stack` has no clip node and no Blend-If input, and the clip-to-base rule (`MaskFormat::BaseAlpha`) lists only the base's mode, opacity and fill. The backends disagreed: render-cpu (7274827) applied the base layer's Blend-If ranges to the clip-run composite; render-gpu (a6ac630) refused `Unsupported{blend_if_clip_base}` and kept Blend-If on a clipped layer (parity tested only against a test-local reference).
+
+### Evidence (research 2026-10-11; nothing guessed)
+
+| Source | What it says | Read how |
+|---|---|---|
+| Spec v02.215 STU-RAS-007, 015, 035, 041, 159 (`14-studio-creative-suite.md`) | Lists Blend-If ranges (eight values per channel), the interior-effects / clipped-effects / transparency-shapes toggles, the clipping-mask form and clip-to-parent adjustment layers. No sentence combines Blend-If with a clipping run. | read locally |
+| Adobe PSD File Format spec (adobe.com/devnet-apps/photoshop/fileformatashtml) | Blending-range fields only. `clbl` = "Blend clipped elements: boolean", `infx` = "Blend interior elements: boolean", `knko`, `tsly`; layer record "Clipping: 0 = base, 1 = non-base". No semantics for how ranges interact with clipping. | fetched |
+| Adobe Help (helpx.adobe.com: layer-styles, revealing-layers-clipping-masks, layer-opacity-blending) | HTTP 403 to the fetch tool, so the primary text was NOT read (UNVERIFIED). Search-result summaries say only that Blend Clipped Layers as Group decides whether the base layer's blend mode applies to the whole clipping group or only to the base (default on). No Blend-If clause surfaced. | search snippets only |
+| psd-tools `composite/composite.py` (main) | No `blend_if` or blending-range use anywhere. The clip run is composited into the base's colour before the base's mask, blend mode, opacity and fill; clipped layers' own coverage is discarded; `# TODO: Consider Tag.BLEND_CLIPPING_ELEMENTS`. | fetched source |
+| Krita `libs/psd/psd_layer_record.cpp` (master) | Blending ranges are read into `blendingRanges` and never applied; writer: "blending ranges are not implemented yet"; the clipping field is written back "unused". | fetched source |
+| GIMP `plug-ins/file-psd/psd-load.c` (master) | Blending-ranges block: "Blending ranges size ... (not imported)" with a FIXME. Clipping becomes a GIMP group (`clipping_group_type`) composited with the backdrop mode. | fetched source |
+| Adobe Community bug report "Blend if stops working when there is a clipped layer on the group" (Feb 2024, community.adobe.com/bug-reports-711/...-657703) and a second thread (14974117, Nov 2024) | Users report Blend If (Underlying Layer) ceasing to work once a layer is clipped to the group; the community manager forwarded it to the product team. No rule, no fix stated. A search summary attributes to an expert the guess that the clipping group's Blend-If basis is the "cumulated appearance"; that sentence was not found in the page text read (UNVERIFIED). | fetched pages |
+| ag-psd (`psdReader.ts:523-541`), Krita docs layer styles page | Ranges read as 4 x u8 only; the Krita manual page says nothing about Blend If. | earlier research / fetched |
+
+Conclusion: no public source defines Blend-If on a clip base, Blend-If on a clipped layer, or their interaction with Blend Clipped Layers as Group. Open implementations either ignore Blend-If entirely (psd-tools, Krita, GIMP) or have no clip semantics for it; Photoshop's own behaviour is publicly reported inconsistent. Any rule written now would be a guess.
+
+### Rule (pigment, single owner; `render_plan/extensions.rs`, tests `tests/blend_if_clip.rs`; commit 0d28c03 on codex/handshake-studio-assets)
+
+- The role of a layer in its group comes from `Group::clip_role(index)` -> `ClipRole::{Unclipped, Base, Clipped}` (Clipped = carries `MaskInput::clip_to_base()`; Base = unclipped with a clipped layer directly above it).
+- `PlanExtensions::validate` reports a non-identity Blend-If on a Base as `ExtOperator::BlendIfClipBase` and on a Clipped layer (including a clipped adjustment layer) as `ExtOperator::BlendIfClippedLayer`, INSTEAD of `ExtOperator::BlendIf`. Keys: `blend_if_clip_base`, `blend_if_clipped_layer`. Intrinsic class `Unsupported`.
+- `admit_extended` therefore refuses them with `BackendError::Unsupported { operator: <key>, exactness: Unsupported }` before any sink call, for every backend, even one whose `extension_exactness` claims `Exact`. All-identity ranges are not Blend-If and are admitted anywhere.
+- Unchanged: Blend-If on an unclipped layer or unclipped adjustment layer (`blend_if`, Approximate; `evaluate_stack` Leaf/Adjustment with the weight folded into the node opacity); pass-through layers (`PlanError::BlendIfPassThrough`); an adjustment layer as a clip base (`PlanError::AdjustmentClipBase`). `evaluate_stack` gets no clip node (a doc note records why).
+- Exactness: not Approximate (option a was not taken): Unsupported, because there is no formula to be approximate about.
+- Not modelled either: Blend Clipped Layers as Group switched OFF (`clbl = 0`). Pigment's `BaseAlpha` rule is the ON reading (run unit composited with the base's mode); folio stores the toggle (`blend_clipped_effects`). A consumer must not silently ignore `clbl = 0`; that is a separate gap.
+
+### What each backend and consumer must now do
+
+- render-cpu: the shared `admit_extended` already refuses both roles before `execute_extended_detailed` runs; remove the dead clip-base Blend-If application (`plan_sink.rs` `base.fx.blend_if` and the run-composite weight) (no existing render-cpu or composite test uses Blend-If on a clip role: both suites pass, 51 tests, against this change).
+- render-gpu: keep the `blend_if_clip_base` check as defence in depth (same key); the clipped-layer case is now refused by shared admission, so update `ext_blend_if_parity` (`tests/gpu_plan.rs` group/clip case puts Blend-If on a clipped layer, root layer 2) and `fx_admission_and_refusals_run_without_adapter` (expects the clipped-layer Blend-If to reach the adapter).
+- composite: `lower_extensions.rs` `operators()` must report `BlendIfClipBase` / `BlendIfClippedLayer` for layers whose appearance is a clip role (or refuse in lowering like `REFUSE_EFFECT_ON_CLIPPED`) so its ledger matches the backends' refusal.
+- interop-psd: a PSD whose clip base or clipped layer carries non-identity ranges needs a typed loss entry (the owner picks the code); the ranges stay preserved opaque.
+
+### D5 oracle cases added (Operator-approved foreground session; never driven by agents)
+
+18. Clip base with Blend-If This Layer (gray 50/100 split, white 200/240) over a gradient backdrop, one Multiply clipped layer, Blend Clipped Layers as Group ON and OFF: does the ramp weigh the base only, the run composite, or each clipped layer?
+19. Clip base with Blend-If Underlying Layer (gray split): does it read the parent backdrop below the base, and are clipped layers' pixels part of what it reads?
+20. Clipped layer (Normal) with This Layer ranges: weighed against its own colour; applied before or after the multiplication by the base alpha?
+21. Clipped layer with Underlying Layer ranges: does "underlying" mean the base / run unit or the parent backdrop? Move a bright layer below the base to tell them apart.
+22. Clipped Invert adjustment layer with This Layer ranges: is the weighed colour f(run unit), as for an unclipped adjustment layer (case 9)?
+23. Reproduce the reported bug (Underlying Layer ranges stop working when a layer is clipped to a group) in the validation Photoshop build, to separate a bug from a semantic.
+
+When 18-23 are answered, the definition lands additively: a clip-run node in `evaluate_stack`, the two `ExtOperator`s change class, and the tests in `tests/blend_if_clip.rs` become the migration list.
 
 </topic>

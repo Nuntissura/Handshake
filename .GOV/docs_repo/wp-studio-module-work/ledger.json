@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T08:04:23Z",
+ "updated_at": "2026-10-11T08:05:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1944,6 +1944,32 @@
     "78fd379"
    ],
    "candidate": "78fd379",
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "origin": "Blend-If clip-base disagreement between backends (render-gpu a6ac630)",
+   "scope": "no public definition -> pigment refuses Blend-If on clip base / clipped layer for every backend (ClipRole, BlendIfClipBase, BlendIfClippedLayer); D5 cases 18-23",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "candidate": "0d28c03",
+   "owner": "builder-pigment-blendif-clip",
+   "commits": [
+    "0d28c03"
+   ],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + render-cpu + render-gpu",
+   "origin": "Blend-If clip-base disagreement between backends (render-gpu a6ac630)",
+   "scope": "adopt pigment clip-role refusals; fix 2 render-gpu tests; composite ledger operators; clbl=0 refusal",
+   "phase": "build",
+   "status": null,
+   "candidate": null,
+   "owner": "builder-blendif-adopt",
+   "commits": [],
    "verdicts": []
   }
  ],
