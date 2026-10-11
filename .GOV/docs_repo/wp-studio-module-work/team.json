@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:18:58Z",
+ "updated_at": "2026-10-11T10:25:34Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1375,7 +1375,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T10:12:35Z",
-   "status": "running"
+   "status": "idle 2026-10-11T10:25:34Z (sync dff7ef5 = R7 candidate; C12 green)"
   }
  ]
 }

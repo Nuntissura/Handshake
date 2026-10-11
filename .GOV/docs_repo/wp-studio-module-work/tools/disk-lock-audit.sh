@@ -42,6 +42,13 @@ builds=$(printf '%s\n' "$lines" | cut -d'|' -f3- | grep -E '(^|[ "])(build|b|che
 if [ "$held" -eq 0 ] && [ "${builds:-0}" -gt 0 ]; then echo "BYPASS_SUSPECT: $builds build-class cargo command(s) running while the lock is free (before and after the snapshot)"; fi
 if [ "$held" -eq 1 ] && [ "${builds:-0}" -gt 1 ]; then echo "BYPASS_SUSPECT: $builds distinct build-class cargo command lines while one lock is held"; fi
 for d in "$WT/wt-studio-assets/handshake-studio-assets/target" "$WT/wt-studio-assets/handshake-studio-assets"/crates/*/target; do
-  [ -d "$d" ] && echo "BYPASS_SUSPECT: repo-local target dir $d"
+  [ -d "$d" ] || continue
+  echo "BYPASS_SUSPECT: repo-local target dir $d"
+  # Growth evidence (steward-4): size and newest entry of the store dir (test-runner junit/run data) vs the build dirs.
+  for sub in nextest debug release; do
+    [ -d "$d/$sub" ] || continue
+    find "$d/$sub" -printf '%T@ %s %P\n' 2>/dev/null | awk -v s="$sub" '{ n++; b += $2; if ($1 > t) { t = $1; p = $0; sub(/^[^ ]+ [^ ]+ /, "", p) } }
+      END { printf "  %s: files=%d MB=%.1f newest=%s %s\n", s, n, b / 1048576, strftime("%Y-%m-%dT%H:%M:%SZ", int(t), 1), p }'
+  done
 done
 exit 0

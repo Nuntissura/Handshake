@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:18:58Z",
+ "updated_at": "2026-10-11T10:25:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2065,9 +2065,7 @@
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
- "steward_next_sync": [
-  "round-features: hsk-studio-kernel-bindings = [[\"test-faults\"]] (111f4ed)"
- ],
+ "steward_next_sync": [],
  "round_R4": {
   "candidate": "2abb984",
   "status": "ABANDONED",
@@ -2213,28 +2211,26 @@
   "exclusions": "fix-budget BLOCKED: SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20); FIX_FIRST (pre-review A): SMB-PRISM-ENG-5, SMB-PRISM-ENG-6, SMB-DEVELOP; pending pre-review B: SMB-PRESS, SMB-MOTION-JS(+WORKER), SMB-WEB"
  },
  "round_R7": {
-  "candidate": "0e48167",
-  "opened_at": "2026-10-11T08:04:23Z",
-  "validator": "validator-r7",
-  "reviews": [
-   "validation/R7-review-a.json",
-   "validation/R7-review-b.json",
-   "validation/R7-review-c.json"
-  ],
+  "candidate": "dff7ef5",
+  "parent": "8a9ef31",
+  "opened_at": "2026-10-11T10:25:34Z",
+  "replaces_stopped": "0e48167 attempt (usage limit)",
+  "canary": "C12 exit 73, 59 units green; only NOT_PROVEN = interop-fig D17; lock @2 no stale breaks",
   "excluded": [
    "SMB-RENDER-GPU (D20)",
    "SMB-ROUND-ENTRYPOINT (D20)",
-   "SMB-PRISM-ENG-5 (FIX_FIRST)",
-   "SMB-PRISM-ENG-6 (FIX_FIRST)",
-   "SMB-DEVELOP (FIX_FIRST)",
-   "SMB-PRESS (FIX_FIRST)",
-   "SMB-MOTION-JS (FIX_FIRST)",
-   "SMB-MOTION-JS-WORKER (judge with motion-js fix)",
-   "SMB-INTEROP-MEDIA (D9)"
+   "SMB-INTEROP-MEDIA (D9)",
+   "SMB-PRESS (FIX_FIRST; remediation running)"
   ],
-  "status": "STOPPED",
-  "stopped_at": "2026-10-11T08:06:27Z",
-  "reason": "session usage limit: lead stopped validator + 3 reviewers to save the grace allowance; reviews were written incrementally (partial files may exist); rerun R7 on a fresh steward sync after the reset"
+  "two_fail_lanes_need_recheck_first": [
+   "SMB-PRISM-ENG-5",
+   "SMB-DEVELOP",
+   "SMB-MOTION-JS",
+   "SMB-WEB",
+   "SMB-CONTROLS",
+   "SMB-COMPONENTS",
+   "SMB-COMPONENTS-FOLIO-MIGRATE"
+  ]
  },
  "resume_plan": {
   "at": "2026-10-11T08:06:27Z",

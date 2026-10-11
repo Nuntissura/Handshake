@@ -56,6 +56,31 @@ studio_disk_lock_run() {
     wait "$child"
   )
 }
+# Test-runner store pin (steward-4, 2026-10-11): the runner resolves its store (junit, run data) against the
+# WORKSPACE ROOT (embedded default config `[store] dir = "target/nextest"`), not CARGO_TARGET_DIR, so every edit-tree
+# `cargo nextest run` wrote <workspace>/target/nextest (observed 07:49Z and 10:12Z; CX-984: no repo-local target).
+# The wrapper passes a tool config pinning the store under CARGO_TARGET_DIR (same mechanism as tools/run-round.sh)
+# to `nextest run|r|list|l` unless the caller passes its own --tool-config-file. The config's content is a function
+# of its own directory only, so it is written once per target dir and never goes stale.
+_studio_nx_cfg="${CARGO_TARGET_DIR}/.studio-nextest-store.toml"
+[ -f "${_studio_nx_cfg}" ] || { printf '[store]\ndir = "%s/nextest"\n' "${CARGO_TARGET_DIR}" >"${_studio_nx_cfg}.$$" \
+  && mv -f "${_studio_nx_cfg}.$$" "${_studio_nx_cfg}"; } || rm -f "${_studio_nx_cfg}.$$"
+studio_nextest_args() {   # "$@" of a cargo call -> STUDIO_NX_ARGS (store pin inserted after the runner subcommand)
+  local a pos=0 done=0 cfg="${CARGO_TARGET_DIR}/.studio-nextest-store.toml"
+  STUDIO_NX_ARGS=()
+  case " $* " in *" --tool-config-file"*) done=1 ;; esac
+  [ -f "$cfg" ] || done=1
+  for a in "$@"; do
+    STUDIO_NX_ARGS+=("$a")
+    [ $done -eq 0 ] || continue
+    if [ $pos -eq 0 ]; then [ "$a" = nextest ] && pos=1; continue; fi
+    case "$a" in
+      -*) ;;
+      run|r|list|l) STUDIO_NX_ARGS+=(--tool-config-file "studio-env:$cfg"); done=1 ;;
+      *) done=1 ;;
+    esac
+  done
+}
 cargo() {
   local a sub="" skip=0
   for a in "$@"; do
@@ -73,9 +98,12 @@ cargo() {
         *) echo "studio-env: 'cargo $*' refused: cargo test has no per-test timeout and holds the disk build lock (CX-EXEC-005). Run: cargo nextest run <same -p/--features/--test args> (per-test timeout from .config/nextest.toml; -- --nocapture becomes --no-capture); doctests: cargo test --doc ..." >&2
            return 2 ;;
       esac ;;
-    build|b|check|c|clippy|run|r|bench|doc|d|rustc|rustdoc|fix|install|nextest|miri|tarpaulin|llvm-cov)
+    nextest)
+      studio_nextest_args "$@"
+      studio_disk_lock_run "cargo $*" command cargo "${STUDIO_NX_ARGS[@]}" ;;
+    build|b|check|c|clippy|run|r|bench|doc|d|rustc|rustdoc|fix|install|miri|tarpaulin|llvm-cov)
       studio_disk_lock_run "cargo $*" command cargo "$@" ;;
     *) command cargo "$@" ;;
   esac
 }
-export -f cargo studio_disk_lock_run   # the dbl_* functions export themselves (tools/disk-build-lock.sh)
+export -f cargo studio_disk_lock_run studio_nextest_args   # the dbl_* functions export themselves (tools/disk-build-lock.sh)
