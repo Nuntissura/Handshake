@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:22:26Z",
+ "updated_at": "2026-10-11T06:23:08Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -617,7 +617,7 @@
     "builders/lanes/hsk-studio-interop-fig.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "done 2026-10-11T05:13:39Z (SMB-INTEROP-FIG READY at 4cfbf0f)"
+   "status": "running (R6 remediation: silent-green test, header cross-check overclaim, V4-01) 2026-10-11T06:23:08Z"
   },
   {
    "name": "builder-score-device",
@@ -875,7 +875,7 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "done 2026-10-11T06:22:26Z (SMB-INTEROP-PSD-ADJ READY at eb7080d)"
+   "status": "retired 2026-10-11T06:23:08Z (eb7080d; context ~750k; next psd slice -> fresh builder)"
   },
   {
    "name": "builder-composite-adj",
@@ -968,7 +968,7 @@
     "validation/R6-review-c.json"
    ],
    "launched": "2026-10-11T06:04:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:23:08Z (COMPLETE: fig FAIL 2 CONFIRMED, rest PASS)"
   },
   {
    "name": "steward-3",
@@ -1040,6 +1040,17 @@
     "builders/lanes/hsk-studio-develop.json"
    ],
    "launched": "2026-10-11T06:21:24Z",
+   "status": "running"
+  },
+  {
+   "name": "infra-stale-artifacts",
+   "agent_id": "ac8d42cfcde44875b",
+   "model": "sonnet",
+   "role": "read-only research: stale cargo artifacts with shared target + concurrent edits; recommendation for studio-env.sh",
+   "owns": [
+    "diagnostics/stale-artifacts.md"
+   ],
+   "launched": "2026-10-11T06:23:08Z",
    "status": "running"
   }
  ]

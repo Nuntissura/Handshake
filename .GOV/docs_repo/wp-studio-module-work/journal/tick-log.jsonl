@@ -58,3 +58,4 @@
 {"t": "2026-10-11T06:22:26Z", "event": "SMB-INTEROP-PSD-WIDE READY_FOR_VALIDATION 6e7198a (rem-psd)", "lanes_moved": ["SMB-INTEROP-PSD-WIDE READY"], "commits": ["6e7198a"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:22:26Z", "event": "SMB-INTEROP-PSD READY_FOR_VALIDATION eb7080d (rem-psd)", "lanes_moved": ["SMB-INTEROP-PSD READY"], "commits": ["eb7080d"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:22:26Z", "event": "SMB-INTEROP-PSD-ADJ READY_FOR_VALIDATION eb7080d (rem-psd)", "lanes_moved": ["SMB-INTEROP-PSD-ADJ READY"], "commits": ["eb7080d"], "progress": "direct: product commit"}
+{"t": "2026-10-11T06:23:08Z", "event": "R6 review C COMPLETE: lrcat/layout/vector/vector-migrate/pulse-eng-1 PASS recommendations (R5 fixes verified), fig 2 CONFIRMED (silent-green early return, header cross-check overclaim) routed to fig builder; vector PLAUSIBLE routed", "lanes_moved": [], "commits": [], "progress": "direct: review evidence"}

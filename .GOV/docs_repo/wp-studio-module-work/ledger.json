@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:22:26Z",
+ "updated_at": "2026-10-11T06:23:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -422,7 +422,12 @@
    ],
    "verdicts": [],
    "candidate": "4cfbf0f",
-   "note": "foundation: bounded ZIP / bare canvas.fig container byte-exact + sha256, version gate (default admits none), opaque-preserved unsupported versions, typed loss, StaleSource, Kiwi schema census, decode_semantic -> EditableDecoderBlocked; 5/5 tests synthetic; Figma parity NOT_PROVEN; own ZIP reader (3rd bounded ZIP reader -> D16)"
+   "note": "foundation: bounded ZIP / bare canvas.fig container byte-exact + sha256, version gate (default admits none), opaque-preserved unsupported versions, typed loss, StaleSource, Kiwi schema census, decode_semantic -> EditableDecoderBlocked; 5/5 tests synthetic; Figma parity NOT_PROVEN; own ZIP reader (3rd bounded ZIP reader -> D16)",
+   "r6_review_routed": {
+    "to": "builder-interop-fig (resumed)",
+    "at": "2026-10-11T06:23:08Z",
+    "ref": "validation/R6-review-c.json CONFIRMED x2"
+   }
   },
   {
    "lane_id": "SMB-INTEROP-LAYOUT",
@@ -1401,6 +1406,10 @@
     "to": "rem-vector",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r6_review_routed": {
+    "to": "builder-vector-2 (PLAUSIBLE working_space_rgb)",
+    "at": "2026-10-11T06:23:08Z"
    }
   },
   {
