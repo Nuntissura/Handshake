@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:29:17Z",
+ "updated_at": "2026-10-11T06:29:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -911,7 +911,7 @@
     "builders/lanes/hsk-studio-pigment-effects.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
-   "status": "running (effects wave 2: inner shadow, outer/inner glow) 2026-10-11T06:21:24Z"
+   "status": "done 2026-10-11T06:29:43Z (SMB-EFFECTS-WAVE-2 READY at d982b5c)"
   },
   {
    "name": "builder-prism-eng7",

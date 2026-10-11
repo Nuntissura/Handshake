@@ -219,6 +219,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T06:29:17Z (R6 review B, score-device): overrun/discontinuity counters mean real data loss only; a refused try_push_block returning Full under backpressure (producer keeps and may retry the block) counts nothing; supersedes the brief's test-1 wording.
 
+- Lead decision 2026-10-11T06:29:43Z (effects wave 2): composite lowers spread/choke percent as fraction percent/100; colour-source glows get jitter 0 with info entry glow_jitter_ignored_solid_colour (Adobe behaviour UNVERIFIED, D5 case 16); gradient glow and Precise technique stay refused.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

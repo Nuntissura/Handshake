@@ -1,28 +1,42 @@
 {
   "crate": "hsk-studio-pigment",
-  "lane": "SMB-PIGMENT-EFFECTS-1",
+  "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "wave 1 complete on pushed e007703: check + clippy clean (pigment), 30 pigment tests green (6 new in tests/effects.rs); composite, render-cpu and interop-psd check exit 0; render-gpu check fails only inside another lane's uncommitted working-tree edits",
+  "phase": "waves 1 and 2 complete on pushed d982b5c: check + clippy clean (pigment), 33 pigment tests green (6 wave 1 + 3 wave 2 in tests/effects.rs and tests/effects_wave2.rs); composite, render-cpu, render-gpu and interop-psd check exit 0 at d982b5c",
   "commits": [
-    {"sha": "e007703", "subject": "Pigment effects wave 1: effect_math single owner (drop shadow, colour overlay, solid stroke) and LayerExtension.effects envelope"}
+    {
+      "sha": "e007703",
+      "subject": "Pigment effects wave 1: effect_math single owner (drop shadow, colour overlay, solid stroke) and LayerExtension.effects envelope"
+    },
+    {
+      "sha": "d982b5c",
+      "subject": "Pigment effects wave 2: inner shadow, outer glow, inner glow in effect_math (colour source only, typed refusals)"
+    }
   ],
   "capabilities_done": [
     "pigment::effect_math single owner: EffectOp {DropShadow, ColourOverlay, Stroke} (non_exhaustive, builders), EffectKind facts (all Approximate), EffectOrder placement by kind, StrokePosition, shadow_split, shadow_offset, effect_support_px, EffectPlane (<= 64 x 64, validated), reference_matte, render_layer_reference (behind effects, content at opacity*fill, over effects; effects fade with layer opacity not fill), render_reference(plane, op)",
     "render_plan envelope: LayerExtension.effects (absent from the digest when empty), ExtOperator::Effect(EffectKind), PlanExtensions::effect_modes, validate refuses effects on adjustment / pass-through / clipping-run layers and above size, distance, per-layer (64) and per-plan (4096) limits, admit_extended also asks the backend for each effect blend mode (v1 Operator::Blend class); five additive PlanError variants (EffectOnAdjustment, EffectPassThrough, EffectClipRun, EffectParameter, EffectLimit)",
-    "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)"
+    "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)",
+    "wave 2 (SMB-EFFECTS-WAVE-2): InnerShadowOp (choke, offset, clipped to the layer alpha), OuterGlowOp (behind content), InnerGlowOp (source edge|centre, over content, clipped to alpha); one shared matte chain with the drop shadow (grow by spread/choke*size as a hard disc, Gaussian of the rest, whole-pixel offset, inverted matte reads 1 beyond the plane); EffectKind +3, effect_support_px, reference_matte / render_layer_reference extended; typed refusals EffectError::Unsupported(EffectFeature: glow_gradient, glow_range, glow_jitter, glow_technique_precise) -> PlanError::EffectUnsupported -> BackendError::Unsupported{operator: feature key} at admission"
   ],
   "tests": {
-    "argv": ["cargo", "test", "-p", "hsk-studio-pigment", "--tests"],
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "hsk-studio-pigment",
+      "--tests"
+    ],
     "exit": 0,
-    "sha": "e007703",
-    "passed": 30,
+    "sha": "d982b5c",
+    "passed": 33,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round; follow-up lanes: composite lowering of folio StudioEffectStack to EffectOp (refuse contour != linear, noise > 0, non-solid stroke fill, spread > 100 percent, unresolved Global Light), render-cpu and render-gpu implementations tested against effect_math::reference_matte / render_layer_reference, then the remaining kinds (inner shadow, glows, satin, gradient/pattern overlay, bevel)",
-  "updated_at": "2026-10-11T06:14:20Z",
+  "next": "independent validator round; follow-up: composite lowering of folio StudioEffectStack to EffectOp (wave 1+2 kinds, refusals below), render-cpu and render-gpu implementations tested against effect_math::reference_matte / render_layer_reference, then satin, gradient/pattern overlay, bevel, gradient glows",
+  "updated_at": "2026-10-11T06:28:10Z",
   "notes": {
     "brief_deviation_spread": "Brief formula matte' = min(1, matte / (1 - spread)) is NOT implemented: applied to the matte before the blur it is the identity for a binary layer alpha (so spread would do nothing), and applied after the blur it is a different model. Implemented instead the structure of Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (read as a behaviour reference only, GPL, no code copied): spread_px = spread * size is grown as a hard disc dilation (Krita: Gaussian of spread_size then hard edge), blur_px = size - spread_px by Gaussian, then offset, then knockout. Spread 1 = hard matte grown by the full size; spread has no effect at size 0 (matches the Adobe community thread 'spread not working ... only shadows with hard edges'). Lead may reverse; only effect_math::reference_matte (DropShadow arm) and shadow_split change. Hand tests: tests/effects.rs drop_shadow_offset_blur_taps_and_spread.",
     "brief_acceptance_note_stroke": "Acceptance 4 says the 8-neighbour ring is coverage 1 at distance 1. Under the Euclidean model the 12 edge-adjacent ring pixels are exactly 1 and the 4 corner pixels are 1.5 - sqrt(.5) = 0.79289 (round corners), 0 at distance >= 2; inside gives the 8-pixel inner ring exactly. Photoshop's outside-stroke corner shape is UNVERIFIED (D5 13).",
@@ -51,6 +65,38 @@
     "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings or errors; the same run reports pre-existing warnings in hsk-studio-observe (too_many_arguments) and hsk-studio-prism (dead code note_rejected) from other lanes",
     "v4": "V4-01: effect_math denies clippy::arithmetic_side_effects, all integer size math checked; V4-02: tests/effects.rs effect_limits_validation_and_budget covers u32::MAX plane dims, per-layer and per-plan counts (aggregate over budget) and the reference work budget; V4-03: Photoshop parity NOT_PROVEN, D5 cases 12-14; V4-07: claim words in new docs cite tests; V4-09: commit via -F file; V4-06: failure class 'shared admission admits what every backend refuses' swept for the new operator: ExtOperator::Effect defaults to Unsupported in RenderBackend::extension_exactness (tests/effects.rs effect_without_backend_support_is_refused_before_the_sink); effect blend modes are checked through the backend's v1 Operator::Blend class in admit_extended",
     "retry_guard": "no retry-guard blocks hit; the only failed cargo runs were clippy/compile errors (lint on unary minus in effect_math, missing test import) fixed by editing the source before the first test run; no gated command failed, so no guard route was needed",
-    "files": "crates/hsk-studio-pigment/src/effect_math.rs (new), src/lib.rs (mod), src/render_plan.rs (PlanError variants, DESCRIPTOR effects/pending), src/render_plan/extensions.rs (effects field, ExtOperator::Effect, validate, effect_modes, admit_extended), tests/effects.rs (new)"
+    "files": "crates/hsk-studio-pigment/src/effect_math.rs (new), src/lib.rs (mod), src/render_plan.rs (PlanError variants, DESCRIPTOR effects/pending), src/render_plan/extensions.rs (effects field, ExtOperator::Effect, validate, effect_modes, admit_extended), tests/effects.rs (new)",
+    "wave2": {
+      "lane_id": "SMB-EFFECTS-WAVE-2",
+      "commit": "d982b5c",
+      "semantics": {
+        "inner_shadow": "matte = 1 - alpha (beyond the plane = 1), choke_px = choke*size hard disc growth, blur = size - choke_px, offset like the drop shadow, then multiplied by alpha; placement over content",
+        "outer_glow": "drop-shadow chain with zero offset and no knockout (spread*size growth, blur the rest); placement behind content",
+        "inner_glow": "edge: inner-shadow chain with zero offset times alpha; centre: (1 - chain) times alpha (Krita inverts again after the blur for a centre source); placement over content",
+        "refused_typed": "glow gradient fill, glow range other than 100 %, glow jitter above 0, Precise technique; domain errors (range outside (0,1], jitter outside [0,1], choke/spread outside [0,1]) win over refusals"
+      },
+      "ir_fields": "OuterGlowOp / InnerGlowOp carry fill, technique, range, jitter faithfully from folio so composite maps 1:1 and pigment is the single place that refuses; composite passes jitter 0 for a colour glow only if the lead accepts the Tuts+ statement that jitter acts on gradients only (otherwise a colour glow with jitter > 0 is refused as glow_jitter)",
+      "sources": [
+        "Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp: one pipeline for DropShadow, InnerShadow, OuterGlow, InnerGlow (alpha selection, invert when invertsSelection(), precise findEdge, spread = (spread*size+50)/100 then blur = size - spread, adjustRange when range != 100, centre source inverts again, contour, noise, offset, knockout, final composition); the choke uses the same spread slot (behaviour reference only, GPL, no code copied)",
+        "Tuts+ Inner Glow article (design.tutsplus.com understanding-the-inner-glow-setting-in-photoshop): Edge radiates inward from the outline, Centre from the middle; choke 100 % = hard-edged inner stroke; range works like choke (lower = harder); jitter only has an effect with a gradient",
+        "ImageMagick forum report on a Photoshop layer-styles port (magick.imagemagick.org viewtopic p=94164, search snippet; host unreachable from this machine): Precise outer glow shows a canonical distance transform, Softer is not a plain blur",
+        "Adobe layer-style overview (helpx.adobe.com, 403 for fetch; search snippet only): choke trims the matte of inner shadow and inner glow before the blur"
+      ],
+      "d5_additions": {
+        "15": "Inner shadow on a hard square and a circle (alpha 100 % layer), size 2/10/40, choke 0/50/100, angle 120/-60/0/90/180, distance 0/5: (a) which edges are shadowed for a given angle (Studio: the inverted matte moves by dx = -d cos a, dy = d sin a, so angle 180 shadows the left inner edge), (b) choke model (Studio: choke*size grown hard, rest blurred; choke 100 = hard inner stroke of width size), (c) clip by soft alpha vs a threshold on a feathered-edge layer, (d) distance larger than the shape, (e) with fill 0",
+        "16": "Outer glow, size 2/10/40, spread 0/50/100, Softer vs Precise, range 100/50/25, jitter 0/50 with a colour fill, default blend Screen: (a) Softer profile vs the Gaussian (sigma = size/2) and the spread split, (b) Precise = distance transform profile, (c) what range does with a linear contour (Krita: alpha / range after the blur), (d) whether jitter changes a colour glow, (e) glow behind a semi-transparent layer at fill 0",
+        "17": "Inner glow, source Edge and Centre, size 2/10/40, choke 0/50/100, Softer/Precise, range, jitter: (a) edge profile vs the inner-shadow chain at distance 0, (b) centre profile vs 1 - edge matte (Krita) vs a distance ramp from the middle, (c) behaviour when the shape is thinner than twice the size, (d) range and technique as in 16, (e) clipping to a feathered alpha"
+      },
+      "spec_questions": [
+        "STU-RAS-157 lists the inner_shadow choke and the outer_glow spread in pixels (observed inner_shadow choke 0..100 px, outer glow spread 0..45 px) while Adobe documents them as percentages; pigment takes choke and spread as fractions of size in [0,1] (composite lowers percent / 100), same question as the drop shadow spread",
+        "STU-RAS-157 does not say which glow parameter defaults apply (range, technique, source): the IR has no defaults beyond the neutral constructors; composite must pass the stored values",
+        "Which of range and jitter Photoshop ignores for a colour glow is UNVERIFIED (Tuts+: jitter only acts on gradients; range is like choke): refused until the D5 session"
+      ],
+      "composite_lowering_must_refuse": "in addition to wave 1: glow contour other than linear, glow noise > 0, anti_alias differences, and any gradient reference on a glow (GlowFill::Gradient exists so the refusal is a pigment error, not a composite one); the glow colour comes from StudioEffect.colour",
+      "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at d982b5c (render-gpu compiled this time; its earlier WIP errors are gone)",
+      "additivity": "no existing PlanExtensions item changed: LayerExtension.effects, ExtOperator::Effect and PlanExtensions::effect_modes were added in wave 1; wave 2 adds EffectKind members, EffectOp variants and the PlanError::EffectUnsupported variant only; effect_math::EffectError became non_exhaustive (new in wave 1, no external user)",
+      "v4": "V4-12: helper scripts and the commit message live under the lane scratchpad folder SMB-EFFECTS-WAVE-2/ with lane-specific names; V4-07: the one claim word in new docs (never) was reworded and cites tests/effects_wave2.rs; V4-01/02: effect_math keeps deny(arithmetic_side_effects), glow sizes bounded by MAX_EFFECT_SIZE_PX and the reference work budget (tests/effects_wave2.rs glow_refusals_envelope_admission_and_budget); V4-03: parity NOT_PROVEN, D5 15-17"
+    },
+    "dependents_wave1_note": "wave 1 note about render-gpu is superseded by notes.wave2.dependents"
   }
 }
