@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T08:06:27Z",
+ "updated_at": "2026-10-11T09:51:51Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -129,7 +129,7 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (tick 3 done 2026-10-11T07:30:00Z; V4-13..16 adopted)",
+   "status": "retired 2026-10-11T09:51:51Z (context ~410k, V4-16); replaced by workflow-2",
    "resumed": "2026-10-11T01:02Z",
    "output": "workflow/workflow-review-001.md, workflow/workflow.json"
   },
@@ -1182,7 +1182,7 @@
     "crates/hsk-studio-interop-vector/**"
    ],
    "launched": "2026-10-11T07:26:25Z",
-   "status": "running"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "builder-render-cpu-window",
@@ -1248,7 +1248,7 @@
     "crates/hsk-studio-prism/**"
    ],
    "launched": "2026-10-11T07:54:48Z",
-   "status": "running (pre-review FIX_FIRST prism-eng-5/6 first, then ENG-8) 2026-10-11T07:59:09Z"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "builder-psd-receipt",
@@ -1259,7 +1259,7 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T07:54:48Z",
-   "status": "running"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "builder-develop-prereview",
@@ -1270,7 +1270,7 @@
     "crates/hsk-studio-develop/**"
    ],
    "launched": "2026-10-11T07:59:09Z",
-   "status": "running"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "rem-press-soundness",
@@ -1282,7 +1282,7 @@
     "diagnostics/press-proof-soundness.md"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "rem-motionjs-nul",
@@ -1293,7 +1293,7 @@
     "crates/hsk-studio-motion-js/**"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running"
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
   },
   {
    "name": "validator-r7",
@@ -1351,6 +1351,18 @@
     "crates/hsk-studio-render-gpu/**"
    ],
    "launched": "2026-10-11T08:05:44Z",
+   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
+  },
+  {
+   "name": "workflow-2",
+   "agent_id": "PENDING-W",
+   "model": "opus",
+   "role": "adversarial workflow agent (fresh), tick 4: plausible register, outage resilience, R7 plan",
+   "owns": [
+    "workflow/workflow-review-ticks.md",
+    "workflow/plausible-register.json"
+   ],
+   "launched": "2026-10-11T09:51:51Z",
    "status": "running"
   }
  ]
