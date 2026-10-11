@@ -2,7 +2,7 @@
  "crate": "hsk-studio-prism",
  "lane": "SMB-PRISM-ENG-6",
  "status": "READY_FOR_VALIDATION",
- "phase": "diagnosis + fixes done: wide path evaluated by Prism (f64, deterministic), all 11 ENG-5 findings closed, matrix-pair fusion; only DIV-* lead decisions remain in KNOWN_FINDINGS",
+ "phase": "all 11 ENG-5 findings closed; matrix-pair fusion; R5-A corpus remediation (no machine-local paths, NOT_PROVEN); admission-ledger route AdmittedWideEngine (D13 b); workflow v4 rules applied; only DIV-* lead decisions remain",
  "commits": [
   {
    "sha": "3926709",
@@ -19,6 +19,18 @@
   {
    "sha": "d9a8ce8",
    "subject": "Prism: clippy clean (fdlibm ln2 split as bit patterns, std LOG2_E)"
+  },
+  {
+   "sha": "bac4790",
+   "subject": "Prism oracle: installed profiles only from the external corpus root (tests/oracle/corpus.json, populate_corpus.py), missing profile = NOT_PROVEN marker, failure under HSK_PRISM_REQUIRE_CORPUS"
+  },
+  {
+   "sha": "e7cf81f",
+   "subject": "Prism: AdmittedWideEngine charges the caller's admission ledger before every wide-path allocation (provider, plan, transient build, request, output leases; denial before parse) for STU-CON-044 / D13 option b"
+  },
+  {
+   "sha": "987af00",
+   "subject": "Prism V4 rules: deny(arithmetic_side_effects) on every touched module, hostile-size tests, NOT_PROVEN markers on uncaptured stderr, absolute doc claims cite tests"
   }
  ],
  "capabilities_done": [
@@ -27,20 +39,23 @@
   "Plan = Prism source stage -> PCS map -> Prism destination stage; moxcms only parses (ColorProfile public fields); BPC probes (vertices, local black, ISO ramp) on the same exact stages",
   "ICC.1:2022 8.10.2 tag precedence (intent table, table 0, matrix/TRC); MissingIntentTable only when none exists; WIDE_DESCRIPTOR updated",
   "Matrix/TRC + Gray pairs fused into one affine 3x3 (A = Mdst^-1 diag(D50) map diag(1/D50) Msrc, b = Mdst^-1 diag(D50) o), identity curves skipped; WideEngine::set_matrix_fusion/matrix_fusion (additive; toggling clears the cache); tests/wide_fusion.rs: 7 pairs incl. BPC, absolute, curv 1.8, Gray: 100% bit-identical to the staged plan, identical clip reports",
-  "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)"
+  "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)",
+  "R5-A item 3: tests/oracle/corpus.json (checked-in config, root ../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc relative to the crate) + tests/oracle/populate_corpus.py (stdlib, reads the fixture's system default_locations, copies SHA-256-verified files, writes MANIFEST.json); oracle_t1 and wide_profiles read installed profiles only via wide_support::corpus_read; a missing/mismatched profile prints `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under HSK_PRISM_REQUIRE_CORPUS=1 or require_corpus=true; corpus populated on this host (9/9 profiles)",
+  "D13 option b: AdmittedWideEngine<A: ProviderAdmission> (additive): provider lease (actor, cache vectors), plan lease kept with each cached plan, transient parse/build lease (bounds from the ICC tag table: parse 2x, plan 8x stored bytes, BPC 4 stages + ramp), per-request digest/frame lease, output lease carried by AdmittedWideTransform; denial before any parse; try_clear_cache/try_retire/set_matrix_fusion check retirement; AdmittedWideError Admission|Refused|Wide; pixels bit-identical to WideEngine; WIDE_DESCRIPTOR admitted_route",
+  "Workflow v4: #![deny(clippy::arithmetic_side_effects)] on icc_eval, wide, wide_admitted, wide_plan, bpc, admitted (123 lint sites -> 0: checked/saturating, CLUT index wrapping only after Clut::new checked bounds); tests/wide_hostile.rs (u32-max tag offset/size/count, curv u32::MAX entries, mft2 255^4 CLUT, mAB 255^3 CLUT, >2 MiB profile, aggregate over ledger budget and pixel bound before any parse); NOT_PROVEN lines on uncaptured stderr (wide_determinism unpinned target, wide_admitted/wide_hostile non-msvc target); absolute claims in my docs/descriptor cite tests or were weakened"
  ],
  "tests": {
   "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 source builders/studio-env.sh && cargo test -p hsk-studio-prism --tests --no-fail-fast",
   "exit": 0,
-  "sha": "d9a8ce8",
-  "passed": 117,
+  "sha": "987af00",
+  "passed": 120,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Lead/Operator: decide DIV-ABS-V2-DISPLAY-WTPT-001, DIV-V4-PERCEPTUAL-BLACK-001, DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (T3 Photoshop reading) and acknowledge the ICC 8.10.2 fallback (validated ENG-3 assertion changed) and the lcms2 trilinear convention. interop-psd may drop its gray no-BPC workaround. Optional perf: source-curve tables for non-linear pairs (now ~180 ns/px release).",
- "updated_at": "2026-10-11T05:27:27Z",
+ "next": "Lead/Operator: decide DIV-ABS-V2-DISPLAY-WTPT-001, DIV-V4-PERCEPTUAL-BLACK-001, DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (T3 Photoshop reading); acknowledge ICC 8.10.2 fallback (ENG-3 assertion changed) and lcms2 trilinear convention. develop owner: switch PrismConverter to AdmittedWideEngine (STU-CON-044 spec text still says 64-pixel admitted chunks: enrichment). interop-psd: may drop the gray no-BPC workaround. Round entrypoint: set HSK_PRISM_REQUIRE_CORPUS=1 where the corpus is provisioned.",
+ "updated_at": "2026-10-11T05:45:35Z",
  "notes": {
   "findings_fixed": {
    "PRISM-CURV-GAMMA-ZERO-001": "moxcms curv count=1 dirty_powf(0) garbage -> Prism pow(0)=0",
@@ -63,7 +78,8 @@
    "srgb_to_p3_bpc_fused": 178.4,
    "curv18_to_srgb_bpc_fused": 181.6,
    "srgb_to_gray_fused": 91.7,
-   "basis": "tests/wide_fusion.rs --release, 20k px, includes validation and SHA-256 output digest; develop reported ~110 ns/px for its linear pair on the old moxcms legs"
+   "basis": "tests/wide_fusion.rs --release, 20k px, includes validation and SHA-256 output digest; develop reported ~110 ns/px for its linear pair on the old moxcms legs",
+   "note": "measured before the V4 checked-arithmetic edits (dc42e34); index math in the CLUT is wrapping (no added checks in the hot loop)"
   },
   "contract_changes_to_acknowledge": [
    "wide_profiles A2B0-only profile: relative now = perceptual (ICC 8.10.2 c) instead of MissingIntentTable (ENG-3 assertion updated)",
@@ -72,7 +88,54 @@
   ],
   "dependents": "check --tests PASS: pigment, interop-psd, composite, develop, render-cpu, render-gpu; suites PASS: interop-psd (18), develop (16, 1 ignored)",
   "clippy": "clippy -p hsk-studio-prism --tests: no prism warnings",
-  "retry_guard_route": "one blocked identical rerun after the first suite failed (expected-fail registry flipping); route (a): committed the product fix 3926709 (HEAD changed), no flag changes, no gameplan step",
-  "scope_kept": "crates/hsk-studio-prism/** only; Cargo.toml/Cargo.lock untouched; no new dependency"
+  "retry_guard_route": "one blocked identical rerun after the first suite failed (expected-fail registry flipping); route (a): committed the product fix 3926709 (HEAD changed), no flag changes, no gameplan step; second recorded failure is the intentional negative corpus proof (src_leg_prophoto with HSK_PRISM_REQUIRE_CORPUS=1), never rerun identically",
+  "scope_kept": "crates/hsk-studio-prism/** only; Cargo.toml/Cargo.lock untouched; no new dependency",
+  "r5_review_a_items": {
+   "1_push": "fdd57ee is on origin (pushed with d9a8ce8; origin contains every later prism commit up to 987af00)",
+   "2_clippy_approx_constant": "fixed in d9a8ce8 (fdlibm ln2 split as f64::from_bits patterns, std::f64::consts::LOG2_E); clippy --tests clean since",
+   "3_corpus": "fixed in bac4790; negative proof: ProPhoto.icm hidden -> 4 NOT_PROVEN lines and exit 0 without the flag, exit 101 with HSK_PRISM_REQUIRE_CORPUS=1; file restored; with the flag set and the override env unset T1 42/42 and wide_profiles 3/3 pass, 0 NOT_PROVEN",
+   "4_admission_hook": "done in e7cf81f (AdmittedWideEngine); develop consumption is the develop owner's slice"
+  },
+  "v4_06_site_lists": {
+   "machine_local_path_in_tests": {
+    "regex": "C:/|C:\\\\\\\\|Program Files|System32|[A-Z]:/ (crates/hsk-studio-prism, *.rs *.json *.py *.toml)",
+    "sites": {
+     "tests/oracle_t1_lcms2.rs resolve (was default_locations search)": "fixed bac4790 (corpus_read)",
+     "tests/wide_profiles.rs installed list (was C:/Program Files (x86)/Common Files/Adobe/Color)": "fixed bac4790 (corpus_read)",
+     "tests/oracle/t1_lcms2.json:10 default_locations": "not_applicable: provenance read only by populate_corpus.py (a tool), never by a test"
+    },
+    "count_before": 3,
+    "count_after_in_test_code": 0
+   },
+   "approx_constant_float_literals": {
+    "regex": "approx_constant|1\\.442695|0\\.693147|6\\.931_?471|1\\.414_?213",
+    "sites": {
+     "src/icc_eval.rs LN2_HI": "fixed d9a8ce8 (f64::from_bits 0x3fe62e42fee00000, fdlibm split)",
+     "src/icc_eval.rs LN2_LO": "fixed d9a8ce8 (f64::from_bits 0x3dea39ef35793c76)",
+     "src/icc_eval.rs LOG2E": "fixed d9a8ce8 (std::f64::consts::LOG2_E)"
+    },
+    "count_before": 3,
+    "count_after": 0
+   },
+   "silent_green_skip": {
+    "regex": "SKIP|UNPINNED|eprintln!\\(\"(SKIP|UNPINNED)",
+    "sites": {
+     "tests/oracle_t1_lcms2.rs pair SKIP": "fixed bac4790 (not_proven)",
+     "tests/oracle_t1_lcms2.rs src leg SKIP": "fixed bac4790",
+     "tests/oracle_t1_lcms2.rs dst leg SKIP": "fixed bac4790",
+     "tests/wide_profiles.rs installed SKIP": "fixed bac4790",
+     "tests/wide_determinism.rs UNPINNED target": "fixed 987af00 (NOT_PROVEN line)"
+    },
+    "count_before": 5,
+    "count_after": 0
+   },
+   "unchecked_integer_arithmetic_on_hostile_sizes": {
+    "regex": "clippy::arithmetic_side_effects (lint, per touched module)",
+    "sites": "123 lint sites in admitted.rs (6), bpc.rs (1), icc_eval.rs (83), wide.rs (22), wide_admitted.rs (11): all fixed in 987af00; modules now #![deny]; lib.rs had 0 sites (only mod lines touched)",
+    "count_before": 123,
+    "count_after": 0
+   }
+  },
+  "v4_rules_applied": "V4-01 deny + explicit math; V4-02 tests/wide_hostile.rs (dims_u32_max_and_oversized_tables_are_refused_typed, aggregate_over_budget_is_denied_before_any_parse); V4-03 NOT_PROVEN + corpus root; V4-04 no fault hooks added; V4-07 claims cite tests or weakened (icc_eval, bpc, wide_plan, wide_admitted docs, WIDE_DESCRIPTOR stages); V4-09 commit 987af00 via git commit -F"
  }
 }

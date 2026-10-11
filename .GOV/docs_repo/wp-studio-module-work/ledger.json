@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:46:06Z",
+ "updated_at": "2026-10-11T05:47:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -889,17 +889,18 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng5",
    "commits": [
-    "baeecf3"
+    "baeecf3",
+    "bac4790"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "baeecf3",
-   "note": "T0 41 analytic (max 7.8e-6) + T1 42 vs lcms2 2.19.0 (imagecodecs wheel venv on D:); 11 findings pinned as expected-fail; 3 divergences pending Photoshop T3; retry-guard flag-change disclosed",
+   "candidate": "bac4790",
+   "note": "R5 remediation: installed profiles only via D: corpus root (tests/oracle/corpus.json + populate_corpus.py), missing -> NOT_PROVEN line, fails under HSK_PRISM_REQUIRE_CORPUS=1 (negative-tested); T0 known findings empty; T1 only DIV-* (D15)",
    "r5_review_routed": {
     "to": "builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z",
@@ -1323,12 +1324,16 @@
    "crate": "hsk-studio-prism",
    "origin": "develop-wide: wide transform ~110 ns/px",
    "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044; FIX DEFECT: gray kTRC + BPC on -> garbage black point (interop-psd notes.prism_defect_for_prism_lane); + fix the 11 ENG-5 findings (curv gamma<2.2 zero-channel, XYZ clamp, HLG saturation, PCS->CMYK shadows, CMYK BPC black, table interp/inverse)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng6 (opus)",
    "blocked_on": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "987af00"
+   ],
+   "verdicts": [],
+   "candidate": "987af00",
+   "note": "11 ENG-5 findings fixed: 10 rooted in moxcms 0.9.1 numerics -> Prism evaluates curves/CLUT/mft/mAB/mBA in deterministic f64, moxcms parse-only; intent fallback per ICC.1:2022 8.10.2; fusion bit-identical 7 pairs (linear 34.5 ns/px, sRGB->P3 187 ns/px); AdmittedWideEngine e7cf81f (STU-CON-044 hook); V4-01 lint 123 sites; prism 120 of 120, 0 NOT_PROVEN; commits 3926709 fdd57ee dc42e34 d9a8ce8 bac4790 e7cf81f 987af00"
   },
   {
    "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
@@ -1442,6 +1447,17 @@
    "owner": null,
    "commits": [],
    "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-7",
+   "crate": "hsk-studio-prism",
+   "origin": "prism ENG-6: exact f64 evaluation made non-linear wide transforms ~187 ns/px (sRGB->P3)",
+   "scope": "optional fast path: baked per-plan LUT/SIMD evaluation with a proven max-error bound vs the exact f64 path (exactness class recorded in receipts; exact path stays the oracle and the default for export)",
+   "phase": "stub",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -1500,6 +1516,8 @@
   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
   "SMB-INTEROP-LAYOUT",
   "SMB-COMPONENTS",
-  "SMB-COMPONENTS-FOLIO-MIGRATE"
+  "SMB-COMPONENTS-FOLIO-MIGRATE",
+  "SMB-PRISM-ENG-6",
+  "SMB-PRISM-ENG-5"
  ]
 }

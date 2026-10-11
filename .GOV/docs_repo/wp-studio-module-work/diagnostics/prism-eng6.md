@@ -5,7 +5,7 @@ lane: SMB-PRISM-ENG-6
 crate: hsk-studio-prism
 input: builders/lanes/hsk-studio-prism-eng5.json (11 findings, T0/T1 oracle at baeecf3)
 moxcms: 0.9.1 (latest on crates.io 2026-10-11; GitHub master trc.rs unchanged for the pure-gamma path); pxfm 0.1.30 (latest)
-updated_at: 2026-10-11T05:02:14Z
+updated_at: 2026-10-11T05:45:35Z
 ---
 
 <topic id="summary" status="current" summary="one root architecture cause plus one prism policy defect">
@@ -53,5 +53,60 @@ two moxcms legs plus a per-chunk PCS buffer; the develop lane measured ~110 ns/p
    exact-f64 path; pinned determinism digests re-pinned (numeric path changed on purpose).
 
 Cheapest proof: T0/T1 KNOWN_FINDINGS entries start failing-as-fixed; delete each, thresholds untouched.
+
+</topic>
+
+<topic id="status" status="current" summary="every PRISM finding fixed; proof per finding">
+
+All 11 fixed (commits 3926709, fdd57ee, dc42e34, d9a8ce8 on codex/handshake-studio-assets, pushed). Proof: the
+KNOWN_FINDINGS entry of each flipped ("no longer reproduces") and was deleted; thresholds untouched; full suite
+120/120 at 987af00. T0 registry is empty.
+
+| Finding | Proof |
+|---|---|
+| CURV-GAMMA-ZERO, RGB-BPC-CURV-GAMMA, GRAY-BPC | T0 curv_gamma_* / srgb_curv18_* / gray_v21_*; T1 src_leg_prophoto, m_prophoto/m_srgb_to_prophoto BPC; interop_psd_gray_bpc_repro_is_fixed (BPC on == off, black L* 0, scale 1) |
+| SOURCE-XYZ-NEGATIVE-CLAMP | T0 p3_para3_to_xyz_d50; T1 src_leg_image_p3/acescg/synth_rgb_v2_table |
+| HDR-SOURCE-CLAMP | T1 src_leg_rec2100_hlg203 passes the LUT gate against lcms2, whose PCS Y reaches 4.92 |
+| LUT-DEST-ACCURACY | T1 dst_leg_swop/fogra39/synth_cmyk_v2 and every RGB/CMYK->CMYK relative/perceptual/saturation pair |
+| BPC-CMYK-BLACK | T1 l_swop/fogra39/gracol2006_to_srgb relative BPC (black 16.589 = lcms2 16.59) |
+| LUT-SOURCE-REBAKE | T1 l_synth_cmyk_to_srgb saturation |
+| CURV-TABLE-INTERP, TABLE-TRC-INVERSE | T0 curv_table_to_linear, curv_table_dense_gray_scan, lab_to_srgb_curv_table1024_clipped |
+| MISSING-INTENT-TABLE-REFUSAL | T1 l_rec2100_hlg203_to_srgb saturation; wide_profiles A2B0-only profile: relative == perceptual |
+
+Found while fixing (not an accuracy defect): lcms2 interpolates the 3D CLUT of a Lab-PCS output table trilinearly
+(`_cmsReadOutputLUT` -> `ChangeInterpolationToTrilinear`); exact tetrahedral differed from lcms2 by 0.12 magenta on
+the 13^3 synthetic B2A1, trilinear reproduces lcms2 to 1e-6. Prism adopted the lcms2 convention (decision to
+acknowledge). Residual T1 combos re-attributed with evidence: 8 RGB->CMYK absolute -> DIV-ABS-V2-DISPLAY-WTPT-001
+(with the source wtpt forced to D50 max 0.0055); SWOP->FOGRA39 perceptual/saturation BPC ->
+DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (BPC off max 0.36/0.73; engine black 0.86 vs lcms2 0.0); HLG saturation BPC on ->
+DIV-V4-PERCEPTUAL-BLACK-001 (same numbers as perceptual: A2B0 fallback). Only DIV-* decisions remain.
+
+Fusion: tests/wide_fusion.rs, 7 pairs (linear, para, curv 1.8, BPC, absolute, Gray): fused == staged 100% bit-identical,
+identical clip reports. Release: linear pair 34.5 ns/px (develop measured ~110 on the old legs), sRGB->P3 187 ns/px.
+
+</topic>
+
+<topic id="r5-review-a" status="current" summary="adversarial review R5 group A items for this crate">
+
+1. fdd57ee unpushed: pushed (origin contains every prism commit through 987af00).
+2. clippy approx_constant at icc_eval.rs:31-32: fixed in d9a8ce8 (fdlibm ln2 split as `f64::from_bits`, std `LOG2_E`).
+3. Hard-coded C: profile paths and silent green skips (SMB-PRISM-ENG-5): fixed in bac4790. `tests/oracle/corpus.json`
+   names the external root (`../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc` from the crate);
+   `tests/oracle/populate_corpus.py` copies SHA-256-verified profiles from the fixture's system directories (tool
+   reads only); tests read only the corpus root (plus `HSK_PRISM_ORACLE_PROFILE_DIRS`); a missing profile prints
+   `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under `HSK_PRISM_REQUIRE_CORPUS=1`.
+   Negative proof run: ProPhoto hidden -> 4 NOT_PROVEN lines, exit 0; with the flag exit 101; restored.
+4. Admission-ledger hook (D13 option b): `AdmittedWideEngine` in e7cf81f (see lane notes for the charging model);
+   develop's owner consumes it.
+
+</topic>
+
+<topic id="v4-rules" status="current" summary="workflow v4 applied to this lane">
+
+V4-01/02 in 987af00: `#![deny(clippy::arithmetic_side_effects)]` on icc_eval, wide, wide_admitted, wide_plan, bpc,
+admitted (123 sites fixed); tests/wide_hostile.rs covers u32-max tag offset/size/count, a u32::MAX `curv`, 255^4 mft2 and
+255^3 mAB CLUTs, a >2 MiB profile, and an aggregate over the ledger budget refused before any parse. V4-03 markers and
+corpus root as above; V4-06 site lists (class, regex, every site) in builders/lanes/hsk-studio-prism-eng6.json
+notes.v4_06_site_lists; V4-07 absolute claims cite tests or were weakened; V4-09 commit via `git commit -F`.
 
 </topic>

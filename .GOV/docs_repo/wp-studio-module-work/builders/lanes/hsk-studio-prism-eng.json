@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-prism",
   "owner_scope": "crates/hsk-studio-prism/** only; strictly additive (legacy Prism, ColorEngine, AdmittedPrism, MAX_PROFILE_BYTES, MAX_PIXELS and their 20 tests unchanged)",
-  "updated_at": "2026-10-11T05:27:27Z",
+  "updated_at": "2026-10-11T05:45:35Z",
   "tests": {
     "legacy_foundation_contract": "PASS 20/20",
     "wide_profiles": "PASS 3/3 (ENG-3 admission, K-ramp conversion, admission order + installed profiles)",
@@ -11,7 +11,7 @@
     "wide_determinism": "PASS 2/2 (ENG-4)",
     "clippy_tests": "PASS no prism warnings",
     "dependents_check": "cargo check --tests PASS: pigment, render-cpu, composite, develop, interop-psd",
-    "oracle_and_wide_eng6": "PASS 117/117 at d9a8ce8 (foundation 20, oracle_t0 41, oracle_t1 42, wide_absolute 2, wide_bpc 3, wide_determinism 2, wide_fusion 1, wide_inputs 2, wide_profiles 3, lib 1)"
+    "oracle_and_wide_eng6": "PASS 120/120 at 987af00 (foundation 20, oracle_t0 41, oracle_t1 42, wide_absolute 2, wide_admitted 1, wide_bpc 3, wide_determinism 2, wide_fusion 1, wide_hostile 2, wide_inputs 2, wide_profiles 3, lib 1)"
   },
   "lanes": {
     "SMB-PRISM-ENG-3": {
@@ -75,7 +75,10 @@
         "3926709",
         "fdd57ee",
         "dc42e34",
-        "d9a8ce8"
+        "d9a8ce8",
+        "bac4790",
+        "e7cf81f",
+        "987af00"
       ],
       "done": [
         "diagnostics/prism-eng6.md: cause per finding with moxcms/pxfm file:line evidence; moxcms 0.9.1 and pxfm 0.1.30 are the newest releases (crates.io 2026-10-11) and master keeps the pure-gamma dirty_powf path: option (b) unavailable, option (a) taken, no vendor request",
@@ -83,10 +86,14 @@
         "Plan = Prism source stage -> PCS map -> Prism destination stage; moxcms only parses (ColorProfile public fields); BPC probes (vertices, local black, ISO ramp) on the same exact stages",
         "ICC.1:2022 8.10.2 tag precedence (intent table, table 0, matrix/TRC); MissingIntentTable only when none exists; WIDE_DESCRIPTOR updated",
         "Matrix/TRC + Gray pairs fused into one affine 3x3 (A = Mdst^-1 diag(D50) map diag(1/D50) Msrc, b = Mdst^-1 diag(D50) o), identity curves skipped; WideEngine::set_matrix_fusion/matrix_fusion (additive; toggling clears the cache); tests/wide_fusion.rs: 7 pairs incl. BPC, absolute, curv 1.8, Gray: 100% bit-identical to the staged plan, identical clip reports",
-        "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)"
+        "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)",
+        "R5-A item 3: tests/oracle/corpus.json (checked-in config, root ../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc relative to the crate) + tests/oracle/populate_corpus.py (stdlib, reads the fixture's system default_locations, copies SHA-256-verified files, writes MANIFEST.json); oracle_t1 and wide_profiles read installed profiles only via wide_support::corpus_read; a missing/mismatched profile prints `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under HSK_PRISM_REQUIRE_CORPUS=1 or require_corpus=true; corpus populated on this host (9/9 profiles)",
+        "D13 option b: AdmittedWideEngine<A: ProviderAdmission> (additive): provider lease (actor, cache vectors), plan lease kept with each cached plan, transient parse/build lease (bounds from the ICC tag table: parse 2x, plan 8x stored bytes, BPC 4 stages + ramp), per-request digest/frame lease, output lease carried by AdmittedWideTransform; denial before any parse; try_clear_cache/try_retire/set_matrix_fusion check retirement; AdmittedWideError Admission|Refused|Wide; pixels bit-identical to WideEngine; WIDE_DESCRIPTOR admitted_route",
+        "Workflow v4: #![deny(clippy::arithmetic_side_effects)] on icc_eval, wide, wide_admitted, wide_plan, bpc, admitted (123 lint sites -> 0: checked/saturating, CLUT index wrapping only after Clut::new checked bounds); tests/wide_hostile.rs (u32-max tag offset/size/count, curv u32::MAX entries, mft2 255^4 CLUT, mAB 255^3 CLUT, >2 MiB profile, aggregate over ledger budget and pixel bound before any parse); NOT_PROVEN lines on uncaptured stderr (wide_determinism unpinned target, wide_admitted/wide_hostile non-msvc target); absolute claims in my docs/descriptor cite tests or were weakened"
       ],
       "lane_file": "builders/lanes/hsk-studio-prism-eng6.json",
-      "diagnostics": "diagnostics/prism-eng6.md"
+      "diagnostics": "diagnostics/prism-eng6.md",
+      "tests": "PASS 120/120 at 987af00 (adds wide_admitted 1, wide_hostile 2)"
     }
   },
   "not_proven_or_open": [

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:46:06Z",
+ "updated_at": "2026-10-11T05:47:08Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -605,7 +605,7 @@
    "model": "opus",
    "role": "prism defects diagnose+fix + matrix fusion",
    "launched": "2026-10-11T04:04:25Z",
-   "status": "running (resumed after rate limit 2026-10-11T04:56:14Z)"
+   "status": "done 2026-10-11T05:47:08Z (SMB-PRISM-ENG-5 READY at bac4790)"
   },
   {
    "name": "builder-interop-fig",

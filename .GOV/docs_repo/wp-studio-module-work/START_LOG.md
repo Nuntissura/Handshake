@@ -213,6 +213,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Workflow v4 (): ten rules V4-01..10 adopted from workflow/workflow-review-ticks.md tick-2 (R5 failure classes: hostile sizes, silent green, frozen duplicates, fault hooks, same-class re-FAIL, doc claims, hostile text, inline free text, rate-limit resilience); text lives in builders/DISPATCH_TEMPLATES.md topic v4-rules; mechanical parts (NOT_PROVEN accounting, machine-local path grep, duplicate fingerprints) go to the round entrypoint step 0 (steward).
 
+- Lead acknowledgements 2026-10-11T05:47:08Z (prism ENG-6): (1) validated ENG-3 test changed to follow ICC.1:2022 8.10.2 intent fallback (spec-backed; ENG-3 is re-judged next round under CX-VAL-009); (2) Lab-indexed output CLUT interpolation is now trilinear to match lcms2 (ICC leaves CLUT interpolation implementation-defined) - PROVISIONAL, added to the D5 Photoshop oracle list; (3) re-pinned wide determinism digests and new WIDE_ENGINE_* receipt names accepted (prism moved to deterministic f64 evaluation; moxcms parse-only). D13 resolved in code: AdmittedWideEngine (e7cf81f) charges the caller ledger (STU-CON-044); develop adoption routed. Perf follow-up stub SMB-PRISM-ENG-7 (fast path with proven error bound).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
