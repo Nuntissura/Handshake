@@ -95,3 +95,4 @@
 {"t": "2026-10-11T07:27:28Z", "event": "SMB-REEL READY_FOR_VALIDATION 3c82784 (builder-reel-v4)", "lanes_moved": ["SMB-REEL READY"], "commits": ["3c82784"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:30:00Z", "event": "workflow tick 3 adopted (V4-13..16); disk-lock fixes to steward; 2 opus pre-reviewers for the 7 two-FAIL lanes; rem-kb-harness stopped+resumed (no commit 2 h); reel V4 hardening READY 3c82784 (7 latent bugs)", "lanes_moved": [], "commits": [], "progress": "process: verdict-risk reduction"}
 {"t": "2026-10-11T07:40:44Z", "event": "SMB-WEB READY_FOR_VALIDATION 08ad0ad (rem-web-r6)", "lanes_moved": ["SMB-WEB READY"], "commits": ["08ad0ad"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:42:44Z", "event": "SMB-SCORE-PLUGIN READY_FOR_VALIDATION 10016b5 (rem-score-r6)", "lanes_moved": ["SMB-SCORE-PLUGIN READY"], "commits": ["10016b5"], "progress": "direct: product commit"}

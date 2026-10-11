@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:40:44Z",
+ "updated_at": "2026-10-11T07:42:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -737,13 +737,14 @@
    "commits": [
     "67fdd10",
     "6c45e64",
-    "7d5641c"
+    "7d5641c",
+    "10016b5"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f (newer submission 6c45e64 pending)"
    ],
-   "candidate": "7d5641c",
-   "note": "R6: worker loads a private exclusively-created verified copy (never the approved path), deadlines bounded at admission + clamped sums (Duration::MAX tests), host owns state version (lie modes under test-faults), worker found only beside executable; 22 green with clap+test-faults on real fixture; streaming hash follow-up (sha2) requested",
+   "candidate": "10016b5",
+   "note": "streaming sha2 hash in 64 KiB chunks (host, reference worker, staging copy); peak < 4 MiB for 48-96 MiB files (allocator meter), digest equals one-shot; 28 green (clap+test-faults), 22 default; sha2 =0.10.9 pin needed",
    "r6_review_routed": {
     "to": "rem-score-r6",
     "at": "2026-10-11T06:29:17Z",
@@ -1837,7 +1838,8 @@
  "steward_next_sync": [
   "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)",
   "round-features: hsk-studio-render-gpu = [[\"test-faults\"]] (R6 V4-04 fix; 3 fault tests)",
-  "windows-sys 0.61.2 optional dep for hsk-studio-motion-js feature quickjs (already in Cargo.lock; native-ffi probe approval for motion-js)"
+  "windows-sys 0.61.2 optional dep for hsk-studio-motion-js feature quickjs (already in Cargo.lock; native-ffi probe approval for motion-js)",
+  "sha2 =0.10.9 (default-features off, force-soft) for hsk-studio-score-plugin (10016b5)"
  ],
  "round_R4": {
   "candidate": "2abb984",

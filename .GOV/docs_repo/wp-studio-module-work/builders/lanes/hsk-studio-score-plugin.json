@@ -2,7 +2,7 @@
   "crate": "hsk-studio-score-plugin",
   "lane": "hsk-studio-score-plugin",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R6 remediation of review B pushed at 7d5641c: 2 CONFIRMED + 3 PLAUSIBLE addressed (the streaming-hash part of unbounded_buffer is an open cross-crate request); CLAP still proven only for the parameterless gain fixture",
+  "phase": "R6 remediation of review B complete at 10016b5: 2 CONFIRMED + 3 PLAUSIBLE addressed incl. streaming hash (unbounded_buffer closed); CLAP still proven only for the parameterless gain fixture",
   "commits": [
     {
       "sha": "ccc9c9a",
@@ -27,6 +27,10 @@
     {
       "sha": "7d5641cacb990aa43a0b4c0c805f82c48bc9dd15",
       "subject": "score-plugin R6 remediation: verified private staging copy closes hash-then-load, bounded durations, host-owned state version, executable-directory-only worker lookup, plugin file size charged to the budget"
+    },
+    {
+      "sha": "10016b537da0a369a83e2aef09abafc642971885",
+      "subject": "score-plugin R6: stream the plugin file through SHA-256 over one fixed 64 KiB buffer (sha2 =0.10.9 force-soft) in host, reference worker and staging copy; never read whole; file size no longer charged, fixed hash buffer reserved"
     }
   ],
   "capabilities_done": [
@@ -50,20 +54,20 @@
     "Oracle corpus lookup (coordinator follow-up): tests/clap_fixture.rs finds the fixture through .config/oracle-corpus.toml (search + max-ancestors, walk up from the workspace root) and <corpus>/score-plugin/clap-gain/MANIFEST.json; pins the library by manifest sha256 and binds it to the fixture source by source_sha256 (steward recipe, verified equal); HSK_SCORE_PLUGIN_CLAP_FIXTURE is only an optional local override; absent root/manifest/library or a differing hash prints 'NOT_PROVEN: <test> <case> reason=...' and returns"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast with --features clap,test-faults (studio-env.sh cargo form, no HSK_* variable)",
+    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast with --features clap,test-faults (studio-env.sh cargo form, no HSK_* variable); default features: 14 unit + 7 foundation + 1 hash_memory = 22",
     "exit": 0,
-    "sha": "7d5641cacb990aa43a0b4c0c805f82c48bc9dd15",
-    "passed": 22,
+    "sha": "10016b537da0a369a83e2aef09abafc642971885",
+    "passed": 28,
     "failed": 0
   },
   "blockers": [
     {
-      "error": "OPEN CROSS-CRATE REQUEST (R6 PLAUSIBLE unbounded_buffer, streaming part): hashing the plugin file needs a streaming SHA-256 over a fixed buffer, but hsk_studio_score::digest::Sha256 is pub(crate) and score-plugin may depend only on accord/score/observe (a local copy would be a second SHA-256 owner, CX-CAP-001). Needs `pub use digest::Sha256` (new/update/finalize) from hsk-studio-score. Interim: file size charged to the admission budget before the read and the host read bounded by it; worker read capped at 512 MiB (not charged to the host budget). DESCRIPTOR hash_buffer says NOT_PROVEN.",
-      "file_line": "crates/hsk-studio-score-plugin/src/host.rs verify_content; src/backend.rs verify_file; src/staging.rs stage_verified",
+      "error": "STEWARD ACTION (dependency): hsk-studio-score-plugin now depends on sha2 =0.10.9 (default-features off, features [force-soft]; same pin as nib/type/package/press/reel/web/interop-*; no new package in Cargo.lock). Needs registry.hsk-studio-score-plugin direct + probe approval for this owner; dep-request line appended to builders/dep-requests.jsonl (kind normal). Cargo.toml of the crate already lists it, so a steward sync is required before the round workspace-probe passes.",
+      "file_line": "crates/hsk-studio-score-plugin/Cargo.toml; builders/dep-requests.jsonl (last line)",
       "attempts": 0
     },
     {
-      "error": "STEWARD ACTION (carried): .config/round-features.toml needs hsk-studio-score-plugin = [[\"test-faults\"], [\"clap\", \"test-faults\"]] (the file already lists exactly this at bd8533f per R6 review B; nothing new requested). Default features run 9 unit + 7 foundation tests.",
+      "error": "STEWARD ACTION (carried): .config/round-features.toml needs hsk-studio-score-plugin = [[\"test-faults\"], [\"clap\", \"test-faults\"]] (already listed at bd8533f per R6 review B; nothing new). Default features run 14 unit + 7 foundation + 1 hash_memory tests.",
       "file_line": ".config/round-features.toml",
       "attempts": 0
     }
@@ -71,7 +75,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "independent validator round on the pushed SHA (default / test-faults / clap+test-faults units); next slices: hsk-studio-score streaming Sha256 export then streaming hash + O(1) buffer in host and worker, clack extensions (latency, state, audio-ports), VST3 backend, realtime shared-memory handoff (STU-ARC-013), move supervisor.rs to the D18 shared owner (use paths only)",
-  "updated_at": "2026-10-11T07:20:09Z",
+  "updated_at": "2026-10-11T07:42:21Z",
   "notes": {
     "verdicts": [
       {
@@ -142,8 +146,7 @@
       "CLAP backend: first plugin of the entry only (ApprovedPlugin has no plugin id yet)",
       "all CLAP calls on the worker's single thread (main-thread/audio-thread affinity NOT_PROVEN)",
       "ledger is unbounded for a very long-lived host (one small entry per spawn)",
-      "R6: hash-then-load is closed for the CLAP backend by the staging copy (worker loads a verified private copy); NOT_PROVEN on Unix against a same-user process that can write the private 0700 directory between verification and dlopen; plugins that need sibling files do not work from a lone staged file",
-      "R6: streaming hash is open (see blockers); the host buffer is charged to the budget, the worker buffer (<= 512 MiB) is not"
+      "R6: hash-then-load is closed for the CLAP backend by the staging copy (worker loads a verified private copy); NOT_PROVEN on Unix against a same-user process that can write the private 0700 directory between verification and dlopen; plugins that need sibling files do not work from a lone staged file"
     ],
     "v4_06_class_site_lists": {
       "class_A_process_supervision_outside_supervisor_rs": {
@@ -202,9 +205,9 @@
           "tests": "supervisor::tests::worker_is_found_only_beside_the_running_executable"
         },
         {
-          "kind": "unbounded_buffer (PLAUSIBLE, PARTLY fixed)",
-          "fix": "plugin_file_len() before admit; the permit reserves PROBE_BYTES/blocks+state PLUS the file size; verify_content reads through one handle bounded by that charge; staging reads through one handle bounded by MAX_PLUGIN_FILE_BYTES. NOT fixed: O(1) streaming hash (cross-crate, see blockers)",
-          "tests": "foundation_contract::plugin_file_size_is_charged_to_the_budget"
+          "kind": "unbounded_buffer (PLAUSIBLE, FIXED in two steps)",
+          "fix": "step 1 (7d5641c): file size charged to the permit. step 2 (lead decision, 10016b5): hashing.rs stream_sha256 over one 64 KiB buffer through sha2 =0.10.9 (force-soft), optionally teeing each chunk to the copy in hashing order; used by host verify_content, reference worker verify_file and staging stage_verified (one pass hash+copy, then the copy re-hashed through the kept handle); the file size is no longer charged (a fixed 64 KiB hash buffer is reserved per instance); library tests deny instead of forbid unsafe so the test-only allocation meter can exist (non-test default builds unchanged: forbid(unsafe_code))",
+          "tests": "hashing::tests::{equals_the_one_shot_digest (lengths around 64 B and 64 KiB + NIST vector), limit_and_tee_are_exact, large_stream_hashes_in_bounded_memory (96 MiB generated, peak < 4 MiB)}; staging::tests::large_file_is_staged_in_bounded_memory (48 MiB, mismatch path too); backend::tests::reference_verify_streams_a_large_file_in_bounded_memory; tests/hash_memory.rs::host_hashes_a_large_plugin_file_in_bounded_memory (48 MiB probe through the host, digest equals the one-shot digest, mismatch spawns no worker); foundation_contract::plugin_file_bound_applies_and_its_size_is_not_charged. DESCRIPTOR authorization.hash_buffer moved from NOT_PROVEN to proven"
         }
       ],
       "v4_06_class_sites": {
@@ -230,12 +233,12 @@
           "regex": "File::open|fs::read|PluginEntry::load|fs::metadata|read_to_end",
           "sites": [
             "src/clap_backend.rs load_entry: fixed (staged copy path)",
-            "src/staging.rs stage_verified (2 reads through held/one handle): fixed/new",
-            "src/host.rs plugin_file_len + verify_content: fixed (charged, bounded); early refusal only",
-            "src/backend.rs verify_file (reference backend, hash only, never loads): not-applicable for TOCTOU; whole-file read is the open streaming gap",
+            "src/staging.rs stage_verified: fixed (one pass over one handle, fixed buffer)",
+            "src/host.rs plugin_file_bound + verify_content: fixed (streamed over one fixed buffer; early refusal only)",
+            "src/backend.rs verify_file (reference backend, hash only, never loads): fixed (streamed)",
             "examples/score-plugin-consumer.rs fs::read(worker): not-applicable (example hashes its own local worker binary)"
           ],
-          "count": "6 sites: 3 fixed, 1 new, 2 not-applicable"
+          "count": "5 sites: 4 fixed, 1 not-applicable (std::fs::read of the whole file no longer occurs in src/)"
         },
         "D_program_discovery": {
           "regex": "current_exe|\\.parent\\(\\)",
@@ -260,7 +263,9 @@
           "host.rs: spawn_timeout/shutdown_grace upper bounds removed; E_STALE detail / ParamSet / State versions adopted again; plugin file size not charged to the permit"
         ],
         "red_result": "exactly 6 tests failed (features clap,test-faults): supervisor::tests::deadline_arithmetic_never_overflows (overflow panic), supervisor::tests::worker_is_found_only_beside_the_running_executable, clap_fixture::clap_loads_a_private_verified_copy_not_the_approved_path (approved file cannot be deleted while mapped), fault_injection::worker_cannot_rewrite_the_state_version, foundation_contract::host_limits_are_bounded_at_admission, foundation_contract::plugin_file_size_is_charged_to_the_budget; the staging unit tests and staging_directories_follow_the_worker stay green (they test code the reverts do not touch)"
-      }
+      },
+      "commit_streaming_hash": "10016b537da0a369a83e2aef09abafc642971885",
+      "red_proof_streaming_hash": "not run in a scratch tree: the new tests assert peak memory directly (peak < 4 MiB for 48-96 MiB files) with a metering allocator whose self-check requires the meter to see the 64 KiB buffer (peak >= BUFFER_BYTES), so a whole-file read cannot pass them; NOT_PROVEN as a red run"
     }
   }
 }

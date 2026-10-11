@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:40:44Z",
+ "updated_at": "2026-10-11T07:42:44Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1064,7 +1064,7 @@
     "diagnostics/web-tokenizer.md"
    ],
    "launched": "2026-10-11T06:29:17Z",
-   "status": "done 2026-10-11T07:40:44Z (SMB-WEB READY at 08ad0ad)"
+   "status": "done 2026-10-11T07:42:44Z"
   },
   {
    "name": "rem-score-r6",
@@ -1076,7 +1076,7 @@
     "crates/hsk-studio-score-plugin/**"
    ],
    "launched": "2026-10-11T06:29:17Z",
-   "status": "done 2026-10-11T07:20:46Z (SMB-SCORE-PLUGIN READY at 7d5641c)"
+   "status": "done 2026-10-11T07:42:44Z"
   },
   {
    "name": "rem-prism-r6",
