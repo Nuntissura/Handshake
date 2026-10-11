@@ -1,0 +1,168 @@
+{
+  "kind": "pre-review",
+  "rule": "V4-13 (two-FAIL lanes reopened by CX-VAL-009) + V4-14/V4-18",
+  "round": "STUDIO-R9 (pre-review)",
+  "head": "a024461a397745a29ee53af2ef34651012071a98",
+  "head_note": "origin/codex/handshake-studio-assets was a024461 at the first fetch (13:30Z); at the re-fetch (13:44Z) the tip is 4d80e50d40432799c08f0f8b8f0047c9a00d056a, whose two later commits e849d4c and 4d80e50 touch hsk-studio-web only (git log a024461..origin -- crates/hsk-studio-reel crates/hsk-studio-reel-native crates/hsk-studio-accord crates/hsk-studio-observe Cargo.toml Cargo.lock .config is empty), so a024461 is the last commit relevant to both crates",
+  "base_for_diff": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84 (R8 candidate; both two-FAIL lanes PASS_V3 there)",
+  "commits_in_scope": {
+    "hsk-studio-reel": ["6d232da", "2ddff00", "bd5bd60 (lane SMB-REEL-ENG-1; 2ddff00 also touches src: isobmff.rs, lib.rs, model.rs)"],
+    "hsk-studio-reel-native": ["471b679", "a024461 (lane SMB-REEL-NATIVE-FAULTS)"]
+  },
+  "reviewer": "independent read-only pre-reviewer (Opus), fresh context, wrote none of this code; committed blobs only (git archive of a024461 and f6e5a49 into scratch; git show/diff); no cargo, no sub-agents; the dirty shared tree was ignored",
+  "severity_rule": "CONFIRMED = file:line read at a024461 by this reviewer and the behaviour follows from the code read; PLAUSIBLE = reasoning, external fact or behaviour not proven at a024461",
+  "method": "kernel reads (R8-prereview-reel, R8-review-b, round-R8 reel lanes, lane-reel-eng-1 brief, lane files reel-eng-1 / reel-native-faults / reel / reel-native, plausible-register PLR-029/032..035/055..057, DISPATCH_TEMPLATES v4-rules); git diff f6e5a49..a024461 for both crates; line-numbered reads of video.rs (choose, Forward, decode_video_track_with), isobmff.rs (deliver/deliver_packets, build_edits, build_presentation, build_index loop, parse_visual_children), isobmff/pcm.rs, wav.rs, y4m.rs, mxf/provider.rs, mxf/mod.rs (locate, locate_coded, display_position_of), mxf/tables.rs (entry parsing, entry_at), matroska.rs (deliver), cache.rs, registry.rs, report.rs, error.rs, model.rs; reel-native host.rs (spawn, io_loop, fail, exchange, WorkerSession, open_session, decode_av1, within_declared_size), wire.rs (decode_reply, decode_frame, encode_tiny_frame), worker.rs (Faults gating, serve, flush_batch), test_fault.rs, lib.rs, tests/av1_worker.rs; git grep of the workspace at a024461 for ReelError and hsk-studio-reel dependants; duplicate-fingerprints D18 scan; V4-06 regex recounts (grep -P, CR stripped) for all four lanes at a024461; DESCRIPTOR JSON parsed and compared between heads",
+  "status": "COMPLETE",
+  "started_at": "2026-10-11T13:29:51Z",
+  "updated_at": "2026-10-11T13:46:27Z",
+  "completed_at": "2026-10-11T13:46:27Z",
+  "summary": {
+    "SMB-REEL-AV1-ROUTE": {"recommendation": "SAFE_TO_JUDGE", "regression": "NONE", "CONFIRMED": 0, "PLAUSIBLE": 0},
+    "SMB-REEL-NATIVE-AV1-WORKER": {"recommendation": "SAFE_TO_JUDGE", "regression": "NONE", "CONFIRMED": 0, "PLAUSIBLE": 0, "carried_from_R8": 2},
+    "SMB-REEL-ENG-1 (advisory, 0-FAIL)": {"CONFIRMED": 1, "PLAUSIBLE": 2},
+    "SMB-REEL-NATIVE-FAULTS (advisory, 0-FAIL)": {"CONFIRMED": 0, "PLAUSIBLE": 3}
+  },
+  "lanes": [
+    {
+      "lane": "SMB-REEL-AV1-ROUTE",
+      "crate": "hsk-studio-reel",
+      "verdicts_so_far": "FAIL_V1 (R5), FAIL_V2 (R7), PASS_V3 (R8 at f6e5a49, claim 8438b1d + 589f544 + bf3c196); a FAIL in R9 exhausts the fix budget",
+      "regression_check": {
+        "result": "NO REGRESSION",
+        "PLR-033_untrusted_av1_never_in_process": "INTACT. registry.rs is not in the diff (decode_segment :189-207 passes SourceTrust::Untrusted; decode_segment_routed :226-294 builds the proxy route from proxy_trust at :265-268 and the original route from `trust` at :236-239); video.rs choose() :221-230 unchanged (the only trust read; the only in-process branch is cfg av1 + Trusted + Av1); the only video.rs change is the Export Incomplete branch :511-519, which runs after decode and reads no trust; cached paths still use VideoRoute::default() (isobmff.rs:1807-1815, matroska.rs:1490-1498); reel-native decode_av1 still uses VideoRoute::untrusted().with_external (host.rs:1021). DESCRIPTOR video_routing parsed at f6e5a49 and a024461: identical",
+        "proxies_keep_own_trust": "INTACT (registry.rs untouched; ProxySource::new = Untrusted :38-45, with_trust :48-51). Export + prefer Proxy still StrictOriginalRequired before any proxy work (registry.rs:242-244), so the new export rule cannot route through a proxy",
+        "PLR-032_oversize_picture_refusal": "INTACT. Forward (video.rs:272-368) unchanged: planes_match_format || within_declared_size -> DecoderFault::Protocol (:331-335), packed_len vs max_chunk_bytes before any copy (:346-354); declared inputs unchanged: Forward.declared = (video.width, video.height) (video.rs:479), isobmff av01 width/height from the VisualSampleEntry (parse_stsd reads them at isobmff.rs:839-840, before the children; only the child parsing changed, :844-847), Matroska PixelWidth/PixelHeight (matroska.rs:1538-1539, file untouched). Refusals are errors inside session.send/finish, so they propagate before the new Incomplete branch (video.rs:494-506 vs :511). New coverage: tests/av1_decode.rs oversize_picture_on_the_trusted_rav1d_path_is_refused (PLR-056) drives the real in-process rav1d with patched declared sizes (15x16, 16x15, 8x8, 1x1 -> Protocol, empty sink; 17x16, 32x32, 255x255 -> oracle digests; 0x16 unchecked side, 0x15 refused)",
+        "R5_plane_overflow": "INTACT (planes_match_format video.rs:287-299 unchanged)",
+        "parse_visual_children_refactor": "semantics kept for the route's inputs: colr last-wins (Option, unwrap_or Untagged at isobmff.rs:845), pasp, av1C (<= MAX_CODEC_CONFIG) unchanged; new fiel/clap arms with a length guard fall to `_ => {}` when short (no early break), so av1C after a short clap is still read"
+      },
+      "v4_06_recheck": "lane regex (notes.v4_06_regex) at a024461: 86 code-line hits = 86 listed; same content; isobmff.rs sites moved by +113 lines (1617/1618/1729/1730 -> 1730/1731/1842/1843) and y4m.rs sites 318/454/455/460/494 by +2; no new hit. Line references in the lane listing are stale by these mechanical shifts only (process nit, no new class site)",
+      "new_findings": [],
+      "carried_notes": "R8-review-b PLAUSIBLE items (first sample entry only; citation scope) unchanged and optional",
+      "wip_after_ready": "NONE unclaimed: READY claim ends at bf3c196; crate commits after it are exactly 6d232da, 2ddff00, bd5bd60, all claimed by lane SMB-REEL-ENG-1 (READY at bd5bd60, lane file notes.base); nothing touches the crate after bd5bd60 (git diff bd5bd60..a024461 -- crates/hsk-studio-reel is empty). V4-14 satisfied by the cross-lane claim",
+      "recommendation": "SAFE_TO_JUDGE",
+      "recommendation_note": "ENG-1 adds only an Export-only error after the decode, an Export-only start guard in deliver_packets, error/report variants and isobmff index/metadata changes; none touches trust routing, the proxy route or the declared-size/packing checks. Round must run hsk-studio-reel default and [av1] (.config/round-features.toml:15)."
+    },
+    {
+      "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+      "crate": "hsk-studio-reel-native",
+      "verdicts_so_far": "FAIL_V1 (R5), FAIL_V2 (R7), PASS_V3 (R8 at f6e5a49, READY 7886369); a FAIL in R9 exhausts the fix budget",
+      "regression_check": {
+        "result": "NO REGRESSION",
+        "worker_lookup_beside_exe (PLR-034)": "INTACT: discover_beside joins only exe.parent() and requires is_file (host.rs:473-476), discover_program delegates (:478-480); unchanged content (lines shifted +9 by the new module-doc bullets); tests worker_is_found_only_beside_the_running_executable (host.rs:1322) and default_discovery_does_not_look_in_the_parent_of_the_executable_directory (tests/av1_worker.rs:740) present and unedited (tests diff is +183/-0)",
+        "hello_cancel (PLR-035)": "INTACT: spawn waits for HELLO via Session::wait(cancel, deadline_after(spawn_timeout)) (host.rs:627-634), Session::wait polls WAIT_SLICE then cancel then wall (:382-398); Canceled -> fail(Failure::Canceled) (:629, :677-680); test canceled_call_does_not_wait_for_a_stalled_hello (tests/av1_worker.rs:664) unedited",
+        "declared_dims_overflow (R5)": "INTACT: declared_frame_cap / decoder_budget unchanged (checked arithmetic, called in open_session before checkout at host.rs:1057-1060); the new within_declared_size (:1198-1201) only compares u32s (no arithmetic); test hostile_declared_dims_u32_max_are_refused_before_any_spawn (tests/av1_worker.rs:766) unedited",
+        "wire_bounds (R5)": "INTACT: decode_frame (wire.rs:503-577) unchanged (width/height > 0, bit depth, plane count and checked plane lengths -> Malformed); the only wire addition is encode_tiny_frame (wire.rs:436-460) behind cfg(all(av1-worker, test-faults)); test frame_dims_u32_max_is_malformed (wire.rs:731) unedited",
+        "test_faults_gating (V4-04)": "INTACT and extended correctly: module test_fault only with av1 + test-faults (lib.rs:28-29, re-export :40-41); new variants OversizePicture/UndersizePicture/FrameOnOpen live in that module (test_fault.rs:24-31); worker Faults struct and impl are cfg(test-faults) (worker.rs:42-49), incl. the new on_open (:72) and reshape (:79); flush_batch takes the faults parameter only under cfg(test-faults) (:157) and calls reshape only under it (:162-163); the OPEN hook call is a cfg(test-faults) block (:198-206); call sites pass &faults under cfg (:240, :265); host fault_env / Av1WorkerOptions::test_fault remain cfg(test-faults) (host.rs:121-122, :522-523, :597-602, :955-956). The new host-side within_declared_size check is product code, as it should be",
+        "D18_no_new_supervisor_copy (V4-05)": "INTACT: D18 fingerprints (Command::new, .creation_flags) at a024461 match only the three allowed files; in reel-native only host.rs:463 and :591 (pre-existing); the diff adds no spawn/kill/creation-flag code",
+        "reel_dependency_changes": "reel's new variants never reach the worker wire as new classes: encode_error has a wildcard arm (wire.rs:414-419) and the worker hosts Av1Decoder directly (worker.rs:25), not the routed path that can return NotExact/Incomplete"
+      },
+      "v4_06_recheck": "lane regex (notes.v4_06_regex) at a024461: 45 code-line hits = 45 listed; identical line contents to f6e5a49/7886369 (only the DESCRIPTOR line text changed, it matches on the word 'parent'); host.rs sites shifted by +9..+83, worker.rs/test_fault.rs/wire.rs shifted; no new wait/lookup site",
+      "new_findings": [],
+      "carried_notes": [
+        "R8-prereview-reel PLAUSIBLE 1 (explicit bare Av1WorkerOptions::program resolved by the Windows search path) unchanged at a024461 (configured-program path and Command::new(&self.program) at host.rs:591 untouched); optional, D18-adjacent",
+        "R8-prereview-reel PLAUSIBLE 2 (HELLO wait bounded by spawn_timeout, not the segment deadline) unchanged (host.rs:627); optional",
+        "R8-review-b PLAUSIBLE PLR-055 (declared-size refusal not counted) is FIXED by 471b679 (see SMB-REEL-NATIVE-FAULTS section)"
+      ],
+      "wip_after_ready": "NONE unclaimed: READY commit 7886369; later crate commits 471b679 and a024461 are claimed by lane SMB-REEL-NATIVE-FAULTS (READY at a024461 = last crate commit). V4-14 satisfied by the cross-lane claim",
+      "recommendation": "SAFE_TO_JUDGE",
+      "recommendation_note": "471b679/a024461 only add a stricter host-side refusal (counted Failure::Protocol) and test-only worker hooks; every R5/R7 class stays fixed with its unedited red-on-revert test. Round must run [av1-worker] and [av1-worker,test-faults] (.config/round-features.toml:16)."
+    }
+  ],
+  "advisory_lanes": [
+    {
+      "lane": "SMB-REEL-ENG-1",
+      "crate": "hsk-studio-reel",
+      "status_note": "0-FAIL lane, READY at bd5bd60; findings advisory",
+      "export_exact_or_error_enumeration": {
+        "rule_sites": "require_exact_start (model.rs:454-466; nearest evaluated only on refusal, Preview never refused) is called before the first payload read and the first sink.accept at: deliver_packets isobmff.rs:1904-1908 (after track.seek; covers isobmff packets, Matroska packets via matroska.rs:1588, the Matroska DecodeSink content path, and the decoded AV1 route via video.rs:494), deliver_pcm_stream isobmff/pcm.rs:442-449 (isobmff PCM :386 and Matroska PCM matroska.rs:1561; the buffer allocation at :465 follows the guard), wav.rs:312, y4m.rs:302, mxf/provider.rs:113-115",
+        "providers_and_routes": {
+          "isobmff decode_segment/decode_segment_routed": "deliver -> av01 decoded: decode_video_track (guard inside deliver_packets, Incomplete after decode); PCM decoded: deliver_pcm_stream; packets: deliver_packets. OK",
+          "isobmff decode_packets / IndexCache decode_cached": "same deliver (isobmff.rs:1807, cache.rs:238). OK",
+          "matroska decode_segment/decode_segment_routed/decode_packets/decode_cached": "same three paths (matroska.rs:1528, :1561, :1588; cache.rs:256). OK",
+          "wav": "guard :312; short data -> Truncated error (:375-377), never Ok-partial. OK",
+          "y4m": "guard :302; short data -> Truncated error (:350, read_exact_or_truncated). OK",
+          "mxf decode_segment/decode_packets": "start guard OK; delivered-count shortfall NOT refused: see finding 1",
+          "proxy route": "Export + prefer Proxy -> StrictOriginalRequired (registry.rs:242-244) before any proxy work; Export + Original -> original only. OK",
+          "external worker route (reel-native decode_av1, WorkerAv1Provider::decode_segment, Registry with_video_decoder)": "req cloned with its purpose into reel's provider route (host.rs:1022-1028), so the same guard and Incomplete branch apply. OK (guard after open: PLR-057, carried)",
+          "in-process route (Trusted, feature av1)": "same decode_video_track_with (video.rs:448-456). OK",
+          "audio": "wav, isobmff PCM, Matroska PCM covered; compressed audio is CodecUnavailable"
+        },
+        "preview_unchanged": "yes in every delivery path: the guard returns Ok for Purpose::Preview without evaluating `nearest`; the Incomplete branch is Export-only (video.rs:514). Preview-visible changes come only from the index changes (B3 elst handling, see finding 2) which apply to both purposes",
+        "V4-06_recount": "lane regex at a024461 (src excluding lib.rs): 17 hits = 17 listed, identical file:line set; reel src unchanged after bd5bd60. One per-site verdict is wrong: mxf/provider.rs:269 (finding 1)"
+      },
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "export_ok_with_incomplete_result_mxf_reordered_path",
+          "file_line": "crates/hsk-studio-reel/src/mxf/provider.rs:185-239 (reordered decode-order loop), :255-259 (disposition from `aligned` only), :269 (complete: delivered == req.count); mxf/mod.rs:624-647 (locate: coded = display + temporal_offset), :695-711 (display_position_of returns the FIRST d with d + offset(d) == coded); mxf/tables.rs:225-231 (temporal offsets stored as read, no consistency check)",
+          "evidence": "Temporal offsets are never checked to form a permutation. With a hostile variable-size picture index whose entries 0 and 1 carry offsets 0 and -1, a request start 0 count 2 gives lo = hi = 0 (both display positions map to coded 0), the loop visits coded 0 once, display_position_of(0) returns 0, delivered = 1; the call returns Ok with complete = false and disposition Exact (aligned start), also for Purpose::Export. The display-1 packet is never delivered. This is the class the lane named for V4-06 ('a delivery path that returns Ok with an Approximate, Partial or incomplete result without consulting req.purpose'), and the lane marked this site 'not applicable by reading, NOT PROVEN' (residual R2). DESCRIPTOR export.rule opens with 'Purpose::Export is exact or it fails'. Mitigation in place: report::outcome_for maps Ok(!complete) to Failure(Loss) (report.rs:13-14), so a caller that checks receipt.complete is safe. Hostile/corrupt input only (a conformant index is a permutation).",
+          "remediation": "In the reordered pre-pass (provider.rs:187-196) check display_position_of(locate(d).coded_position) == d for every requested d and refuse otherwise as Corrupt mxf-temporal-offset; and/or after the loop: delivered != req.count -> Export: ReelError::Incomplete { requested, delivered }, Preview: Disposition::Partial. One test with a synthetic two-entry index (offsets 0, -1): Export -> refusal, Preview -> complete false + Partial. Update the lane's V4-06 verdict for mxf/provider.rs:269"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "elst_zero_duration_refusal_is_file_wide",
+          "file_line": "crates/hsk-studio-reel/src/isobmff.rs:1356-1361 (Unsupported elst-zero-duration), :1619-1622 (build_index runs finish_track for every track with `?`)",
+          "evidence": "B3 turns a zero-length non-empty edit outside the last entry of a fragmented file from 'indexed, that edit presents nothing' into Unsupported elst-zero-duration. Because build_index propagates any track's error, one such edit on any track (for example a tmcd or audio track of a progressive MOV) now makes the whole file unindexable, including a valid video track. The lane notes B3 describe the change per edit, not the file-wide blast radius. Same file-wide shape already exists for edit-media-rate-not-1. Frequency of such edits in real files UNVERIFIED (no corpus probe run).",
+          "remediation": "Either record the file-wide effect in behaviour_changes/DESCRIPTOR, or make the refusal per track (track marked unsupported, other tracks indexed); one test with a two-track MOV where only the second track carries the zero-length edit"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "carried_known_residuals_confirmed_by_reading",
+          "file_line": "crates/hsk-studio-reel/src/video.rs:457-472 (external.open) before :494 deliver_packets -> isobmff.rs:1904 guard; isobmff.rs:1906 + error.rs:70-77 (NotExact doc and variant :70-77)",
+          "evidence": "PLR-057 / lane R1 confirmed by reading: for decoded video the NotExact guard runs after the decoder session is opened (a worker may be spawned; sink untouched). Lane R3 confirmed: for an edit-trimmed first sample NotExact.nearest == requested, so the error offers no retryable start; the error doc states the trimmed case but not that nearest equals requested. Both already registered/self-reported; no new action beyond PLR-057",
+          "remediation": "As registered (PLR-057 next reel lane); optionally state in the NotExact doc that nearest == requested for an edit-trimmed first sample"
+        }
+      ],
+      "verified": [
+        "PLR-056 FIXED (bd5bd60/2ddff00): tests/av1_decode.rs oversize_picture_on_the_trusted_rav1d_path_is_refused asserts Protocol + empty sink on the real in-process rav1d path for mp4 and mkv; lane red proof M17",
+        "ReelError::{NotExact, Incomplete}: code() (error.rs:102-103), Display (:117-131), report::outcome_for Loss (report.rs:16-18), DESCRIPTOR errors list; Display and code pinned by the two tests",
+        "Dependant exhaustive matches (check d): git grep at a024461: the only workspace dependant of hsk-studio-reel is hsk-studio-reel-native (Cargo.toml:9-10,15); its only match over ReelError variants is wire.rs:414-419 encode_error, which has a `_ =>` arm; other uses construct variants or compare with assert_eq. ReelError is not #[non_exhaustive] (lane B4 states the external-API break)",
+        "V4-07: new doc/DESCRIPTOR claims cite tests (export rule: export_is_exact_or_error_for_every_provider, export_refuses_partial_video_decode; isobmff_index: fragmented_zero_duration_edit, fiel_and_clap_are_raw_and_advisory, ffmpeg_made_mov_matches_independent_oracle; model.rs:447-453 and error.rs doc cite tests). Only the 'exact or it fails' headline is broader than what is proven (finding 1)",
+        "Hostile parsing: fiel needs 2 bytes (isobmff.rs:776), clap 32 (CLAP_BYTES :731, arm :782), be32 bounds-checked, checked_add for the second field; no allocation depends on a field; module keeps deny(arithmetic_side_effects)",
+        "Tests: no existing assertion edited (video_route.rs, av1_decode.rs, v4_hardening.rs diffs are additions; tests/common/mod.rs adds the extra-children builder and threads it through moov())",
+        "V4-14: commits 6d232da, 2ddff00, bd5bd60 are the whole claim; nothing after bd5bd60 touches the crate"
+      ],
+      "wip_after_ready": "NONE"
+    },
+    {
+      "lane": "SMB-REEL-NATIVE-FAULTS",
+      "crate": "hsk-studio-reel-native",
+      "status_note": "0-FAIL lane, READY at a024461; findings advisory",
+      "counting_check": {
+        "PLR-055": "FIXED: every reply FRAME is compared with Call.declared (from VideoStreamSpec via WorkerSession.declared, host.rs:1070, :841) by within_declared_size before on_frame (host.rs:747-755, rule :1198-1201) -> fail(Failure::Protocol): protocol_faults +1 once (:692-696), worker terminated, Av1Error::Worker(Protocol); through the registry route WorkerSession::convert fills the fault slot and maps to ReelError::DecoderFault{Protocol} (:810-819). Tests oversize_picture_under_the_reply_cap_is_a_protocol_fault (tests/av1_worker.rs:482; asserts protocol_faults == round+1 per call, so a double count is red; registry leg 3), exact_and_smaller_pictures_than_declared_are_accepted (:550), unit declared_size_is_a_maximum_checked_per_side (host.rs:1282)",
+        "FRAME_on_OPEN": "FIXED: the Reply::Frame arm is guarded by want == Want::BatchEnd (host.rs:747), so an OPEN-time FRAME reaches the catch-all fail(Failure::Protocol) (:769); the open_session closure (:1086-1090) is now unreachable for a FRAME (kept as second refusal). Test frame_reply_to_open_is_a_protocol_fault (tests/av1_worker.rs:595)",
+        "single_count": "every Protocol path in exchange returns right after one fail() (:738, :754, :769); the HELLO decode error bumps once (:641-645); no caller bumps again; checkin drops a terminated session (is_alive needs usable, :377-379, :662-665)",
+        "default_build_absence": "new hooks absent from default and product builds (see SMB-REEL-NATIVE-AV1-WORKER regression_check.test_faults_gating)",
+        "V4-06_recount": "lane regex at a024461: 43 hits = 43 listed, identical file:line set; per-site verdicts checked for host.rs:747/750/754/756/769/1088/1198 and wire.rs:437/498: accurate"
+      },
+      "findings": [
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "frame_with_unsent_tag_dropped_uncounted",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:747-760 (no tag check on a reply FRAME); crates/hsk-studio-reel/src/video.rs:323-325 (Forward drops a picture whose tag matches no pending packet), :93-94 (DecodedPicture.tag = 'the tag passed with the packet this picture came from')",
+          "evidence": "A worker FRAME whose tag was never sent (or that names a later pending packet, which drains the earlier ones at video.rs:327) is silently dropped by reel and never counted as a worker protocol fault; the worker stays pooled. Effect: a shortfall reported as Partial (Preview) or Incomplete (Export), not as worker_protocol. Contained (bounded by MAX_FRAMES_PER_BATCH, worker output content is unverifiable anyway); pre-existing, not introduced by 471b679/a024461, outside the lane's stated V4-06 class wording but within 'a reply the request does not allow' (host.rs:27-30)",
+          "remediation": "Optional: keep the in-flight packet tags in WorkerSession (send() knows `tag`), classify a FRAME whose tag is not in flight as Failure::Protocol; test-faults variant WrongTag + one test asserting worker_protocol and protocol_faults"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "handshake_wire_violation_typed_as_spawn_failure",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:627-633 (HELLO Waited::Failed(_) incl. Malformed/TooLarge -> spawn_failed, Av1WorkerFault::SpawnFailed) vs :641-645 (decode_hello error -> protocol_faults, Av1WorkerFault::Protocol); io_loop reads HELLO with HELLO_CAP (:430)",
+          "evidence": "A worker that answers the handshake with an oversize or malformed frame is counted in spawn_failed and typed worker_spawn_failed (reel CodecUnavailable), while one whose HELLO frame is well-framed but undecodable is counted in protocol_faults. Same lying-worker class, two classifications. Pre-existing (unchanged lines)",
+          "remediation": "Optional: map Waited::Failed(Malformed | TooLarge) during HELLO to protocol_faults + Av1WorkerFault::Protocol (keep Closed/TimedOut as SpawnFailed); one test-faults variant GarbageHello"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "doc_grammar_vs_open_rule",
+          "file_line": "crates/hsk-studio-reel-native/src/wire.rs:5-7 ('One request is answered by zero or more FRAME replies and exactly one terminal reply') vs host.rs:1078-1080 and the new rule at :745-747",
+          "evidence": "The wire module doc still allows FRAME replies for every request; since a024461 a FRAME answering OPEN is a protocol fault. Doc-only drift",
+          "remediation": "Reword wire.rs doc: OPEN is answered by OPENED or ERROR alone; PACKET/FINISH by zero or more FRAME then BATCH_END or ERROR"
+        }
+      ],
+      "notes": [
+        "The host check is stricter than reel's Forward: it applies to every reply FRAME, including pre-roll and untagged pictures, which Forward drops before its own size check (video.rs:323-331). Consistent with the DESCRIPTOR wording ('a reply picture ... is a worker protocol fault'); for conformant streams no picture exceeds the sequence maximum",
+        "worker.rs:41 doc ('Fault this worker injects into its first request') does not fit the per-frame OversizePicture/UndersizePicture reshape (every frame); test-only, cosmetic"
+      ],
+      "wip_after_ready": "NONE: READY commit a024461 is the last commit touching the crate"
+    }
+  ]
+}

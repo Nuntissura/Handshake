@@ -1029,7 +1029,7 @@
    "status": "OPEN",
    "verified_at": "bd5bd60",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane"
+   "disposition_note": "routed to rem-reel-eng-1 (FIX_FIRST before R10)"
   },
   {
    "id": "PLR-058",
@@ -1045,6 +1045,51 @@
    "verified_at": "1c80811",
    "disposition": "FIX_LANE",
    "disposition_note": "lead: split structural (all nodes) vs capability (reachable) in the next pigment lane"
+  },
+  {
+   "id": "PLR-059",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (FRAME tag matching)",
+   "finding": "a FRAME whose tag matches no sent packet is silently dropped and not counted as a protocol fault",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-060",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (HELLO handling)",
+   "finding": "a malformed or oversize HELLO frame is counted as spawn_failed instead of a protocol fault",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-061",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/wire.rs:5-7",
+   "finding": "protocol header comment still allows FRAME replies to OPEN (V4-07 doc drift)",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
   }
  ],
  "process_items": [

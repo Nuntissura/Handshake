@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T12:50:22Z (pin sync 528d01c: html5ever + 12 packages; probes 46/46; --locked ok)"
+   "status": "running 2026-10-11T13:47:44Z (R9 sync + canary C14)"
   },
   {
    "name": "research-reel-eng",
@@ -1671,7 +1671,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
-   "status": "done 2026-10-11T13:11:01Z (SMB-REEL-ENG-1 READY at bd5bd60)"
+   "status": "done (bd5bd60; retired, V4-16)"
   },
   {
    "name": "builder-psd-budget",
@@ -1741,7 +1741,7 @@
     "validation/R9-prereview-reel.json"
    ],
    "launched": "2026-10-11T13:29:55Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:47:18Z (AV1-ROUTE + AV1-WORKER SAFE; ENG-1 1 CONFIRMED advisory)"
   },
   {
    "name": "prereview-r9-web",
@@ -1752,6 +1752,18 @@
     "validation/R9-prereview-web.json"
    ],
    "launched": "2026-10-11T13:44:52Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-reel-eng-1",
+   "agent_id": "a53e18ed34975cca8",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 pre-review fixes (MXF non-permutation, per-track elst refusal, nearest, PLR-057); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T13:47:44Z",
    "status": "running"
   }
  ]
