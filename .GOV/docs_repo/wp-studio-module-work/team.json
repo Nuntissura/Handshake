@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:02:56Z",
+ "updated_at": "2026-10-11T05:06:03Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -710,6 +710,46 @@
     "validation/R5-review-c.json"
    ],
    "launched": "2026-10-11T05:02:18Z",
+   "status": "running"
+  },
+  {
+   "name": "architect-adjustments",
+   "agent_id": "ad52cc6e97525e0e4",
+   "model": "opus",
+   "role": "SMB-PIGMENT-ENG-2/SMB-FOLIO-ENG-5 adjustment layers + advanced blending (mask density/feather/invert, blend-if, knockout, effect stack records), adjust_math single owner, follow-up briefs",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-folio/**",
+    "diagnostics/adjustments-advanced-blending.md",
+    "builders/briefs/lane-*-adjustments.md",
+    "builders/briefs/lane-effects-wave-1.md",
+    "builders/lanes/hsk-studio-pigment-eng-2.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-gpu-3",
+   "agent_id": "a7a94f4e1e7394e5f",
+   "model": "sonnet",
+   "role": "SMB-RENDER-GPU slice 3: non-separable + approximate separable modes from pigment blend_math",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-score-2",
+   "agent_id": "a38d16d5479d8b80c",
+   "model": "sonnet",
+   "role": "SMB-SCORE slice: bounce over ClipResampler with exact sample-count receipt; layout.rs ticks_per_sample -> accord",
+   "owns": [
+    "crates/hsk-studio-score/**",
+    "builders/lanes/hsk-studio-score.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
    "status": "running"
   }
  ]

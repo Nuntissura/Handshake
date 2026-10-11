@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:02:56Z",
+ "updated_at": "2026-10-11T05:06:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -165,7 +165,7 @@
    ],
    "lane_file": "builders/lanes/hsk-studio-score.json",
    "candidate": "346b947",
-   "note": "exact-alignment resampler (5 pairs measured), bounce receipt; 16 tests; probe fix b2379a5",
+   "note": "exact-alignment resampler (5 pairs measured), bounce receipt; 16 tests; probe fix b2379a5; resampled-bounce slice dispatched 2026-10-11T05:06:03Z (builder-score-2)",
    "review_findings": "R2-review-b CONFIRMED fixed: ramp cancel (b5e9e19, + chain stage case), exact resample count (d339544 + receipt b5e9e19); 3 PLAUSIBLE open",
    "review_findings_r3": "R3 FAIL_V1 remediated 346b947 (regression tests fail on old code)"
   },
@@ -292,7 +292,7 @@
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
    "candidate": "b7d90dc",
-   "note": "slice1+2: 12 modes generated from pigment MODES, masks, groups, clip-to-base; parity 2.4e-7 DX12+Vulkan; typed no-adapter path",
+   "note": "slice1+2: 12 modes generated from pigment MODES, masks, groups, clip-to-base; parity 2.4e-7 DX12+Vulkan; typed no-adapter path; slice 3 dispatched 2026-10-11T05:06:03Z (builder-render-gpu-3)",
    "review_findings_r3": "R3 findings remediated b7d90dc (regression tests fail on old code)"
   },
   {
@@ -1220,6 +1220,17 @@
    "verdicts": [],
    "candidate": "bfef27f",
    "note": "SourceTrust routing (untrusted->external decoder), DecoderFault variant, AV1 parser always compiled; 25/28 tests; broke one reel-native test -> fix dispatched"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "origin": "lead 2026-10-11: PSD display gap (composite unsupported effect/knockout/blend_if/mask density; interop-psd adjustment_layer_not_applied, layer_effects_not_rendered)",
+   "scope": "adjustment layers + advanced blending: folio records (mask density/feather/invert, blend-if 8 values/channel STU-RAS-159, knockout 4-member enum STU-VEC-153, adjustment records first set, StudioEffectStack records STU-RAS-040/156-158); pigment IR nodes + adjust_math single owner + single-pixel oracle; briefs for composite/render-cpu/render-gpu/interop-psd/effects follow-ups",
+   "phase": "build",
+   "status": null,
+   "owner": "architect-adjustments",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
