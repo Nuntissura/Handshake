@@ -1,0 +1,56 @@
+{
+  "crate": "hsk-studio-pigment",
+  "lane": "SMB-PIGMENT-EFFECTS-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "wave 1 complete on pushed e007703: check + clippy clean (pigment), 30 pigment tests green (6 new in tests/effects.rs); composite, render-cpu and interop-psd check exit 0; render-gpu check fails only inside another lane's uncommitted working-tree edits",
+  "commits": [
+    {"sha": "e007703", "subject": "Pigment effects wave 1: effect_math single owner (drop shadow, colour overlay, solid stroke) and LayerExtension.effects envelope"}
+  ],
+  "capabilities_done": [
+    "pigment::effect_math single owner: EffectOp {DropShadow, ColourOverlay, Stroke} (non_exhaustive, builders), EffectKind facts (all Approximate), EffectOrder placement by kind, StrokePosition, shadow_split, shadow_offset, effect_support_px, EffectPlane (<= 64 x 64, validated), reference_matte, render_layer_reference (behind effects, content at opacity*fill, over effects; effects fade with layer opacity not fill), render_reference(plane, op)",
+    "render_plan envelope: LayerExtension.effects (absent from the digest when empty), ExtOperator::Effect(EffectKind), PlanExtensions::effect_modes, validate refuses effects on adjustment / pass-through / clipping-run layers and above size, distance, per-layer (64) and per-plan (4096) limits, admit_extended also asks the backend for each effect blend mode (v1 Operator::Blend class); five additive PlanError variants (EffectOnAdjustment, EffectPassThrough, EffectClipRun, EffectParameter, EffectLimit)",
+    "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)"
+  ],
+  "tests": {
+    "argv": ["cargo", "test", "-p", "hsk-studio-pigment", "--tests"],
+    "exit": 0,
+    "sha": "e007703",
+    "passed": 30,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "independent validator round; follow-up lanes: composite lowering of folio StudioEffectStack to EffectOp (refuse contour != linear, noise > 0, non-solid stroke fill, spread > 100 percent, unresolved Global Light), render-cpu and render-gpu implementations tested against effect_math::reference_matte / render_layer_reference, then the remaining kinds (inner shadow, glows, satin, gradient/pattern overlay, bevel)",
+  "updated_at": "2026-10-11T06:14:20Z",
+  "notes": {
+    "brief_deviation_spread": "Brief formula matte' = min(1, matte / (1 - spread)) is NOT implemented: applied to the matte before the blur it is the identity for a binary layer alpha (so spread would do nothing), and applied after the blur it is a different model. Implemented instead the structure of Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (read as a behaviour reference only, GPL, no code copied): spread_px = spread * size is grown as a hard disc dilation (Krita: Gaussian of spread_size then hard edge), blur_px = size - spread_px by Gaussian, then offset, then knockout. Spread 1 = hard matte grown by the full size; spread has no effect at size 0 (matches the Adobe community thread 'spread not working ... only shadows with hard edges'). Lead may reverse; only effect_math::reference_matte (DropShadow arm) and shadow_split change. Hand tests: tests/effects.rs drop_shadow_offset_blur_taps_and_spread.",
+    "brief_acceptance_note_stroke": "Acceptance 4 says the 8-neighbour ring is coverage 1 at distance 1. Under the Euclidean model the 12 edge-adjacent ring pixels are exactly 1 and the 4 corner pixels are 1.5 - sqrt(.5) = 0.79289 (round corners), 0 at distance >= 2; inside gives the 8-pixel inner ring exactly. Photoshop's outside-stroke corner shape is UNVERIFIED (D5 13).",
+    "formula_sources": [
+      "Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (spread_size = (spread*size+50)/100, blur_size = size - spread_size, pipeline spread -> blur -> contour -> noise -> offset -> knockout via erase of the pre-blur selection)",
+      "Krita libs/image/layerstyles/kis_ls_utils.cpp (applyFinalSelection: blend mode composite op + opacity percent; findEdge; adjustRange)",
+      "Krita libs/image/kis_gaussian_kernel.cpp (sigmaFromRadius = 0.3 * radius + 0.3; kernel half-width 3 * ceil(sigma)); Studio keeps coverage_math::feather_sigma = size / 2 per the brief",
+      "Adobe Community thread 'Spread not working in drop shadow, only shadows with hard edges' (search snippet; helpx.adobe.com is 403)",
+      "STU-RAS-040/156/157/158/115 for parameters, list order and fill vs opacity",
+      "Craft case study: effects.rs:730 fitted to a corpus (no formula to copy)"
+    ],
+    "d5_additions": {
+      "12": "Drop shadow on a hard square and a circle, size 2/10/40, spread 0/50/100, angle 120/-60/0/90/180, distance 5, fractional distance 2.5 at angle 30: (a) sign convention of angle (Studio: dx = -d cos a, dy = d sin a, y down), (b) spread model (Krita split grow-then-blur vs amplitude stretch vs other), (c) size to Gaussian profile (Studio sigma = size/2, Krita 0.3r+0.3), (d) whole-pixel rounding vs resampled fractional offset, (e) layer_knocks_out with fill < 100 and a semi-transparent layer (shape alpha vs alpha*fill)",
+      "13": "Solid stroke outside/inside/centre, size 1/2/5/50, on a square, a circle and a semi-transparent-edge layer: corner shape (round vs mitre), anti-aliasing ramp width, alpha threshold 0.5 vs coverage-aware distance, stroke above or below the colour overlay, stroke opacity/blend over content",
+      "14": "Effect stack interplay: fill 0/50 with overlay and shadow (do effects keep full strength), layer opacity 50 (do effects fade), layer mask (Layer Mask Hides Effects on/off: which alpha is the matte), Blend Interior/Clipped Effects toggles, effect blend modes against the group backdrop (Multiply shadow), order of multiple instances (two strokes, overlay then stroke) and whether Photoshop's fixed kind order overrides stored list order"
+    },
+    "spec_questions": [
+      "STU-RAS-157 drop_shadow lists spread with unit pixels (observed 0..100) while Photoshop's spread is a percent of size; pigment takes spread as a fraction in [0,1] (composite lowers percent / 100); spec should state the unit",
+      "Kind order versus list order: pigment fixes placement by kind (shadow behind; overlay and stroke over) and renders list order within each placement; interop-psd builds lists in Photoshop order; STU-RAS-156 says render order follows list order but does not say whether a shadow listed after an overlay may sit above the content",
+      "STU-RAS-157 declares no hard maximum for size, distance and instance count: pigment bounds are engineering limits (size 1000 px vs 213 observed, distance 30000 px = observed maximum, 64 per layer and 4096 per envelope vs 10 per kind minimum) and refuse with typed errors",
+      "No document-level Global Light field exists (already recorded): pigment takes absolute angles, the builder resolves use_global_light",
+      "Which alpha is the matte when the layer has a mask is UNVERIFIED: Studio rule = content alpha after the mask, before fill"
+    ],
+    "composite_lowering_must_refuse": "folio StudioEffect fields wave 1 does not render: contour other than linear, noise > 0, anti_alias differences (UNVERIFIED), stroke fill_type gradient/pattern and overprint, effect stack scale != 100 (apply or refuse), effects on clipped layers, bevel/inner/outer glow/satin/gradient/pattern overlay (not in EffectKind), disabled instances and stack.enabled false (skip, do not render)",
+    "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-interop-psd --tests exit 0 at e007703 (working tree). render-gpu check fails in the working tree with E0063 missing fields in render-gpu's own Exec / PLayer / Prepared / LayerParams initializers and a MaskView::coverage arity error: uncommitted edits of the render-gpu lane (src/ext.rs untracked, kernel.rs, plan_sink.rs modified), not caused by this change (additive: ExtOperator and LayerExtension are non_exhaustive, PlanError variants unmatched outside pigment). Re-prove render-gpu once that lane commits.",
+    "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings or errors; the same run reports pre-existing warnings in hsk-studio-observe (too_many_arguments) and hsk-studio-prism (dead code note_rejected) from other lanes",
+    "v4": "V4-01: effect_math denies clippy::arithmetic_side_effects, all integer size math checked; V4-02: tests/effects.rs effect_limits_validation_and_budget covers u32::MAX plane dims, per-layer and per-plan counts (aggregate over budget) and the reference work budget; V4-03: Photoshop parity NOT_PROVEN, D5 cases 12-14; V4-07: claim words in new docs cite tests; V4-09: commit via -F file; V4-06: failure class 'shared admission admits what every backend refuses' swept for the new operator: ExtOperator::Effect defaults to Unsupported in RenderBackend::extension_exactness (tests/effects.rs effect_without_backend_support_is_refused_before_the_sink); effect blend modes are checked through the backend's v1 Operator::Blend class in admit_extended",
+    "retry_guard": "no retry-guard blocks hit; the only failed cargo runs were clippy/compile errors (lint on unary minus in effect_math, missing test import) fixed by editing the source before the first test run; no gated command failed, so no guard route was needed",
+    "files": "crates/hsk-studio-pigment/src/effect_math.rs (new), src/lib.rs (mod), src/render_plan.rs (PlanError variants, DESCRIPTOR effects/pending), src/render_plan/extensions.rs (effects field, ExtOperator::Effect, validate, effect_modes, admit_extended), tests/effects.rs (new)"
+  }
+}
