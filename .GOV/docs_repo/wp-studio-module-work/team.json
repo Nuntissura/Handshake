@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:03:43Z",
+ "updated_at": "2026-10-11T11:05:38Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1386,7 +1386,7 @@
     "validation/round-R7.json"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:05:38Z (R7 COMPLETE 61 PASS / 4 FAIL)"
   },
   {
    "name": "reviewer-r7b-a",
@@ -1421,7 +1421,7 @@
     "crates/hsk-studio-render-gpu/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "done 2026-10-11T11:03:43Z (SMB-REFUSAL-KEYS READY at ba3e47d)"
+   "status": "done 2026-10-11T11:05:38Z"
   },
   {
    "name": "builder-score-guards",
@@ -1432,7 +1432,7 @@
     "crates/hsk-studio-score/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "done 2026-10-11T11:03:27Z (SMB-SCORE-GUARDS READY at 9546819)"
+   "status": "done 2026-10-11T11:05:38Z"
   },
   {
    "name": "builder-folio-uniq",

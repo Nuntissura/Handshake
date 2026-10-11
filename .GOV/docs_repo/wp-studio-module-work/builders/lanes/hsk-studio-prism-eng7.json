@@ -4,8 +4,14 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "thread-shared admitted wide jobs pushed (8634765) + corpus-root switch (65a08c9); fast path SKIPPED by the lane rule: 24 MP linear P3->sRGB = 103 ms at 16 threads (< 300 ms)",
  "commits": [
-  {"sha": "65a08c9", "subject": "Prism oracle: corpus root from the workspace convention .config/oracle-corpus.toml (walk up from the workspace root), icc subdir from tests/oracle/corpus.json; no CARGO_MANIFEST_DIR-relative root, no env-var search paths; NOT_PROVEN on absence and the require-corpus failure kept (resolves from round exports)"},
-  {"sha": "8634765", "subject": "Prism: thread-shared wide jobs (SMB-PRISM-ENG-7): prepare_job once, Send + Sync WideJob, convert_band / convert_band_in_place from any thread without allocation, finish in band order; admitted route charges everything before the bands"}
+  {
+   "sha": "65a08c9",
+   "subject": "Prism oracle: corpus root from the workspace convention .config/oracle-corpus.toml (walk up from the workspace root), icc subdir from tests/oracle/corpus.json; no CARGO_MANIFEST_DIR-relative root, no env-var search paths; NOT_PROVEN on absence and the require-corpus failure kept (resolves from round exports)"
+  },
+  {
+   "sha": "8634765",
+   "subject": "Prism: thread-shared wide jobs (SMB-PRISM-ENG-7): prepare_job once, Send + Sync WideJob, convert_band / convert_band_in_place from any thread without allocation, finish in band order; admitted route charges everything before the bands"
+  }
  ],
  "capabilities_done": [
   "oracle corpus root via .config/oracle-corpus.toml walk (tests/wide_support corpus_root/corpus_icc_dir; corpus.json icc_subdir=icc; populate_corpus.py same walk, --root override); HSK_PRISM_ORACLE_PROFILE_DIRS search removed; HSK_PRISM_REQUIRE_CORPUS + require_corpus kept",
@@ -14,7 +20,13 @@
   "WideError additive variants band_index, band_claimed, band_length, job_incomplete (no exhaustive WideError match in any dependent: develop maps with a catch-all, interop-psd uses codes); AdmittedWideError unchanged; WIDE_DESCRIPTOR job_route (JSON validated)",
   "bit identity: per-pixel Plan::pixel + clip scan identical to transform; band digest = serial request digest of that band; job digest = SHA-256 over band digests in band order (JOB_DIGEST_RULE); merged clip report == serial whole-frame clip report"
  ],
- "tests": {"argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 source builders/studio-env.sh && HSK_PRISM_REQUIRE_CORPUS=1 cargo test -p hsk-studio-prism --tests --no-fail-fast", "exit": 0, "sha": "8634765", "passed": 123, "failed": 0},
+ "tests": {
+  "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 source builders/studio-env.sh && HSK_PRISM_REQUIRE_CORPUS=1 cargo test -p hsk-studio-prism --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "8634765",
+  "passed": 123,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
@@ -26,8 +38,20 @@
   "api_for_develop": "per frame: let job = wide.prepare_job(&WideJobRequest { source: WideSource::Profile(src), destination: dst, bands: WideBands::Sizes(&tile_pixel_counts) /* one band per tile, tile order */, intent: Intent::RelativeColorimetric, black_point_compensation: false, revision, expected_revision: revision, correlation_id, resource_id, actor }, cancel).map_err(map_admitted)?; then inside develop's std::thread::scope workers: job.convert_band_in_place(tile_index, tile_rgb.as_flattened_mut(), cancel) (or convert_band(tile_index, &in, &mut out, cancel)) -> WideBandReport {clip, output_sha256} | WideError (map_wide); after the scope: let done = job.finish(cancel, sink).map_err(map_admitted)?; done.result().receipt.receipt.clip is the merged clip report; plan hits/misses/parses still from wide.cache_stats() after finish. The engine stays mutably borrowed until finish/drop. One observation per job (not per tile). Band errors are per band; finish reports the lowest failed or unconverted band.",
   "bench_release_24mp": {
    "argv": "cargo test --release -p hsk-studio-prism --test wide_job -- --ignored --nocapture (sha 8634765, shared busy host, 32 logical CPUs, one run 2026-10-11T06:18Z)",
-   "linear_p3_to_linear_srgb_ms": {"serial_transform_12_requests": 1067, "job_1t": 955, "job_2t": 560, "job_8t": 177, "job_16t": 103},
-   "encoded_p3_to_srgb_ms": {"serial_transform_12_requests": 5634, "job_1t": 5571, "job_2t": 2975, "job_8t": 768, "job_16t": 396},
+   "linear_p3_to_linear_srgb_ms": {
+    "serial_transform_12_requests": 1067,
+    "job_1t": 955,
+    "job_2t": 560,
+    "job_8t": 177,
+    "job_16t": 103
+   },
+   "encoded_p3_to_srgb_ms": {
+    "serial_transform_12_requests": 5634,
+    "job_1t": 5571,
+    "job_2t": 2975,
+    "job_8t": 768,
+    "job_16t": 396
+   },
    "bands": "WideBands::Uniform 65536 px (develop 256x256 tiles), 367 bands; every run bit-identical to the serial output",
    "before_in_develop": "develop-bench 85fe452 16 threads: develop_profile_p3_to_srgb stage 1366-1432 ms, ~1.3 s of it inside the serially driven Prism transform"
   },
@@ -41,6 +65,25 @@
   "unsafe": "prism has no forbid(unsafe_code) attribute and no unsafe code; none added",
   "v4": "V4-01 #![deny(clippy::arithmetic_side_effects)] on new src/wide_job.rs (touched wide.rs, wide_admitted.rs already deny); V4-02 layout bounds before any allocation: band <= MAX_WIDE_PIXELS, bands <= MAX_WIDE_JOB_BANDS (65536), empty refused (band_contract test: MAX_WIDE_JOB_BANDS+1, MAX_WIDE_PIXELS+1, zero); V4-03 bench is #[ignore] with reason, admitted test prints NOT_PROVEN off msvc; V4-04 no fault hooks; V4-07 module doc claims cite tests/wide_job.rs tests; V4-09 commits via git commit -F",
   "retry_guard_route": "no blocked run; no gameplan step added",
-  "incident_2026-10-11T06:10Z": "I ran a scratchpad script named edit1.py that turned out to be another lane's (reel) old edit script sharing the session scratchpad; it inserted a duplicate `video: None,` line into crates/hsk-studio-reel/src/wav.rs and src/y4m.rs before failing on its third edit. Reverted exactly those two lines by a count-checked edit within ~1 min; git status shows both files identical to HEAD; reel's untracked mxf files untouched. My scratch files now live in scratchpad/prism-eng7/ only. Workflow hazard for the lead: agents share one scratchpad directory; generic script names collide."
+  "incident_2026-10-11T06:10Z": "I ran a scratchpad script named edit1.py that turned out to be another lane's (reel) old edit script sharing the session scratchpad; it inserted a duplicate `video: None,` line into crates/hsk-studio-reel/src/wav.rs and src/y4m.rs before failing on its third edit. Reverted exactly those two lines by a count-checked edit within ~1 min; git status shows both files identical to HEAD; reel's untracked mxf files untouched. My scratch files now live in scratchpad/prism-eng7/ only. Workflow hazard for the lead: agents share one scratchpad directory; generic script names collide.",
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-PRISM-ENG-7",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-PRISM-ENG-7:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   }
+  ]
  }
 }

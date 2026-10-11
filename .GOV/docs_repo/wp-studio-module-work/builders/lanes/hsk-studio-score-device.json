@@ -73,6 +73,23 @@
             "reason": "not built, linted or tested by the round; not part of acceptance tests 1-5 (brief: native stays NOT_PROVEN)"
           }
         ]
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-SCORE-DEVICE",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-SCORE-DEVICE:dff7ef51d282:PASS_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
       }
     ],
     "mt": "MT-35559",

@@ -4,11 +4,26 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "R5 remediation applied on slice 2 (f40d6a2): decode no longer clones range Properties per Content/Br; logical model size budgeted; local ZIP headers cross-checked. Slice 2: reflow + overset per thread through hsk-studio-layout, Folio-to-IDML export for created/edited Folio documents, explicit loss for text frames inside groups (slice 1 unchanged underneath)",
   "commits": [
-    {"sha": "d575678", "subject": "interop-layout slice 1a: bounded IDML ZIP container, designmap/spread/story decode into a typed model, Folio proposal, typed loss report, canonical export + byte-exact Content replacement, INDD header detection with native-editability blocker"},
-    {"sha": "958f431", "subject": "interop-layout slice 1b: DESCRIPTOR, interop-layout-consumer example, import_indd with uninhabited Ok type, 5 focused tests, rustfmt + clippy clean"},
-    {"sha": "198a8e5", "subject": "interop-layout slice 2a: reflow_import (layout reflow + overset per thread, typed refusals, first-baseline mapping reported), export_folio (Folio pages/frames/stories to IDML package), explicit loss for text frames inside groups"},
-    {"sha": "5e058ae", "subject": "interop-layout slice 2b: 4 focused tests (reflow + overset per thread with typed refusals and group-frame loss, Folio-created export round trip, edited-import export with names then reflow, export refusals/cancel), DESCRIPTOR + consumer --reflow, rustfmt/clippy clean"},
-    {"sha": "f40d6a2", "subject": "interop-layout R5 remediation: share each range's attributes and Properties across its runs/paragraphs (Arc) instead of cloning per Content/Br, charge the logical model size against Limits.max_model_bytes (typed budget_exceeded), cross-check local ZIP headers with the central directory; regression tests decode_amplification"}
+    {
+      "sha": "d575678",
+      "subject": "interop-layout slice 1a: bounded IDML ZIP container, designmap/spread/story decode into a typed model, Folio proposal, typed loss report, canonical export + byte-exact Content replacement, INDD header detection with native-editability blocker"
+    },
+    {
+      "sha": "958f431",
+      "subject": "interop-layout slice 1b: DESCRIPTOR, interop-layout-consumer example, import_indd with uninhabited Ok type, 5 focused tests, rustfmt + clippy clean"
+    },
+    {
+      "sha": "198a8e5",
+      "subject": "interop-layout slice 2a: reflow_import (layout reflow + overset per thread, typed refusals, first-baseline mapping reported), export_folio (Folio pages/frames/stories to IDML package), explicit loss for text frames inside groups"
+    },
+    {
+      "sha": "5e058ae",
+      "subject": "interop-layout slice 2b: 4 focused tests (reflow + overset per thread with typed refusals and group-frame loss, Folio-created export round trip, edited-import export with names then reflow, export refusals/cancel), DESCRIPTOR + consumer --reflow, rustfmt/clippy clean"
+    },
+    {
+      "sha": "f40d6a2",
+      "subject": "interop-layout R5 remediation: share each range's attributes and Properties across its runs/paragraphs (Arc) instead of cloning per Content/Br, charge the logical model size against Limits.max_model_bytes (typed budget_exceeded), cross-check local ZIP headers with the central directory; regression tests decode_amplification"
+    }
   ],
   "capabilities_done": [
     "slice 1 (958f431): bounded IDML ZIP open (every part kept with sha256), designmap/spread/story decode into a typed model + Folio proposal validated by Folio, typed loss report, canonical export_idml, byte-exact replace_content + write_idml, INDD header detection + NativeEditabilityBlocked (Ok type Infallible)",
@@ -76,30 +91,63 @@
       "A python text-mode rewrite and a sed with line numbers applied to two files at once during break-it step were checked with git diff; no stray changes remained. index.lock contention on one commit was retried after a wait as instructed. No amend, rebase or bare commit was used; no shared-gameplan steps were added"
     ],
     "verdicts": [
-     {
-      "round": "STUDIO-R5",
-      "lane": "SMB-INTEROP-LAYOUT",
-      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-      "decision": "failed",
-      "verdict": "FAIL_V1",
-      "failures": [
-       {
-        "failure_kind": "product",
-        "failure_class": "idml-properties-xml-cloned-per-content",
-        "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
-       }
-      ],
-      "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
-      "status_after": "READY_FOR_VALIDATION (newer submission f40d6a2)",
-      "review": "validation/R5-review-c.json",
-      "round_ref": "validation/round-R5.json",
-      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-      "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
-      "recorded_at": "2026-10-11T05:38:23Z",
-      "by": "wp_validator STUDIO-R5"
-     },
-      {"round": "STUDIO-R6", "lane": "SMB-INTEROP-LAYOUT", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "status_after": "PASS_V2", "review": "validation/R6-review-c.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-INTEROP-LAYOUT:bd8533f9b29c:PASS_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-INTEROP-LAYOUT",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "idml-properties-xml-cloned-per-content",
+            "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
+          }
+        ],
+        "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
+        "status_after": "READY_FOR_VALIDATION (newer submission f40d6a2)",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-INTEROP-LAYOUT",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R6-review-c.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-INTEROP-LAYOUT:bd8533f9b29c:PASS_V2",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-INTEROP-LAYOUT",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-INTEROP-LAYOUT:dff7ef51d282:PASS_V3",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ]
   }
 }

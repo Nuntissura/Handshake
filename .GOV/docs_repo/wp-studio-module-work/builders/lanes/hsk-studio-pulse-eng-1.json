@@ -32,7 +32,40 @@
   "updated_at": "2026-10-11T05:01:58Z",
   "notes": {
     "verdicts": [
-      {"round": "STUDIO-R6", "lane": "SMB-PULSE-ENG-1", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "status_after": "PASS_V1", "review": "validation/R6-review-c.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-PULSE-ENG-1:bd8533f9b29c:PASS_V1", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-PULSE-ENG-1",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R6-review-c.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-PULSE-ENG-1:bd8533f9b29c:PASS_V1",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-PULSE-ENG-1",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-PULSE-ENG-1:dff7ef51d282:PASS_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ],
     "mt": "MT-35540",
     "scope": "additive; dependents unchanged",

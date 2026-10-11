@@ -2,7 +2,7 @@
   "crate": "hsk-studio-components",
   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation (both lanes SMB-COMPONENTS and SMB-COMPONENTS-FOLIO-MIGRATE): swap/switch check the variable types of their result; Design::new refuses repeated ids; override write keys scoped to the instance",
+  "phase": "lanes SMB-FOLIO-UNIQUENESS (step 2) and SMB-COMPONENTS-FOOTPRINT landed on pushed 3b6e9a9: Design::new/VariableTable::new call Folio's identity pass; override proposals write (instance_id, \"\"); previous lane state (R5 remediation, PASS_V3/PASS_V2 at R6) kept in notes.verdicts",
   "commits": [
     {
       "sha": "69b63c1",
@@ -35,6 +35,10 @@
     {
       "sha": "ed9b130",
       "subject": "Components R5: swap/switch check variable types of the result, Design::new refuses repeated ids, override write keys scoped to the instance"
+    },
+    {
+      "sha": "3b6e9a9",
+      "subject": "Components: Folio's identity pass replaces the rebuilt id rules (SMB-FOLIO-UNIQUENESS); override proposals write the whole instance record (SMB-COMPONENTS-FOOTPRINT)"
     }
   ],
   "capabilities_done": [
@@ -43,20 +47,21 @@
     "slice 2 typed refusals: InconsistentSizing (container AUTO/FIXED vs layout_sizing, grow vs FILL, align vs STRETCH), InvalidLayout (ranges, clamp order, FILL root, placement), UnsupportedLayout (grid, baseline, strokes_included_in_layout, space_between_with_hug, wrap_with_hug_primary, fill_in_wrap, wrap_counter_hug_with_fill, hug_without_auto_layout)",
     "R3 remediation (0111960): build_overrides checks each override value against the definition literal, the referenced component property type and the bound variable type; validate_set refuses duplicate member ids and a member sharing the set id (Duplicate); validate_flow adds reachability edges only for action_index 0; switch_variant and swap_component run check_shape (properties defined with the right types, VARIANT only on a set, kept overrides fit the target node) so an Ok result always resolves",
     "FOLIO MIGRATION (c6251f0, 992cca1): src/design.rs new. Design<'a> = borrowed index over a folio StudioDocument + StudioDesignRecords + LocalContent (new() only indexes and never refuses; validate() = folio::validate_design_records mapped into ComponentsError, then the crate rules; validate_with_instance() = Folio validation of the record set with a successor instance). A component definition is the group layer folio StudioComponent.layer_id; definition nodes are the document layers under it (name, parent, sibling order from the document); set membership is a document fact (components whose layer is a child of the set layer). instance_resolution.rs: resolve_instance/propose_overrides/resolve_variable/swap_component/switch_variant/rematch_overrides operate on StudioComponentInstance, StudioOverrideRecord, StudioVariable, StudioVariableCollection, StudioValue, StudioPropertyValue; VariableTable::new(&collections,&variables) evaluates a record set without validation and refuses cycle/type/missing mode typed; propose_overrides returns a proposal only after the successor validates in Folio. constraints.rs: apply_constraints takes folio StudioConstraint, resize_component(design, component_id, new_size) reads StudioNodeDesign.constraints (default top_left) and NodeLocal rects. auto_layout.rs: solve_auto_layout(design, root_id, root_size, limits, cancel) builds a borrowed tree from the document + StudioAutoLayout/StudioChildLayout/StudioSizeClamps/StudioConstraint records; algorithm text unchanged. prototype.rs: reactions are the StudioReaction records of the per-node design entries; PrototypeFlow keeps only flow_id + start_frame_id; navigation ends the action array only for NODE/BACK/CLOSE (STU-PRO-104), URL/SET_VARIABLE actions do not.",
-    "R5 remediation (ed9b130): check_shape uses the design's VariableTable (binding clash, property bound-variable type, alias override target, instance id); Design::new -> Result refusing repeated ids (document nodes, design entries, components/sets, container layers, collections, variables); VariableTable::new -> Result; select_member refuses duplicate variant assignments; property_definitions refuses a name twice in one list; propose_overrides write keys (instance_id, override/<node_id>/<field>)"
+    "R5 remediation (ed9b130): check_shape uses the design's VariableTable (binding clash, property bound-variable type, alias override target, instance id); Design::new -> Result refusing repeated ids (document nodes, design entries, components/sets, container layers, collections, variables); VariableTable::new -> Result; select_member refuses duplicate variant assignments; property_definitions refuses a name twice in one list; propose_overrides write keys (instance_id, override/<node_id>/<field>)",
+    "3b6e9a9: Design::new and VariableTable::new use hsk_studio_folio::check_identity_uniqueness / check_variable_identity_uniqueness (rebuilt rules deleted); OverrideProposal.write_footprint is exactly [(instance_id, \"\")] (whole-instance replacement, PLR-046); tests concurrent_proposals_on_one_instance_conflict, design_refuses_repeated_ids (instance case), adapted footprint assertions in alias_type_disjoint_stale_cancel"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-components --tests",
+    "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-components --no-fail-fast",
     "exit": 0,
-    "sha": "ed9b130",
-    "passed": 16,
+    "sha": "3b6e9a9",
+    "passed": 62,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "Independent validator: crates/hsk-studio-components at ed9b130 (or later): tests/instance_resolution.rs (12: 9 earlier + 3 R5 regressions) and tests/auto_layout.rs (4). Read notes.remediation_R5 (per-finding fix + regression test, RED evidence on 1d404f8 source, V4-06 site lists). API changes: Design::new and VariableTable::new return Result; write_footprint key spelling changed. Remaining R3 PLAUSIBLE unchanged: swap_component refuses instead of dropping instance properties the target does not define.",
-  "updated_at": "2026-10-11T05:45:41Z",
+  "next": "Independent validator: crates/hsk-studio-components at 3b6e9a9 (needs folio bd4e811, both pushed): tests/instance_resolution.rs concurrent_proposals_on_one_instance_conflict, override_write_keys_are_scoped_to_the_instance, design_refuses_repeated_ids, alias_type_disjoint_stale_cancel. See notes.SMB-COMPONENTS-FOOTPRINT and notes.SMB-FOLIO-UNIQUENESS.",
+  "updated_at": "2026-10-11T11:04:34Z",
   "notes": {
     "checks": "cargo check/clippy --tests --examples clean for hsk-studio-components; full clean-tree run of all test targets at f8b5328: 4 + 5 passed",
     "break_it_slice2": "three mutants applied then reverted (tree diff empty vs f8b5328): Center alignment divisor 2.0->3.0, grow clamp redistribution 'rem -= c' removed, hug content gap term removed. Result: flow_hug_gap_padding_alignment, fill_clamps_space_between_and_resize and nested_absolute_hug_fill_and_resize FAILED with the expected geometry deltas; wrap_lines_and_typed_refusals unaffected (no centre or grow-clamp path). Slice 1 mutants (constraints MAX, footprint check) were recorded earlier",
@@ -165,8 +170,74 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-COMPONENTS", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPONENTS:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"},
-      {"round": "STUDIO-R6", "lane": "SMB-COMPONENTS-FOLIO-MIGRATE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "status_after": "PASS_V2", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPONENTS-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-COMPONENTS",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "validation/R6-review-a.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-COMPONENTS:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R6-review-a.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-COMPONENTS-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-COMPONENTS",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V4",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V4",
+        "review": "validation/R7-review-a.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-COMPONENTS:dff7ef51d282:PASS_V4",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "validation/R7-review-a.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-COMPONENTS-FOLIO-MIGRATE:dff7ef51d282:PASS_V3",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ],
     "r3_remediation": {
       "round": "STUDIO-R3",
@@ -641,6 +712,55 @@
         "spec: STU-ARC-011 does not spell the footprint key format; '(instance_id, override/<node_id>/<field>)' is this crate's choice (host acceptance owns the revision map)",
         "Figma/Adobe oracle: unchanged (none)"
       ]
+    },
+    "SMB-COMPONENTS-FOOTPRINT": {
+      "plr": "PLR-046 (lead decision FIX_LANE): a proposal that replaces the whole successor instance declares the whole-record write footprint",
+      "change": "propose_overrides: write_footprint = [(instance_id, \"\")] (was one (instance_id, override/<node>/<field>) per edit); read_footprint unchanged (definition/variable record keys, instance property keys), minus the write key; override_key() removed",
+      "host_contract": "documented on OverrideProposal.write_footprint: the host moves (instance_id, \"\") on every accepted write into that record, and a part-record writer moves it too; field-level keys of an instance are no longer in a proposal's footprint",
+      "api_change": "write_footprint contents changed (consumers that read the old override keys: none in the workspace; components has no dependents; example components-consumer only prints it)",
+      "tests": "concurrent_proposals_on_one_instance_conflict (two proposals from one base, different fields of one instance: overlapping write keys, both admissible at base, the second is StaleProperty{instance_id, \"\"} after the first is accepted, instance 2 unaffected); alias_type_disjoint_stale_cancel adapted (record-key drift is stale, a part key outside the footprint is admissible); override_write_keys_are_scoped_to_the_instance unchanged and green",
+      "descriptor_updated": "DESCRIPTOR model.footprints and ComponentsError::StaleProperty docs name the record key and cite the test (V4-07)",
+      "red_proof": {
+        "method": "in-place mutation inside one disk-lock hold (restored byte-identically from a backup, mtimes touched, cmp verified, rerun 62/62): (1) propose_overrides write footprint back to per-field override keys, (2) Design::new uniqueness call removed, (3) Folio container-layer target changed from the component id to the layer id",
+        "result": "5 failed of 62: components design_refuses_repeated_ids, set_members_must_have_distinct_ids, concurrent_proposals_on_one_instance_conflict, alias_type_disjoint_stale_cancel (adapted footprint assertions); folio identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators"
+      },
+      "gates": {
+        "head_at_run": "3b6e9a9cf0e7999addc0501d3a2a0d3af4f4a25f (pushed; crates/hsk-studio-folio and crates/hsk-studio-components clean vs HEAD)",
+        "check": "cargo check -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session -p hsk-studio-interop-layout --tests: exit 0 (no warnings in folio/components)",
+        "clippy": "cargo clippy -p hsk-studio-folio -p hsk-studio-components --tests --examples: exit 0; the only warnings are 2 pre-existing too_many_arguments in the dependency hsk-studio-observe",
+        "nextest": "62/62 pass (folio 45, components 17), exit 0",
+        "doctest": "cargo test --doc -p hsk-studio-folio -p hsk-studio-components: exit 0 (0 doctests)",
+        "fmt": "cargo fmt --check: no diff in identity.rs, records.rs, the changed regions of lib.rs/tests, or any components file; pre-existing diffs remain in folio appearance.rs, timeline.rs, lib.rs:40 and two test files (untouched)"
+      },
+      "v4_06_sweep": {
+        "class": "write footprint finer than the payload it guards",
+        "regex": "write_footprint|override_key|override/",
+        "sites": [
+          "propose_overrides (fixed)",
+          "override_key() (deleted)",
+          "tests/instance_resolution.rs footprint assertions (adapted)",
+          "no other producer of write_footprint in the workspace"
+        ]
+      }
+    },
+    "SMB-FOLIO-UNIQUENESS": {
+      "step": "2 of 2 (step 1 is folio bd4e811, lane file hsk-studio-folio-uniqueness.json)",
+      "commit": "3b6e9a9",
+      "behaviour_differences": [
+        "Design::new now also refuses a repeated component INSTANCE id (SCIN) and a repeated PAINT STYLE id (SSTY) with Duplicate(<id>): Folio's pass covers both namespaces, the old components index did not key by them (a repeated SCIN made validate_with_instance replace only the first record). Test: design_refuses_repeated_ids (instance case). Paint styles are covered by the Folio test only (the components fixture has none).",
+        "Detection order when several repeats exist at once: document nodes, design entries, components then sets (id, then container layer), collections, variables, then the NEW instances and paint styles. Every repeat the old code refused is refused with the same Duplicate(id) and in the same relative order; only inputs whose sole repeat is an instance or paint style id changed from accepted to refused.",
+        "VariableTable::new (public) keeps its outcomes and now calls check_variable_identity_uniqueness; Design builds its lookup with the crate-private VariableTable::index after the full pass.",
+        "Folio validators (validate_document, validate_design_records) are unchanged in outcome and order: they claim ids through the same Namespaces at the same points; the old per-function unique() helper in records.rs and the nodes.insert(...).is_some() checks in lib.rs are gone."
+      ],
+      "v4_06_sweep": {
+        "class": "id/name uniqueness rules rebuilt outside Folio",
+        "regex": "unique\\(|\\.is_some\\(\\)\\s*\\{|E::Duplicate",
+        "sites": [
+          "design.rs property_definitions: unique(names) for property names inside one definition list: NOT covered (Folio checks it inside validate_component and exposes no standalone pass); same CX-CAP-001 class, left as is, candidate for a later Folio export",
+          "instance_resolution.rs:387 VariantAssignmentDuplicate and :473 out.insert(...).is_some() (override double source): components-specific evaluator rules over STU-DS-109/116, not id namespaces; left as is",
+          "instance_resolution.rs unique() helper still used only by property_definitions"
+        ]
+      }
     }
   }
 }

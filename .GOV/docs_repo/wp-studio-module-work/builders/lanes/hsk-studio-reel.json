@@ -261,6 +261,63 @@
         "idempotency_key": "STUDIO-R6:SMB-REEL:bd8533f9b29c:PASS_V3",
         "recorded_at": "2026-10-11T06:47:09Z",
         "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-REEL-AV1-ROUTE",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "proxy-inherits-original-trust-in-process-av1",
+            "file_line": "crates/hsk-studio-reel/src/registry.rs:181-194,206-220; src/video.rs:213-217"
+          }
+        ],
+        "remediation": "ProxySource gets its own SourceTrust (default Untrusted) and route; test Trusted original + untrusted proxy never InProcess",
+        "status_after": "FAIL_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-REEL-AV1-ROUTE:dff7ef51d282:FAIL_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-REEL-ENG-3",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-REEL-ENG-3:dff7ef51d282:PASS_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-REEL",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V4",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V4",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-REEL:dff7ef51d282:PASS_V4",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
       }
     ],
     "lanes": {

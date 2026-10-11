@@ -64,6 +64,25 @@
     "workflow_observations": [
       "all gated cargo commands passed the shared gameplan gate; no gameplan step added; no failure occurred (route not needed)",
       "pathspec commit only (new test file git-added by explicit path first); commit message via git commit -F; scratch under <scratchpad>/smb-folio-eng-6/"
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-FOLIO-ENG-6",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-6:dff7ef51d282:PASS_V1",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ]
   }
 }

@@ -4,11 +4,26 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "foundation slice complete: container/identity/opaque/loss/version-reject + Kiwi schema summary and bounded census; editable decode BLOCKED (NOT_PROVEN)",
   "commits": [
-    {"sha": "e09a491", "subject": "interop-fig slice 1: bounded .fig container, version policy gate, loss list, stale-source + sanitized policy, blocked semantic decode, DESCRIPTOR, report(), consumer example, 5 focused synthetic-fixture tests"},
-    {"sha": "a3808f8", "subject": "interop-fig slice 2: hand-written Kiwi schema reader + bounded schema-driven census (type histogram, source ids verbatim s:l, DOCUMENT roots) over raw-deflate schema and zstd/deflate message chunks; soft decode failures are typed loss entries, bound hits hard errors"},
-    {"sha": "4cfbf0f", "subject": "interop-fig: descriptor documents Kiwi census/limits/loss codes; consumer --inspect prints schema summary, census and loss under an explicit inspection policy"},
-    {"sha": "c75577d", "subject": "interop-fig R6 remediation: ZIP local headers cross-checked against the central directory, V4-01 arithmetic_side_effects deny on container.rs and kiwi.rs, NOT_PROVEN line without a Figma-authored fixture (V4-03), V4-07 claim sweep, regression assertions"},
-    {"sha": "deea33c", "subject": "interop-fig R6 follow-up: bytes after a compressed stream end are refused (typed), duplicate struct field ids are a schema_invalid refusal"}
+    {
+      "sha": "e09a491",
+      "subject": "interop-fig slice 1: bounded .fig container, version policy gate, loss list, stale-source + sanitized policy, blocked semantic decode, DESCRIPTOR, report(), consumer example, 5 focused synthetic-fixture tests"
+    },
+    {
+      "sha": "a3808f8",
+      "subject": "interop-fig slice 2: hand-written Kiwi schema reader + bounded schema-driven census (type histogram, source ids verbatim s:l, DOCUMENT roots) over raw-deflate schema and zstd/deflate message chunks; soft decode failures are typed loss entries, bound hits hard errors"
+    },
+    {
+      "sha": "4cfbf0f",
+      "subject": "interop-fig: descriptor documents Kiwi census/limits/loss codes; consumer --inspect prints schema summary, census and loss under an explicit inspection policy"
+    },
+    {
+      "sha": "c75577d",
+      "subject": "interop-fig R6 remediation: ZIP local headers cross-checked against the central directory, V4-01 arithmetic_side_effects deny on container.rs and kiwi.rs, NOT_PROVEN line without a Figma-authored fixture (V4-03), V4-07 claim sweep, regression assertions"
+    },
+    {
+      "sha": "deea33c",
+      "subject": "interop-fig R6 follow-up: bytes after a compressed stream end are refused (typed), duplicate struct field ids are a schema_invalid refusal"
+    }
   ],
   "capabilities_done": [
     "container.rs: open_fig(bytes, Limits, token) -> FigContainer: ZIP (PK 03 04) with bounded entries/entry bytes/inflated bytes/ratio, exact + case-folded duplicate names, traversal/absolute/backslash/drive/control names, local-vs-central header check, overlap check, CRC-32, STORE/DEFLATE only; or bare canvas.fig stream; prelude fig-kiwi/fig-jam./fig-deck else Unknown (bare unknown = NotFig, in-ZIP unknown = opaque Unknown with no chunk table); u32 LE version; length-prefixed chunk table (ChunkOverflow); every part byte-exact with sha256, chunks as ranges with sha256; meta.json top-level keys only",
@@ -32,7 +47,51 @@
   "updated_at": "2026-10-11T06:37:25Z",
   "notes": {
     "verdicts": [
-      {"round": "STUDIO-R6", "lane": "SMB-INTEROP-FIG", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V1", "failures": [{"failure_kind": "product", "failure_class": "real-fixture-branch-silent-green", "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs:615-665 (return at :633-635)"}, {"failure_kind": "product", "failure_class": "local-header-crosscheck-overclaim", "file_line": "crates/hsk-studio-interop-fig/src/container.rs:12,397-406; src/descriptor.rs:3"}], "remediation": "Print NOT_PROVEN (D17) in the no-fixture branch; cross-check local method/flags/CRC/sizes or drop the claim", "status_after": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission deea33c (not in bd8533f) queued for next round", "review": "validation/R6-review-c.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-INTEROP-FIG:bd8533f9b29c:FAIL_V1", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-INTEROP-FIG",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "real-fixture-branch-silent-green",
+            "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs:615-665 (return at :633-635)"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "local-header-crosscheck-overclaim",
+            "file_line": "crates/hsk-studio-interop-fig/src/container.rs:12,397-406; src/descriptor.rs:3"
+          }
+        ],
+        "remediation": "Print NOT_PROVEN (D17) in the no-fixture branch; cross-check local method/flags/CRC/sizes or drop the claim",
+        "status_after": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission deea33c (not in bd8533f) queued for next round",
+        "review": "validation/R6-review-c.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-INTEROP-FIG:bd8533f9b29c:FAIL_V1",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-INTEROP-FIG",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-INTEROP-FIG:dff7ef51d282:PASS_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ],
     "mt": "MT-35550 foundation (fig_import)",
     "remediation_r6": {

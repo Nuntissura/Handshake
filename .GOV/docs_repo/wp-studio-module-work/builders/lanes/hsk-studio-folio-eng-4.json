@@ -4,9 +4,18 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "additive design records in Folio: paint/gradient/stroke/appearance rows, auto layout, child layout, constraints, reactions, components, instances, variables",
   "commits": [
-    {"sha": "6567f43", "subject": "Folio: design records (paint style/gradient/stroke/appearance rows, auto layout, constraints, reactions, components, instances, variables) as a standalone StudioDesignRecords set with cross-record validation; StudioDocument/StudioLayer untouched"},
-    {"sha": "efeeaa2", "subject": "Folio: design_records_contract tests (paint style, node rules, components and variants, variables and aliases), rustfmt of the new modules, DESCRIPTOR lists the design record API"},
-    {"sha": "0e6142c", "subject": "Folio: style_refs on node design entries (STU-DS-136 closed field set, SSTY ids checked against the set's paint styles else reported through the resolver)"}
+    {
+      "sha": "6567f43",
+      "subject": "Folio: design records (paint style/gradient/stroke/appearance rows, auto layout, constraints, reactions, components, instances, variables) as a standalone StudioDesignRecords set with cross-record validation; StudioDocument/StudioLayer untouched"
+    },
+    {
+      "sha": "efeeaa2",
+      "subject": "Folio: design_records_contract tests (paint style, node rules, components and variants, variables and aliases), rustfmt of the new modules, DESCRIPTOR lists the design record API"
+    },
+    {
+      "sha": "0e6142c",
+      "subject": "Folio: style_refs on node design entries (STU-DS-136 closed field set, SSTY ids checked against the set's paint styles else reported through the resolver)"
+    }
   ],
   "capabilities_done": [
     "src/values.rs: shared leaf records. Ctx (cancellation, resolver, Budget.nodes and payload_bytes meter, colour-profile resolution once per distinct SCPF), StudioPublishing (STU-DS-141 five common fields as ONE nested record shared by style/component/variable/collection), StudioColor (opaque RGB 0..1 + explicit-null-required colour_profile_id), StudioRgba (variable COLOR values), StudioEasing (STU-PRO-119: exactly one of cubic_bezier x 0..1 / y -10..10 or spring with the Studio-declared bounds), VariableType (six STU-DS-125 tokens), StudioValue (STU-DS-127: BOOLEAN/COLOR/EASING/FLOAT/STRING/TIMING literals and VARIABLE_ALIAS{id, resolved_type})",
@@ -92,24 +101,57 @@
       "scratch copies for the mutation checks were saved under the session scratchpad (outside the repo) and the source tree was restored from them; no scratch file was copied over the shared tree except those restorations, each verified by an empty git diff"
     ],
     "verdicts": [
-     {
-      "round": "STUDIO-R5",
-      "lane": "SMB-FOLIO-ENG-4",
-      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-      "decision": "passed",
-      "verdict": "PASS_V1",
-      "failures": [],
-      "remediation": null,
-      "status_after": "PASS_V1",
-      "review": "validation/R5-review-c.json",
-      "round_ref": "validation/round-R5.json",
-      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-      "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-4:1d404f8c4b72:PASS_V1",
-      "recorded_at": "2026-10-11T05:38:23Z",
-      "by": "wp_validator STUDIO-R5"
-     },
-      {"round": "STUDIO-R6", "lane": "SMB-FOLIO-ENG-4", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "status_after": "PASS_V2", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-4:bd8533f9b29c:PASS_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-FOLIO-ENG-4",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-4:1d404f8c4b72:PASS_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-FOLIO-ENG-4",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-4:bd8533f9b29c:PASS_V2",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-FOLIO-ENG-4",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-4:dff7ef51d282:PASS_V3",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ]
   }
 }

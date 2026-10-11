@@ -4,8 +4,14 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "R5 remediation pushed (c41b067): verify never passes vacuously, an empty run is nothing_checked, edit --save guards the input; 7 focused tests green at pushed HEAD c41b067",
   "commits": [
-    {"sha": "c47e256", "subject": "Harness slice 1 (headless only): explicit provider selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel bound to a layer, one Observe frame per operation, JSON reports and a manual generated from the descriptors; studio-harness example"},
-    {"sha": "c41b067", "subject": "Harness R5 remediation: verify never passes vacuously, empty run is nothing_checked, --save guards the input"}
+    {
+      "sha": "c47e256",
+      "subject": "Harness slice 1 (headless only): explicit provider selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel bound to a layer, one Observe frame per operation, JSON reports and a manual generated from the descriptors; studio-harness example"
+    },
+    {
+      "sha": "c41b067",
+      "subject": "Harness R5 remediation: verify never passes vacuously, empty run is nothing_checked, --save guards the input"
+    }
   ],
   "capabilities_done": [
     "Harness::new(Selection{providers, references}): nothing selected by default; unknown or duplicate provider refused before any step; references default to unresolved; trust_all is an explicit development stand-in recorded in every report",
@@ -56,13 +62,65 @@
       "review": "validation/R5-review-b.json (candidate 1d404f8), lane SMB-HARNESS",
       "route": "product failures fixed by commit c41b067; no gameplan step added; cargo test ran green first time on each tree (retry guard never fired); disk-wide build lock waits of 2-3 min are normal",
       "findings": [
-        {"id": "SMB-HARNESS-c47e256", "severity": "CONFIRMED", "kind": "vacuous_verdict", "status": "fixed", "fix": "cli.rs execute refuses verify with no expectation (usage, exit 2) before opening; harness.rs verify_live returns nothing_to_check when there is no revision, no caller expectation and no earlier committed edit; finish reports nothing_checked (ok false) for zero operations; manual.rs verify usage/summary, verdict table and output text updated", "tests": ["verify_checks_something_and_save_never_clobbers_the_input", "an_empty_run_is_nothing_checked_not_a_pass"]},
-        {"id": "SMB-HARNESS-save-guard", "severity": "PLAUSIBLE", "kind": "unguarded_write", "status": "fixed (real; allowed-roots part documented, not enforced)", "fix": "cli.rs --overwrite flag; edit --save naming the input (same_file via canonicalize, literal fallback) is a usage error without it; the existing atomic-save test passes --overwrite because it deliberately targets its own input; manual documents that the caller owns the destination", "tests": ["verify_checks_something_and_save_never_clobbers_the_input", "files_are_saved_atomically_and_failed_edits_keep_the_last_good_file"]}
+        {
+          "id": "SMB-HARNESS-c47e256",
+          "severity": "CONFIRMED",
+          "kind": "vacuous_verdict",
+          "status": "fixed",
+          "fix": "cli.rs execute refuses verify with no expectation (usage, exit 2) before opening; harness.rs verify_live returns nothing_to_check when there is no revision, no caller expectation and no earlier committed edit; finish reports nothing_checked (ok false) for zero operations; manual.rs verify usage/summary, verdict table and output text updated",
+          "tests": [
+            "verify_checks_something_and_save_never_clobbers_the_input",
+            "an_empty_run_is_nothing_checked_not_a_pass"
+          ]
+        },
+        {
+          "id": "SMB-HARNESS-save-guard",
+          "severity": "PLAUSIBLE",
+          "kind": "unguarded_write",
+          "status": "fixed (real; allowed-roots part documented, not enforced)",
+          "fix": "cli.rs --overwrite flag; edit --save naming the input (same_file via canonicalize, literal fallback) is a usage error without it; the existing atomic-save test passes --overwrite because it deliberately targets its own input; manual documents that the caller owns the destination",
+          "tests": [
+            "verify_checks_something_and_save_never_clobbers_the_input",
+            "files_are_saved_atomically_and_failed_edits_keep_the_last_good_file"
+          ]
+        }
       ],
       "v4_06_site_lists": [
-        {"class": "verdict true without evaluating any check (vacuous all/none_or)", "regex": "is_none_or|\\.all\\(|\\.any\\(|unwrap_or\\(true\\)|map_or\\(true|is_empty\\(\\)", "scope": "crates/hsk-studio-harness/{src,examples}", "matches": 10, "fixed": 6, "not_applicable": 4, "fixed_sites": ["harness.rs:635,638,640 verify_live (nothing_to_check guard before the is_none_or/all)", "harness.rs:666,667 finish (ran && all)", "cli.rs:187 verify expectation guard"], "not_applicable_sites": "harness.rs:155 provider_selected lookup (not a verdict); :613 verify_reopened (revision_match and bytes_equal are real checks); :669 one_frame_per_operation diagnostic flag (not the verdict; zero-op reports now carry nothing_checked); cli.rs:227 edit already requires at least one edit"},
-        {"class": "write to a caller-supplied path without a guard", "regex": "save_to|fs::|File::|OpenOptions|std::io::Write|\\.write\\(", "scope": "crates/hsk-studio-harness/{src,examples}", "matches": 5, "fixed": 1, "not_applicable": 4, "fixed_sites": ["cli.rs:253 run.save_to(path) (guard in execute before open: same-file check unless --overwrite)"], "not_applicable_sites": "lib.rs:20 DESCRIPTOR text; harness.rs:549,555 library pass-through (library callers name their own destination; the guard sits at the CLI where an agent drives it headlessly); cli.rs:179 canonicalize (read-only)"},
-        {"class": "unchecked arithmetic in modules touched (V4-01)", "regex": "\\+= 1|\\+ 1|as u64", "scope": "src/cli.rs src/harness.rs src/manual.rs", "matches": 4, "fixed": 4, "not_applicable": 0, "sites": "cli.rs take closure and arg loop counters (saturating_add); harness.rs op_no (try_from + saturating_add) and the op record number (reuses op_no). #![deny(clippy::arithmetic_side_effects)] on cli, harness, manual; clippy clean"}
+        {
+          "class": "verdict true without evaluating any check (vacuous all/none_or)",
+          "regex": "is_none_or|\\.all\\(|\\.any\\(|unwrap_or\\(true\\)|map_or\\(true|is_empty\\(\\)",
+          "scope": "crates/hsk-studio-harness/{src,examples}",
+          "matches": 10,
+          "fixed": 6,
+          "not_applicable": 4,
+          "fixed_sites": [
+            "harness.rs:635,638,640 verify_live (nothing_to_check guard before the is_none_or/all)",
+            "harness.rs:666,667 finish (ran && all)",
+            "cli.rs:187 verify expectation guard"
+          ],
+          "not_applicable_sites": "harness.rs:155 provider_selected lookup (not a verdict); :613 verify_reopened (revision_match and bytes_equal are real checks); :669 one_frame_per_operation diagnostic flag (not the verdict; zero-op reports now carry nothing_checked); cli.rs:227 edit already requires at least one edit"
+        },
+        {
+          "class": "write to a caller-supplied path without a guard",
+          "regex": "save_to|fs::|File::|OpenOptions|std::io::Write|\\.write\\(",
+          "scope": "crates/hsk-studio-harness/{src,examples}",
+          "matches": 5,
+          "fixed": 1,
+          "not_applicable": 4,
+          "fixed_sites": [
+            "cli.rs:253 run.save_to(path) (guard in execute before open: same-file check unless --overwrite)"
+          ],
+          "not_applicable_sites": "lib.rs:20 DESCRIPTOR text; harness.rs:549,555 library pass-through (library callers name their own destination; the guard sits at the CLI where an agent drives it headlessly); cli.rs:179 canonicalize (read-only)"
+        },
+        {
+          "class": "unchecked arithmetic in modules touched (V4-01)",
+          "regex": "\\+= 1|\\+ 1|as u64",
+          "scope": "src/cli.rs src/harness.rs src/manual.rs",
+          "matches": 4,
+          "fixed": 4,
+          "not_applicable": 0,
+          "sites": "cli.rs take closure and arg loop counters (saturating_add); harness.rs op_no (try_from + saturating_add) and the op record number (reuses op_no). #![deny(clippy::arithmetic_side_effects)] on cli, harness, manual; clippy clean"
+        }
       ],
       "v4_notes": {
         "V4-01": "done for cli, harness, manual (this crate decodes no bytes itself: package and wire decoding live in session/package)",
@@ -75,6 +133,25 @@
         "V4-09": "commit via git commit -F; V4-11: no source reverted or restored; V4-12: helper files kept under scratchpad/r5-kb-harness/",
         "red_proof": "NOT run on the 1d404f8 code: break-it edits were not permitted in this session. The new tests assert the outcomes the finding describes (verify with no expectation exits 2 and never reports pass; an empty run is nothing_checked; --save onto the input is refused and the bytes are unchanged); the pre-fix code returned exit 0 / pass for the first by construction (revision.is_none_or + empty checks)."
       }
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-HARNESS",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-HARNESS:dff7ef51d282:PASS_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
+    ]
   }
 }

@@ -96,6 +96,25 @@
       "studio-env.sh was being edited by the steward during my first source attempt (export -f error, exit 1); the next source succeeded",
       "disk-build-lock waits 27 s - 592 s behind other lanes' builds",
       "pathspec commits only (new files git-added by explicit path first); git push origin codex/handshake-studio-assets"
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-FOLIO-ENG-7",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-7:dff7ef51d282:PASS_V1",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
     ]
   }
 }

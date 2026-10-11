@@ -182,6 +182,34 @@
         "idempotency_key": "STUDIO-R5:SMB-REEL-NATIVE-AV1-WORKER:1d404f8c4b72:FAIL_V1",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "worker-lookup-parent-dir",
+            "file_line": "crates/hsk-studio-reel-native/src/host.rs:458-469"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "hello-wait-ignores-cancel",
+            "file_line": "crates/hsk-studio-reel-native/src/host.rs:609"
+          }
+        ],
+        "remediation": "Exe-dir-only worker lookup (as motion-js discover_beside); cancel-polled HELLO wait + stalled-HELLO test",
+        "status_after": "FAIL_V2",
+        "review": "validation/R7-review-b.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-REEL-NATIVE-AV1-WORKER:dff7ef51d282:FAIL_V2",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
       }
     ],
     "remediation_R5": {

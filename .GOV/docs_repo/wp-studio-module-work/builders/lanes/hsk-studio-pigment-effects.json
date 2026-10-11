@@ -171,6 +171,65 @@
       "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at 379a56f",
       "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings; the same run reports the two pre-existing hsk-studio-observe too_many_arguments warnings from another lane",
       "coordinator_request": "touch of effect_math.rs, render_plan.rs, lib.rs, render_plan/extensions.rs for the stale-rlib fix: the touch command was denied by the permission classifier and was not worked around; effect_math.rs was edited (mod wiring) and the cargo builds of this lane rebuilt pigment from the current sources (compiling hsk-studio-pigment lines in the check, clippy and test runs)"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-EFFECTS-WAVE-1",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "effects-with-blend-if-admitted-then-refused-by-every-backend",
+            "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:263-293,294-322; render-cpu src/plan_sink.rs:562-563; render-gpu src/plan_sink.rs:591-596"
+          }
+        ],
+        "remediation": "Pigment owns the refusal: intrinsically Unsupported ExtOperator for effects + Blend-If (as 0d28c03); backends use its key",
+        "status_after": "FAIL_V1",
+        "review": "validation/R7-review-a.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-EFFECTS-WAVE-1:dff7ef51d282:FAIL_V1",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-EFFECTS-WAVE-2",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R7-review-a.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-EFFECTS-WAVE-2:dff7ef51d282:PASS_V1",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R7",
+        "lane": "SMB-PIGMENT-WINDOW",
+        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "validation/R7-review-a.json",
+        "round_ref": "validation/round-R7.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+        "idempotency_key": "STUDIO-R7:SMB-PIGMENT-WINDOW:dff7ef51d282:PASS_V1",
+        "recorded_at": "2026-10-11T11:04:31Z",
+        "by": "wp_validator STUDIO-R7"
+      }
+    ]
   }
 }
