@@ -2,7 +2,7 @@
   "crate": "hsk-studio-session",
   "mt": "MT-35554",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 complete: lazy package source (assets and previews read on demand, none held at rest), host-supplied previews API",
+  "phase": "slice 3 complete + R3 remediation: successor lineage check (proposal_not_derived) and streaming save through package save_atomic_streaming (constant memory)",
   "commits": [
     {
       "sha": "371ac82",
@@ -39,6 +39,18 @@
       "subject": "Session slice 3: tests (lazy source with per-thread allocation and byte-read bounds, host-supplied previews follow the revision, typed lazy failures + memory sessions) and example stats",
       "pushed": true,
       "slice": 3
+    },
+    {
+      "sha": "63c1f5d",
+      "subject": "Session R3: refuse a successor that does not derive from the live snapshot (proposal_not_derived)",
+      "pushed": true,
+      "slice": "r3"
+    },
+    {
+      "sha": "943a0d2",
+      "subject": "Session: streaming save through package save_atomic_streaming (constant-memory raw assets)",
+      "pushed": true,
+      "slice": "r3-stream"
     }
   ],
   "capabilities_done": [
@@ -47,10 +59,12 @@
     "slice 3 lazy source (src/source.rs): open keeps the package as a Read+Seek stream behind PackageReader (structure and every entry checksum verified in bounded 1 MiB chunks); the document and the entries that must be preserved verbatim (opaque, unlisted) are read through a second logical cursor over the same stream and verified against the manifest SHA-256; asset and preview bodies are NOT read at open (tile digests are checked against the manifest only). Resident at rest: document, preserved unknown entries, host-supplied previews",
     "slice 3 on-demand reads: save/export pull each asset from the source one at a time (PackageReader::read_asset, SHA-256 verified, bounded by the writer's max and the manifest's declared size) and source previews lazily; the real cause of a failed read (hash_mismatch, io, canceled) is reported instead of asset_absent; the written file becomes the new source (old handle released) and in-memory sessions (open_bytes) release their copy on first save",
     "slice 3 host previews: Session::set_previews(rendered_for_revision, Vec<PreviewImage>) validates (dimensions, byte length, colour tag, unique content, <= MAX_SUPPLIED_PREVIEWS, total bytes) and accepts only the current revision (stale_revision otherwise); supplied previews replace the source's at the next save/export at that revision; anything rendered for another revision is dropped and counted (SaveReceipt/Checkpoint.previews_dropped); supplied previews are released once written. PixelFormat/PreviewImage/PreviewInfo re-exported so hosts need no package dependency",
-    "slice 3 accounting: Session::source_bytes_read() and Session::resident_bytes()"
+    "slice 3 accounting: Session::source_bytes_read() and Session::resident_bytes()",
+    "R3 lineage (63c1f5d): propose_checked now requires the provider's successor to equal the live document plus new values at exactly the declared revision-update addresses (mask_property on both documents, compare, revision aligned); a provider that prepared from an edited copy is refused with SessionError::ProposalNotDerived (code proposal_not_derived, Observe Failure(Validation)) before publish or any commit-port call",
+    "streaming save (943a0d2): LazyAssets implements package AssetStream (raw entries stream from their byte range in the source through a forked Handle cursor, constant memory; zstd/shuffle_zstd entries decode via PackageReader::read_asset as one blob; open is repeatable, one reader at a time; the real cause is kept in take_failure); save_inner uses save_atomic_streaming (package re-verifies the temp from disk before the atomic replace), gather_previews/write_options/writer_cause shared with export; export_checkpoint stays on write_package_with (a Checkpoint is an in-memory verified package by contract); the destination is still reopened as the new source (Handle::pair, new raw cursor)"
   ],
   "tests": {
-    "passed": 11,
+    "passed": 14,
     "failed": 0,
     "command": "cargo test -p hsk-studio-session --no-fail-fast",
     "slice3_new": [
@@ -71,9 +85,14 @@
       "providers_are_instance_owned_enumerable_and_not_trusted"
     ],
     "check_clippy": "check/clippy -p hsk-studio-session --tests --examples: clean (only pre-existing observe too_many_arguments warnings); kernel-bindings still checks clean against it",
-    "evidence": "memory bound with a per-thread counting allocator (each test body runs on its own thread): 4 MiB asset in a 4,198,334-byte package: open peak 1,050,685 B (one 1 MiB chunk, not the asset), retained after open 9,860 B, bytes read at open 4,201,578 (one pass, no second); an edit reads 0 source bytes and retains < 256 KiB; save reads the asset once (8,392,731 B = asset + one verification pass over the written file), retained after save 0; save peak 17.8 MB (4.25x asset). Lazy failure case: asset byte flipped behind the session's back -> save fails hash_mismatch with Failure(Validation), destination bytes untouched, no temp/marker left, Save As target never created; the same session saves correctly after the byte is repaired (nothing cached); canceled save reads 0 bytes; package-reader parity for the opaque entry (name, Opaque loss note)",
+    "evidence": "memory bound with a per-thread counting allocator (each test body runs on its own thread): 4 MiB asset in a 4,198,334-byte package: open peak 1,050,685 B (one 1 MiB chunk, not the asset), retained after open 9,860 B, bytes read at open 4,201,578 (one pass, no second); an edit reads 0 source bytes and retains < 256 KiB; save reads the asset once (8,392,731 B = asset + one verification pass over the written file), retained after save 0; save peak 17.8 MB (4.25x asset). Lazy failure case: asset byte flipped behind the session's back -> save fails hash_mismatch with Failure(Validation), destination bytes untouched, no temp/marker left, Save As target never created; the same session saves correctly after the byte is repaired (nothing cached); canceled save reads 0 bytes; package-reader parity for the opaque entry (name, Opaque loss note) | R3 streaming save (943a0d2): per-thread counting allocator, save peak 1,315,885 B at a 1 MiB asset and 1,315,891 B at a 16 MiB asset (retained 0), against 17.8 MB for a 4 MiB asset before; the 4 MiB lazy test peak is 1,315,825 B; synthetic assets are written under the test temp root (TMP = the artifact root on D: in the Studio env) and removed on drop; zstd requested from a raw source and zstd source re-saved give byte-identical files and the independent reader returns the same blob. R3 lineage: forged-base provider (prepares from a copy carrying an unrevisioned edit of layer 2) through submit_keyed is refused proposal_not_derived, commit authority called 0 times, document/revisions/receipts unchanged; the same provider unforged commits revision 8. Commands: cargo test -p hsk-studio-session --tests (14 passed); cargo clippy -p hsk-studio-session --tests --examples clean; cargo check -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests --examples clean",
     "break_it": "temporarily (a) writing host-supplied previews regardless of revision, (b) writing source previews after an edit, (c) discarding the real cause of a lazy read failure: the export, previews and lazy-source tests failed with previews counted (8,1,0) vs (8,0,1) and (9,1,1) vs (9,0,2), and the lazy-failure test with asset_absent vs hash_mismatch; source restored byte-identical to 6d0616f (git diff empty), full 11/11 repeated green afterwards",
-    "tree": "shared edit tree; crate files identical to pushed 6d0616f"
+    "tree": "shared edit tree; crate files identical to pushed 6d0616f",
+    "r3_new": [
+      "successor_that_does_not_derive_from_the_live_snapshot_is_refused_before_commit",
+      "save_peak_memory_does_not_grow_with_asset_size",
+      "compressed_source_assets_stream_through_save_and_round_trip"
+    ]
   },
   "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo3: rev 7 -> 9, saved, checkpoint, source_bytes_read 17298 and resident_bytes 2178 printed, independent read matches",
   "blockers": [],
@@ -81,24 +100,29 @@
   "api_compat": [
     "kernel-bindings compatibility: slice 3 is additive only. No signature, field or enum variant of the slice-1/2 public API changed (SessionPorts, SessionConfig, Session::open_path/open_bytes/submit/submit_keyed/reconcile/drain/save/save_to/export_checkpoint, Applied, SaveReceipt, Checkpoint, SessionError, the port traits). kernel-bindings checks clean against it.",
     "added: Session::set_previews, Session::source_bytes_read, Session::resident_bytes, PreviewReceipt, MAX_SUPPLIED_PREVIEWS, re-exports PixelFormat/PreviewImage/PreviewInfo",
-    "behaviour notes: open_bytes copies the given bytes (the lazy source must own them); SaveReceipt/Checkpoint.previews_dropped now also counts source previews replaced by host-supplied ones; a package with a corrupted asset now fails at save/export (hash_mismatch) rather than at open, because assets are no longer read at open (the whole archive is still CRC-verified at open)"
+    "behaviour notes: open_bytes copies the given bytes (the lazy source must own them); SaveReceipt/Checkpoint.previews_dropped now also counts source previews replaced by host-supplied ones; a package with a corrupted asset now fails at save/export (hash_mismatch) rather than at open, because assets are no longer read at open (the whole archive is still CRC-verified at open)",
+    "R3: one additive SessionError variant, ProposalNotDerived (code proposal_not_derived, outcome Failure(Validation)); no existing signature, field or variant changed. kernel-bindings and harness do not match on SessionError (they use Failed::code) and check clean. LazyAssets/Handle are crate-private (Handle::single removed, Handle::fork added); SaveReceipt/Checkpoint unchanged."
   ],
   "decisions": [
     "Lazy open is built from package's public API only (PackageReader + EntryMeta data offsets + a second cursor over one shared stream); package has no lazy into_opened, so the document/opaque/unlisted classification and tile-digest-vs-manifest check mirror package's into_opened strictness in src/source.rs",
     "Previews are written only when they describe the revision being written; host-supplied previews are accepted only for the current revision",
     "Grant action for set_previews is Action::Save (a new Action variant would break exhaustive matches in kernel-bindings)",
-    "No new SessionError variants: stale previews reuse StaleRevision, invalid previews reuse Package(PreviewMismatch)/TooManyEntries/TotalTooLarge"
+    "No new SessionError variants: stale previews reuse StaleRevision, invalid previews reuse Package(PreviewMismatch)/TooManyEntries/TotalTooLarge",
+    "R3: supersedes 'No new SessionError variants' - a distinct code (proposal_not_derived) for a successor that is not the live document plus the declared writes, so callers can tell it from proposal_inconsistent (wrong document or revision)",
+    "R3: lineage is checked in the session (not delegated to the provider): both documents are compared with the declared revision-update properties neutralised; chronicle's property table is mirrored locally (mask_property) because chronicle keeps value/set private",
+    "Streaming save keeps the post-save destination reopen: it is how the written file becomes the new lazy source; the package already re-verified the temp, so the manifest document_id/revision check there is a cheap second guard"
   ],
   "known_gaps": [
-    "save is NOT constant-memory: package's write_package_with collects every referenced asset (as parts) before writing and save_atomic takes the whole package as bytes, so a save peaks at a few copies of the package (4.25x the asset in the test). The session holds nothing at rest, but true streaming save needs a package API change (writer that streams parts and a save_atomic that accepts a writer/reader); recommend to the package lane",
     "open is O(file) in I/O: PackageReader::open CRC-verifies every entry (bounded memory); no way to skip it with the current package API",
     "post-save verification (VerifyMismatch) leaves the newly written file in place and does not advance saved_revision",
     "idempotency table is in memory only; the authority's receipt store is the durable one",
     "cancel-acknowledgement bound is not separately timed (operations are synchronous, cancel is polled at entry, in provider/read loops and before commit)",
-    "resolver in session-consumer grants everything: example stand-in only"
+    "resolver in session-consumer grants everything: example stand-in only",
+    "streaming-save item now MET (943a0d2): save peak is size-independent. Still true: export_checkpoint buffers the whole package (in-memory Checkpoint by contract), and a zstd or shuffle_zstd asset buffers one blob (about 3-4x the blob) during save",
+    "R3 PLAUSIBLE items from the review not in this pass: committed receipts are never evicted (max_receipts 1024 caps keyed edits), a Diverged pending entry has no discard/adopt API, seed_revisions copies chronicle's addressable-property table, and receipt-mismatch/receipts_full/deadline-0 drain paths are untested"
   ],
-  "next": "Validator round on 6d0616f. Next slice candidates: streaming save once package offers a writer-based API, multi-output delivery capture (immutable revision/presets/output verification) behind the JobPort, lazy opaque-entry handling for very large unknown records.",
-  "updated_at": "2026-10-11T02:52:05Z",
+  "next": "Validator round on 943a0d2. Next slice candidates: R3 PLAUSIBLE items above (receipt eviction, operator resolve/discard for Diverged, chronicle-exported revision seeding, missing negative-path tests), multi-output delivery capture behind the JobPort, lazy opaque-entry handling for very large unknown records.",
+  "updated_at": "2026-10-11T03:17:02Z",
   "notes": {
     "verdicts": [
       {
@@ -121,6 +145,21 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-SESSION",
+      "finding": "propose_checked never verified the successor derives from the current snapshot (session.rs 862-900): a provider that prepared from an edited copy (same id and revision) published an unrevisioned change and the inverse could not undo it",
+      "fix": "derives_from(base, successor, revision_updates) in session.rs, called inside propose_checked after the revision-slot checks; typed refusal SessionError::ProposalNotDerived (proposal_not_derived)",
+      "regression_test": "successor_that_does_not_derive_from_the_live_snapshot_is_refused_before_commit",
+      "commits": [
+        "63c1f5d",
+        "943a0d2"
+      ],
+      "also": "coordinator addition: streaming save migrated onto package save_atomic_streaming (943a0d2); the 'not constant-memory' known gap is met, measured peak 1.3 MiB at 1 MiB and 16 MiB assets",
+      "compat": "kernel-bindings and harness: cargo check --tests --examples clean against both commits",
+      "lesson": "match on a non-Copy enum field behind a reference needs a reference scrutinee (E0507: use match (&address.target.node_kind, ...)); recorded here, not as a shared-gameplan step (lead rule: product compile/test mistakes go in lane notes; a fixing commit clears the retry guard)",
+      "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
+    }
   }
 }

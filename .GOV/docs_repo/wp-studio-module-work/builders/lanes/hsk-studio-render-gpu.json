@@ -2,7 +2,7 @@
   "crate": "hsk-studio-render-gpu",
   "lane": "MT-35546",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 2 pushed (0551b8d): all Exact separable blend modes generated from pigment facts, coverage masks, isolated + pass-through groups, clip-to-base; slice 1 (a813cf3, 989d91d, 7e7579f) contract unchanged",
+  "phase": "R3 remediation pushed (b7d90dc): leaf-root class Fitted, typed pipeline failure (never a skip), loss detected by the wgpu callback (no manual latch), checked residency arithmetic; slice 2 (0551b8d) and slice 1 contract otherwise unchanged",
   "commits": [
     {
       "sha": "a813cf3",
@@ -19,6 +19,10 @@
     {
       "sha": "0551b8d",
       "subject": "slice 2: all Exact separable blend modes (WGSL generated from pigment facts), coverage masks u8/u16, isolated and pass-through groups, clip-to-base runs; parity vs blend_math"
+    },
+    {
+      "sha": "b7d90dc",
+      "subject": "R3 test-integrity remediation: leaf root normal: fitted; GpuError::Pipeline + Failed state + strict GPU-proof gate; destroy-only loss injection detected by the wgpu lost callback; checked residency arithmetic; one regression test per finding"
     }
   ],
   "capabilities_done": [
@@ -30,23 +34,26 @@
     "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture",
+    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan|none)",
     "exit": 0,
-    "sha": "0551b8d",
-    "passed": 6,
+    "sha": "b7d90dc",
+    "passed": 10,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "slice 3 candidates (not started): non-separable modes hue/saturation/colour/luminosity (Exact in pigment) and the Approximate separable modes, each with a FORMULAS body + parity case; vector coverage; content-addressed tile cache (ResidentKey::Tile); Metal/other-vendor qualification",
-  "updated_at": "2026-10-11T02:34:08Z",
+  "updated_at": "2026-10-11T03:18:28Z",
   "notes": {
     "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
     "runs": {
-      "adapter_auto_dx12": "6 passed, 0 failed (NVIDIA GeForce RTX 3090 discrete, dx12)",
-      "adapter_vulkan": "6 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter)",
-      "no_adapter": "6 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); both GPU-execution tests assert the typed Unavailable and print NOT_PROVEN, no GPU claim"
+      "adapter_auto_dx12": "10 passed, 0 failed (NVIDIA GeForce RTX 3090 discrete, dx12); every GPU test executed, no NOT_PROVEN",
+      "adapter_vulkan": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter); every GPU test executed, no NOT_PROVEN",
+      "no_adapter": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); 5 GPU proofs print NOT_PROVEN (parity x2, device-loss detection, pipeline-failure typing, leaf-root live receipt): no GPU claim; hardware-independent halves (admission, latch unit, residency) ran",
+      "require_gpu_negative": "HSK_STUDIO_TEST_GPU_BACKEND=none HSK_STUDIO_TEST_REQUIRE_GPU=1, gpu_blend_parity filter: FAILED as intended (gate refuses NOT_PROVEN)",
+      "consumer": "render-gpu-consumer --probe dx12 discrete gen 1 exit 0; --selftest PASS exit 0",
+      "tree": "runs on the shared edit tree at 2026-10-11T03:15Z; crate and dependency closure (pigment 276e2a3, accord, observe, prism) byte-identical to b7d90dc; validator round should use an export of b7d90dc"
     },
     "tolerance": "stated 1e-6 per composited layer (hand oracles 2e-6)",
     "observed_max_error": {
@@ -57,7 +64,7 @@
       "hand_derived_clip_pixel": "0 (expected (0.526,0.454,0.43,1.0) inside the base, backdrop untouched beyond it)"
     },
     "oracles": "independent: hand-derived values and a per-pixel CPU reference built only from pigment::blend_math::composite_over (not render-cpu); the reference also reproduces the hand-derived clip pixel",
-    "exactness": "blend operators Fitted; tile/solid/groups/coverage masks Exact; fill_opacity and clip_to_base Approximate",
+    "exactness": "blend operators Fitted; tile/solid/groups/coverage masks Exact as operators; a leaf root (solid/tile root, no layer) runs one Normal kernel pass so the receipt records normal: fitted and an Exact floor refuses it; fill_opacity and clip_to_base Approximate",
     "sizing": "receipt peak_working_bytes exact: groups plan with 3 levels + staging + upload + mask + params on 16x16 chunks = 21568; GpuStats.levels counts destination levels",
     "backend_qualified_proof": {
       "adapter": "NVIDIA GeForce RTX 3090 (discrete)",
@@ -99,6 +106,39 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "review": ".GOV/docs_repo/wp-studio-module-work/validation/R3-review.json lane SMB-RENDER-GPU (reviewed 57ce0fa/404ff3a)",
+      "sha": "b7d90dc",
+      "f1_leaf_root_exact": {
+        "finding": "leaf root reported Exact while executed through the blend kernel",
+        "fix": "plan_sink.rs leaf_root_class after admit: a non-group root adds Blend(Normal) at min(intrinsic, backend) = Fitted to the ledger and refuses an Exact floor as Unsupported{normal, fitted} before source lookup or device work",
+        "test": "leaf_root_reports_the_blend_kernel_class (solid and tile roots refused at Exact; Fitted admitted; live receipt lowest Fitted with normal: fitted, texels within 1e-6)",
+        "red": "pre-fix: Exact floor admitted -> Err(Unavailable(\"no_adapter\")) instead of Unsupported{normal, Fitted}"
+      },
+      "f2_pipeline_failure_skip": {
+        "finding": "shader/pipeline failure mapped to Unavailable(NoDevice); parity tests skipped green",
+        "fix": "GpuError::Pipeline(shader_validation|shader_validation_timeout) from Kernel::new; GpuBackend State::Failed + failure(); new() maps only Unavailable to Unavailable; port code Unavailable(\"shader_validation\") (pigment BackendError has no internal-defect variant); tests use gpu_gate: skip ONLY on NoAdapter, HSK_STUDIO_TEST_REQUIRE_GPU=1 fails even that; consumer probe/selftest exit 1 on pipeline failure",
+        "test": "pipeline_failure_is_typed_and_fails_the_gpu_gate (hidden GpuBackend::with_shader_source with invalid WGSL on the real adapter: failure() = Pipeline(shader_validation), unavailable_reason None, gate Err, execute_detailed Err(Pipeline), port Unavailable(\"shader_validation\"), reacquire stays typed)",
+        "red": "pre-fix mapping: unavailable Some(NoDevice), failure None -> test FAILED (finding reproduced on dx12)"
+      },
+      "f3_device_loss_fake": {
+        "finding": "simulate_device_loss set the latch itself; test green without callback wiring",
+        "fix": "simulate_device_loss = wgpu Device::destroy only; GpuContext::poll_lost (non-blocking poll delivers the wgpu lost callback); backend lock_refreshed polls before every execute and state query and moves a latched device to Lost",
+        "test": "device_destroy_is_detected_by_the_lost_callback (execute on live device, destroy, very next execute unlatched -> DeviceLost{1}; reacquire gen 2 executes); latch-only part renamed injected_loss_latch_and_unavailable_are_explicit (unit test, no hardware)",
+        "counterfactual": "set_device_lost_callback wiring removed -> test FAILED (Unavailable(\"readback_map_failed\") vs DeviceLost{1}); wiring restored",
+        "proven": "destroy-initiated loss detected via the wgpu callback on dx12 (27-85 ms) and vulkan (37-47 ms), RTX 3090",
+        "not_proven": "driver-initiated loss (TDR, adapter removal, HAL DeviceError::Lost): NOT_PROVEN, no safe trigger"
+      },
+      "f4_residency_overflow": {
+        "finding": "Residency::reserve used + bytes unchecked",
+        "fix": "eviction loop uses checked_add(bytes) <= budget; final charge checked_add or BudgetExceeded",
+        "test": "residency_accounting_never_overflows (budget u64::MAX, 2^63 pinned refusal, unpinned 2^63 evicts LRU, fill to u64::MAX, +1 typed BudgetExceeded, state intact)",
+        "red": "pre-fix: panicked attempt to add with overflow at residency.rs:129"
+      },
+      "slice2_claims_at_head": "verified at b7d90dc (contains 0551b8d): FORMULAS has 11 bodies + Normal = 12 modes, list generated from pigment MODES (gpu_blend_qualifies; drift test supported == qualifies for every MODES entry); coverage_u8/u16le masks; isolated + pass-through groups; supports_clip_to_base() true with eval_clip_run; runtime MODES tested 12 on dx12 and vulkan, worst 2.4e-7. Claims do NOT hold at 57ce0fa (review finding 5): ledger candidate must point at 0551b8d or later, not 57ce0fa",
+      "not_addressed": "PLAUSIBLE items not in this remediation brief: WGSL formula ownership (cap_duplicate), sink.accept under the backend mutex (reentrancy), block_on_bounded timeout reach; prepare() clip_base_pass_through refusal now also refused earlier by pigment validate (276e2a3), left as defence in depth",
+      "lesson": "scratchpad script names collide across agents (another lane edit_*.py ran against lib.rs and aborted on its first assert, no write); use lane-prefixed names"
+    }
   }
 }

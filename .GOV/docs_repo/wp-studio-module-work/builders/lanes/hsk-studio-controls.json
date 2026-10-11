@@ -2,7 +2,7 @@
   "crate": "hsk-studio-controls",
   "lane": "SMB-CONTROLS-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 2 pushed: spec-aligned gestures + undo coalescing, Observe report, integer domain, sections; 9 focused tests green (5 slice-1 + 4 slice-2)",
+  "phase": "R3 remediation pushed at 605796f (precision-9 fine step effective, typed StepNoEffect); 12 focused tests green (5 slice-1 + 4 slice-2 + 3 step_effect)",
   "commits": [
     {
       "sha": "a1d0fbd",
@@ -15,6 +15,10 @@
     {
       "sha": "62ea29a",
       "subject": "Controls slice 2: spec-aligned gestures (STU-FX-149/SHL-188..194), one undo step per gesture, integer domain, collapsible sections across egui/agent JSON/manual, Observe report per operation; 4 focused tests"
+    },
+    {
+      "sha": "605796f18966caf9023d6be22e79a9fcfd617fb4",
+      "subject": "Controls: noise-removal grid follows precision (fine step stays effective at precision 9, scrub too), number step that cannot change the value is refused with typed StepNoEffect; 3 regression tests (R3 remediation)"
     }
   ],
   "capabilities_done": [
@@ -30,17 +34,17 @@
     "slice 2: SectionSpec (ordered, collapsible, collapsed_by_default, parent chain) + ControlSpec.group_path; registry validates chains and shared id space; egui CollapsingHeader tree (PanelFrame reports rendered ids + header rects), agent JSON `sections` + group_path + is_default, manual section topics, audit reports empty sections; JSON round trip byte-identical"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-controls --tests --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-controls --tests",
     "exit": 0,
-    "sha": "62ea29a",
-    "passed": 9,
+    "sha": "605796f",
+    "passed": 12,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "validator round (no new crates.io deps in slice 2: observe is an allowed path edge; Cargo.toml gained only the observe path edge). Next slice candidates: AccessKit projection (descriptor -> role/label/value text, same string as display per STU-SHL-193), wheel gesture (400 ms finalize), double-click reset / secondary-click menu (STU-SHL-195), search + show-only-non-default filters (STU-SHL-165 items 5/6), read-only expression state (STU-MOT-072), gesture-role rebinding config (STU-FX-149), PERCENT display flag",
-  "updated_at": "2026-10-11T02:38:34Z",
+  "updated_at": "2026-10-11T03:18:23Z",
   "notes": {
     "fine_step_vs_precision": "Interpretation (accepted by lead pending spec enrichment): precision = declared DISPLAY decimal places; step=10^-precision, fine_step=step/10 and coarse_step=step*10 are DERIVED (STU-FX-110), fine_step may be finer than the display precision. Stored/accepted values keep full parsed precision; nothing rounds to precision silently. Step arithmetic only strips binary noise (1e-9 grid below 1e6).",
     "modifier_defaults": "RESOLVED slice 2 from STU-FX-149 / STU-SHL-190 (14-studio-creative-suite.md l.19006, l.32910): coarse Shift x10, fine Ctrl (Windows/Linux) or Command (macOS) /10, both x100, Alt has no numeric role; implemented as roles_from(egui::Modifiers) using egui `command`. Slice-1 Shift/Alt pick removed.",
@@ -99,6 +103,27 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-CONTROLS",
+      "fixes_commit": "605796f18966caf9023d6be22e79a9fcfd617fb4",
+      "fixed": [
+        {
+          "failure_class": "fine-step-silent-noop-at-precision-9",
+          "cause": "clean() rounded to a fixed 1e-9 grid while precision 9 is legal (MAX_PRECISION) and fine_step = 1e-10, so step_value(0.5,+1,Fine) returned Ok(0.5) and ValueStore::set answered Ok(None)",
+          "fix": "clean(x, precision) grid = 10^-max(9, precision+1), rounding while |x| < 1e15/scale (behaviour identical for precision <= 8); ScrubGesture::drag uses the same grid via new pub field ScrubParams.precision; step_value refuses a number step that leaves the value unchanged (f64 resolution at large magnitude, e.g. 1e7 at precision 9) with new typed ControlError::StepNoEffect (code step_no_effect) instead of Ok(same); descriptor stays registrable (STU-FX-110 fine_step = 10^-(precision+1) kept normative)",
+          "regression_tests": "tests/step_effect.rs: fine_step_at_precision_9_changes_the_value_through_every_route (step_value up/down, store.set returns Some(event), scrub drag), every_declared_precision_steps_by_its_derived_increments (precision 0..=9 x 4 roles x 2 dirs), a_step_below_f64_resolution_is_refused_not_reported_as_success (typed error, store untouched, magnitude sweep never Ok(same))"
+        }
+      ],
+      "supersedes": "notes.fine_step_vs_precision statement 'Step arithmetic only strips binary noise (1e-9 grid below 1e6)': grid is now 10^-max(9,precision+1) below 1e15/scale",
+      "red_proof": "clean_digits forced to 9 digits: every_declared_precision_steps_by_its_derived_increments and fine_step_at_precision_9_changes_the_value_through_every_route FAIL; restored and green",
+      "api": "additive: ControlError::StepNoEffect variant, ScrubParams.precision field; hsk-studio-harness (only dependent) cargo check --tests green, no exhaustive ControlError match",
+      "format": "cargo fmt not applied (crate is not rustfmt-clean at baseline); edits hand-formatted in crate style, value.rs CRLF preserved; clippy clean for controls",
+      "deferred_plausible_not_in_r3_list": [
+        "store.rs:207-209 gesture End with Err outcome leaves the gesture open",
+        "descriptor.rs integer step saturating_add no-op at i64::MAX (same defect class; integer path unchanged)"
+      ]
+    }
   }
 }

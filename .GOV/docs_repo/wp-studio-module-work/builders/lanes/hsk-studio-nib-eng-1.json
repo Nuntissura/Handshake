@@ -16,6 +16,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "owned path tests; to_kurbo validates first"
+    },
+    {
+      "sha": "07abf54180b751a296cb0df6c621e1b0799743a5",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Nib: exact canonical float encoding within the element budget (exponent form beyond 24 bytes), is_closed shares validate's subpath state machine; round-trip property test, exhaustive is_closed/validate equivalence (R3 remediation)"
     }
   ],
   "capabilities_done": [
@@ -26,16 +32,18 @@
     "to_canonical_json() / strict from_canonical_json() / content_sha256(): deterministic text, -0 normalised, shortest round-trip decimals, no unknown or duplicate fields, bounded input"
   ],
   "tests": {
-    "passed": 3,
+    "passed": 10,
     "failed": 0,
-    "command": "cargo test -p hsk-studio-nib --test owned_path --no-fail-fast",
+    "command": "cargo test -p hsk-studio-nib --tests",
     "cases": [
       "owned_path_validation_rules",
       "canonical_json_round_trip_and_strictness",
-      "kurbo_and_anchor_conversion"
+      "kurbo_and_anchor_conversion",
+      "canonical_json_round_trips_every_valid_path_within_budget",
+      "is_closed_agrees_with_require_closed_validation"
     ],
-    "regression": "full nib suite still green: 3 unit + 3 owned_path + 2 path_boolean; clippy clean for nib",
-    "tree": "shared edit tree at df2c896, not an export of the pushed SHA"
+    "regression": "full nib suite green: 3 unit + 5 owned_path + 2 path_boolean; clippy clean for nib; cargo check --tests green for the only dependents render-cpu and interop-vector",
+    "tree": "shared edit tree; nib has no uncommitted changes at 07abf54"
   },
   "decisions_for_lead": [
     "NO serde in nib: nib has no serde dependency and hand-rolls its strict encodings, so adding serde (plus its proc-macro closure) would have turned a validated crate's registry/probe pins red until the steward syncs. Serialization is canonical JSON text + SHA-256 (sha2 already a nib dependency); consumers that need serde Serialize wrap the canonical text (render-cpu does).",
@@ -44,7 +52,7 @@
   "cause_of_failed_run": "test fixture bug (an escape sequence in a strictness fixture was written as a plain character, so the fixture text was valid JSON); fixed in df2c896. The gameplan retry-guard was satisfied by a HEAD change, not bypassed.",
   "blockers": [],
   "next": "Independent validator round on df2c896; render-cpu consumes OwnedPath since f105552.",
-  "updated_at": "2026-10-11T09:10:00Z",
+  "updated_at": "2026-10-11T03:18:23Z",
   "notes": {
     "verdicts": [
       {
@@ -71,6 +79,31 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-NIB-ENG-1",
+      "fixes_commit": "07abf54180b751a296cb0df6c621e1b0799743a5",
+      "fixed": [
+        {
+          "failure_class": "canonical-json-exceeds-own-budget",
+          "cause": "f64 Display already yields shortest round-trip digits but never switches to an exponent, so 5e-324 is written as ~326 bytes against the 160 B/element budget and from_canonical_json refused its own output",
+          "fix": "write_number: plain Display text while <= 24 bytes (every ordinary value, so existing canonical text and content hashes are unchanged), else LowerExp ({:e}, shortest round-trip, <= 24 bytes); const assert 4 + 6*(1+24) + 2 <= ELEMENT_BUDGET_BYTES (160) so every valid path fits max_input_bytes",
+          "regression_test": "canonical_json_round_trips_every_valid_path_within_budget: [MoveTo(5e-324,-5e-324)] at max_elements=1, 17-digit e-300 worst case at full budget, plain-text pin for ordinary values, 400-case deterministic xorshift property (subnormals to 1e9, all element kinds): bit-exact round trip, canonical-text fixed point, equal sha, len <= max_input_bytes"
+        },
+        {
+          "failure_class": "is-closed-contradicts-validate",
+          "fix": "validate and is_closed share one subpath state machine (check_structure); is_closed = non-empty and check_structure(require_closed, no coordinate check) is Ok, so [M], [M,L,Z,M] and [M,Z] are not closed",
+          "regression_test": "is_closed_agrees_with_require_closed_validation: named cases plus exhaustive equivalence with validate(require_closed) over all 97656 verb sequences up to length 7"
+        }
+      ],
+      "red_proof": "static: old writer emitted ~696 B for the 5e-324 path vs 416 B budget; old is_closed returned true for [M] and [M,L,Z,M]. Not executed against old code in the nib lane (shared tree).",
+      "deferred_plausible_not_in_r3_list": [
+        "owned_path.rs:319 to_canonical_json/content_sha256 infallible on unvalidated paths",
+        "owned_path.rs:323 'strict inverse' doc wording vs tolerant reader"
+      ],
+      "side_finding_for_render_cpu_owner": "render-cpu tests, cpu_plan clip_to_base_hidden_base_lowering_shape_and_refusals fails at tests/cpu_plan.rs:1881 (matches!(error, BackendError::Unsupported{operator:\"clip_base_pass_through\"}) is false); the test uses no OwnedPath and render-cpu has no uncommitted changes; not investigated further",
+      "lesson": "wasted run E0689: unsuffixed integer loop variable before .is_multiple_of; suffix the type (0_u32..N) before calling methods on it"
+    }
   }
 }

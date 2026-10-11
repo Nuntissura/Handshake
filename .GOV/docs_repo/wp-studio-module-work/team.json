@@ -541,7 +541,7 @@
    "model": "sonnet",
    "role": "R3 remediation pigment/composite/render-cpu",
    "launched": "2026-10-11T03:01:38Z",
-   "status": "running"
+   "status": "done (276e2a3, 99a03e6, 9468d33)"
   },
   {
    "name": "fix-r3-render-gpu",
@@ -549,7 +549,7 @@
    "model": "opus",
    "role": "R3 remediation render-gpu (test integrity)",
    "launched": "2026-10-11T03:01:38Z",
-   "status": "running"
+   "status": "done b7d90dc"
   },
   {
    "name": "fix-r3-nib-controls-score",
@@ -557,7 +557,7 @@
    "model": "sonnet",
    "role": "R3 remediation nib/controls/score",
    "launched": "2026-10-11T03:01:38Z",
-   "status": "running"
+   "status": "done (07abf54, 605796f, 346b947)"
   },
   {
    "name": "fix-r3-session-components-media",

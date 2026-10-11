@@ -2,7 +2,7 @@
   "crate": "hsk-studio-components",
   "lane": "hsk-studio-components",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-2-complete",
+  "phase": "slice-2-complete + R3 remediation (override types, distinct member ids, dead-action reachability, resolvable switch/swap)",
   "commits": [
     {
       "sha": "69b63c1",
@@ -19,25 +19,30 @@
     {
       "sha": "f8b5328",
       "subject": "Components slice 2: auto layout (STU-DS-144..149 subset) as an own f64 evaluator with typed refusals; four hand-computed tests"
+    },
+    {
+      "sha": "0111960",
+      "subject": "Components R3: override types vs property/variable sources, distinct set member ids, dead actions add no reachability, switch/swap never return an unresolvable instance"
     }
   ],
   "capabilities_done": [
     "slice 1 (69b63c1..556237d): component definitions and variant sets, instances with property-granular overrides and STU-DS-116 precedence (Source + reads per field), variables with collections/modes/alias chains (AliasCycle, TypeMismatch, MissingModeValue), propose_overrides + check_footprint (same-key stale, disjoint admissible, record-level keys), swap_component/switch_variant/rematch_overrides with DroppedOverride (STU-DS-119), constraints MIN|CENTER|MAX|STRETCH|SCALE + resize_component, prototype flow validated against Folio artboards, instance_layer bridge, report()/DESCRIPTOR, components-consumer example",
     "slice 2 auto_layout.rs (f8b5328): solve_auto_layout(root, optional root resize, limits, cancel) -> pre-order PlacedBox list (parent-local rects, paint_rank, in_flow). Horizontal/vertical flow; wrap with line planning, counter_axis_spacing and counter_axis_align_content SPACE_BETWEEN; item_spacing incl. negative; four paddings; primary MIN/CENTER/MAX/SPACE_BETWEEN and counter MIN/CENTER/MAX alignment with per-child layout_align (INHERIT/STRETCH); FIXED/HUG/FILL sizing with min/max clamps (min>max = InvalidLayout), grow 0|1 equal share with clamp redistribution; ABSOLUTE children and plain-frame children placed by Constraints (STU-DS-048); arbitrary nesting (depth<=32, nodes<=4096); item_reverse_z_index as paint_rank; deterministic, inputs borrowed",
-    "slice 2 typed refusals: InconsistentSizing (container AUTO/FIXED vs layout_sizing, grow vs FILL, align vs STRETCH), InvalidLayout (ranges, clamp order, FILL root, placement), UnsupportedLayout (grid, baseline, strokes_included_in_layout, space_between_with_hug, wrap_with_hug_primary, fill_in_wrap, wrap_counter_hug_with_fill, hug_without_auto_layout)"
+    "slice 2 typed refusals: InconsistentSizing (container AUTO/FIXED vs layout_sizing, grow vs FILL, align vs STRETCH), InvalidLayout (ranges, clamp order, FILL root, placement), UnsupportedLayout (grid, baseline, strokes_included_in_layout, space_between_with_hug, wrap_with_hug_primary, fill_in_wrap, wrap_counter_hug_with_fill, hug_without_auto_layout)",
+    "R3 remediation (0111960): build_overrides checks each override value against the definition literal, the referenced component property type and the bound variable type; validate_set refuses duplicate member ids and a member sharing the set id (Duplicate); validate_flow adds reachability edges only for action_index 0; switch_variant and swap_component run check_shape (properties defined with the right types, VARIANT only on a set, kept overrides fit the target node) so an Ok result always resolves"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-components --tests --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-components --tests",
     "exit": 0,
-    "sha": "f8b5328",
-    "passed": 9,
+    "sha": "0111960",
+    "passed": 13,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 1,
   "bg_pids": [],
-  "next": "Independent validator: tests/instance_resolution.rs (5) and tests/auto_layout.rs (4) on pushed HEAD for crates/hsk-studio-components. Later: GRID flow (STU-DS-146/147/150), BASELINE (needs Layout/Type baselines), stroke accounting once the spec defines it, STU-DS-132 explicit variable modes per container, scale_factor (STU-DS-106), layout-grids, style registry, library publish, Layout reflow of text in resized instances; the queued Folio lane for design frames/auto-layout/components/variables/reactions will let the crate-local records move.",
-  "updated_at": "2026-10-11T02:49:28Z",
+  "next": "Independent validator: tests/instance_resolution.rs (9: 5 earlier + 4 R3 regression) and tests/auto_layout.rs (4) on pushed HEAD for crates/hsk-studio-components. Later: GRID flow (STU-DS-146/147/150), BASELINE (needs Layout/Type baselines), stroke accounting once the spec defines it, STU-DS-132 explicit variable modes per container, scale_factor (STU-DS-106), layout-grids, style registry, library publish, Layout reflow of text in resized instances; the queued Folio lane for design frames/auto-layout/components/variables/reactions will let the crate-local records move. R3 PLAUSIBLE not in this pass: write-footprint keys are not scoped to the instance (two instances of one component editing the same node/field share a key); swap_component refuses (does not drop and report) instance properties the target does not define.",
+  "updated_at": "2026-10-11T03:17:59Z",
   "notes": {
     "checks": "cargo check/clippy --tests --examples clean for hsk-studio-components; full clean-tree run of all test targets at f8b5328: 4 + 5 passed",
     "break_it_slice2": "three mutants applied then reverted (tree diff empty vs f8b5328): Center alignment divisor 2.0->3.0, grow clamp redistribution 'rem -= c' removed, hug content gap term removed. Result: flow_hug_gap_padding_alignment, fill_clamps_space_between_and_resize and nested_absolute_hug_fill_and_resize FAILED with the expected geometry deltas; wrap_lines_and_typed_refusals unaffected (no centre or grow-clamp path). Slice 1 mutants (constraints MAX, footprint check) were recorded earlier",
@@ -100,6 +105,36 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-COMPONENTS",
+      "commit": "0111960",
+      "findings_fixed": [
+        {
+          "finding": "override type checked only against a definition literal (instance_resolution.rs 684-689): a field driven by a property reference or variable binding took any type",
+          "fix": "build_overrides also checks prop_value_ok against the referenced PropertyDef and the bound Variable.resolved_type (TypeMismatch(field)); resolve_instance and propose_overrides share it",
+          "test": "override_value_type_is_checked_against_property_and_variable_types"
+        },
+        {
+          "finding": "validate_set never checked member component_id uniqueness",
+          "fix": "validate_set rejects a repeated member id and a member id equal to the set id (Duplicate); a refused set registers nothing",
+          "test": "set_members_must_have_distinct_ids"
+        },
+        {
+          "finding": "actions after the first (warned as never executing) still added reachability edges",
+          "fix": "prototype.rs adds an edge only for action_index 0; destinations of dead actions are still validated",
+          "test": "actions_after_the_first_add_no_reachability_edge"
+        },
+        {
+          "finding": "switch_variant on a plain instance returned Ok but the result refused to resolve (UnsupportedProperty)",
+          "fix": "switch_variant and swap_component call check_shape on the result: instance properties defined with matching type and value type, VARIANT properties only on a set, every kept override fits its target node (no variables needed); same class as the R3 PLAUSIBLE swap_component item",
+          "test": "switch_variant_and_swap_never_return_an_unresolvable_instance"
+        }
+      ],
+      "evidence": "cargo test -p hsk-studio-components --tests: 13 passed (4 auto_layout, 9 instance_resolution = 5 earlier + 4 new); cargo clippy -p hsk-studio-components --tests --examples clean (only pre-existing observe too_many_arguments warnings in the dependency)",
+      "api_compat": "no public signature or type changed; swap_component/switch_variant may now return typed errors where they previously returned an unresolvable instance",
+      "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
+    }
   }
 }

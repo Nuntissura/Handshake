@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:12:44Z",
+ "updated_at": "2026-10-11T03:19:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -141,8 +141,8 @@
    "lane_id": "SMB-SCORE",
    "crate": "hsk-studio-score",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score",
    "brief": "builders/briefs/hsk-studio-score.md",
    "commits": [
@@ -154,16 +154,17 @@
     "b2379a5",
     "4f549cc",
     "d339544",
-    "b5e9e19"
+    "b5e9e19",
+    "346b947"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-score.json",
-   "candidate": "b5e9e19",
+   "candidate": "346b947",
    "note": "exact-alignment resampler (5 pairs measured), bounce receipt; 16 tests; probe fix b2379a5",
    "review_findings": "R2-review-b CONFIRMED fixed: ramp cancel (b5e9e19, + chain stage case), exact resample count (d339544 + receipt b5e9e19); 3 PLAUSIBLE open",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 FAIL_V1 remediated 346b947 (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-REEL",
@@ -220,8 +221,8 @@
    "lane_id": "SMB-COMPOSITE",
    "crate": "hsk-studio-composite",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-composite",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite",
    "brief": "builders/briefs/hsk-studio-composite.md",
    "commits": [
@@ -230,22 +231,23 @@
     "e362ba6",
     "a6f2c7e",
     "118f8f8",
-    "26f835e"
+    "26f835e",
+    "99a03e6"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-composite.json",
-   "candidate": "26f835e",
+   "candidate": "99a03e6",
    "note": "clip-to-base lowered (pigment 4e533d5 MaskFormat::BaseAlpha); Approximate; typed Unavailable edge cases",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 findings remediated 99a03e6 (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-RENDER-CPU",
    "crate": "hsk-studio-render-cpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-cpu",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu",
    "brief": "builders/briefs/hsk-studio-render-cpu.md",
    "commits": [
@@ -255,37 +257,39 @@
     "1e3cfaf",
     "ff57d4a",
     "f105552",
-    "2d06a3a"
+    "2d06a3a",
+    "9468d33"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
    "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN; VectorFill on nib OwnedPath; deterministic parallel chunks",
-   "candidate": "2d06a3a",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "candidate": "9468d33",
+   "review_findings_r3": "R3 findings remediated 9468d33 (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-RENDER-GPU",
    "crate": "hsk-studio-render-gpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-gpu",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu",
    "brief": "builders/briefs/hsk-studio-render-gpu.md",
    "commits": [
     "a813cf3",
     "989d91d",
     "7e7579f",
-    "0551b8d"
+    "0551b8d",
+    "b7d90dc"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
-   "candidate": "0551b8d",
+   "candidate": "b7d90dc",
    "note": "slice1+2: 12 modes generated from pigment MODES, masks, groups, clip-to-base; parity 2.4e-7 DX12+Vulkan; typed no-adapter path",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 findings remediated b7d90dc (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-PACKAGE",
@@ -376,12 +380,17 @@
    "lane_id": "SMB-INTEROP-LAYOUT",
    "crate": "hsk-studio-interop-layout",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-layout",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-layout",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "d575678",
+    "958f431"
+   ],
+   "verdicts": [],
+   "candidate": "958f431",
+   "note": "IDML reader -> Folio pages/frames/stories; byte-exact story edit; export fixed point; INDD never readable; own bounded ZIP over miniz_oxide; 5 tests + break-it; slice2 reflow in progress"
   },
   {
    "lane_id": "SMB-INTEROP-MEDIA",
@@ -406,21 +415,22 @@
    "lane_id": "SMB-CONTROLS",
    "crate": "hsk-studio-controls",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-controls",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-controls",
    "brief": null,
    "commits": [
     "a1d0fbd",
     "2ea0c1e",
-    "62ea29a"
+    "62ea29a",
+    "605796f"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
-   "candidate": "62ea29a",
+   "candidate": "605796f",
    "note": "slice1+2: spec gestures (STU-FX-149, SHL-188..192), undo coalescing, report(), integer domain, sections; 9 tests",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 FAIL_V1 remediated 605796f (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-SESSION",
@@ -788,20 +798,21 @@
    "crate": "hsk-studio-pigment",
    "origin": "spec-reader-a report: no shared home for render-plan IR (no composite<->render edge)",
    "scope": "shared render-plan IR + backend port (candidate owner pigment), additive; migration of composite/render-cpu/render-gpu; plus single owner of per-pixel blend math + fidelity classes (composite 35-mode vs render-cpu 7-mode duplicate, CX-CAP-001)",
-   "phase": "done",
-   "status": "PASS_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "architect-render-ir",
    "commits": [
     "4c3ac91",
-    "4e533d5"
+    "4e533d5",
+    "276e2a3"
    ],
    "verdicts": [
     "STUDIO-R3 PASS_V1 @404ff3a"
    ],
-   "candidate": "4c3ac91",
+   "candidate": "276e2a3",
    "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it; clip-to-base route 4e533d5 (supports_clip_to_base default false)",
    "review_findings": "R2-review-a: PASS recommendation (no CONFIRMED findings); formal verdict pending next round",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 findings remediated 276e2a3 (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-ROUND-ENTRYPOINT",
@@ -913,19 +924,20 @@
    "crate": "hsk-studio-nib",
    "origin": "render-cpu: VectorFill path model local until nib owns serializable path",
    "scope": "additive serializable path type in nib; render-cpu migrates VectorFill to it",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu (reused)",
    "commits": [
     "59ef3b1",
-    "df2c896"
+    "df2c896",
+    "07abf54"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
-   "candidate": "df2c896",
+   "candidate": "07abf54",
    "note": "OwnedPath additive; canonical JSON + sha256; no serde in nib (lead accepted)",
-   "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
+   "review_findings_r3": "R3 FAIL_V1 remediated 07abf54 (regression tests fail on old code)"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-3",
@@ -1110,5 +1122,8 @@
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
- "dispatch_queue": []
+ "dispatch_queue": [],
+ "consolidation_candidates": [
+  "general bounded ZIP reading: interop-layout (in-crate) vs package (strict canonical container, no deflate) -> consider one owner for general bounded ZIP read (e.g. package exposing a non-canonical bounded reader) later"
+ ]
 }

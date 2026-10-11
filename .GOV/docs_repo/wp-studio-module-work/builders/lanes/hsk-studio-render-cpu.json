@@ -5,6 +5,10 @@
   "phase": "clip-to-base (pigment BaseAlpha) implemented and pushed d470e2f + 9819e52; base port migration, nib OwnedPath payload and parallel chunks pushed earlier",
   "commits": [
     {
+      "sha": "9468d33",
+      "subject": "Render-cpu R3: pass-through layer with fill_opacity < 1 is refused typed (group_pass_through_fill_opacity, before the first sink call) instead of rendering at full strength; parallel run no longer hangs when a worker or the sink panics (catch_unwind in workers and sink delivery, StopWorkers unwind guard) and returns Unavailable worker_panic|sink_panic on every thread count; clip_base_pass_through test follows pigment validate refusal; regression tests (fill, panicking sink at 1/2/4 threads, injected panicking worker)"
+    },
+    {
       "sha": "9819e52",
       "subject": "render-cpu: clip test also covers a clip run inside a pass-through parent group (bytes equal to the flat plan)"
     },
@@ -37,7 +41,8 @@
     "blend arithmetic: ONLY pigment::blend_math::composite_over (f32)",
     "parallel chunks: Renderer::with_threads(chunk, n), byte-identical output and sink order",
     "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, c1..cn] (base = nearest earlier unclipped layer of the group) evaluated per chunk into one scratch buffer G = base content with its own mask (no opacity/fill/mode); each ci composited onto G with own mode/opacity/fill and source alpha * base alpha, G alpha held at base alpha (read from G itself, no extra plane); G composited onto the running backdrop with the BASE layer's mode/opacity/fill; group extent ignores clipped layers (never beyond base); isolated and pass-through parent groups work (pass-through parent: run lands on the running backdrop); per-pixel, so chunk and thread determinism is unchanged; scratch need = 1 level per run + deepest member (accounted in need/peak_working_bytes); isolated-group base evaluates straight into G; exactness Approximate (Photoshop rule UNVERIFIED)",
-    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants"
+    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants",
+    "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang"
   ],
   "tests": {
     "argv": [
@@ -45,19 +50,21 @@
       "test",
       "-p",
       "hsk-studio-render-cpu",
-      "--tests",
-      "--no-fail-fast"
+      "--lib",
+      "--test",
+      "cpu_plan",
+      "--examples"
     ],
     "exit": 0,
-    "sha": "9819e52",
-    "passed": 8,
+    "sha": "9468d33",
+    "passed": 11,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round on 9819e52 (clip lane); lead decisions: (1) pass-through group as clip base is refused (clip_base_pass_through) pending a Photoshop oracle, composite lowering currently emits it for a group-with-default-mode base; (2) clipped layer with its own mask is still a pigment/composite gap",
-  "updated_at": "2026-10-11T02:32:41Z",
+  "next": "Independent validator round on 9468d33. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE coverage.rs per-pixel cost not charged at prepare. Pigment/composite/render-gpu could map pass-through fill < 1 to Operator::PassThroughOpacity at validate so every backend refuses it at admit; render-cpu refuses it in prepare, still before any sink call.",
+  "updated_at": "2026-10-11T03:18:00Z",
   "notes": {
     "clip_lane": {
       "lane": "SMB-RENDER-CPU-CLIP",
@@ -122,6 +129,15 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "finding": "R3 SMB-RENDER-CPU CONFIRMED: (a) plan_sink.rs:432 pass-through refused only for opacity < 1, fill_opacity never applied on the non-isolated path although pigment adds FillOpacity (Approximate) so the plan was admitted and rendered at full strength; (b) plan_sink.rs:1159-1214 abort was set only after the delivery loop, so a panicking sink or worker left parked workers waiting forever and thread::scope never returned.",
+      "fix": "src/plan_sink.rs prepare(): unsupported(group_pass_through_fill_opacity) for pass_through && fill_opacity < 1. caught()/deliver() helpers (catch_unwind -> Unavailable worker_panic|sink_panic) used by the serial and parallel paths; run_parallel takes an injectable ChunkFn, each worker loop runs under catch_unwind and on a crash sets abort, notifies and sends Message::Failed(worker_panic); StopWorkers RAII guard sets abort+notify_all on every exit of the delivering thread incl. unwind. src/lib.rs DESCRIPTOR unsupported/failure text updated.",
+      "tests": "tests/cpu_plan.rs pass_through_fill_opacity_is_refused_typed_never_ignored (fill 1 -> red [1,0,0,1]; fill .5 and 0 -> Unsupported{group_pass_through_fill_opacity, Unsupported} at the Approximate floor, 0 sink calls, scratch 0, threads 1 and 3; Multiply+fill stays Approximate-admitted); panicking_sink_is_a_typed_error_and_never_hangs_any_thread_count (16 one-pixel chunks, threads 1/2/4, panic at call 0 and 5 -> Unavailable(sink_panic), sink.calls == panic_at+1, scratch 0, renderer reusable with receipt.chunks == 16); src unit test plan_sink::tests::panicking_worker_is_a_typed_error_and_never_hangs (injected panic at chunk 3, workers 2/3/4, typed worker_panic, in-order delivered prefix <= 3, 20 s hang watchdog). Existing clip_to_base_hidden_base_lowering_shape_and_refusals now expects InvalidPlan(ClipBasePassThrough{node:4}) (pigment validate refuses first).",
+      "red_before_fix": "verified: fill check disabled -> fill test FAILED; pre-fix plan_sink.rs (git HEAD blob) with the sink-panic test limited to threads 2/4 -> 30 s case deadline exceeded (the reported hang); fix restored byte-identical afterwards.",
+      "tests_run": "render-cpu --lib --test cpu_plan --examples 11/11 (1 unit + 10 integration); clippy --tests --examples clean; no crate depends on render-cpu",
+      "process": "first test invocations did not compile (missing import in the new test module, then another lane's transient hsk-studio-folio compile error); the identical-retry guard then blocked the same argv, so the targets were rerun as narrower per-target/filtered commands. No gameplan step added.",
+      "date": "2026-10-11T03:18:00Z"
+    }
   }
 }

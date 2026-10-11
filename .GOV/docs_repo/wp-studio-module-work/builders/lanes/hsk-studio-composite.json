@@ -5,6 +5,10 @@
   "phase": "slice 3 + clip align: clipping lowered to pigment clip-to-base route; pass-through group as clip base is a typed Unavailable (5814f8d)",
   "commits": [
     {
+      "sha": "99a03e6",
+      "subject": "Composite R3: a hidden or empty clip base drops its clipped run in evaluation too (an Unavailable clipped layer no longer blocks the parent) and lowering stops checking that run's status for an empty base; regression test with hand-derived statuses, extents and layer counts"
+    },
+    {
       "sha": "5814f8d",
       "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"
     },
@@ -43,7 +47,8 @@
     "render plan: lower_to_render_plan(plan, report, snapshot, root, OutputTarget, &dyn TileInfoSource) -> RenderLowering{validated pigment RenderPlan, SourceKey->TileRef, mask planes, ledger}; appearance on each Layer; non-neutral root wrapped; hidden/empty dropped",
     "clipping: Folio `clipped` lowers to MaskInput::clip_to_base() on the clipped layer; base = nearest unclipped input below in the group (consecutive clipped layers share it); hidden or empty base drops its clipped layers; Unavailable (typed, never ignored) for: no base (bottom layer or clipped root), clipped layer with its own mask (one mask slot), clipped layer that is a pass-through group",
     "clip align (new, SMB-COMPOSITE-CLIP-ALIGN): a visible non-empty pass-through group (default group mode) serving as a clip base is Unavailable `clip_base_pass_through` at both evaluate (parent step status + ledger operator clip_base_pass_through Unsupported, receipt lowest Unsupported) and lower_to_render_plan (authoritative, exactly when a clipped layer would be emitted on that base), consistent with render-cpu's typed refusal; a hidden or empty pass-through base drops its clipped layers (no refusal); an isolated (non-pass-through) group base lowers normally",
-    "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer"
+    "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer",
+    "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals"
   ],
   "tests": {
     "argv": [
@@ -55,15 +60,15 @@
       "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "5814f8d",
-    "passed": 12,
+    "sha": "99a03e6",
+    "passed": 13,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 5814f8d. Open: Photoshop semantics for a pass-through group as clip base and for the clipping-group rule are UNVERIFIED (oracle pending); clipped layer with its own mask needs a second mask slot or a pigment node-alpha mask",
-  "updated_at": "2026-10-11T02:36:16Z",
+  "next": "Independent validator round on 99a03e6. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE items for composite (pigment Operator keys derived from literals, non-neutral pass-through root). Open from before: Photoshop semantics for a pass-through group as clip base and for the clipping-group rule are UNVERIFIED (oracle pending).",
+  "updated_at": "2026-10-11T03:18:00Z",
   "notes": {
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -141,6 +146,14 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
+      "fix": "src/evaluate_static.rs: StepEval::is_ready_and_empty (Ready with no extent; an Unavailable step is not empty); evaluate() tracks base_dropped = base hidden || ready-and-empty and `continue`s a clipped input under a dropped base before the status match (pass-through check unchanged for live bases). src/lower_render_plan.rs phase 1: base_live = base visible && !ready-and-empty, so the dropped run is not made reachable and its status is not checked; module doc updated.",
+      "test": "tests/render_plan_lowering.rs hidden_or_empty_clip_base_drops_its_clipped_run_even_when_that_run_is_unavailable: hidden base + clipped layer with own mask -> clipped step Unavailable(clipped_with_mask_unsupported) but root Ready/extent None and lowering gives an empty root; same for a visible empty raster base; control: visible non-empty base still blocks (root input_unavailable naming layer 3; lowering Unavailable clipped_with_mask_unsupported); [hidden base 2, clipped 3 dropped, base 6, clipped 7]: clipped 7 with own mask blocks naming layer 7 not 3, without the mask root Ready with extent (0,0)+16x16, lowering keeps [base 6, clipped 7] and 2 sources.",
+      "red_before_fix": "verified: against the pre-fix evaluate_static.rs/lower_render_plan.rs the new test fails (root status Unavailable input_unavailable:SLYR-...0003/source/out); fix restored byte-identical afterwards.",
+      "tests_run": "composite --tests --no-fail-fast 13/13 (static_plan 5, render_plan_lowering 8); clippy --tests --examples clean; no crate depends on composite",
+      "date": "2026-10-11T03:18:00Z"
+    }
   }
 }

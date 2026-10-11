@@ -2,7 +2,7 @@
   "crate": "hsk-studio-score",
   "lane": "hsk-studio-score",
   "status": "READY_FOR_VALIDATION",
-  "phase": "remediation of R2-review-b SMB-SCORE findings (ramp cancel step, resample exact count) pushed at b5e9e19; ready for independent validator round",
+  "phase": "R3 remediation pushed at 346b947 (bounce output side follows the output layout); 20 tests green; ready for independent validator round",
   "commits": [
     {
       "sha": "6e17a6a72883cd88a6282c60d8df4562c1458141",
@@ -39,6 +39,10 @@
     {
       "sha": "b5e9e193f26b85928077300eace80679ae7c627c",
       "subject": "Score: canceled ramp block keeps pre-block state (snapshot before cancel poll, Processor::commit so unstarted chain stages never revert), exact integer resample count with trimmed-tail receipt field, regression tests"
+    },
+    {
+      "sha": "346b947cf05c274d42bb99e3975e067d777f3135",
+      "subject": "Score: bounce sink, receipt labels, meters and digest follow the OUTPUT layout (stereo->mono and mono->stereo chains no longer drop or misreport channels); 2 regression tests (R3 remediation)"
     }
   ],
   "capabilities_done": [
@@ -53,17 +57,17 @@
     "R2 remediation: RampedGain cancel/discard keeps pre-block state exactly (Processor::commit, Chain forwarding); resample exact integer count with trimmed_tail_frames receipt field and zeroed unpublished tail; both with regression tests"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-score --tests --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-score --tests",
     "exit": 0,
-    "sha": "b5e9e193f26b85928077300eace80679ae7c627c",
-    "passed": 18,
+    "sha": "346b947",
+    "passed": 20,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "independent validator round on 4f549cc; then: bounce over a sample-rate-converting stage (ClipResampler inside a bounce), loudness (spec gap STU-FX-147) once the Operator selects a standard, score-device/score-plugin crates consume Processor + Engine::process",
-  "updated_at": "2026-10-11T02:23:56Z",
+  "updated_at": "2026-10-11T03:18:23Z",
   "notes": {
     "mt": "MT-35541",
     "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
@@ -130,6 +134,27 @@
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
       }
-    ]
+    ],
+    "r3_remediation": {
+      "round": "STUDIO-R3",
+      "lane": "SMB-SCORE",
+      "fixes_commit": "346b947cf05c274d42bb99e3975e067d777f3135",
+      "fixed": [
+        {
+          "failure_class": "bounce-uses-input-layout-for-output",
+          "cause": "Engine::bounce took channel count and labels for kept/sink/digest/receipt from request.layout (input) although accepts(in,out) allows different layouts: pan mono->stereo dropped R and reported the input label; stereo->mono hit ChannelMismatch (published_channel(1) None) after the first block",
+          "fix": "input side (stage, BlockSpec, admission counts) keeps request.layout; output side (digests, kept slices, sink chunks, receipt channels/labels/peak/rms, digest header and per-channel labels) uses the OutputBlock layout the processor was admitted against; digest scheme unchanged for layout-preserving chains (existing pinned digests still pass); BounceRequest/BounceChunk/BounceReceipt docs state input vs output",
+          "regression_tests": "tests/bounce_output_layout.rs: stereo_to_mono_chain_bounces_the_mono_output (Chain of ChannelMix stereo_to_mono, output mono label 200, exact samples, labels [200], digest equals a documented-scheme oracle built from sha256 alone) and mono_to_stereo_pan_keeps_both_output_channels (both channels exact, labels [100,101], 2-channel digest oracle, mismatched output block still refused before any chunk)"
+        }
+      ],
+      "red_proof": "old bounce.rs restored temporarily: both new tests FAIL (bounce_output_layout.rs:89 and :66); fixed file restored and green",
+      "dependents": "hsk-studio-score-device and hsk-studio-score-plugin cargo check --tests green; clippy clean for score",
+      "deferred_plausible_not_in_r3_list": [
+        "bounce.rs:201 chain_identity hashed after render (RampedGain identity)",
+        "layout.rs/resample.rs tick conversion duplicates accord Timescale (cap_duplicate)",
+        "block.rs:49 non-divisor rate admission in run_block",
+        "dsp.rs:549 / eq.rs:251 discard snapshot via commit hook; dsp.rs:82 f32::MAX gain publishes inf"
+      ]
+    }
   }
 }
