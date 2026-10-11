@@ -1,0 +1,168 @@
+{
+ "round": "STUDIO-R9",
+ "group": "A (pigment, composite, render-cpu, interop-psd)",
+ "reviewed_commit": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+ "reviewer": "independent adversarial reviewer A (Opus), read-only, committed blobs at 4d80e50 only (git archive 4d80e50 / f6e5a49 of pigment, composite, render-cpu, render-gpu, interop-psd, develop, folio into the session scratchpad; git diff f6e5a49..4d80e50), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T13:56:13Z",
+ "updated_at": "2026-10-11T14:14:28Z",
+ "severity_rule": "CONFIRMED only with file:line at 4d80e50 (or kernel file/key for process facts); else PLAUSIBLE. Paths relative to handshake-studio-assets/ at 4d80e50 unless marked @f6e5a49.",
+ "scope_note": "group A commits f6e5a49..4d80e50: a5eff01 (interop-psd), a873234 + 1c80811 (pigment), 8ca30dd (render-cpu), 07f6abd (composite). Root Cargo.toml/Cargo.lock change is the web html5ever registry entry only.",
+ "lanes": [
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "diff_reviewed": "07f6abd (src/lower_render_plan.rs record_envelope + two doc comments, src/lib.rs DESCRIPTOR, tests/render_plan_lowering.rs +1 test); git log f6e5a49..4d80e50 -- crates/hsk-studio-composite = 07f6abd only (V4-14 ok; ledger lanes[SMB-COMPOSITE-ADJ].commits lists 07f6abd)",
+   "checked": "Failure class 'plan-level-effect-limit-lowered-ok-then-refused-at-admission' and its generalisation (any backend-independent InvalidPlan refusal of admit_extended that lowering returns Ok for). (1) pigment admit_extended (crates/hsk-studio-pigment/src/render_plan/extensions.rs:457-507) = admit_core (render_plan.rs:967-1014: RenderPlan::validate(&PlanLimits::default()) -> InvalidPlan) + PlanExtensions::validate (extensions.rs:269-420; Knockout/AdjustmentUnsupported/EffectUnsupported -> Unsupported, every other PlanError -> InvalidPlan) + per-operator classes + admit_plan_rules. (2) composite: RenderPlan::validate with the same PlanLimits::default() at src/lower_render_plan.rs:921-923 (map_err Plan); per-entry probes :319-335 (only AdjustmentUnsupported carried, every other error returned); whole-envelope validate :349-369 now matched, Err(other) => CompositeError::Plan(other) (:368). (3) Rules of PlanExtensions::validate that depend on more than one entry: ExtensionDuplicate (:287-289, seen set), the running total_effects vs MAX_EFFECTS_PER_PLAN (:336-339) and the EffectsNested operator (:358-365); all three now reach composite via the whole probe. (4) Probe equivalence: the whole probe differs from the real envelope only by knockout cleared and the adjustment dropped on entries whose own probe returned AdjustmentUnsupported (:349-361). Admission's validate returns the FIRST error in entry order; every entry before the first knockout/carried entry is identical in both envelopes with the same running state (seen, total_effects), so any InvalidPlan admission would return is also returned by the probe; at or after a carried entry admission returns Unsupported (knockout/adjustment key) which the ledger already records. No InvalidPlan refusal of admit_extended can follow an Ok lowering. (5) Other pigment calls in composite src: the V4-06 regex gives 9 hits at 4d80e50 (evaluate_static.rs:114,115,474; lib.rs:124; lower_extensions.rs:661,678; lower_plan.rs:265,350; examples/composite-consumer.rs:96) = notes.remediation_R8.v4_06_sites (9, all NOT_APPLICABLE, verdicts re-read and agree); the semantic sweep (5 direct validate/admit/prepare calls: evaluate_static.rs:474, lower_extensions.rs:555, lower_render_plan.rs:322, :362, :922) agrees. admit_plan_rules: pass-through mask mirrored since 7011298; composite emits only placeholder Solids rgba [0;4] (lower_render_plan.rs:812), so sample_range cannot trigger; premultiplied is caller-supplied target alpha (disclosed in plausible_not_addressed). (6) Test tests/render_plan_lowering.rs:2414-2497 plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission uses pigment's constants (no literal): 64x64 lowers+validates+admits; 65x64 -> Plan(EffectLimit); smallest overshoot compares the lowering error with admit_extended's InvalidPlan for the same plan including the node; hidden layer not counted; knockout and a carried modern brightness/contrast do not hide the limit; carried adjustment at the limit still lowers and admission refuses brightness_contrast. Red on the pre-fix tree (lane red_proof: 6d232da scratch, only the test file copied, fails at the 65x64 case); I confirm by reading that the f6e5a49 record_envelope (is_ok_and) returns Ok for that envelope, so the assertion at :2436 would panic if 07f6abd's src change were reverted.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_contradiction (V4-07 adjacent)",
+     "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:399-400 vs :430-434",
+     "evidence": "The same doc block of lower_to_render_plan_extended still says 'Use evaluate_extended for the report: it refuses the same cases' and, 30 lines lower, that the plan-wide effect limit 'is decided here, not by evaluate_extended'. After 07f6abd a 65x64 document evaluates Ready (effects Approximate) and fails only at lowering. The DESCRIPTOR states the exception correctly; the first sentence is now false.",
+     "remediation": "Reword :400 to 'it refuses the same per-step cases; plan-wide rules (plan_effect_limit) are decided at lowering'"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "refusal_reason_differs_from_admission (no admitted-then-refused)",
+     "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:349-369 vs crates/hsk-studio-pigment/src/render_plan/extensions.rs:290-295, :307-313",
+     "evidence": "Because carried features are removed from the whole probe, a plan with a knockout or a modern brightness/contrast entry BEFORE the over-limit entries is refused by lowering as plan_effect_limit, while admit_extended on the same envelope would refuse it first as knockout_shallow / brightness_contrast (entry order). Asserted on purpose by the test (tests/render_plan_lowering.rs:2475-2486). Both refuse before any sink call; only the reported reason differs. Accepted design per notes.remediation_R8.decisions; recorded so a host does not rely on the lowering error naming the admission key.",
+     "remediation": "None required; optionally note in the record_envelope doc that the lowering may name a different (later) envelope defect than admission"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "STUDIO-R8 SMB-COMPOSITE-ADJ FAIL_V2 plan-level-effect-limit-lowered-ok-then-refused-at-admission (R8-review-a CONFIRMED under SMB-FX-OPS-ADOPT, charged by the validator)",
+     "fix_commit": "07f6abd",
+     "evidence": "crates/hsk-studio-composite/src/lower_render_plan.rs:362-369 (:368 Err(other) => CompositeError::Plan(other)); test tests/render_plan_lowering.rs:2414 (65x64 -> Plan(EffectLimit); lowering error == admit_extended InvalidPlan for the one-over case). The class is gone at every composite site that calls pigment validate/admit (5 sites) and no InvalidPlan refusal of admit_extended can follow an Ok lowering (probe equivalence argument above)."
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Remediation names the R8 class and fixes it at the only discarding site; test is red on revert and compares with pigment's own admission. Two PLAUSIBLE notes (doc sentence, refusal reason order), no product defect.",
+   "reviewed_at": "2026-10-11T14:01:14Z"
+  },
+  {
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "diff_reviewed": "a873234 + 1c80811 (pigment src/render_plan.rs, tests/admit_parity.rs), 8ca30dd (render-cpu src/plan_sink.rs exactness + comment, src/plan_sink/refusal_keys.rs cfg(test)); git log f6e5a49..4d80e50 -- crates/hsk-studio-pigment = a873234, 1c80811; -- crates/hsk-studio-render-cpu = 8ca30dd (V4-14 ok; ledger lanes[SMB-PARITY-FOLLOWUP].commits lists all three)",
+   "checked": "(1) reachable_nodes (crates/hsk-studio-pigment/src/render_plan.rs:559-572): iterative DFS from the root over Group layer inputs; a node is marked once (get_mut + seen guard), so cycles in an unvalidated plan terminate and a shared child is visited once; an out-of-range root or input is skipped (get_mut None), never indexed; a leaf root marks itself only; every layer input of a reached group is pushed regardless of mode, opacity, mask or clip role, so clip runs (base and clipped layers are layers of one group) and adjustment placeholders are reached; pushes happen only on first visit, so pending is bounded by total layers + 1. Backend traversal: render-cpu plan_sink.rs:456-468 (skip :476) and render-gpu plan_sink.rs:389-401 (skip :415) mark reach[root] and, for i from n-1 down, every input of a reached group; on a plan that passed RenderPlan::validate (ForwardReference render_plan.rs:433-438, RootOutOfRange :396-398) that is the same set. Every predicate call in admission follows admit_core's validate (render_plan.rs:980-982; then :1001, :1007, admit :869, admit_plan_rules :909-925, extensions.rs:417). (2) Target: uses_premultiplied_alpha returns true for the target before reachability (:604-606), as both backends check target.alpha before the node loop (render-cpu :450-452, render-gpu :383-385). (3) Per-predicate parity with the backends' reached-node checks: pass-through fill (render-cpu :562-564), Solid range (render-cpu unit_rgb :334-342 called at :500; render-gpu :441-446), mask density (render-cpu :607-609; density != 1.0 equals density < 1.0 under validate's unit range :516-518), pass-through mask (render-cpu :612-614), premultiplied tile (render-cpu verify_tile :397-399, reached nodes only). Same sets, same keys. (4) Routing: render-cpu :1424 and render-gpu :1151 take the v1 path when the envelope is empty and has_mask_density() is false; with an unreachable density mask only, v1 admit admits and prepare skips the node: consistent. composite's has_mask_density call (lower_render_plan.rs:337) sees only emitted (reachable) steps. (5) render-cpu exactness plan_sink.rs:1675-1688: Mask(CoverageU8 | CoverageU16Le) Exact, Mask(BaseAlpha) Approximate, any other Mask Unsupported, matching prepare's readers (:617-626). (6) Tripwire render_plan.rs:1029-1069 (in-crate cfg(test), so #[non_exhaustive] does not apply) matches MaskFormat exhaustively (:1037-1051): a fourth variant fails cargo check --tests (lane red proof E0004). (7) Tests tests/admit_parity.rs: premultiplied_alpha_is_a_declared_capability (unreachable tile now admits), unreachable_nodes_are_not_counted_like_the_backends, unreachable_pass_through_fill_..., unreachable_solid_outside_unit_..., unreachable_mask_density_...: each asserts the predicate false and admission Ok for the unreachable case and the same key as before for the reached case, directly and through a chain (and as leaf root for the Solid); hostile root/input do not panic. Each would fail on the f6e5a49 predicates (all-node iteration returns true for the unreachable node; the lane's red proofs at admit_parity.rs:416, :531, :675, :727, :786 agree). (8) V4-06: regex_a nodes\\.iter\\(\\) = 7 hits at 4d80e50 (extensions.rs:254; render_plan.rs:408,544,588,608,943,955) = sites_a 7; regex_b = 3 hits in render-cpu src excluding refusal_keys.rs (plan_sink.rs:1688,1721,1740) = sites_b 3; verdicts re-read and agree. (9) Hostile sizes: reachable_nodes allocates nodes.len() bools and at most layers+1 indexes, indexes only through get/get_mut; called a handful of times per admission after validate bounded the plan (PlanLimits).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "one_directional_parity_pin",
+     "file_line": "crates/hsk-studio-pigment/tests/admit_parity.rs:190-212 (Claims doubles; executes() runs the double, not a real backend) vs crates/hsk-studio-render-cpu/src/plan_sink.rs:456-481 (reach, `if !reach[i]` skip); no render-cpu or render-gpu test asserts that an unreachable node is skipped (grep 'unreachable' over render-cpu tests/ and src/plan_sink/refusal_keys.rs and render-gpu tests/: no hit)",
+     "evidence": "The five predicates are correct only because both backends skip unreachable nodes before verify_tile and before every layer check. The new tests prove the pigment side against doubles. If a backend later verifies every tile or checks every group (for example to pre-hash sources), pigment would admit a plan with an unreachable premultiplied tile, masked or filled pass-through layer, HDR Solid or density mask and the backend would refuse it after admission: the R5/R7 class again, with no red test anywhere.",
+     "remediation": "Add one render-cpu refusal_keys test that executes a plan whose only premultiplied tile, masked pass-through layer, HDR Solid and density-0.5 mask sit on unreachable nodes and asserts Ok with sink calls (render-gpu when D20 reopens it)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "claim_scope (carried: R8-review-a SMB-PIGMENT-FX-OPS stricter_than_backends_on_unreachable_nodes; same split as open PLR-058, not re-raised)",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:254 (nodes_holding_effects over every node), :278-416 (operators collected from every envelope entry, reachable or not) vs commit 1c80811 subject and lane capabilities_done 'every admission predicate now matches the backends'",
+     "evidence": "The claim holds for the five RenderPlan predicates. PlanExtensions::validate still asks the backend for the operators of entries on unreachable groups (Effect(kind), Adjustment(kind), BlendIf, MaskFeather, EffectsNested through nodes_holding_effects), and RenderPlan::validate collects v1 operators from every node (PLR-058, open FIX_LANE). Refused-but-renderable direction only; composite emits entries for reachable steps only, so Studio's own plans are unaffected; lane notes.v4_06.sites_a classes extensions.rs:254 NOT_APPLICABLE for that reason.",
+     "remediation": "Fold the envelope half into the PLR-058 fix lane (capability collection reachable-only for envelope entries and nodes_holding_effects; structural checks stay all-entries); until then word the claim as 'every RenderPlan admission predicate'"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "R8-review-a SMB-PIGMENT-ADMIT-PARITY CONFIRMED misclassified_site_latent_admitted_then_refused (render-cpu Operator::Mask(_) => Exact; MaskFormat missing from the tripwire)",
+     "fix_commit": "8ca30dd (render-cpu), a873234 (pigment tripwire)",
+     "evidence": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1675-1688 (named Exact formats, Mask(_) => Unsupported); crates/hsk-studio-pigment/src/render_plan.rs:1037-1051 (MaskFormat matched exhaustively in the in-crate tripwire); test plan_sink/refusal_keys.rs mask_formats_are_declared_by_name (disclosed: cannot be red with three variants; fall-through proven by the lane's scratch fourth variant)"
+    },
+    {
+     "prior": "R8-review-a SMB-PIGMENT-ADMIT-PARITY CONFIRMED decision_doc_misstates_backend_behaviour (pigment predicates read every node, backends reachable only)",
+     "fix_commit": "a873234 + 1c80811 (lead decision 2026-10-11T13:09:17Z, all five predicates)",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:542-552, :586-596, :603-614, :941-949, :953-965 all gate on reachable_nodes (:559-572); kernel diagnostics topic admission-parity row alpha_premultiplied carries the correction; tests/admit_parity.rs four new tests + the changed premultiplied case"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Reachable is defined exactly as the backends' traversal on every validated plan (the only plans the predicates see in admission), hostile indexes cannot panic, the mask-format arm is safe by construction and the tripwire forces a decision for a new variant. No admitted-then-refused case found; remaining refused-but-renderable cases are the open PLR-058 split (envelope half noted). Two PLAUSIBLE notes.",
+   "reviewed_at": "2026-10-11T14:05:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "diff_reviewed": "a5eff01 (src/effects.rs, src/error.rs, src/lib.rs DESCRIPTOR, src/proposal.rs, tests/effects_budget.rs +3); git log f6e5a49..4d80e50 -- crates/hsk-studio-interop-psd = a5eff01 only (V4-14 ok; ledger lanes[SMB-INTEROP-PSD-BUDGET].commits lists a5eff01). Compared with f6e5a49 (old/ export) for behaviour change.",
+   "checked": "(1) Limits imported, not copied: src/effects.rs:29 re-exports hsk_studio_pigment::effect_math::{MAX_EFFECTS_PER_LAYER, MAX_EFFECTS_PER_PLAN}; :38 const assert keeps pigment's per-layer limit inside Folio's MAX_EFFECTS (1024). (2) Per layer: map_stack (effects.rs:354-409) refuses the stack with EFFECTS_OVER_BUDGET when a 65th instance maps (:394-397); collect_records (proposal.rs:483-554) records it as LossKind::Unsupported with path layer[i]/tagged/lfx2(layer_id=<minted id>) (:539-541), the layer and its other record features stay, the lfx2 block stays in the document (no export path touches effects: export.rs has no lfx2/effects use). Failed instance maps only add notes; the loop is bounded by the descriptor reader caps (512 per container, 8192 total). (3) Per document: running aggregate checked_add + filter <= MAX_EFFECTS_PER_PLAN -> PsdError::EffectLimit (proposal.rs:530-534), a new variant with code psd_effect_limit (error.rs:27, :64); PsdError has no consumer outside this crate (git grep at 4d80e50). (4) Node budget: needed = records + kept instances (proposal.rs:1739, checked_add -> Overflow), records_budget = Budget { nodes: max(cfg.budget.nodes, needed), ..cfg.budget } (:1740) used only for validate_raster_records (:1743); folio charges exactly r.layers.len() (raster.rs:1019) and each stack's effects.len() (raster.rs:757), so needed is the exact need (asserted at the boundary by the at-limit test). inspect_bytes on the document still uses cfg.budget unchanged (:1724). (5) Tests tests/effects_budget.rs: 6x700 + 64 + 65 + 1 imports with exactly 7 effects_over_budget losses naming the layer, kept stacks intact, byte-exact write_psd round trip, kept records validate under the default budget; 64x64 imports fully, need asserted exactly (needed ok, needed-1 BudgetExceeded); 65x64 and 64x64+1 give psd_effect_limit and not Proposal. All use pigment's constants; each would fail at f6e5a49 (old per-layer cap 1024 and cfg.budget at validation: f6e5a49 src/effects.rs:381-382, src/proposal.rs:1718), as the lane's red proof on f4b47cd (3/3) shows. (6) V4-06: the lane regex over src (comment lines excluded) gives 26 hits at 4d80e50, exactly the 26 listed sites; verdicts re-read and agree. V4-01: effects.rs:22 and proposal.rs:35 keep deny(clippy::arithmetic_side_effects); new arithmetic is checked_add only. V4-02: aggregate test present (4097/4160 refused, 4096 accepted). V4-07: error.rs EffectLimit doc, proposal.rs:1733-1738 comment ('The input cannot exhaust it') and DESCRIPTOR effect_limits cite tests.",
+   "budget_rule_judgement": "Question: does nodes = max(caller nodes, records + instances) override a caller's explicit safety bound, and is memory still bounded by a documented hard cap? Answer: (a) YES it overrides a smaller caller Budget::nodes for the record validation (proposal.rs:1740): a host that sets nodes = 500 no longer gets a refusal from that validation for an effect-heavy file (it may still be refused earlier by inspect_bytes of the document with its own nodes, :1724, when layers + operations exceed 500). (b) Budget::nodes was never the memory bound for the records: Builder holds every record and mapped stack before validation (proposal.rs:456, :1731), so the caller's nodes only turned an already-built proposal into an import failure. (c) Memory and validation work stay bounded: records <= Limits::max_layers (document.rs:349-350; default 8192, caller-owned) and kept instances <= MAX_EFFECTS_PER_PLAN 4096 (proposal.rs:530-534), so needed <= max_layers + 4096; this is TIGHTER than f6e5a49 for instances (then up to 1024 per layer x max_layers, no document cap). (d) The cap is documented only in the internal comment (proposal.rs:1733-1738) and the lane notes; the public surface does not say it: ProposalConfig.budget has no doc (proposal.rs:121) and DESCRIPTOR effect_limits says 'record_validation_nodes_are_sized_from_the_input_as_records_plus_instances' without 'a smaller caller nodes is raised' or the bound. Judgement: acceptable bound, public contract undocumented (PLAUSIBLE finding below).",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "undisclosed_behaviour_regression / plan_rule_applied_document_wide (PLR-053 class narrowed, not closed)",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:530-534 (aggregate over every mapped stack, whole import Err(PsdError::EffectLimit)) and src/effects.rs:223, :357 (disabled instances and a disabled stack are mapped and counted) vs @f6e5a49 crates/hsk-studio-interop-psd/src/proposal.rs:1718 (only caller Budget::nodes) and crates/hsk-studio-composite/src/lower_extensions.rs:569-585 (pigment/composite count live instances of enabled stacks), crates/hsk-studio-composite/src/lower_render_plan.rs:430-434 (plan-wide limit is root-dependent and deliberately NOT applied document-wide)",
+     "evidence": "MAX_EFFECTS_PER_PLAN is a render-plan rule (effects of the layers one plan renders from a root, live instances only); composite's 07f6abd explicitly declines a document-wide count because it 'would over-refuse'. a5eff01 applies the same constant to the whole document, counting hidden layers, disabled instances and disabled stacks, and fails the WHOLE import. Consequences: (1) a valid PSD with more than 4096 mapped instances (e.g. 1400 layers x 3 effects, any of them hidden or switched off) cannot be imported at all, although every root composite would lower could be within the limit (and an over-limit root is already refused typed at lowering by 07f6abd); (2) regression: at f6e5a49 such a document imported under a caller Budget::nodes >= records + instances (no document cap; per-layer cap 1024); at 4d80e50 it fails regardless of the caller's budget. Neither consequence is disclosed: lane notes.not_fixed lists only the per-layer enabled-vs-mapped difference, and the commit subject says 'an effects-heavy valid PSD no longer fails the whole import'. A typed degrade with the same memory bound was available on the existing path: once the aggregate would pass 4096, map further stacks to the effects_over_budget typed loss (lfx2 stays byte-exact) and keep importing. Frequency of >4096-instance Photoshop documents UNVERIFIED (no corpus).",
+     "remediation": "Replace the whole-import Err at proposal.rs:530-534 by a per-stack typed loss once the running total would exceed MAX_EFFECTS_PER_PLAN (keeps records <= 4096 instances and the node bound), add a test with > 4096 instances that imports with typed losses; or the lead records an explicit decision accepting a document-wide cap that counts hidden/disabled instances and the lane discloses the f6e5a49 regression"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "caller_bound_overridden_public_contract_undocumented",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:1740 (nodes = max(cfg.budget.nodes, needed)) vs :121 (ProposalConfig.budget, no doc) and src/lib.rs:82 (DESCRIPTOR effect_limits)",
+     "evidence": "See budget_rule_judgement: the caller's explicit smaller Budget::nodes is silently raised for record validation, up to Limits::max_layers + 4096. Memory stays bounded (records were already built before validation; the new pigment caps make it tighter), so this is not a safety defect, but no public doc tells a host that Budget::nodes no longer bounds record validation. Related disclosed residual (not_fixed[2]): a host that re-validates ImportProposal::raster_records with its own default Budget, as the DESCRIPTOR raster_records text invites ('validated by validate_raster_records', lib.rs:81), gets BudgetExceeded from about 4000 instances, and ImportProposal exposes no needed-node helper.",
+     "remediation": "Document on ProposalConfig.budget and in DESCRIPTOR effect_limits: 'Budget::nodes bounds the document; record validation uses max(nodes, records + effect instances) <= limits.max_layers + MAX_EFFECTS_PER_PLAN'; optionally expose ImportProposal::record_validation_budget(&Budget)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_disclosed (not_fixed[1], not re-raised as new)",
+     "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:394-397 (65th mapped instance, enabled or not, drops the whole stack)",
+     "evidence": "Disclosed by the lane: a stack with more than 64 mapped instances of which 64 or fewer are live loses every effect, including the live ones pigment would accept. Recorded here only because it is the per-layer half of the CONFIRMED item (same root: counting mapped instead of live).",
+     "remediation": "Fold into the CONFIRMED remediation if the lead wants live-only counting for the plan rules (Folio still charges all instances; the node need stays records + all kept instances)"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "PLR-053 (R8-review-b PLAUSIBLE, SMB-INTEROP-PSD-ADJ): ~4096 effect instances exhaust folio's default node budget and the whole import fails as raster_records_rejected (mapping-defect code)",
+     "fix_commit": "a5eff01",
+     "evidence": "Up to pigment's per-plan limit the class is gone: per-layer typed loss (effects.rs:394-397, proposal.rs:539-541), input-sized record budget (proposal.rs:1739-1743); tests effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports and effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input. Above 4096 mapped instances the whole import still fails (now typed psd_effect_limit): see the CONFIRMED item."
+    }
+   ],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The per-layer degrade, the imported limits, the exact node sizing and the tests are sound, and the budget rule keeps memory bounded (it does override a smaller caller Budget::nodes; document it). FIX_FIRST because the new document-wide refusal counts hidden layers and disabled instances, fails the whole import, and regresses documents that imported at f6e5a49 under a larger caller budget, undisclosed. Becomes PASS_WITH_NOTES if the lead records a decision accepting that document cap and the lane discloses the regression.",
+   "reviewed_at": "2026-10-11T14:12:08Z"
+  }
+ ],
+ "cx_val_009_sweep": {
+  "scope": "R8 PASS claims in the crates changed f6e5a49..4d80e50 or depending on the changed pigment: pigment (ENG-1, ENG-2, EFFECTS-WAVE-1/2, WINDOW, BLENDIF-CLIP, FX-OPS, ADMIT-PARITY), render-cpu (RENDER-CPU, CLIP, ADJ, WINDOW, FX2, REFUSAL-KEYS part), render-gpu (RENDER-GPU-ADJ, REFUSAL-KEYS/FX-OPS-ADOPT parts; SMB-RENDER-GPU excluded D20), composite (COMPOSITE, CLIP-ALIGN, BLENDIF-CLIP-ADOPT, FX-OPS-ADOPT, REFUSAL-KEYS part), interop-psd (INTEROP-PSD, WIDE, RECEIPT, CLIP-ROLES, ADJ), develop (DEVELOP, WIDE, JOBS)",
+  "method": "git diff f6e5a49..4d80e50 per crate (only pigment, render-cpu, composite, interop-psd changed among group-A crates; root Cargo.toml/Cargo.lock change = web html5ever registry entry only); every caller of the changed pigment predicates (git grep at 4d80e50: render-cpu plan_sink.rs:1424, render-gpu plan_sink.rs:1044, :1151, composite lower_render_plan.rs:337, pigment extensions.rs:417); existing test assertions that the change could flip (grep of the moved refusal keys over dependent tests) read for reachability",
+  "result": "NO_BREAK_FOUND",
+  "per_crate": [
+   {
+    "crate": "hsk-studio-pigment",
+    "changed_by": "a873234, 1c80811",
+    "finding": "Behaviour change on purpose (lead decision 2026-10-11T13:09:17Z): the five admission predicates now ignore unreachable nodes, so plans whose only offending node is unreachable are admitted (they were refused; both backends execute them). This supersedes the R8 ADMIT-PARITY claim that uses_premultiplied_alpha reads every node: one existing assertion was flipped (tests/admit_parity.rs:408-417, recorded as tests_changed in the lane file); ENG-1 pass_through_fill, ENG-2 mask_density and the sample_range DESCRIPTOR claims are re-scoped to reachable nodes and their tests use reachable nodes only (tests/plan_extensions.rs:350, :416, :469 over plan() with root 2 reaching nodes 0 and 1, :29-56), so they still assert the refusals. effect_math, blend_math, adjust_math, extensions.rs untouched (WAVE-1/2, WINDOW, BLENDIF-CLIP, FX-OPS claims stand)."
+   },
+   {
+    "crate": "hsk-studio-render-cpu",
+    "changed_by": "8ca30dd",
+    "finding": "exactness answers are identical for the three existing MaskFormat variants; prepare unchanged except a comment. Existing refusal tests (tests/cpu_plan.rs:1245, :1256, :1323, :1379, :1939; tests/cpu_extended.rs:277) build reachable nodes, so the pigment predicate change does not flip them. Routing at plan_sink.rs:1424 follows has_mask_density on the same reachable set as prepare."
+   },
+   {
+    "crate": "hsk-studio-render-gpu (dependency closure only; no source change)",
+    "changed_by": "none (pigment closure)",
+    "finding": "Same reachable set as pigment now (plan_sink.rs:389-401, skip :415); routing :1151 consistent; leaf_root_class :1044 unchanged. RENDER-GPU-ADJ claims stand; GPU parity proofs remain adapter-dependent (V4-03)."
+   },
+   {
+    "crate": "hsk-studio-composite",
+    "changed_by": "07f6abd",
+    "finding": "Only record_envelope changed: lowering now refuses whole-envelope defects (more refusals, none removed) and records effects_nested also when a carried adjustment used to end the probe early (more complete ledger). FX-OPS-ADOPT 'ledgers record effects_nested like pigment' still holds; COMPOSITE, CLIP-ALIGN, BLENDIF-CLIP-ADOPT, REFUSAL-KEYS code untouched. Composite emits reachable steps only, so the pigment predicate change cannot alter its lowering ledger."
+   },
+   {
+    "crate": "hsk-studio-interop-psd",
+    "changed_by": "a5eff01",
+    "finding": "INTEROP-PSD-ADJ R8 PASS ('effect stacks mapped to records') is narrowed by the new limits: a layer with 65-1024 mapped instances now loses its stack as effects_over_budget (was kept under Folio's 1024 cap, old code effects_limit, effects.rs:381-382 @f6e5a49; no R8 test or DESCRIPTOR text cited effects_limit, grep at f6e5a49) and a document over 4096 mapped instances fails the whole import (see the lane's CONFIRMED item; charged to SMB-INTEROP-PSD-BUDGET, not to ADJ). CLIP-ROLES / effects_with_blend_if loss entries unchanged for kept stacks. WIDE, RECEIPT untouched."
+   },
+   {
+    "crate": "hsk-studio-develop (dependency closure only)",
+    "changed_by": "none",
+    "finding": "develop uses only pigment Grid and Rect (src/pipeline.rs:12), no render_plan API; unaffected."
+   }
+  ],
+  "v4_checks": "V4-01/02: new code has no unchecked arithmetic on input sizes (reachable_nodes indexes via get/get_mut; composite uses a BTreeSet; interop-psd checked_add with typed EffectLimit/Overflow) and interop-psd has the aggregate test. V4-06 counts recomputed at 4d80e50: composite 9 = 9, parity regex_a 7 = 7 and regex_b 3 = 3, interop-psd 26 = 26. V4-07: new never/cannot claims cite tests (composite DESCRIPTOR proof map, pigment DESCRIPTOR admission_parity/pass_through_fill/mask_density/sample_range, interop-psd error.rs and proposal.rs:1733-1738); one stale sentence noted (composite lower_render_plan.rs:400)."
+ },
+ "pending_lanes": [],
+ "completed_at": "2026-10-11T14:14:28Z",
+ "summary": "SMB-COMPOSITE-ADJ PASS (R8 FAIL_V2 class gone: whole-envelope validate error now returned, no InvalidPlan admission refusal can follow an Ok lowering; 2 PLAUSIBLE doc/reason notes); SMB-PARITY-FOLLOWUP PASS (reachable_nodes equals the backends' traversal on validated plans; mask formats named; tripwire covers MaskFormat; 2 PLAUSIBLE: parity pinned only against doubles, envelope half of PLR-058); SMB-INTEROP-PSD-BUDGET FIX_FIRST (1 CONFIRMED: plan limit 4096 applied document-wide over hidden/disabled instances fails the whole import and regresses documents that imported at f6e5a49 under a larger caller budget, undisclosed; budget rule overrides a smaller caller Budget::nodes but memory stays bounded by max_layers + 4096, public doc missing). CX-VAL-009: NO_BREAK_FOUND.",
+ "top_findings": [
+  "PSD-BUDGET CONFIRMED: proposal.rs:530-534 counts every mapped instance (hidden layers, disabled instances/stacks, effects.rs:223, :357) against pigment's per-PLAN limit and fails the WHOLE import with psd_effect_limit; composite deliberately does not apply that limit document-wide (lower_render_plan.rs:430-434); documents that imported at f6e5a49 under a caller Budget::nodes >= records + instances now fail; a typed per-stack degrade past the aggregate keeps the same memory bound",
+  "PSD-BUDGET budget rule: nodes = max(caller, records + instances) (proposal.rs:1740) does override a smaller caller Budget::nodes, but that budget never bounded record memory (records built before validation); bound is Limits::max_layers + 4096, documented only in an internal comment, not on ProposalConfig.budget (:121) or DESCRIPTOR (PLAUSIBLE)",
+  "PARITY-FOLLOWUP PLAUSIBLE: reachable-only admission is correct only because both backends skip unreachable nodes; no backend test pins that (tests use pigment doubles), so a backend change would silently reopen the admitted-then-refused class"
+ ]
+}

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:53:55Z",
+ "updated_at": "2026-10-11T14:15:23Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1787,7 +1787,7 @@
     "validation/R9-review-a.json"
    ],
    "launched": "2026-10-11T13:53:55Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:15:23Z (COMPLETE: COMPOSITE-ADJ PASS, PARITY PASS, PSD-BUDGET 1 CONFIRMED; sweep no break)"
   },
   {
    "name": "reviewer-r9-b",
@@ -1811,6 +1811,18 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T14:14:23Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-psd-budget",
+   "agent_id": "aeef608996fc3b993",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET R9 remediation (no whole-import fail; pigment counting rule; memory bound docs)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T14:15:33Z",
    "status": "running"
   }
  ]
