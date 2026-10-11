@@ -138,6 +138,13 @@
    ],
    "decision": "re-opened: supersession does not hold (R8 pre-review press F4); fail closed for Type3/vertical text in a region; geometry later in SMB-PRESS-GEOMETRY",
    "ref": "validation/R8-prereview-press.json"
+  },
+  {
+   "at": "2026-10-11T19:14:14Z",
+   "items": [
+    "PLR-005"
+   ],
+   "decision": "IMPLEMENT (supersedes WAIVE_WITH_STUB): caller PlanLimits may only tighten; bundled with PLR-058 in SMB-PIGMENT-PLANLIMITS"
   }
  ],
  "open": [

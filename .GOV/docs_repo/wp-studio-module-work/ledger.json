@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T19:13:24Z",
+ "updated_at": "2026-10-11T19:14:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2397,11 +2397,12 @@
    "crate": "hsk-studio-pigment",
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "stub: admit with caller PlanLimits (PLR-005)",
-   "phase": "queued",
+   "phase": "build (PLR-005 tighten-only caller limits + PLR-058 reachable capability collection)",
    "status": null,
-   "owner": null,
+   "owner": "builder-pigment-planlimits",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json"
   },
   {
    "lane_id": "SMB-REFUSAL-KEYS",

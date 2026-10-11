@@ -2056,6 +2056,18 @@
    ],
    "launched": "2026-10-11T18:32:51Z",
    "status": "running"
+  },
+  {
+   "name": "builder-pigment-planlimits",
+   "agent_id": "a1a854435e911dcbb",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-PLANLIMITS (PLR-005 + PLR-058)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "builders/lanes/hsk-studio-pigment-planlimits.json"
+   ],
+   "launched": "2026-10-11T19:14:14Z",
+   "status": "running"
   }
  ]
 }
