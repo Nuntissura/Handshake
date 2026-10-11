@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:15:44Z",
+ "updated_at": "2026-10-11T06:21:24Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -911,7 +911,7 @@
     "builders/lanes/hsk-studio-pigment-effects.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
-   "status": "done 2026-10-11T06:15:44Z (SMB-EFFECTS-WAVE-1 READY at e007703)"
+   "status": "running (effects wave 2: inner shadow, outer/inner glow) 2026-10-11T06:21:24Z"
   },
   {
    "name": "builder-prism-eng7",
@@ -923,7 +923,7 @@
     "builders/lanes/hsk-studio-prism-eng7.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:21:24Z (SMB-PRISM-ENG-7 READY at 8634765)"
   },
   {
    "name": "validator-r6",
@@ -1028,6 +1028,18 @@
     "builders/lanes/hsk-studio-interop-vector.json"
    ],
    "launched": "2026-10-11T06:10:16Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-develop-jobs",
+   "agent_id": "a9e869e5f2e9e9fc9",
+   "model": "sonnet",
+   "role": "develop: adopt prism AdmittedWideJob in tile threads (identity + timings)",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T06:21:24Z",
    "status": "running"
   }
  ]

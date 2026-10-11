@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:15:44Z",
+ "updated_at": "2026-10-11T06:21:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1482,11 +1482,15 @@
    "crate": "hsk-studio-prism",
    "origin": "prism ENG-6: exact f64 evaluation made non-linear wide transforms ~187 ns/px (sRGB->P3)",
    "scope": "(1) thread-safe admitted transforms bit-identical across thread counts (develop P3->sRGB 1.8x bottleneck); (2) optional fast path with proven error bound, exact f64 default",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng7",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "8634765"
+   ],
+   "verdicts": [],
+   "candidate": "8634765",
+   "note": "65a08c9 corpus via .config/oracle-corpus.toml (T1 42/42, wide_profiles 3/3 from export layout, 0 NOT_PROVEN) + 8634765 AdmittedWideJob Send+Sync bands, ledger charged in full at prepare, bit-identical 1/2/8/16 threads; 24 MP linear P3->sRGB 1067 ms -> 103 ms @16; encoded 5634 -> 396 ms; fast path skipped per lead rule (part 2 open); 123 of 123 green; incident: ran another lane's scratch script, reverted (V4-12)"
   },
   {
    "lane_id": "SMB-COMPOSITE-ADJ",
@@ -1620,7 +1624,8 @@
   "SMB-MOTION-JS",
   "SMB-MOTION-JS-WORKER",
   "SMB-REEL-NATIVE-AV1-WORKER",
-  "SMB-EFFECTS-WAVE-1"
+  "SMB-EFFECTS-WAVE-1",
+  "SMB-PRISM-ENG-7"
  ],
  "round_R6": {
   "candidate": "bd8533f",
