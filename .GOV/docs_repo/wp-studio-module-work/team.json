@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:29:43Z",
+ "updated_at": "2026-10-11T06:32:58Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -617,7 +617,7 @@
     "builders/lanes/hsk-studio-interop-fig.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running (R6 remediation: silent-green test, header cross-check overclaim, V4-01) 2026-10-11T06:23:08Z"
+   "status": "done 2026-10-11T06:32:58Z (SMB-INTEROP-FIG READY at c75577d)"
   },
   {
    "name": "builder-score-device",
