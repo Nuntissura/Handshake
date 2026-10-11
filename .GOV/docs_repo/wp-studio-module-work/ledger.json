@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:35:04Z",
+ "updated_at": "2026-10-11T02:38:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -82,13 +82,19 @@
    "lane_id": "SMB-COMPONENTS",
    "crate": "hsk-studio-components",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-components",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-components",
    "brief": null,
-   "commits": [],
+   "commits": [
+    "69b63c1",
+    "423cb0f",
+    "556237d"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-components.json"
+   "lane_file": "builders/lanes/hsk-studio-components.json",
+   "candidate": "556237d",
+   "note": "variants, instances+overrides (STU-DS-115/116/119), variables/modes/aliases, constraints, prototype graph; 5 tests + mutants; slice2 auto layout in progress"
   },
   {
    "lane_id": "SMB-PULSE",
@@ -141,8 +147,8 @@
    "lane_id": "SMB-REEL",
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
@@ -150,13 +156,17 @@
     "c3d013c",
     "2e9361d",
     "b6ab5e2",
-    "039fbee"
+    "039fbee",
+    "75a4d89",
+    "b96a33e",
+    "34ec20a",
+    "fa365cd"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
-   "candidate": "039fbee",
-   "note": "slice1+2: ISOBMFF+fMP4 index, PCM-in-MOV, tmcd raw, IndexCache; 10 tests; no reel->pulse edge (lead); slice3 Matroska in progress",
-   "review_findings": "R2-review-b CONFIRMED: wav underflow, y4m panic, isobmff unchecked add, edit media_time drop, shared sample budget, v2 doc mismatch, timing helper dup -> remediation dispatched"
+   "candidate": "fa365cd",
+   "note": "20 tests; ISOBMFF+fMP4+Matroska/WebM indexes, PCM-in-MOV, sampled identity relink; accord timescale migration b96a33e",
+   "review_findings": "R2-review-b 7 CONFIRMED fixed 75a4d89 (regression tests)"
   },
   {
    "lane_id": "SMB-MOTION",
@@ -363,12 +373,14 @@
    "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [
     "371ac82",
-    "a7640e7"
+    "a7640e7",
+    "6a162da",
+    "c3bcecd"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-session.json",
-   "candidate": "a7640e7",
-   "note": "open/submit/save/reopen round trips; registry; cancel/budgets; 4 tests + break-it; slice2 ports/idempotency in progress"
+   "candidate": "c3bcecd",
+   "note": "slice2 ports/idempotency/exactly-once/admission/drain/export_checkpoint; 8 tests + break-it; slice3 lazy assets + host previews in progress"
   },
   {
    "lane_id": "SMB-HARNESS",
@@ -772,12 +784,18 @@
    "crate": "hsk-studio-folio",
    "origin": "layout builder gaps",
    "scope": "Folio text-frame object, STU-LAY-122 thread fields, page list with per-page margins in spread, story-content contract; layout migrates its crate-local frame/thread model",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-3",
-   "commits": [],
+   "commits": [
+    "ae75f55",
+    "39788cb",
+    "5d737e3"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json"
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json",
+   "candidate": "5d737e3",
+   "note": "pages/margins/bleed, text_frame + threads, StudioTextStory; 28 folio tests; layout migration notes in lane file"
   },
   {
    "lane_id": "SMB-ACCORD-ENG-2",
@@ -840,6 +858,31 @@
    "crate": "hsk-studio-composite",
    "origin": "render-cpu clip lane: composite may emit pass-through group as clip base",
    "scope": "composite lowering: pass-through group used as clip base -> typed Unavailable (consistent with render-cpu refusal) until Photoshop oracle defines semantics",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-render-cpu-clip (reused)",
+   "commits": [
+    "5814f8d"
+   ],
+   "verdicts": [],
+   "candidate": "5814f8d"
+  },
+  {
+   "lane_id": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "origin": "SMB-FOLIO-ENG-3 landed (5d737e3)",
+   "scope": "layout consumes Folio pages/text frames/threads/stories (delete crate-local frame/thread model) per notes.layout_migration in hsk-studio-folio-eng-3.json",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "origin": "components builder Folio needs",
+   "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types",
    "phase": "brief",
    "status": null,
    "owner": null,

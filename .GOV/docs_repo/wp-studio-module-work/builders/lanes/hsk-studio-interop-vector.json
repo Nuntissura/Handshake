@@ -1,0 +1,50 @@
+{
+  "crate": "hsk-studio-interop-vector",
+  "lane": "SMB-INTEROP-VECTOR-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1-complete",
+  "commits": [
+    {"sha": "f058a1b", "subject": "slice 1: SVG import into Folio proposal + nib anchors + typed loss, hostile-input budgets, SVG export, AI blocker, PDF port"},
+    {"sha": "f95a3c0", "subject": "plain-attribute lookups (xlink:href counted once), five focused contract tests"},
+    {"sha": "ebd2efd", "subject": "hierarchical export_proposal, DESCRIPTOR, interop-vector-consumer example"},
+    {"sha": "41d4ff1", "subject": "report preserveAspectRatio slice as unclipped (Approximated)"}
+  ],
+  "capabilities_done": [
+    "import_svg: svg viewBox/width/height/preserveAspectRatio, g/a, path (arcs, quad, smooth -> cubic anchors, relative handles in pt), rect(rx,ry), circle, ellipse, line, polyline, polygon, transform baked, fill/stroke/stroke-width/fill-rule/fill-opacity/stroke-opacity/opacity/color/display/visibility via attributes or inline style, px->pt recorded once in Provenance",
+    "VectorProposal: Folio snapshot validated by folio::validate_document (artboard + group/vector layers, Payload::Vector SVPT ids, LayerAppearance opacity), VectorPath (nib Anchor, Winding), StyleProposal (plain data, SSTY ids), LossEntry list (Approximated, TransformBaked, Unsupported, ExternalDenied, Ignored), VectorPath::to_geometry -> nib::OwnedPath",
+    "hostile input: DOCTYPE internal subset refused (EntityDenied), external DTD id inert and reported, no href/url() ever followed (ExternalDenied), byte/node/depth/segment budgets, 1e9 coordinate cap, cancel per element and per 256 segments",
+    "export_svg (flat) and export_proposal (groups, names, visibility, opacity): deterministic text, import->export->import twice stable within 1e-9 pt, edited anchor survives",
+    "identify_ai header sniff; import_ai always NativeEditabilityBlocked with original bytes preserved byte-exact (STU-IO-186); PdfVectorProvider trait + NoPdfProvider (PdfUnavailable)",
+    "report() Observe mapping, DESCRIPTOR, interop-vector-consumer example (--descriptor, --svg [--export], --ai)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-interop-vector --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "41d4ff1",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Steward registry sync for dep-requests roxmltree =0.21.1 and svgtypes =0.16.1 (adds siphasher 1.0.x to the lock; memchr and kurbo already locked), then validator round. Next slice: gradients/appearance mapping, SVGZ, text-on-path loss detail, Illustrator-saved fixture to verify AI private-data marker names.",
+  "updated_at": "2026-10-11T02:37:44Z",
+  "notes": {
+    "tests_tree": "shared edit tree at 41d4ff1 (other lanes may have uncommitted edits); clippy --tests --examples clean for this crate",
+    "nib_dependency": "nib OwnedPath (SMB-NIB-ENG-1) had landed; used via OwnedPath::from_anchors in VectorPath::to_geometry. Anchor/Point/Winding from nib public API.",
+    "folio_note": "folio StudioLayer gained text_frame (other lane); this crate sets text_frame: None and will need a follow-up edit only if StudioLayer gains more required fields.",
+    "design_choices": [
+      "no allow_external field on ImportPolicy: no code path fetches anything, so a switch that can only be false would mislead",
+      "element opacity lives only in Folio LayerAppearance (single source of truth); StyleProposal carries fill/stroke colour with fill/stroke opacity folded into alpha, and stroke width in pt",
+      "compound SVG path = several VectorPath sharing layer_id (one Payload::Vector layer lists all ids); spec question: does a layer with several path ids mean one compound shape for fill-rule hole semantics (UNVERIFIED)",
+      "Winding::None encodes fill none (nib: no fill); the fill-rule of an unfilled path is not kept",
+      "closing curve whose end equals the first anchor is merged into the first anchor's incoming handle (Illustrator storage)",
+      "a legacy DOCTYPE with external id only (Illustrator-era SVG) is accepted and reported ExternalDenied doctype_external_id_ignored; roxmltree never resolves it"
+    ],
+    "unverified": [
+      "AI private-data marker names (/Illustrator, AIPrivateData, %AI) not confirmed on an Illustrator-saved fixture",
+      "whether Folio expects one SVPT per layer or several for compound paths"
+    ],
+    "deps": "roxmltree =0.21.1 (std, no positions) and svgtypes =0.16.1 (std) added in the crate manifest; two dep-requests lines appended; Cargo.lock not staged"
+  }
+}

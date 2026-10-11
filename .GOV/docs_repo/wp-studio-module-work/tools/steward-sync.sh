@@ -8,7 +8,7 @@
 #   via a temp index and publish with compare-and-swap update-ref + push. The shared index and working files are
 #   never touched (builders commit with pathspec). Prints SYNC_SHA (= round candidate) and writes the export's
 #   ROUND_IDENTITY.json for it.
-# Usage: steward-sync.sh [--add-edge crate=dep]... [--allow-unrequested] [--no-push]
+# Usage: steward-sync.sh [--add-edge crate=dep]... [--remove-edge crate=dep]... [--allow-unrequested] [--no-push]
 # --allow-unrequested only after reviewing every "unrequested" pair (license gate still runs); report them to the lead.
 # Exit: 0 ok, 3 HEAD moved / not pushed (redo), 4 edge error, 5 registry-sync, 6 verify failed, 8 license gate,
 #       75 offline lock derivation failed (crate missing from local cargo cache).
@@ -24,7 +24,7 @@ BR=codex/handshake-studio-assets
 REQ="$WORK/builders/dep-requests.jsonl"
 edges=() push=1 allow=()
 while [ $# -gt 0 ]; do
-  case "$1" in --add-edge) edges+=("${2:?}"); shift ;; --no-push) push=0 ;; --allow-unrequested) allow=(--allow-unrequested) ;; *) echo "unknown arg $1" >&2; exit 2 ;; esac
+  case "$1" in --add-edge) edges+=("${2:?}"); shift ;; --remove-edge) edges+=("remove:${2:?}"); shift ;; --no-push) push=0 ;; --allow-unrequested) allow=(--allow-unrequested) ;; *) echo "unknown arg $1" >&2; exit 2 ;; esac
   shift
 done
 lockpk() {
@@ -86,7 +86,7 @@ for f in Cargo.lock Cargo.toml tools/workspace-probe.rs; do
 done
 if [ ${#paths[@]} -eq 0 ]; then NEW=$BASE; echo "already in sync at $BASE"
 else
-  printf 'Steward sync: lock, registry pins and probe approvals for %s\n\nDerived offline from the committed manifests of %s (pins kept).\nLock added: %s\nLock removed: %s\nDependency lists changed: %s\nAllowed edges added: %s\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' \
+  printf 'Steward sync: lock, registry pins and probe approvals for %s\n\nDerived offline from the committed manifests of %s (pins kept).\nLock added: %s\nLock removed: %s\nDependency lists changed: %s\nAllowed edge changes: %s\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' \
     "${BASE:0:7}" "$BASE" "${added:-none}" "${removed:-none}" "${edged:-none}" "${edges[*]:-none}" >"$EX/msg.txt"
   export GIT_INDEX_FILE="$EX/commit-index"
   rm -f "$GIT_INDEX_FILE"

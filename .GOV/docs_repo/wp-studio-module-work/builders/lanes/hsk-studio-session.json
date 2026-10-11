@@ -2,51 +2,65 @@
   "crate": "hsk-studio-session",
   "mt": "MT-35554",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 complete: open / revision-checked submit / atomic save / enumerable provider registry / cancellation + budgets / one Observe report per operation / session-consumer",
+  "phase": "slice 2 complete: injected Grant/Commit/Job/Clock ports, idempotency keys + canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation",
   "commits": [
     {"sha": "371ac82", "subject": "Session slice 1: open (package -> folio snapshot), revision-checked submit of chronicle-prepared transactions, atomic save, enumerable instance-owned provider registry, one Observe report per operation", "pushed": true, "slice": 1},
-    {"sha": "a7640e7", "subject": "Session slice 1: four real round-trip contract tests (open/edit/undo/save/reopen, revision refusals, cancellation+budgets+hostile input, provider isolation) and session-consumer example", "pushed": true, "slice": 1}
+    {"sha": "a7640e7", "subject": "Session slice 1: four real round-trip contract tests and session-consumer example", "pushed": true, "slice": 1},
+    {"sha": "6a162da", "subject": "Session slice 2: injected Grant/Commit/Job/Clock ports, idempotency keys with canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation", "pushed": true, "slice": 2},
+    {"sha": "c3bcecd", "subject": "Session slice 2: four contract tests (keyed replay + grant recheck, lost-ack reconcile exactly once, admission/cancel-after-commit/drain, verified checkpoint + previews) and checkpoint in session-consumer", "pushed": true, "slice": 2}
   ],
   "capabilities_done": [
-    "Session::open_path / open_bytes: bounded PackageReader stream -> folio Snapshot; assets held (HeldAssets) for re-save; unknown entries kept verbatim; read-only documents refused (read_only_document); per-property revision vector seeded at 0 for every editable layer/artboard/page-spread property",
-    "Session::submit(provider, params, expected_revision, cancel): provider proposes a chronicle Prepared on the immutable snapshot; session re-checks expected document revision (stale_revision), proposal document id, observed revision, successor == current+1, and that each revision update follows the session vector; publishes atomically or not at all; Applied carries revisions, updates and the chronicle inverse",
-    "Session::save / save_to: package write_package_with (quarantined entries verbatim, codec inherited from the opened package) -> save_atomic -> re-read of the destination manifest (revision + document id) -> VerifyMismatch otherwise; previews dropped and counted",
-    "ProviderRegistry (instance-owned, no global state): validated ids [a-z0-9._-]{1,64}, duplicate/full refusal, sorted ids()/list(), built-in chronicle.patch provider (params = chronicle Patch JSON)",
-    "Cancellation: accord CancellationToken at entry, inside provider/chronicle, and again before commit; budgets: package Limits + chronicle Budget (folio inside), validated at open",
-    "One Observe terminal frame per operation (open, submit, save), success or failure; fresh token for the report so a cancel after commit cannot recast a committed edit; opens that fail before the container names its document report Unaddressed (no frame)",
-    "examples/session-consumer.rs: --descriptor, --demo DIR, --open IN --rename ID NAME [--hide ID] --save OUT [--cancel]; independent read of the saved file via package::read_package"
+    "slice 1: open (package -> folio snapshot), revision-checked submit through an instance-owned provider registry, atomic save with destination re-read, cancellation + budgets, one Observe frame per operation, session-consumer",
+    "slice 2 ports (src/ports.rs): GrantPort (fresh check on every submit, replay, save, export), CommitPort (commit + lookup; Committed/Rejected/Stale/StaleEpoch/Unknown), JobPort (admit/release, ticket released by RAII guard), Clock; all optional in SessionPorts (absent = standalone, session is its own authority)",
+    "slice 2 idempotency: submit_keyed(key, ...) binds key to SHA-256 over account+principal+resource+action+provider+payload hash+expected revision; identical retry returns the stored canonical receipt (replayed=true) after a fresh grant check with no admission or authority call; same key + any change = idempotency_conflict; a commit authority requires a key (key_required, the crate mints no identifiers); bounded table (Budgets.max_receipts, receipts_full)",
+    "slice 2 exactly-once: Unknown commit outcome is stored pending under its key (local snapshot NOT advanced); further submits are refused (reconciliation_required); reconcile() / a same-key retry looks the key up: Found -> adopted once (binding, revision and base revision verified), Absent -> cleared and safely retried, unreachable -> stays pending; receipt mismatch stays pending (receipt_mismatch / diverged)",
+    "slice 2 admission: Admission (cloneable shared handle) bounds slots AND bytes, never blocks, Permit releases on drop; overloaded{retry_after_ms}, cost_exceeds_budget; acquired after grant/replay lookup, released on success, error and cancel exits; JobPort ticket released the same way",
+    "slice 2 cancel: pre-commit cancel publishes nothing and never calls the authority; a cancel that arrives during the authority commit leaves the edit and sets Applied.cancel_too_late",
+    "slice 2 shutdown: close_admission() / drain(deadline_ms) on the injected Clock: closed submits -> closed, pending keys resolved by lookup until the deadline, unresolved keys reported in DrainReport.abandoned (never dropped), save/export/reconcile stay available",
+    "slice 2 export_checkpoint: write_package_with -> read_package re-read of the in-memory bytes (document bytes, revision, quarantined and preview counts compared) -> Checkpoint{revision, bytes, sha256}",
+    "slice 2 previews: loaded at open with PackageReader::previews/read_preview (bounded, unreadable ones skipped and counted); rewritten on save/export while the document is still the revision they describe, dropped and counted after an edit (SaveReceipt.previews_preserved/previews_dropped)"
   ],
   "tests": {
-    "passed": 4,
+    "passed": 8,
     "failed": 0,
-    "command": "cargo test -p hsk-studio-session --no-fail-fast --test session_contract",
-    "names": [
+    "command": "cargo test -p hsk-studio-session --no-fail-fast --tests",
+    "slice2_new": [
+      "keyed_submit_replays_the_canonical_receipt_and_rechecks_grants",
+      "lost_acknowledgement_is_reconciled_and_applied_exactly_once",
+      "admission_overload_cancel_after_commit_and_shutdown_drain",
+      "export_checkpoint_is_verified_and_previews_follow_the_revision"
+    ],
+    "slice1": [
       "open_edit_undo_save_reopen_round_trip",
       "revision_checks_reject_stale_and_conflicting_edits_without_state_change",
       "cancellation_budgets_and_hostile_input_leave_files_and_state_intact",
       "providers_are_instance_owned_enumerable_and_not_trusted"
     ],
     "check_clippy": "check/clippy -p hsk-studio-session --tests --examples: clean (only pre-existing observe too_many_arguments warnings)",
-    "evidence": "real package files in a private temp dir under the artifact-root TMP; reopen oracle is package::read_package, not the session; asset bytes and the opaque entry compared byte for byte; no temp/marker file left after save; every refusal asserts revision, revision vector and layer name unchanged and a distinct stable code",
-    "break_it": "temporarily removing (a) the expected-revision check, (b) the stale-proposal check, (c) the pre-commit cancel check made exactly tests 2, 3 and 4 fail (ProposalInconsistent vs StaleRevision, committed edit after cancel, wrong refusal); source restored byte-identical to a7640e7 (git diff empty). The restored tree was not re-run: the gameplan retry-guard blocks an identical rerun at an unchanged HEAD, and no input changed since the 4/4 pass.",
-    "tree": "shared edit tree; crate files identical to pushed a7640e7"
+    "evidence": "private test doubles (tests only) really enforce epoch, expected revision and idempotency and keep their own durable document copy: the authority's last document is parsed by folio and compared byte for byte with the session snapshot; lost-ack case: authority commits durably, session stays at the old revision, reconcile adopts once (authority commits == 1, commit calls == 1 after the replayed retry); request-lost case: retry looks up Absent then commits once; shutdown on a test clock: lookup cost 1500 ms, drain(2000) elapsed 1500, unresolved key reported; admission held elsewhere -> overloaded, nothing started; in_flight == (0,0) and job admitted == released on success, error, cancel and unknown-outcome paths; checkpoint and saved file re-read with package::read_package / list_previews / read_preview",
+    "break_it": "temporarily (a) disabled the identical-key binding check -> keyed_submit test failed at the conflict assertion (isolated run); (b) adoption without publish -> reconcile test failed (revision 7 vs 8); (c) JobGuard never releasing -> keyed and drain tests failed (job tickets (n,0) vs (n,n)); source restored byte-identical to c3bcecd (git diff empty) and the full 8/8 run repeated green afterwards",
+    "tree": "shared edit tree; crate files identical to pushed c3bcecd"
   },
-  "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo: wrote, opened, renamed layer 1, hid layer 2, saved (rev 7 -> 9) and re-read independently; 4 Observe frames for 4 operations",
+  "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo2: rev 7 -> 9, saved, export_checkpoint (rev 9, sha256 printed), independent read matches, 5 Observe frames for 5 operations",
   "blockers": [],
-  "dep_requests": "builders/dep-requests.jsonl: serde_json 1.0.151 (dev) for tests/example; all runtime deps are allowed path edges (accord, folio, chronicle, package, observe); no new crates.io runtime dependency. Cargo.lock/root Cargo.toml untouched by this lane.",
+  "dep_requests": "none new: reuses package::sha256_hex_of (no sha2 dependency added); serde_json dev-dependency request from slice 1 stands. Cargo.lock/root Cargo.toml untouched by this lane.",
   "decisions": [
-    "Followed the lead dispatch SLICE 1 (open/apply/save/registry/cancel/observe) over the brief's port-heavy minimal slice; the brief's GrantPort/CommitPort/JobPort, idempotency keys + receipts, reconcile and shutdown drain are the next slice",
-    "No Session-per-agent: the session accepts transactions from any actor (attribution travels in the chronicle Patch actor), per FILM-ROOT-01 (one document owner)",
-    "Document-level expected revision is checked IN ADDITION to chronicle's property-level revision vector (the vector is the footprint check; STU-ARC-011)",
-    "Property revisions are session-local counters (start 0 at open); they are not persisted in the package"
+    "A commit authority is optional: absent = standalone (session commits locally, grants allow-all); present = the authority is canonical and the local snapshot advances only after a matching receipt",
+    "Idempotency binding uses package::sha256_hex_of over a NUL-separated canonical tuple (no new crypto dependency)",
+    "While any commit outcome is pending, new submits are refused (reconciliation_required): authority revision checks already make blind submits safe, but refusing keeps local state unambiguous",
+    "Previews are rewritten only while the document is still the opened revision (a preview of the pre-edit content in an edited file would be wrong); no host-supplied fresh previews API in this slice",
+    "Grant checks use the session actor; transaction attribution still travels in the chronicle Patch actor (no Session-per-agent)",
+    "Report frames for reconcile and drain are operations too (one frame each); close_admission is a flag flip with no frame"
   ],
   "known_gaps": [
-    "brief ports not in this slice: GrantPort / CommitPort / JobPort, idempotency keys + receipts, outcome-unknown reconcile, shutdown drain (next slice); public wire envelopes belong to kernel-bindings",
+    "the public executable adapter over these ports (transient store) belongs to kernel-bindings; this crate ships only traits and tests-only doubles",
+    "cancel-acknowledgement bound (1000 ms) is not separately timed: operations are synchronous and cancel is polled at entry, in the provider and before commit",
     "assets are held in memory after open (package Opened); lazy PackageReader::read_asset streaming is a later slice",
-    "previews are dropped on save (derived data describing the pre-edit document) and counted in SaveReceipt.previews_dropped",
+    "no API for a host to supply fresh previews after an edit",
     "post-save verification failure (VerifyMismatch) leaves the newly written file in place and does not advance saved_revision",
+    "idempotency table is in memory only: receipts are not persisted across sessions (the authority's receipt store is the durable one)",
     "resolver in session-consumer grants everything: example stand-in only"
   ],
-  "next": "Validator round on a7640e7. Next slice: injected GrantPort/CommitPort ports with idempotency keys + canonical receipts, reconcile after unknown commit outcome, admission budget (capacity/overload), shutdown drain on a test clock; then export_checkpoint via package.",
-  "updated_at": "2026-10-11T05:25:00Z"
+  "next": "Validator round on c3bcecd. Next slice candidates: host-supplied previews after an edit, lazy asset streaming, multi-output delivery capture (immutable revision/presets/output verification) behind the JobPort, kernel-bindings adapter once that lane exists.",
+  "updated_at": "2026-10-11T02:36:27Z"
 }

@@ -1,0 +1,64 @@
+{
+  "crate": "hsk-studio-components",
+  "lane": "hsk-studio-components",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1-complete",
+  "commits": [
+    {"sha": "69b63c1", "subject": "Components: definitions + variant sets, instances with property-granular overrides and DS-116 precedence, variables (collections, modes, alias cycle/type checks), constraints, prototype flow validated against Folio artboards, instance layer bridge (compiles, clippy clean; tests next)"},
+    {"sha": "423cb0f", "subject": "Components: swap/variant switch with overrides_dropped re-match (STU-DS-119) and five hand-computed focused tests"},
+    {"sha": "556237d", "subject": "Components: components-consumer example (variant + mode + text override, footprint, Observe terminal outcome)"}
+  ],
+  "capabilities_done": [
+    "instance_resolution.rs: ComponentDef/ComponentSet/DefRegistry (STU-DS-102..109: set registration refuses variant_assignment_incomplete/duplicate and undeclared values), PropertyDef (BOOLEAN/TEXT/INSTANCE_SWAP/VARIANT; SLOT refused), Instance + OverrideRecord, resolve_instance with STU-DS-116 tiers (override > instance component property else property default > definition literal > definition variable binding), Source per field, per-field reads footprint, closed STU-DS-115 override set, base definitions never mutated",
+    "instance_resolution.rs: VarRegistry/Collection/Mode/Variable (STU-DS-121..127 subset: six resolved types, Literal|Alias entries), resolve_variable with per-collection mode selection (default mode otherwise), alias path walk with AliasCycle, TypeMismatch on alias or literal type, MissingModeValue (never zero), NoSuchMode, max_alias_depth budget",
+    "instance_resolution.rs: propose_overrides (successor Instance + full Resolution after full success only, write footprint = edited (node,field), read footprint = record keys the edited fields depend on), check_footprint/OverrideProposal::admit (same-key drift Stale, disjoint drift admissible; record-level keys (id,\"\") for STU-DS-163), swap_component/switch_variant/rematch_overrides by (layer name, sibling ordinal path) with DroppedOverride list (STU-DS-119)",
+    "constraints.rs: ConstraintKind MIN|CENTER|MAX|STRETCH|SCALE both axes, default MIN/MIN (STU-DS-151/152), apply_constraints (points, finite, non-negative, STRETCH collapse and SCALE with zero parent refused as InvalidGeometry, no clamping), resize_component cascading down the node hierarchy",
+    "prototype.rs: PrototypeFlow/Reaction/Trigger/Action/Navigation (pointer subset of STU-PRO-105/110/111; null trigger = authored not armed), validate_flow against folio::StudioDocument artboards (start frame, destinations, overlay position, reaction node exists, owning-frame walk via Folio parents), reachability from the start frame (cycles legal), action-after-navigation warnings, ChangeTo/ScrollTo refused as unsupported",
+    "folio_bridge.rs: INSTANCE_LAYER_BINDING + instance_layer(..) -> folio::StudioLayer {kind component_instance, PrimitiveReference hsk.studio.component_instance@1 / SCIN-*}; passes folio::validate_document under a resolver accepting the binding",
+    "lib.rs: ComponentsError (24 variants, stable code()), report() one Observe terminal outcome, DESCRIPTOR; examples/components-consumer.rs (--descriptor, --size, --mode, --text, --cancel)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-components --test instance_resolution --no-fail-fast",
+    "exit": 0,
+    "sha": "423cb0f",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 1,
+  "bg_pids": [],
+  "next": "Independent validator: tests/instance_resolution.rs (5 cases) on the pushed HEAD for crates/hsk-studio-components. Later slices: auto layout (STU-DS-130..150, taffy 0.14.0 mapping gap UNVERIFIED), layout-grids, style registry, library publish/subscribe, exposed-instance projection, scale_factor (STU-DS-106), prototype reactions beyond pointer triggers (variable/mode actions, conditionals, timeouts, ChangeTo via switch_variant), Layout reflow integration once layout/folio frames are stable.",
+  "updated_at": "2026-10-11T02:37:18Z",
+  "notes": {
+    "checks": "cargo check --tests and cargo clippy --tests --examples clean for hsk-studio-components (sibling crates' own warnings not touched); example runs: --size large --mode dark --text 'Buy now' and --cancel",
+    "break_it": "two mutants applied and reverted: constraints Max ignoring parent growth (constraints_hand_computed FAILED) and check_footprint disabled (alias_type_disjoint_stale_cancel FAILED); other three cases unaffected, as expected",
+    "oracles": "hand-computed: horizontal 100->200 wide child x=10,w=20: MIN (10,20) MAX (110,20) CENTER (60,20) STRETCH (10,120) SCALE (20,40); vertical 50->80 tall child y=5,h=10: MIN (5,10) MAX (35,10) CENTER (20,10) STRETCH (5,40) SCALE (8,16); hierarchy 100x50->200x80: A stretch 60x40 -> 160x70, nested B max/max (5,5) -> (105,35). Not an Adobe/Figma row: no original-app oracle (Figma-authored fixtures) was run",
+    "spec_gaps": [
+      "STU-DS-117 gives overridden_node_id + overridden_fields[] but no storage for override VALUES: chosen = a values map inside each OverrideRecord whose key set must equal overridden_fields; for spec enrichment",
+      "STU-DS-116 'ambiguous double-source' is undefined beyond the sentence: implemented as definition node with both a literal and a variable binding for one field, a field listed twice, or two override records for one (node, field)",
+      "STU-DS-119 re-match key 'layer name, position in the child hierarchy' implemented as the path of (name, ordinal among siblings) from the root; smart-animate pairing (STU-PRO-018) not checked",
+      "STU-DS-125 EASING/TIMING value shapes and units are not declared in the cited text: Easing(String) and Timing(f64 >= 0) are placeholders; EXPRESSION storage (STU-DS-126) not modelled",
+      "STU-DS-130 variable scope/bindable-field enforcement (picker eligibility, typed error for binding outside the closed sets) not implemented",
+      "STU-DS-163 record-level conflicts are approximated by (record_id, \"\") footprint keys; exact revision-vector semantics of STU-SDB-004 UNVERIFIED",
+      "A stretched child that would collapse below zero is refused (InvalidGeometry), not clamped: clamping policy is not stated in STU-DS-151"
+    ],
+    "folio_needs": [
+      "No design frame / auto-layout frame node: a prototype frame is a Folio artboard today; frames need children, clips_content, layout_mode and constraints per child (STU-DS-130..152)",
+      "No component, component_set, component_instance, variable, variable_collection or reaction record types: all crate-local values; instance is only a layer of kind component_instance with PrimitiveReference to SCIN-*",
+      "No place for per-node reactions (STU-PRO-103), component_property_references (STU-DS-113) or node constraints (STU-DS-152) on StudioLayer",
+      "Folio Resolver::primitive for SCIN-*/SCMP-*/SVAR-* is host-owned; this crate provides INSTANCE_LAYER_BINDING for primitive_layer_binding"
+    ],
+    "not_proven": [
+      "layout reflow of text inside resized instances: depends on hsk-studio-layout (edge allowed, not used in this slice)",
+      "alias resolution at 10k-variable scale and per-field resolution cost not measured (O(nodes x alias depth), no memoisation across fields)",
+      "variable-bound component properties (bound_variable_id) are resolved and type-checked but have no dedicated test case",
+      "INSTANCE_SWAP property values are only type-checked as strings; they do not change the nested instance's main_component_id yet",
+      "Slot properties and nested/exposed instances (STU-DS-118) are refused or absent"
+    ],
+    "workspace_observations": [
+      "Folio gained StudioLayer.text_frame (commit ae75f55) between reading and first compile; instance_layer sets text_frame: None",
+      "a formatter appears to rewrite edited .rs files on save (instance_resolution.rs is ~1040 lines vs ~760 written); no action taken",
+      "no new crates.io dependency; no dep-requests line needed; Cargo.lock not staged by this lane (path deps only, edges accord/folio/observe are within the declared DAG)"
+    ]
+  }
+}

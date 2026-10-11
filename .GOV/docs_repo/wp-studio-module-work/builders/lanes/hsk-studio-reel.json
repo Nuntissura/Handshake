@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-2 + STUDIO-R2 fixes + accord Timescale migration pushed (b96a33e); slice 3 in progress: Matroska/WebM EBML index (identity/relink landed in 34ec20a)",
+  "phase": "slice 3 complete (Matroska/WebM index + cue seek + sampled identity/relink); STUDIO-R2 fixes and accord Timescale migration included; candidate fa365cd",
   "commits": [
     {"sha": "f09f33b", "subject": "provider port, registry, ISOBMFF index + seek, WAV, Y4M"},
     {"sha": "c3d013c", "subject": "slice1 contract tests + reel-consumer"},
@@ -10,40 +10,45 @@
     {"sha": "3bfc100", "subject": "slice2 plumbing"},
     {"sha": "b6ab5e2", "subject": "slice2: PCM-in-MOV, tmcd, fMP4+sidx, IndexCache"},
     {"sha": "039fbee", "subject": "descriptor lists slice2"},
-    {"sha": "34ec20a", "subject": "slice3: sampled source identity + full digest + relink (sha2 0.10.9 force-soft, dep request logged)"},
+    {"sha": "34ec20a", "subject": "slice3: sampled source identity + full digest + relink (sha2 0.10.9 force-soft)"},
     {"sha": "75a4d89", "subject": "STUDIO-R2 confirmed findings fixed + hostile-input regression per bug"},
-    {"sha": "b96a33e", "subject": "migrate tick/fps conversion to accord Timescale (SMB-ACCORD-ENG-2)"}
+    {"sha": "b96a33e", "subject": "migrate tick/fps conversion to accord Timescale (SMB-ACCORD-ENG-2)"},
+    {"sha": "fa365cd", "subject": "slice3: Matroska/WebM EBML demux index, cue-based seek, matroska provider in the standard registry"}
   ],
   "capabilities_done": [
     "slice1: MediaProvider port, Registry, ISOBMFF/MOV index + frame-accurate seek + packets, WAV, Y4M, observe report",
     "slice2: PCM-in-MOV compact index + LE decode, tmcd raw timecode, fMP4 moof/traf/trun + sidx, IndexCache",
-    "slice3 (part): SourceIdentity (SHA-256 sampled windows), full_digest, relink with confidence + ambiguity",
+    "slice3 Matroska/WebM: EBML header + DocType check, Segment (known/unknown size), SeekHead/Void skipped, Info (TimestampScale divisor of 1e9, Duration), Tracks (codec id/private, default duration, lacing flag, video/audio params, codec delay, seek pre-roll, ContentEncodings flagged), Clusters (known/unknown size, truncated tail), SimpleBlock + BlockGroup (BlockDuration, ReferenceBlock), Xiph/EBML/fixed lacing, Cues; exact PTS in ticks via accord Timescale, open-GOP pre-roll, packets via shared deliver_packets; Decoded = CodecUnavailable(CodecID); content-encoded tracks typed Unsupported",
+    "slice3 cued_seek: Cues -> start cluster, bounded partial scan, same SeekResult as the full index plus file offsets and clusters_scanned",
+    "slice3 identity/relink: SourceIdentity (len + SHA-256 over head/tail/interior windows), full_digest, relink with Sampled vs Full confidence, ambiguity never resolved silently, optional full verification",
     "R2 fixes: wav truncation underflow, y4m non-ASCII token, moov largesize overflow, unaligned edit start (trim_start), PCM chunk runs charge the budget, sound version typed, index bound to source_len, original grant verified before proxy probe",
-    "accord migration: media_to_ticks/exact_ticks_per_unit are thin error adapters over accord Timescale; y4m uses FrameRate::from_fps/fps_fraction; PCM edit alignment uses Timescale::rescale; local gcd removed"
+    "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-reel --no-fail-fast",
     "exit": 0,
-    "sha": "b96a33e",
-    "passed": 17,
+    "sha": "fa365cd",
+    "passed": 20,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice3 Matroska/WebM EBML index (Segment/SeekHead/Info/Tracks/Cluster/SimpleBlock/BlockGroup/Cues, lacing, cue-based seek) with <=4 focused tests; validator round on b96a33e meanwhile",
-  "updated_at": "2026-10-11T02:26:41Z",
+  "next": "validator round on fa365cd; candidate follow-ups: Matroska ContentEncodings (header stripping) and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
+  "updated_at": "2026-10-11T02:37:10Z",
   "notes": {
     "decisions": [
       {"id": "reel-no-pulse-edge", "by": "coordinator 2026-10-11", "text": "NO reel->pulse edge; reel exposes raw tmcd fields (TimecodeDescription, TimecodeStart); consumers format labels with pulse."}
     ],
-    "tests_breakdown": "unit 1 + foundation_contract 5 + review_r2_regressions 7 + slice2_contract 4; clippy --tests --examples clean for hsk-studio-reel",
+    "tests_breakdown": "unit 1 + foundation_contract 5 + review_r2_regressions 7 + slice2_contract 4 + slice3_contract 3; clippy --tests --examples clean for hsk-studio-reel",
     "known_gaps": [
       "Y4M request past a record-aligned end returns Truncated (brief test 2 semantics) while WAV returns OutOfRange (declared length): deliberate, reviewer PLAUSIBLE item not changed",
       "pub mod fixtures ships synthetic byte builders in the public API (reviewer PLAUSIBLE); feature-gating not done",
       "fMP4 previous-traf base rule implemented but untested; tmcd counter-mode record interpretation not applied",
-      "IndexCache is ISOBMFF-only (MediaIndex)"
+      "IndexCache is ISOBMFF-only (MediaIndex); Matroska has no cache yet",
+      "Matroska: no DTS (dts == pts), lacing needs a DefaultDuration that is a TimestampScale multiple, ContentEncodings not undone, TrackTimestampScale ignored, SeekHead/Tags/Chapters/Attachments skipped"
     ],
-    "deps": "accord + observe (path), sha2 =0.10.9 force-soft (dep-requests.jsonl line added; steward must add hsk-studio-reel to the probe approved list)"
+    "deps": "accord + observe (path), sha2 =0.10.9 force-soft (dep-requests.jsonl line added; steward must add hsk-studio-reel to the probe approved list)",
+    "sources_checked": "IANA Matroska + EBML registries (element IDs), RFC 9559 section 10 (block header, flags, lacing), Apple QTFF sound v1/v2 + tmcd pages, FFmpeg mov.c/isom_tags.c, Bento4 trun/tfhd/sidx headers"
   }
 }

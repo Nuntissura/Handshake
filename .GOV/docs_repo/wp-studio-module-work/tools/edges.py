@@ -1,5 +1,5 @@
-"""Add allowed intra-Studio dependency edges to root workspace metadata and verify the allowed graph stays acyclic.
-Usage: python -X utf8 -I edges.py <workspace_root> crate=dep [crate=dep ...]   (short names or hsk-studio-*)"""
+"""Add (crate=dep) or remove (remove:crate=dep) allowed intra-Studio dependency edges to root workspace metadata and verify the allowed graph stays acyclic.
+Usage: python -X utf8 -I edges.py <workspace_root> [remove:]crate=dep ...   (short names or hsk-studio-*)"""
 import pathlib, re, sys, tomllib
 
 root = pathlib.Path(sys.argv[1])
@@ -7,16 +7,21 @@ path = root / "Cargo.toml"
 text = path.read_text(encoding="utf-8")
 full = lambda n: n if n.startswith("hsk-studio-") else f"hsk-studio-{n}"
 for spec in sys.argv[2:]:
-    crate, dep = (full(x) for x in spec.split("=", 1))
+    remove = spec.startswith("remove:")
+    crate, dep = (full(x) for x in spec.removeprefix("remove:").split("=", 1))
     header = f"[workspace.metadata.studio.dependencies.{crate}]\n"
     start = text.index(header) + len(header)
     m = re.compile(r"^allowed = \[(.*)\]$", re.M).match(text, start)
     if not m:
         sys.exit(f"no single-line allowed list for {crate}")
     items = re.findall(r'"([^"]+)"', m.group(1))
-    if dep not in items:
+    if remove and dep in items:
+        items.remove(dep)
+    elif not remove and dep not in items:
         items.append(dep)
-        text = text[: m.start()] + "allowed = [" + ", ".join(f'"{x}"' for x in items) + "]" + text[m.end():]
+    else:
+        continue
+    text = text[: m.start()] + "allowed = [" + ", ".join(f'"{x}"' for x in items) + "]" + text[m.end():]
 graph = {k: v["allowed"] for k, v in tomllib.loads(text)["workspace"]["metadata"]["studio"]["dependencies"].items()}
 state = {}
 

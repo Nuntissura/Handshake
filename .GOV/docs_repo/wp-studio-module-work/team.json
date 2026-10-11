@@ -263,7 +263,7 @@
     "builders/lanes/hsk-studio-reel.json"
    ],
    "launched": "2026-10-11T02:40Z",
-   "status": "running"
+   "status": "retired (refresh rule 809k); reel READY fa365cd"
   },
   {
    "name": "builder-develop",
@@ -413,7 +413,7 @@
    "model": "sonnet",
    "role": "Folio frames/threads/pages",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "running"
+   "status": "done 5d737e3"
   },
   {
    "name": "builder-components",
@@ -429,7 +429,7 @@
    "model": "sonnet",
    "role": "render-cpu clip-to-base",
    "launched": "2026-10-11T02:22:36Z",
-   "status": "done 9819e52"
+   "status": "done (render-cpu clip 9819e52, composite align 5814f8d)"
   },
   {
    "name": "builder-kernel-bindings",
@@ -445,6 +445,22 @@
    "model": "sonnet",
    "role": "web slice 1",
    "launched": "2026-10-11T02:28:30Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r3",
+   "agent_id": "ae5bf656a19e27993",
+   "model": "opus",
+   "role": "union round R3 on sync 57ce0fa",
+   "launched": "2026-10-11T02:38:16Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r3",
+   "agent_id": "a65d2e62131f7e337",
+   "model": "opus",
+   "role": "adversarial review R3 (code since 87c1cd9)",
+   "launched": "2026-10-11T02:38:16Z",
    "status": "running"
   }
  ]

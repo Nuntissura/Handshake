@@ -1,0 +1,75 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-FOLIO-ENG-3",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "additive layout members in Folio: pages in spreads, text frames, thread links, text story contract",
+  "commits": [
+    {"sha": "26b37c8", "subject": "NOT mine: another lane's pathspec commit swept my in-progress lib.rs/timeline.rs wiring (mod layout/story, fields, validation) into HEAD before layout.rs/story.rs were tracked; HEAD did not build for about a minute until ae75f55 (see notes.incident)"},
+    {"sha": "ae75f55", "subject": "Folio: add layout.rs and story.rs (pages, text frames, thread links, text story) that lib.rs in 26b37c8 already declares; restore timeline.rs fps_fraction doc line"},
+    {"sha": "39788cb", "subject": "Folio: layout_contract tests (round trip, thread cycles and broken chains, dangling frames/pages and geometry, text story)"},
+    {"sha": "5d737e3", "subject": "Folio: PageLocation carries spread_index; page margin doc states the facing-pages inside/outside caveat"}
+  ],
+  "capabilities_done": [
+    "src/layout.rs: StudioPageSpread.pages (serde default, omitted when empty) = Vec<StudioPage{page_id (document-local key), width/height Length pt >0, side right_hand|left_hand|single_sided, margins LayoutEdges{top,right,bottom,left} pt >=0 leaving a positive margin box, bleed Option<PageBleed{top,bottom,inside_or_left,outside_or_right}> explicit-null-required}>; MAX_PAGES_PER_DOCUMENT 9999 (STU-LAY-105 hard max), pages charged to Budget.nodes; page ids unique document-wide",
+    "src/layout.rs: StudioLayer.text_frame (serde default, omitted when None) = StudioTextFrame{page_id, bounds (Bounds, pt, page coordinates, w/h >0), inset_spacing LayoutEdges pt (inner box positive), text_column_count >=1, text_column_gutter pt (columns keep positive width), first_baseline_offset (STU-LAY-120 six members), minimum_first_baseline_offset pt, vertical_justification (STU-LAY-121), auto_sizing_type (STU-LAY-119), previous_text_frame/next_text_frame explicit-null Option<SLYR id>}; frame identity is the layer_id; only kind text + Payload::Text layers may carry it (PayloadMismatch otherwise); the page must exist (DanglingReference) and, if the layer parent is a page_spread node, that spread must hold the page (InvalidField)",
+    "Thread validation (STU-LAY-018/122): link ids SLYR-prefixed (InvalidId); a link must name a layer that carries a text_frame (DanglingReference); cycles on next or previous links including a self link (new Code::ThreadCycle, target = a frame in the loop); reciprocal links (new Code::InvalidThread, target <frame>/next or <frame>/previous); one story per chain and one chain per story (InvalidThread, target <frame>/story)",
+    "Derived STU-LAY-122 view: StudioDocument::text_threads() -> Vec<TextThread{story_id (parent_story), frames in flow order, start_text_frame, end_text_frame, text_frame_index, previous_text_frame, next_text_frame}>, safe on unvalidated input; StudioDocument::locate_page(page_id) -> PageLocation{spread_index, spread, page_index, page}",
+    "src/story.rs: standalone StudioTextStory (hsk.studio.text_story@1, STXT id): text_kind (point|area|path|frame_grid), story_direction (left_to_right|right_to_left|unknown), content = Inline{text_utf8} | Stored{artifact_manifest_id (opaque handle, never a path), content_digest, byte_len}, paragraphs[{start,end,style_ref Option<STYS>,paragraph_direction Option}] and character_ranges[{start,end,style_ref Option<STYS>,applied_language Option<key>}], both tiling [0,byte_len) exactly on scalar boundaries (inline text); unknown story_direction requires explicit paragraph directions (STU-CON-037); validate_text_story(&story, Budget, &token, &dyn Resolver) -> Result<Vec<ResolutionIssue>> (style refs via Resolver::primitive on hsk.studio.type_style@1, stored content via the new defaulted Resolver::story_content); text_story_schema()",
+    "lib.rs wiring: mod layout/story re-exported; Code::InvalidThread and Code::ThreadCycle added; Resolver::story_content defaulted (Absent); extension() recognises the new objects (an unknown field, or an unknown side/first_baseline_offset/vertical_justification/auto_sizing_type member, keeps the whole input read-only); node budget counts pages; DESCRIPTOR input/api text extended; timeline.rs handle()/control_free() widened to pub(crate) for the story handle checks",
+    "Old documents unchanged: no pages/text_frame keys are encoded when absent; StudioDocument is untouched (no new field); all pre-existing folio tests pass"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-folio --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "5d737e3",
+    "passed": 28,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "Independent validator round on 5d737e3 for crates/hsk-studio-folio: tests/layout_contract.rs first, then the full folio suite. The layout owner migrates hsk-studio-layout to these members later (notes.layout_migration).",
+  "updated_at": "2026-10-11T02:34:39Z",
+  "notes": {
+    "validation_evidence": {
+      "folio_tests": "PASS 28/28 = 4 appearance_contract + 15 foundation_contract + 4 layout_contract (new) + 5 timeline_contract (includes the path-handle test); run on the tree equal to pushed 5d737e3",
+      "clippy": "PASS no warnings (clippy -p hsk-studio-folio --tests --examples)",
+      "rustfmt": "new files layout.rs, story.rs, layout_contract.rs are rustfmt clean (lib.rs and timeline.rs were not reformatted)",
+      "dependents_check": "PASS exit 0: check --tests on hsk-studio-chronicle, package, pigment, composite, pulse, interop-psd, session, interop-media (warnings seen are unused imports in other crates, not folio); run on the tree before the small PageLocation commit 5d737e3, which touches only the new PageLocation type",
+      "lock_wait": "cargo printed 'Blocking waiting for file lock' on the package cache or build directory on some runs; every cargo command finished in under 6 s and the wait was not measured separately (lock_wait_s is null)",
+      "tests_added": "pages_frames_and_threads_round_trip_and_old_documents_are_unchanged, thread_cycles_and_broken_chains_are_refused, dangling_frames_pages_and_malformed_geometry_are_refused, text_story_content_partitions_and_refs_round_trip_and_validate",
+      "not_proven": "No dependent crate exercises the new members yet (layout still uses its crate-local model). A StudioTextStory is not cross-checked against the frames that name it: existence of Payload::Text story_id is the Resolver's (Resolver::primitive). Stored content bytes are never read or hashed by Folio (Accord has no SHA and Folio may depend on Accord only)."
+    },
+    "incident": {
+      "what": "Between my scratch compile check and my copy into the shared tree, the real folio tree was modified by another lane (timeline.rs doc line pointing fps fractions at accord FrameRate::fps_fraction). My file copy of timeline.rs/lib.rs from the scratch copy overwrote that uncommitted doc edit, and the other lane's pathspec commit 26b37c8 (04:27:47 local) then committed my lib.rs and timeline.rs while layout.rs/story.rs were still untracked, so the pushed HEAD declared modules it did not contain.",
+      "repair": "cargo check was clean on the working tree; git add of the two new files plus a pathspec commit ae75f55 was pushed about a minute later. The lost doc edit was re-applied from the 26b37c8 commit title (SequenceFrameRate::accord doc now says the fps fraction is Accord's FrameRate::fps_fraction and other conversions are Pulse's); the other lane should confirm the wording.",
+      "cause_to_avoid": "copying whole files from a scratch copy over a shared tree without re-checking git status immediately before the copy, and leaving new source files untracked while tracked files already reference them. Afterwards: new files are added to the index in the same pathspec commit as the lib.rs that references them, and edits to shared files are in-place replacements, not file copies.",
+      "gameplan": "not changed: the shared STUDIO-MODULE-BUILD gameplan gates every lane and a step for this cause was not added without a lead decision"
+    },
+    "design_decisions": [
+      "Text frame is a field on StudioLayer (spec STU-LAY-017: frames are StudioLayer nodes of text kind), so frame identity is the SLYR layer_id; no new id prefix is needed (Accord has none for frames or pages and is out of scope).",
+      "No field was added to StudioDocument: interop-media (test) and pulse (example, test) build StudioDocument struct literals, so a new document member would break them. Pages live inside StudioPageSpread and frames inside StudioLayer; neither has struct-literal constructors outside folio (grep plus dependents check). StudioPageSpread and StudioLayer did gain pub fields (pages, text_frame): any out-of-tree struct literal needs pages: Vec::new() / text_frame: None.",
+      "Authored thread state is previous/next only; parent_story, start/end and text_frame_index are derived (text_threads()); overflows/overset is layout output and is not stored in the authored document (no stale derived state in the document).",
+      "All layout lengths are Folio Length with unit pt required (STU-LAY-100/105/113/118 declare pt canonical), independent of the document geometry_unit used by spread bounds; spread bounds are not cross-checked against page sizes (different unit domain, no spec rule).",
+      "page_id is a document-local key (no page identity prefix in v02.215 or STU-CON-004); applied_language is an opaque language-resource key (no language prefix declared); both use the [A-Za-z0-9_-]{1,128} grammar.",
+      "Optional spec values with no declared default are explicit null (bleed, previous/next links, style_ref, applied_language, paragraph_direction), following link_group in timeline.rs. Enumerations follow STU-LAY-119/120/121 without the autosize./first_baseline./vjust. prefixes; STU-LAY-119 'height_and_width_proportionally' was used over STU-TYP-116 'height_and_width_proportional' (the spec disagrees with itself; the layout-owned clause was chosen).",
+      "A story is exactly one chain and a chain exactly one story (STU-LAY-018); two disjoint chains of one story are refused.",
+      "The per-spread page limit is not hard-coded (STU-LAY-106): pages count against Budget.nodes; only the STU-LAY-105 pages_per_document hard maximum 9999 is a constant."
+    ],
+    "gaps_not_stored": [
+      "Page: document_offset, applied_section, applied_alternate_layout, applied_parent, parent_transform, override_list, parent_page_items, page_colour_label, layout_rule, snapshot_blending_mode, grid_starting_point, use_parent_grid, slug, orientation (STU-LAY-107/105); page-level column guides column_count, column_gutter, column_direction, custom_columns, column_positions (STU-LAY-113); spread page_count, binding_location, allow_page_shuffle, preserve_layout_when_shuffling (STU-LAY-106); document facing_pages, bleed_uniform, slug_uniform, page_binding (STU-LAY-105).",
+      "Frame: text_column_fixed_width, use_fixed_column_width, use_flexible_column_width, text_column_max_width, vertical_threshold, vertical_balance_columns, ignore_text_wrap, auto_sizing_reference_point and the min width/height auto-size gates, the column-rule group, footnote overrides, frame_type, story_orientation (STU-LAY-118); wrap and obstacle refs (STU-LAY-024/126; the nib WrapProvider owns contour wrap).",
+      "Story: character and paragraph attribute records and local overrides, character_direction_override, addressable units, tables/notes/tracked changes (STU-TYP-110/111); linked-story update state (STU-LAY-019); no read-only extension-inspection path for standalone stories (serde deny_unknown_fields only).",
+      "UNVERIFIED: whether left/right margins of a single_sided page are the physical left/right (STU-LAY-113 says inside/outside only for facing-pages documents and the facing_pages flag is not stored)."
+    ],
+    "layout_migration": [
+      "Layout Spread{id,pages} maps to StudioPageSpread{page_spread_id,pages}; Page{id,width_pt,height_pt,margins{top_pt,right_pt,bottom_pt,left_pt}} maps to StudioPage{page_id,width.value,height.value,margins{top,right,bottom,left}} with every Length unit pt. Pages stay left to right; spread coordinates and the zero-gutter placement remain layout's rule (Folio stores none).",
+      "Layout TextFrame{id,spread:usize,page:usize,x_pt,y_pt,width_pt,height_pt,inset_pt,first_baseline_pt,obstacles} maps to a text layer with a StudioTextFrame: id = layer_id; (spread,page) = doc.locate_page(frame.page_id) (spread_index, page_index); x/y/width/height = bounds in page coordinates with a top-left origin (same convention); the scalar inset_pt maps to the four-value inset_spacing (layout must accept four sides or require four equal); first_baseline_pt maps only to first_baseline_offset = fixed with minimum_first_baseline_offset (ascent/cap_height/leading/em_box_height/x_height need font metrics: refuse as unsupported or take them from Type); obstacles are not stored and stay a reflow input.",
+      "Layout ReflowRequest.thread (indices into frames) maps to doc.text_threads()[i].frames() resolved to layers. Folio refuses cycles (Code::ThreadCycle) and non-reciprocal or mixed-story chains (Code::InvalidThread) at validation; layout's LayoutError::CyclicThread stays as the guard for hand-built input. text_column_count and text_column_gutter are now available but layout is single column today.",
+      "Layout story input: StudioTextStory.inline_text() supplies the text for Inline content (Stored content needs the caller's artifact resolver); character_ranges[].applied_language and style_ref feed Type shaping and style resolution; story_direction/paragraph_direction can replace layout's RTL refusal heuristics (right_to_left, or unknown without paragraph directions, stays UnsupportedComposition); LayoutProposal.overset stays layout output and is not written into the document (overflows is derived).",
+      "Do not change layout's public types until the lead decides; the crate-local TextFrame/Spread remain valid for the validator round on layout commit 259ea44."
+    ],
+    "spec_anchors": ["STU-LAY-001", "STU-LAY-003", "STU-LAY-017", "STU-LAY-018", "STU-LAY-100", "STU-LAY-105", "STU-LAY-106", "STU-LAY-107", "STU-LAY-113", "STU-LAY-118", "STU-LAY-119", "STU-LAY-120", "STU-LAY-121", "STU-LAY-122", "STU-TYP-110", "STU-TYP-113", "STU-TYP-114", "STU-TYP-210", "STU-CON-017", "STU-CON-018", "STU-CON-037"],
+    "scratch": "A scratch copy used for pre-checks lives under Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/folio-eng3-scratch (outside the repo, never committed); removable."
+  }
+}
