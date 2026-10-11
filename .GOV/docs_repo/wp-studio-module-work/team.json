@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T14:41:46Z",
+ "updated_at": "2026-10-11T15:43:54Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1928,6 +1928,17 @@
     "builders/lanes/hsk-studio-interop-psd-budget.json"
    ],
    "launched": "2026-10-11T15:30:02Z",
+   "status": "done 2026-10-11T15:43:54Z (SMB-INTEROP-PSD-BUDGET READY at 85532ad)"
+  },
+  {
+   "name": "prereview-r11-psd-budget",
+   "agent_id": "a5ca7f2d32bb67431",
+   "model": "sonnet",
+   "role": "V4-13 pre-review SMB-INTEROP-PSD-BUDGET at 85532ad",
+   "owns": [
+    "validation/R11-prereview-psd-budget.json"
+   ],
+   "launched": "2026-10-11T15:44:05Z",
    "status": "running"
   }
  ]

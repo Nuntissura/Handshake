@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T15:38:37Z",
+ "updated_at": "2026-10-11T15:43:54Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2613,29 +2613,29 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
-   "phase": "validation",
-   "status": "FAIL_V2",
+   "phase": "validation (two-FAIL lane: V4-13 pre-review before R11)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-budget",
    "commits": [
     "a5eff01",
     "5f5bbb2",
-    "ce22fa5"
+    "ce22fa5",
+    "85532ad"
    ],
    "verdicts": [
     "STUDIO-R9 FAIL_V1 @4d80e50",
     "STUDIO-R10 FAIL_V2 @62d8983"
    ],
-   "candidate": "ce22fa5",
-   "note": "R9 FAIL_V1 remediation 5f5bbb2 + ce22fa5: count like the render plan (enabled instances of enabled stacks on layers visible with every enclosing group; evidence composite lower_extensions.rs:569-593, lower_render_plan.rs:525-563/738-753/430-435, pigment render_plan/extensions.rs:326-339); >64 counted or >1024 mapped per layer -> effects_over_budget; stack crossing 4096 counted and all later -> effects_over_document_budget; uncounted (hidden/disabled) capped at 4096 -> effects_unrendered_over_document_budget (lead accepts); PsdError::EffectLimit removed (no effect count fails the import); memory bound max_layers + 8192 documented on ProposalConfig.budget + DESCRIPTOR; 5 new tests red on scratch 4d80e50; 48/48; V4-06 56 = 56",
+   "candidate": "85532ad",
+   "note": "R10 FAIL_V2 remediation 85532ad: EffectTally two independent sides (counted: 64/layer + 4096/document cut only stacks with counted instances; uncounted: 4096 cuts only stacks without counted instances), each a prefix of panel order; a visible stack with live instances is never refused for the uncounted cap (its switched-off instances past the cap are dropped with Transformed loss effects_unrendered_dropped_over_document_budget \u2014 lead accepts); reverse direction fixed too (hidden stacks no longer lost under the counted code); memory bound max_layers + 8192 kept; docs/DESCRIPTOR agree; 2 new tests + corrected test, 3/9 red on scratch 62d8983; 50/50; V4-06 79 = 79",
    "remediation_claim": {
-    "failure_class": "document-wide whole-import failure at 4096 effects incl. disabled (STUDIO-R9 FAIL_V1)",
+    "failure_class": "uncounted cap drops later visible stacks (STUDIO-R10 FAIL_V2)",
     "rule": "CX-VAL-008",
     "commits": [
-     "5f5bbb2",
-     "ce22fa5"
+     "85532ad"
     ],
-    "summary": "count like the render plan; typed loss per stack past caps; no effect count fails the import; uncounted instances capped (lead accepts MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT = 4096); memory bound documented",
-    "recorded_at": "2026-10-11T14:41:47Z"
+    "summary": "two independent tally sides; each cap cuts only its own category; visible live instances never refused by the uncounted cap",
+    "recorded_at": "2026-10-11T15:43:55Z"
    }
   },
   {
