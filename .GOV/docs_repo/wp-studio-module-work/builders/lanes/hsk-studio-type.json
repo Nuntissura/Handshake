@@ -30,6 +30,16 @@
       "lanes": [
         "SMB-TYPE-FONTS"
       ]
+    },
+    {
+      "sha": "31ea01e5f5f389d13174de3443067b5bb700396e",
+      "tree": "aca7d223d5e29b3a2eda0ba6339f23cc47490430",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Type: check in all test evidence so tests run from the Studio repo alone",
+      "lanes": [
+        "SMB-TYPE-FIXTURES"
+      ]
     }
   ],
   "tests": {
@@ -41,7 +51,7 @@
     "tree": "shared edit tree, not export of pushed SHA"
   },
   "blockers": [],
-  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); follow-up lanes SMB-TYPE-DOCTEST, SMB-TYPE-ENV (94331b00) and SMB-TYPE-FONTS (947b5e7c) await independent validation",
+  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); follow-up lanes SMB-TYPE-DOCTEST, SMB-TYPE-ENV (94331b00), SMB-TYPE-FONTS (947b5e7c), SMB-TYPE-FIXTURES (31ea01e5) await independent validation",
   "verdicts": [
     {
       "round": "STUDIO-R1",
@@ -86,8 +96,17 @@
       "recipe": "NOT edited: type-exact-oracle-recipe.json is pinned evidence outside the repo (sha 4b5e892e in MT research_basis); its absolute paths now serve only as file-name keys/provenance",
       "tests": "Type crate full run --no-fail-fast: unit 37/37, foundation_contract 2/2, doc 0/0, exit0 (no HSK_TYPE_* env); committed blobs re-hashed equal for both license texts",
       "remaining_external": "research root (recipe/preparation/variable font 3/goldens) and validator reference file stay under Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536 (Studio-owned, resolved by ancestor walk)"
+    },
+    {
+      "id": "SMB-TYPE-FIXTURES",
+      "status": "READY_FOR_VALIDATION",
+      "commit": "31ea01e5f5f389d13174de3443067b5bb700396e",
+      "change": "tests/fixtures/evidence: recipe 4b5e892e, preparation b6e733fd, variable record 34f5c533, Inter variable font 3 29160a80 + Inter-variable-OFL.txt 5b9321a4, bidi goldens 90a42d9e + Unicode-data-license.txt e7a93b00, reference 6579f9a9; all byte-identical (committed blobs re-hashed). support: fixtures() = CARGO_MANIFEST_DIR/tests/fixtures; research() = fixtures/evidence; font_root() = fixtures/fonts; reference_file() = fixtures/evidence/...; HSK_TYPE_RESEARCH_ROOT/FONT_ROOT/REFERENCE_FILE optional overrides only; ancestor walk to Handshake_Artifacts removed. Provenance consolidated: tests/fixtures/FIXTURES_PROVENANCE.json (13 files); tests/fixtures/.gitattributes '* -text'",
+      "licenses": "font 3 OFL-1.1 (name ID 13/14, fsType 0, upstream rsms/inter, Google Fonts ofl); goldens carry one BidiCharacterTest line, Unicode-3.0 notice included; no blocker",
+      "handshake_artifacts_not_used": "proof by code path: tests/support, foundation_contract and examples/type-consumer contain no Handshake_Artifacts, ancestors(), drive-letter or wtc- path; every default resolves under CARGO_MANIFEST_DIR; run had 0 HSK_TYPE_* env vars. File-open tracing not available (not observed)",
+      "tests": "unit 37/37, foundation_contract 2/2, doc 0/0, exit 0"
     }
   ],
   "diagnostic_ref": ".GOV/docs_repo/wp-studio-module-work/diagnostics/type-lane.md",
-  "updated_at": "2026-10-11T01:45:00Z"
+  "updated_at": "2026-10-11T02:00:00Z"
 }

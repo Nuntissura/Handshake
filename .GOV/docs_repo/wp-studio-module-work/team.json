@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:25:00Z",
+ "updated_at": "2026-10-11T01:53:20Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -14,7 +14,7 @@
     "crates/<27 new>/** (scaffold only)"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (resume for lock sync / dep requests before rounds)",
+   "status": "idle (R2 base faf1be4 pushed; resume before each round for lock sync)",
    "resumed": "2026-10-11T01:02Z"
   },
   {
@@ -311,6 +311,40 @@
     "builders/lanes/hsk-studio-render-gpu.json"
    ],
    "launched": "2026-10-11T04:00Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r2",
+   "agent_id": "a241895c758c5a469",
+   "model": "opus",
+   "role": "independent union round R2",
+   "owns": [
+    "validation/round-R2.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r2-a",
+   "agent_id": "ae22be7f2c336df8e",
+   "model": "opus",
+   "role": "adversarial review R2 group A",
+   "owns": [
+    "validation/R2-review-a.json"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r2-b",
+   "agent_id": "a0fb68d4afc72e196",
+   "model": "opus",
+   "role": "adversarial review R2 group B",
+   "owns": [
+    "validation/R2-review-b.json"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
    "status": "running"
   }
  ]

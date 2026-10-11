@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:35:00Z",
+ "updated_at": "2026-10-11T01:53:20Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -82,24 +82,33 @@
    "brief": "builders/briefs/hsk-studio-pulse.md",
    "commits": [
     "416b376",
-    "9502a9b"
+    "9502a9b",
+    "e259dbe"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-pulse.json",
-   "candidate": "9502a9b",
-   "note": "time only; reuses accord::Ticks; 7/7; slice2 sequence-time planners over Folio in progress"
+   "candidate": "e259dbe",
+   "note": "slice2 timeline edit planners over Folio (trim/razor/roll/slip/slide, link+sync-lock); 11 tests; slice3 in progress"
   },
   {
    "lane_id": "SMB-SCORE",
    "crate": "hsk-studio-score",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score",
    "brief": "builders/briefs/hsk-studio-score.md",
-   "commits": [],
+   "commits": [
+    "6e17a6a",
+    "76ba23a",
+    "31d8395",
+    "6f736b8",
+    "59d5e09"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-score.json"
+   "lane_file": "builders/lanes/hsk-studio-score.json",
+   "candidate": "59d5e09",
+   "note": "engine/processors/EQ/FFT/rubato resample; 13 tests; next exact resampler + bounce receipt"
   },
   {
    "lane_id": "SMB-REEL",
@@ -194,24 +203,32 @@
    "commits": [
     "8d9f694",
     "a6d049a",
-    "5bc338d"
+    "5bc338d",
+    "43e1baf"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-package.json",
    "candidate": "5bc338d",
-   "note": "slice1 STORE-only ZIP64 + manifest + atomic save; 5/5; deps pending steward sync (crc32fast, sha2, serde, serde_json); slice2 in progress"
+   "note": "slice1 STORE-only ZIP64 + manifest + atomic save; 5/5; deps pending steward sync (crc32fast, sha2, serde, serde_json); slice2 in progress; slice2 43e1baf blob table raw|zstd + Read+Seek"
   },
   {
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
-   "commits": [],
+   "commits": [
+    "ee30d62",
+    "710ab18",
+    "4cc3742",
+    "fe3c193"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-interop-psd.json"
+   "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
+   "candidate": "fe3c193",
+   "note": "own parser; 28 blend keys -> pigment StudioBlendMode; byte-identical rewrite; to_proposal via folio; 5 tests; UNVERIFIED items need Photoshop fixtures"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -371,13 +388,18 @@
    "lane_id": "SMB-MOTION-JS",
    "crate": "hsk-studio-motion-js",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-motion-js",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion (reused)",
    "brief": "builders/briefs/hsk-studio-motion-js.md",
-   "commits": [],
+   "commits": [
+    "1f87cd2",
+    "5882f3c"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-motion-js.json"
+   "lane_file": "builders/lanes/hsk-studio-motion-js.json",
+   "candidate": "5882f3c",
+   "note": "slice1 provider+engine trait+quotas+double; slice2 rquickjs 0.14.0 per prep expression-provider-adoption.json"
   },
   {
    "lane_id": "SMB-PRISM-ENG-1",
@@ -396,12 +418,13 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/type-lane.md topic strategy",
    "scope": "spike: harfrust =0.14.0 + read-fonts/skrifa provider behind a feature flag, side-by-side with vendored subset; compare against existing references; bounds at call boundary",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "type-lane",
    "operator_decision": "D7 pending: accept call-boundary metering instead of in-shaper bounds before replacing the vendored path",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "note": "side-by-side feature-flag spike only; replacement = Operator D7"
   },
   {
    "lane_id": "SMB-REEL-ENG-1",
@@ -553,11 +576,15 @@
    "crate": "workspace",
    "origin": "validation/round-R1.json infrastructure notes",
    "scope": "steward: checked-in test entrypoint for Studio rounds (script + per-test runner config with slow-timeout/terminate-after per CX-EXEC-005) + one-test-per-package canary; fill HBR test_entrypoint/canary_check for WP-KERNEL-STUDIO; validator rounds use only that entrypoint (CX-VAL-007)",
-   "phase": "brief",
-   "status": null,
-   "owner": null,
-   "commits": [],
-   "verdicts": []
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "steward",
+   "commits": [
+    "faf1be4"
+   ],
+   "verdicts": [],
+   "candidate": "faf1be4",
+   "note": "tools/run-round.sh + .config/nextest.toml; export mode refreshes mtimes (shared target reuse trap); canary mode"
   },
   {
    "lane_id": "SMB-TYPE-ENV",
@@ -606,9 +633,23 @@
    "crate": "hsk-studio-type",
    "origin": "SMB-TYPE-FONTS residual",
    "scope": "vendor recipe, preparation, variable font 3 (license permitting), bidi goldens, reference file into repo fixtures; artifacts only optional override",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "type-lane",
+   "commits": [
+    "31ea01e5f5f389d13174de3443067b5bb700396e"
+   ],
+   "verdicts": [],
+   "candidate": "31ea01e"
+  },
+  {
+   "lane_id": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "origin": "interop-psd gap: StudioLayer lacks appearance",
+   "scope": "additive layer appearance: opacity, fill_opacity, blend_mode discriminant (STU-RAS-154/039), clipped, isolation flag, mask ref + flags; interop-psd writes them",
    "phase": "build",
    "status": null,
-   "owner": "type-lane",
+   "owner": "builder-interop-psd (reused)",
    "commits": [],
    "verdicts": []
   }

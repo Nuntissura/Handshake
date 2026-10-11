@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
 file_kind: lane_diagnostic
-updated_at: 2026-10-11T01:45:00Z
+updated_at: 2026-10-11T02:00:00Z
 wp: WP-KERNEL-STUDIO
 mt: MT-35536
 crate: hsk-studio-type
@@ -111,5 +111,17 @@ Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/har
 - `.gitattributes '* -text'` keeps exact bytes. Inter's `OFL.txt` is CRLF and the root `text=auto eol=lf` would otherwise rewrite it and break its hash.
 - The recipe JSON is unchanged because it is pinned evidence (sha 4b5e892e). Fonts are now resolved by its file names under `CARGO_MANIFEST_DIR`, so the `wtc-native-editors-v1` worktree is no longer read.
 - Run once (`--no-fail-fast`, no env vars): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="fixtures-standalone" status="active" mt="MT-35536" summary="SMB-TYPE-FIXTURES: Type tests run from the Studio repo alone">
+
+## SMB-TYPE-FIXTURES (commit 31ea01e5)
+
+- Copied all remaining evidence into `crates/hsk-studio-type/tests/fixtures/evidence/`, byte-identical: recipe 4b5e892e, preparation, variable record, Inter variable font 3 with its OFL text, bidi goldens with the Unicode-3.0 notice, and reference 6579f9a9.
+- Tests resolve evidence, fonts and reference from `CARGO_MANIFEST_DIR`. `HSK_TYPE_*` variables are optional overrides only, and no default path points at `Handshake_Artifacts` (verified by reading the code paths; file opens were not traced).
+- `FIXTURES_PROVENANCE.json` replaces `FONTS_PROVENANCE.json` and covers 13 files. One `tests/fixtures/.gitattributes` with `* -text` keeps every fixture byte-exact.
+- Licenses: font 3 is OFL-1.1, per its name table and upstream rsms/inter. No blocker.
+- Run once (`--no-fail-fast`, 0 `HSK_TYPE_*` variables): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
 
 </topic>

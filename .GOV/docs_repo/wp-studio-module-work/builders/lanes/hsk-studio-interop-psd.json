@@ -2,11 +2,32 @@
   "crate": "hsk-studio-interop-psd",
   "mt": "MT-35548",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1 complete: own parser + byte-exact writer + loss report + Folio proposal + Observe report; mask sidecar next",
+  "phase": "slice-1 complete (reader, byte-exact writer, loss report, Folio proposal, StudioBlendMode mapping, Observe report); mask sidecar next",
   "commits": [
-    {"sha": "ee30d62", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"},
-    {"sha": "710ab18", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio import proposal (hierarchy, linear-light Pigment tiles, appearance sidecar, loss, provenance), edit-loop apply, Observe report (pushed by another lane's push)"},
-    {"sha": "4cc3742", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "PSD blend keys to Pigment StudioBlendMode, merged-image oracle helper (placeholder never an oracle)"}
+    {
+      "sha": "ee30d62",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"
+    },
+    {
+      "sha": "710ab18",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Folio import proposal (hierarchy, linear-light Pigment tiles, appearance sidecar, loss, provenance), edit-loop apply, Observe report (pushed by another lane's push)"
+    },
+    {
+      "sha": "4cc3742",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "PSD blend keys to Pigment StudioBlendMode, merged-image oracle helper (placeholder never an oracle)"
+    },
+    {
+      "sha": "fe3c193",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "pass is a group pass-through flag (LayerAppearance.pass_through), leaf pass is a typed loss (pass_through_on_leaf_layer), raw key preserved; all 28 PSD keys map to Pigment StudioBlendMode, unknown keys are typed loss never Normal"
+    }
   ],
   "capabilities_done": [
     "header + color mode (all 8 modes) + color-mode-data bytes kept",
@@ -23,7 +44,13 @@
     "Observe: report() emits exactly one terminal frame (Success | Failure(Validation|Unsupported|Loss) | Canceled)",
     "limits: input, layers, pixels, decoded bytes, tagged block size/count, name units, resources, group depth; cancellation checks; truncation sweep + byte-flip sweep never panic"
   ],
-  "tests": {"passed": 5, "failed": 0, "command": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast", "clippy": "clean for this crate (--tests --examples); pre-existing too_many_arguments warnings are in hsk-studio-observe", "check": "PASS"},
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "command": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
+    "clippy": "clean for this crate (--tests --examples); pre-existing too_many_arguments warnings are in hsk-studio-observe",
+    "check": "PASS"
+  },
   "unverified": [
     "layer flags bit 1 SET = hidden (spec text says visible; PhotoCraft psd source and ag-psd/psd-tools behaviour agree on hidden) -> needs a Photoshop-authored fixture",
     "ZIP+prediction for 16-bit (BE word delta) and 32-bit (byte-plane shuffle + byte delta): behaviour-reference only, spec is silent; ZIP being zlib-wrapped likewise",
@@ -36,5 +63,5 @@
   "blockers": [],
   "next": "layer-mask planes as Pigment-compatible coverage_u8 sidecar; then Photoshop-authored fixtures (oracle tier 0/1) to verify flags bit, prediction, 16-bit scale; ICC conversion of tiles via prism once a profile route exists",
   "dep_requests": "miniz_oxide =0.9.1 (with-alloc) and serde_json =1.0.151 (std), both default-features=false, inline in crate manifest, lines appended to dep-requests.jsonl; Cargo.lock not staged",
-  "updated_at": "2026-10-11T01:47:00Z"
+  "updated_at": "2026-10-11T01:49:00Z"
 }

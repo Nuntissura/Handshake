@@ -3,7 +3,8 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice1_pushed_dng_reader_next",
   "commits": [
-    {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"}
+    {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"},
+    {"sha": "e4d2b526735fbfab3563e01966c4ef9fbb835236", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own DNG reader (TIFF IFD, strips/tiles, uncompressed 8/16-bit, levels, active area, linearization), DNG colour solution (Robertson CCT, CM/FM interpolation, Bradford), plane windows, recipe from DNG tags"}
   ],
   "capabilities_done": [
     "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves, validate refuses unsupported process/engine/token/demosaic/WB/crop/profile/contribution",

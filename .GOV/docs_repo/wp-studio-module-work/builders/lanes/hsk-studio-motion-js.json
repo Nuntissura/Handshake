@@ -1,0 +1,41 @@
+{
+  "crate": "hsk-studio-motion-js",
+  "mt": "MT-35563",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 (pure-Rust adapter part): engine-adapter trait, Motion ExpressionProvider implementation, quota/fuel/deadline accounting, typed error mapping, fresh-realm/permit/retire accounting, scripted test double. NO JavaScript engine linked.",
+  "commits": [
+    {"sha": "1f87cd2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "MotionJS: engine-adapter contract, quota/fuel/deadline provider over Motion ExpressionProvider, scripted test double, descriptor, consumer example"},
+    {"sha": "5882f3c", "tree": "d976f30", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "MotionJS: adapter contract tests (typed mapping, outputs, quotas, fuel, deadline, realms, permits, retire)"}
+  ],
+  "capabilities_done": [
+    "Engine adapter contract (src/engine.rs): Engine::run(&EvalJob, &mut dyn HostBridge) -> EngineRun{outcome, RealmReceipt{fresh,dropped}}; neutral JsValue/EngineFailure/BudgetKind/ThrownKind; HostBridge{read, charge, checkpoint, utc_ms}; no engine type in any signature; adapter obligations documented (limits before parse, shared checkpoint charging, uncatchable budget/cancel/host failures, no ambient authority, bounded conversion)",
+    "MotionJsProvider<E: Engine> implements hsk_studio_motion::ExpressionProvider (profile id motion-js-es2018@1): cancel before/at every checkpoint/after run, source-size preflight before any realm, concurrent-realm permits (RAII), one shared Motion Fuel for checkpoints + nested host reads + retries, cooperative monotonic deadline via injectable Clock (SystemClock / ManualClock), host-read quota, injected MOT-256 DateProfile as the only clock, catch_unwind containment of engine panics",
+    "Typed mapping to Motion ExprErrorCode: Parse/Unsupported with exact line:column, thrown reference error -> ReferenceMissing, other thrown -> Unsupported, every budget kind -> Budget (per-kind denial counters), non-numeric/non-finite/wrong-dimension/oversize/too-deep result -> OutputType with no partial output (iterative size check), host errors passed through verbatim, Canceled never disables",
+    "Fail closed: Quotas only via QuotaSpec::try_from_spec (zero or above-ceiling rejected, private fields); leaked/non-fresh realm, engine panic or Internal failure poisons the provider (later evaluations refused, retire reports unclean)",
+    "retire(self) -> RetireReport{realms_started, realms_retired, permits_released, poisoned, owner_thread}; ProviderStats counters",
+    "ScriptedEngine deterministic test double (command words, NOT a JS interpreter), report_eval() through observe::SinkPort, DESCRIPTOR (valid JSON, NOT_PROVEN list), example motion-js-consumer (--descriptor, --eval, --engine scripted, --fuel, --dimension; boa|quickjs -> engine_unavailable)"
+  ],
+  "tests": {
+    "check_tests_examples": "PASS exit0 at 5882f3c",
+    "clippy_tests_examples": "PASS at 5882f3c, no findings in hsk-studio-motion-js (observe has 2 pre-existing too_many_arguments warnings, not ours)",
+    "foundation_contract": "PASS 4/4 (provider_evaluates_through_motion_property_and_store, quota_fuel_and_deadline_accounting, typed_errors_and_output_rules, realm_permits_poison_and_retire); package test run, tests only, no-fail-fast, shared edit tree (not an export)",
+    "passed": 4,
+    "failed": 0,
+    "oracle": "hand-computed: host read [960,540] with fuel 2; date epoch 1000 ms + 1 ms of ticks = 1001; x ramp midpoint 5 read through Motion PropertyStore; spin on Fuel 50 charges exactly 50 and the retry on the same Fuel charges 0; recursion limit 5 trips at depth 6 after 6 units; readsum of two reads costs fuel 2, third read denied by the 2-read quota",
+    "engine_evaluation": "NOT_PROVEN: no JavaScript engine exists in this slice; every behaviour above is proven against the scripted double only"
+  },
+  "blockers": [],
+  "open_decisions": [
+    {"id": "native-engine-choice", "text": "rquickjs 0.14.0 (bundled QuickJS-NG 0.16.2 C, conditional native candidate) vs boa_engine 0.22.0 (pure Rust, no -sys, ~43 normal deps). Boa RuntimeLimits has loop/recursion/stack/backtrace limits but NO heap limit, so a heap bomb cannot be denied in-process: Boa needs the separate worker-process design (RSS/CPU/wall deadline enforced by the parent, same isolation pattern as score-plugin) before it can claim EXPR-PROVIDER quotas. rquickjs has set_memory_limit/set_max_stack_size plus a cooperative interrupt handler but is C/FFI (rquickjs-sys name rejected by the probe pure_registry_name; needs steward scoped exemption + approved entry; feature graph must pin default features only, never full/loader/dyn-load/futures/chrono/allocator). Neither chosen; no dependency requested yet (builders/dep-requests.jsonl untouched). Needed from steward/lead: (1) probe policy for rquickjs-sys, (2) decision whether the worker-process slice is mandatory for any backend, (3) approval path for boa_parser/boa_ast (validator) pins."},
+    {"id": "profile-validator", "text": "Brief step 1 (AST allowlist validator with boa_parser, source_sha256, span table) NOT started: needs boa_parser/boa_ast dep requests; provider accepts any source and relies on the adapter. A token scan was deliberately not added (denying eval/Function names alone is not a control, STU-MOT-258)."}
+  ],
+  "decisions": [
+    {"id": "scripted-double-not-interpreter", "text": "ScriptedEngine interprets fixed command words only; it must never grow into a JS evaluator (adoption review rejects an own interpreter). It exists so provider policy is provable without a native engine."},
+    {"id": "thrown-error-mapping", "text": "MOT-259 has no runtime-error code. Thrown reference error -> ReferenceMissing, any other thrown error -> Unsupported. UNVERIFIED mapping; revisit when the spec adds a runtime-error outcome."},
+    {"id": "profile-id-working-name", "text": "motion-js-es2018@1 is a working identifier, not taken from the spec."},
+    {"id": "deadline-is-guard-not-budget", "text": "Wall-clock deadline is a cooperative resource guard (machine-speed dependent, EXPR-PROVIDER-04); the deterministic budget is Fuel. Both surface as Budget; the kind is only visible in ProviderStats denial counters."},
+    {"id": "host-budget-mapping", "text": "A Budget error returned by HostRead (fuel exhausted inside a host read) is mapped to BudgetKind::Fuel and cannot be caught by script code."}
+  ],
+  "next": "Independent validator round on 5882f3c (crates/hsk-studio-motion-js/tests/foundation_contract.rs). After the steward/lead answers the open decisions: boa_parser/boa_ast validator slice, then one engine backend behind a default-OFF feature with the same four-test suite run differentially against ScriptedEngine-compatible expectations, then the worker-process isolation slice.",
+  "updated_at": "2026-10-11T04:20:00Z"
+}
