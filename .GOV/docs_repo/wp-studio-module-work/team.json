@@ -2159,6 +2159,30 @@
    ],
    "launched": "2026-10-11T21:42:31Z",
    "status": "running"
+  },
+  {
+   "name": "builder-reel-receipts",
+   "agent_id": "ac4e97a153baca9f1",
+   "model": "sonnet",
+   "role": "SMB-REEL-RECEIPTS (PLR-066..068)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-receipts.json"
+   ],
+   "launched": "2026-10-11T21:46:37Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-native-faults-2",
+   "agent_id": "ac4500228042e1dbd",
+   "model": "sonnet",
+   "role": "SMB-REEL-NATIVE-FAULTS-2 (PLR-059..061)",
+   "owns": [
+    "crates/hsk-studio-reel-native/**",
+    "builders/lanes/hsk-studio-reel-native-faults-2.json"
+   ],
+   "launched": "2026-10-11T21:46:37Z",
+   "status": "running"
   }
  ]
 }
