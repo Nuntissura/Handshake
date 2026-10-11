@@ -1307,6 +1307,21 @@
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
    "disposition_note": "next pigment lane (with PLR-069/070)"
+  },
+  {
+   "id": "PLR-076",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press (painted-source purge reachability)",
+   "finding": "a painted region source also reachable by a non-drawing plain reference from a kept catalog structure (/AF, /Names or /Dests name tree) is marked reached+certain: neither pruned nor reported while region_flattened() reads true (recoverability residual, not a drawn-region leak)",
+   "first_seen": "R14-prereview-press",
+   "seen_in": [
+    "R14-prereview-press"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "7410f29",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next press lane: scope 'certain' to draw-reachability or report NotProven::PaintedSourceKept; document meanwhile"
   }
  ],
  "process_items": [

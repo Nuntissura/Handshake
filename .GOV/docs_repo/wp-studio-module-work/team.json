@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T21:19:45Z (R12 candidate 3d795a5; C18 exit 73 59/59)"
+   "status": "running 2026-10-11T22:04:43Z (R13 sync + canary C19)"
   },
   {
    "name": "research-reel-eng",
@@ -2158,7 +2158,7 @@
     "validation/R14-prereview-press.json"
    ],
    "launched": "2026-10-11T21:42:31Z",
-   "status": "running"
+   "status": "done 2026-10-11T22:04:43Z (SAFE_TO_JUDGE both lanes; PLR-076)"
   },
   {
    "name": "builder-reel-receipts",
