@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T09:57:04Z",
+ "updated_at": "2026-10-11T09:59:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -85,7 +85,8 @@
     "a8dd8e8",
     "12e3043",
     "85fe452",
-    "78fd379"
+    "78fd379",
+    "60b0e47"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
@@ -93,8 +94,8 @@
     "STUDIO-R6 PASS_V3 @bd8533f (newer submission 78fd379 pending)"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
-   "candidate": "78fd379",
-   "note": "P3->sRGB via prism AdmittedWideJob on develop tile threads (one band per tile, large tiles split, >65536 bands split into jobs); digests identical 1..32 threads + bit-for-bit vs serial transform; 24 MP P3->sRGB 1366-1432 ms -> 166-176 ms @16; 28 green 1 ignored; receipt profile_calls now counts bands",
+   "candidate": "60b0e47",
+   "note": "pre-review FIX_FIRST fixed (60b0e47, docs/comments only): convert.rs + DESCRIPTOR pending[0] now state prism's <=64-pixel chunking with per-chunk cancel (develop band = whole tile), same-class overclaims fixed (pipeline cancel, BPC pending, never-clipped claim cites test, dng LJPEG doc, real_dng command); V4-06 recount 24 sites listed; lanes separated (SMB-DEVELOP 5ef2dd9/8962bbc/60b0e47; SMB-DEVELOP-JOBS f132843/78fd379; SMB-DEVELOP-WIDE 85fe452); 28 green 1 skipped",
    "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)",
    "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)",
    "r5_review_routed": {

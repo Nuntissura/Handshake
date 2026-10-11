@@ -1,7 +1,8 @@
 {
   "crate": "hsk-studio-develop",
+  "lane": "SMB-DEVELOP",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice6_prism_job_conversion_in_tile_workers_done_real_dng_awaiting_download_approval",
+  "phase": "slice6_prism_job_conversion_in_tile_workers_done_r7_fix_first_stale_docs_fixed_60b0e47_real_dng_awaiting_download_approval",
   "commits": [
     {
       "sha": "68e87672ac310b9401461c20815f4dadff452fe2",
@@ -122,19 +123,27 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "profile conversion through Prism's thread-shared admitted wide job (ENG-7, 8634765): ProfileConverter is a job port (prepare -> Sync ConversionJob, convert_band in place, finish), tile workers convert their own bands between stage A and stage C, one terminal observation per job, whole frame charged at prepare; bands above BandLimits.band_pixels split, layouts above max_bands become several jobs; 24 MP P3 -> sRGB 1366-1432 ms -> 166-176 ms at 16 threads, digests unchanged"
+    },
+    {
+      "sha": "60b0e476f051abd91889484cc27773df83c8a9af",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "R7 pre-review A FIX_FIRST (lane SMB-DEVELOP, docs and comments only): the STU-CON-044 64-pixel chunk claims in convert.rs and DESCRIPTOR pending[0] were stale after prism d7027c3 (the chunking is Prism's, develop bands are whole tiles); same-class sweep (cancel-inside-bands overclaim, BPC-in-Prism pending, never-clipped citation, dng.rs lossless JPEG, stage-A fast path, real_dng run command); V4-06 relisted 24 sites; see notes.lanes and notes.r7_fix_first"
     }
   ],
+  "lock_wait_s": 51,
+  "bg_pids": [],
   "capabilities_done": [
     "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/contribution",
     "pipeline: CfaPlane (spec_v1 + large limits validated at admission, Bayer x4 + X-Trans 6x6, phase/origin), normalised bilinear_reflect_native_v1 demosaic, as-shot WB gains, calibration matrix, [Prism working->output], exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8), develop_to_image",
     "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt; plane immutable; sha256 in receipt; route recorded (scalar only, sse2 refused)",
-    "profile transform: ProfileConverter port + PrismConverter (admitted inspection of both profiles: verified linear-light descriptors under the caller ledger, plus WideEngine admission), then conversion through Prism WideEngine in requests of at most WIDE_CHUNK_PIXELS=262144 (limit 2097152; with_chunk_pixels), relative colorimetric / BPC off; plan cache => each profile parsed once per frame (receipt profile_stats: plan hits/misses/parses); range refusal outside 0..1 never clipped; output unclamped and destination values outside 0..1 counted in receipt profile_stats.clip (method, pixels, per-channel, max overshoot); identity skip only after inspection; receipt profile_route prism_admitted_wide + profile_calls (requests); independent ICC colorant oracle test (1e-4) unchanged and green; the wide transform is charged to the caller admission ledger through Prism AdmittedWideEngine from 85fe452 (provider lease, plan + transient build leases on a miss, request + output leases per request; a denial is prism_refused:admission_denied before any parse); before that commit it was unaccounted",
+    "[PARTLY SUPERSEDED by the 78fd379 job-route entry below: requests became job bands; see notes.r7_fix_first] profile transform: ProfileConverter port + PrismConverter (admitted inspection of both profiles: verified linear-light descriptors under the caller ledger, plus WideEngine admission), then conversion through Prism WideEngine in requests of at most WIDE_CHUNK_PIXELS=262144 (limit 2097152; with_chunk_pixels), relative colorimetric / BPC off; plan cache => each profile parsed once per frame (receipt profile_stats: plan hits/misses/parses); range refusal outside 0..1 never clipped; output unclamped and destination values outside 0..1 counted in receipt profile_stats.clip (method, pixels, per-channel, max overshoot); identity skip only after inspection; receipt profile_route prism_admitted_wide + profile_calls (requests); independent ICC colorant oracle test (1e-4) unchanged and green; the wide transform is charged to the caller admission ledger through Prism AdmittedWideEngine from 85fe452 (provider lease, plan + transient build leases on a miss, request + output leases per request; a denial is prism_refused:admission_denied before any parse); before that commit it was unaccounted",
     "observe: report() outcome mapping (incl. Prism codes), DESCRIPTOR, develop-consumer example",
     "dng: classic TIFF IFD walk (bounded), SubIFD raw selection, strips/tiles with checked sizes, uncompressed 8/16-bit LE/BE, lossless JPEG (compression 7), LinearizationTable, per-site BlackLevel repeat + BlackLevelDeltaH/V, WhiteLevel, ActiveArea, DefaultCrop, raw-IFD-scoped tag lookup, cfa_plane windows (Refuse | ClampReported counted), unapplied-feature report (opcode lists, default scale/user crop, profile maps, orientation)",
     "colour: DNG camera->XYZ D50 (CM/FM two-profile mired interpolation, iterative white from AsShotNeutral or AsShotWhiteXY, Robertson 1968 CCT, Bradford, ForwardMatrix and ColorMatrix paths with the same neutral->D50 Y=1 convention), recipe built from DNG tags with BaselineExposure policy",
     "scalar speed (no SIMD, no unsafe, output byte-identical, pinned by develop_digest): demosaic stencil per (row phase, column phase, missing channel) with linear offsets in the reference summation order (sites within 2 samples of an edge use the original reflect routine), CfaPlane channel lookup table used by admission and normalisation, row-wise tile/alpha/coverage writes without per-pixel division, develop_to_image row copy, exposure == 1 with no curve skips only the identity multiply (finiteness refusal kept), curve segment found by branch-free count, stage-A products unchecked only when every gain/coefficient is 0 or within 1e-100..1e100 (then no product can overflow or round to zero; the f32 rounding refusals are kept)",
     "R3 fixes (validation/R3-review.json SMB-DEVELOP CONFIRMED): cfa_plane uses checked_sub for the per-site black shift and for sample - shift, so finite but absurd BlackLevel/BlackLevelDelta DOUBLE values (rounded black saturating at an i64 limit) give typed invalid_levels (Refuse and ClampReported) instead of an overflow panic/wrap; representable large shifts keep the old sample_out_of_range behaviour. fetch-corpus.sh default now resolves from the crate directory with the same CORPUS_RELATIVE string as tests/real_dng.rs (dry run prints the sibling Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/dng); STUDIO_DNG_CORPUS still overrides both; no download performed",
-    "tile-parallel develop (std::thread::scope, no new deps, no unsafe): Threads = single | new(1..=64) | auto (min(available_parallelism, 16), resolved once); develop_with_threads / develop_to_image_threads / demosaic_normalized_threads, and develop / develop_with / develop_to_image / demosaic_normalized now default to Threads::auto(); normalisation and demosaic by row bands of about 64 Ki samples, output tiles from a shared counter, image assembly by tile-row bands; converter route: stage A of a batch of 4*threads tiles in parallel, converter driven from the calling thread in tile order, stage C in parallel, stage-A failures held back so errors surface in serial order; lowest failing tile decides the error whatever the thread count; cancellation checked between bands and tiles -> canceled, nothing delivered; receipt unchanged (route scalar, no thread field), Sse2 hint still unsupported_execution",
+    "[the converter-route sentence is SUPERSEDED by the 78fd379 job-route entry below] tile-parallel develop (std::thread::scope, no new deps, no unsafe): Threads = single | new(1..=64) | auto (min(available_parallelism, 16), resolved once); develop_with_threads / develop_to_image_threads / demosaic_normalized_threads, and develop / develop_with / develop_to_image / demosaic_normalized now default to Threads::auto(); normalisation and demosaic by row bands of about 64 Ki samples, output tiles from a shared counter, image assembly by tile-row bands; converter route: stage A of a batch of 4*threads tiles in parallel, converter driven from the calling thread in tile order, stage C in parallel, stage-A failures held back so errors surface in serial order; lowest failing tile decides the error whatever the thread count; cancellation checked between bands and tiles -> canceled, nothing delivered; receipt unchanged (route scalar, no thread field), Sse2 hint still unsupported_execution",
     "normalisation loop: per-row-phase black/denominator tables, branch-free, safe code the compiler can vectorise with IEEE binary64 division + binary32 conversion; byte-identical (develop_digest + 24 MP digests)",
     "DNG decoder (R5 + workflow v4): declared frame must fit the payload for compression 1 and 7 (width*height*bytes_per_sample, resp. 1 bit per sample, vs summed block byte counts capped by the file length) before the frame allocation; dng.rs under deny(clippy::arithmetic_side_effects); hostile-size tests dims_u32_max and aggregate_over_budget with a per-thread allocation tracker",
     "PrismConverter::new takes (&AdmittedPrism, &mut AdmittedWideEngine<A>, ...) with one admission type for both; wide inspection (transient parse lease), plan build, request and output are leased on the caller ledger first",
@@ -152,12 +161,14 @@
       "develop_parallel": "5/5 (new: converter_bands_run_once_each_on_the_tile_workers replaces converter_is_driven_in_tile_order_on_the_calling_thread; oversized_tiles_and_long_layouts_split_into_bands_and_jobs; cancellation test cancels from inside the 3rd converter band on 1/2/8 threads -> Canceled, nothing delivered)",
       "real_dng": "1 passed + 1 ignored (needs corpus download approval)"
     },
-    "argv": "cargo test -p hsk-studio-develop --tests --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast",
     "exit": 0,
-    "sha": "78fd3795edb89809b81468e7d9181b016d04a1c7",
-    "check_tests": "PASS",
+    "sha": "60b0e476f051abd91889484cc27773df83c8a9af",
+    "check_tests": "PASS: cargo check -p hsk-studio-develop --tests at 60b0e47 tree, exit 0",
     "clippy_tests": "PASS: cargo clippy -p hsk-studio-develop --tests (plain form) shows no develop warning; the only warnings are 2 pre-existing too_many_arguments in hsk-studio-observe (another lane)",
-    "head": "78fd3795edb89809b81468e7d9181b016d04a1c7"
+    "head": "60b0e476f051abd91889484cc27773df83c8a9af",
+    "run_note": "totals re-run at 60b0e47 (28 passed, 1 skipped = the ignored real_dng corpus test); the per-target breakdown above is from the 78fd379 run (no test changed since)",
+    "previous_run": {"argv": "cargo test -p hsk-studio-develop --tests --no-fail-fast", "sha": "78fd3795edb89809b81468e7d9181b016d04a1c7", "exit": 0, "passed": 28, "failed": 0, "ignored": 1}
   },
   "speed_release_24mp_synthetic": {
     "plane_admit_ms": 43,
@@ -270,11 +281,11 @@
     "UNVERIFIED: whether Adobe anchors the CFA pattern at the raw frame origin or the ActiveArea origin; reader refuses ActiveArea origins that are not a multiple of the pattern period",
     "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; LightSource temperatures documented in color.rs (Adobe SDK table UNVERIFIED)",
     "OpcodeList1-3 are reported as unapplied (require_complete refuses); optional-vs-required opcode parsing not implemented",
-    "Prism wide route: working RGB must still be finite in 0..1 (typed refusal channel_range, never clipped); the 64-pixel per-call parsing is gone (plan cache; requests up to 262144 px)",
-    "SPEC DELTA (needs lead/Operator): STU-CON-044 (spec v02.215 line 22588) still says admitted Prism transform in bounded chunks of at most 64 pixels with accounted lifetime and no fallback to the legacy route; the wide route is neither 64-pixel nor ledger-accounted. Admitted inspection of both profiles is kept; the transform leg needs a spec enrichment or a Prism ledger hook UPDATE 85fe452: the wide route is now ledger-accounted through Prism AdmittedWideEngine (see remediation_R5_develop_wide); only the 64-pixel chunk size of the spec text remains a delta (requests are up to 262144 pixels).",
+    "Prism wide route: working RGB must still be finite in 0..1 (typed refusal channel_range, never clipped); the 64-pixel per-call parsing is gone (plan cache; requests up to 262144 px) [requests became job bands in 78fd379; the 64-pixel chunking is Prism's, see notes.r7_fix_first]",
+    "SPEC DELTA (needs lead/Operator): STU-CON-044 (spec v02.215 line 22588) still says admitted Prism transform in bounded chunks of at most 64 pixels with accounted lifetime and no fallback to the legacy route; the wide route is neither 64-pixel nor ledger-accounted. Admitted inspection of both profiles is kept; the transform leg needs a spec enrichment or a Prism ledger hook UPDATE 85fe452: the wide route is now ledger-accounted through Prism AdmittedWideEngine (see remediation_R5_develop_wide); only the 64-pixel chunk size of the spec text remains a delta (requests are up to 262144 pixels). [SUPERSEDED 2026-10-11T09:56:43Z, 60b0e47: Prism now runs every band in <=64-pixel chunks (ADMITTED_CHUNK_PIXELS) and the lead reads STU-CON-044 as met (07:19:59Z, provisional); a develop band is a whole tile; see notes.r7_fix_first]",
     "Behaviour change: DevelopReceipt no longer derives Eq (profile_stats carries f64 clip overshoot); PRISM_CHUNK removed, WIDE_CHUNK_PIXELS added; PrismConverter::new now takes (&AdmittedPrism, &mut WideEngine, ...); profile_route for a converted run is prism_admitted_wide UPDATE 85fe452: PrismConverter::new now takes (&AdmittedPrism<A>, &mut AdmittedWideEngine<A>, ...).",
     "Prism perf finding: WideEngine::transform costs about 110 ns/px (moxcms two legs plus clip scan plus output hash); a matrix/TRC to matrix/TRC pair with linear TRCs could fuse into one 3x3 plan inside Prism (develop stays the consumer, no colour math here)",
-    "Not done (outside this task): multi-threaded tiles (tiles are independent; scoped threads are safe Rust), ledger accounting of wide requests, SIMD, R3 PLAUSIBLE LJPEG items (pre-allocation bound dng.rs:438-449; ljpeg.rs:141-158 fill bytes / RST sequence + hand KATs). R3 PLAUSIBLE pipeline.rs:639-647 (converter length) is fixed and tested",
+    "Not done (outside this task) [multi-threaded tiles and ledger accounting were done later: f132843, 85fe452]: multi-threaded tiles (tiles are independent; scoped threads are safe Rust), ledger accounting of wide requests, SIMD, R3 PLAUSIBLE LJPEG items (pre-allocation bound dng.rs:438-449; ljpeg.rs:141-158 fill bytes / RST sequence + hand KATs). R3 PLAUSIBLE pipeline.rs:639-647 (converter length) is fixed and tested",
     {
       "verdicts": [
         {
@@ -389,7 +400,8 @@
           "tiff.rs:179,211": "not applicable: data_of proves count * type_size bytes lie inside the file before the allocation (at most 8x the present bytes)"
         },
         "compression_paths_checked": "compression 1 (uncompressed, strips and tiles) and 7 (lossless JPEG, strips and tiles); every other compression refuses unsupported_compression before any allocation",
-        "count_check": "listed sites = 26 = regex matches (grep -cE over src/*.rs)"
+        "count_check": "listed sites = 26 = regex matches (grep -cE over src/*.rs)",
+        "superseded": "2026-10-11T09:56:43Z: at head the regex matched 24 lines, not 26 (R7 pre-review new_findings[1]); the relisted 24 sites with current file:line are in notes.r7_fix_first.v4_06"
       }
     },
     {
@@ -419,11 +431,113 @@
         "retry_guard_route": "no hook block occurred; no gameplan step added",
         "stale_artifact_incident": "the first two cargo test runs failed to compile the tests against libhsk_studio_develop-7d43f6a3707a753d.rlib in the shared studio-team-dev target: file mtime 08:31:40 local, content from the pre-change sources (no band_limits / BandLimits strings in the rlib, present in the check rmeta). Who built it is UNVERIFIED (this session ran only check and clippy, which write rmeta, before the test run); cargo judged it fresh (inferred: its dep-info is newer than the 08:28 source mtimes). Fixed by touching every develop source, test and example file (V4-11) and rerunning; check and clippy were unaffected. Hazard for the lead: the shared target can hold an rlib whose content predates the current sources while its mtime is newer",
         "v4": "V4-09 commit via git commit -F; V4-07 doc claims in convert.rs cite their tests (never-wording replaced); V4-12 scripts only in scratchpad/smb-develop-jobs; V4-01/02 do not apply (no untrusted-byte decoding added); no new copy of a frozen duplicate",
-        "not_done": "encoded (non-linear) profiles still refused by develop's linear-light inspection (Prism 24 MP encoded P3->sRGB 396 ms at 16 threads is available behind the same job API once the linear_light tile contract is decided); finish() on aborted jobs (see abort_policy); STU-CON-044 64-pixel chunk text unchanged (bands are tiles)",
+        "not_done": "encoded (non-linear) profiles still refused by develop's linear-light inspection (Prism 24 MP encoded P3->sRGB 396 ms at 16 threads is available behind the same job API once the linear_light tile contract is decided); finish() on aborted jobs (see abort_policy); STU-CON-044 64-pixel chunk text unchanged (bands are tiles) [SUPERSEDED 2026-10-11T09:56:43Z, 60b0e47: the 64-pixel chunking is Prism's (every band runs in <=64-pixel chunks inside Prism, ADMITTED_CHUNK_PIXELS); a develop band is still a whole tile; see notes.r7_fix_first]",
         "recorded_at": "2026-10-11T06:42:12Z"
+      }
+    },
+    {
+      "lanes": {
+        "recorded_at": "2026-10-11T09:56:43Z",
+        "decision": "lead V4-15 (R7 pre-review A, SMB-DEVELOP new_findings[6]): commit 78fd379 is judged as its own lane SMB-DEVELOP-JOBS. This file keeps ONE commit list for the crate; this note says which commit belongs to which claim. Feature commits (f132843, 78fd379) are under SMB-DEVELOP-JOBS, not under SMB-DEVELOP.",
+        "SMB-DEVELOP": {
+          "scope": "remediation of the recorded FAILs on the DNG decoder and its docs",
+          "commits": [
+            "5ef2dd9d8c501c3549c46ae87863292b9c158a85 (R5 group A: lossless-JPEG declared-frame payload bound)",
+            "8962bbc12b37a1a3cea6d727136e342b9dd1a651 (V4 sweep on dng.rs: payload bound for every compression, deny(arithmetic_side_effects), dims_u32_max + aggregate_over_budget tests, thread-count claims cite tests)",
+            "60b0e476f051abd91889484cc27773df83c8a9af (R7 pre-review A FIX_FIRST: stale STU-CON-044 chunk docs/DESCRIPTOR, same-class sweep, V4-06 relist; docs and comments only, no behaviour change)"
+          ],
+          "verdicts": "R3 FAIL_V1, R5 FAIL_V2, R6 PASS_V3 @bd8533f (the R6 candidate also contained f132843 and 85fe452)",
+          "fix_budget": "two FAILs on record; a third exhausts it (CX-EXEC-015(1))"
+        },
+        "SMB-DEVELOP-JOBS": {
+          "scope": "new features: parallel develop and Prism job conversion",
+          "commits": [
+            "f13284309303284596c32f48621eedafaf8d424b (feature: tile-parallel develop on std scoped threads, Threads, *_threads entry points, tests/develop_parallel.rs)",
+            "78fd3795edb89809b81468e7d9181b016d04a1c7 (feature: profile conversion through Prism's thread-shared admitted wide job, ProfileConverter job port)"
+          ],
+          "verdicts": "none recorded under this lane id. History to avoid confusion: f132843 is an ancestor of the R6 candidate bd8533f and was judged there inside SMB-DEVELOP's PASS_V3; 78fd379 is not in bd8533f and is unjudged. This note re-assigns both under V4-15 on the lead's decision; it is not a verdict.",
+          "tests": "tests/develop_parallel.rs (5) and the job tests of tests/develop_profile.rs (job_contract_violations_keep_their_prism_codes, a_frame_beyond_one_job_is_converted_by_several_jobs, job_conversion_equals_the_serial_wide_transform_for_every_thread_count)"
+        },
+        "SMB-DEVELOP-WIDE": {
+          "scope": "STU-CON-044 accounting through Prism AdmittedWideEngine",
+          "commits": [
+            "85fe452737b926c661a88124fbbe2719f149571c (convert through AdmittedWideEngine; caller ledger charged before every wide-path allocation)"
+          ],
+          "verdicts": "R5 BLOCKED, R6 BLOCKED @bd8533f (stu-con-044-chunk-size-not-64px; convert.rs:13-14 and DESCRIPTOR pending[0])",
+          "note": "60b0e47 replaces the text the R6 BLOCKED finding named (convert.rs, DESCRIPTOR pending[0]) with the provisional reading of lead decision 2026-10-11T07:19:59Z; whether that lifts the block is the lead's and the validator's call, not claimed here"
+        }
+      }
+    },
+    {
+      "r7_fix_first": {
+        "recorded_at": "2026-10-11T09:56:43Z",
+        "finding_ref": "validation/R7-prereview-a.json SMB-DEVELOP new_findings[0] (stale STU-CON-044 doc/DESCRIPTOR), [1] (V4-06 count/relist), [4] (v4_07 never-clipped clause), plus the lead's order to check other doc/DESCRIPTOR claims for the same staleness class",
+        "fix_commit": "60b0e476f051abd91889484cc27773df83c8a9af (pushed to origin/codex/handshake-studio-assets; docs, comments, one DESCRIPTOR string and one test-file doc line; no code change)",
+        "claims_corrected": [
+          "src/convert.rs module docs: 'The 64-pixel chunk size of the spec text is still not used' replaced. Now: the 64-pixel chunking is Prism's (ADMITTED_CHUNK_PIXELS = 64, every band of convert_band_in_place runs in <=64-pixel chunks, each chunk starts with a cancellation check, Prism records the chunks); a develop band is a whole tile (cut only above BandLimits::band_pixels 262144), one band call per tile, not the literal one admitted call per 64 pixels; develop drops the band report and finish reads only the clip report, so DevelopReceipt has no chunk count; reading is provisional (lead 07:19:59Z; Operator may require the literal reading or enrich the spec). Cited tests (checked against prism 3312f72): prism tests/wide_chunks.rs chunk_accounting_is_bounded_deterministic_and_allocation_free, a_canceled_token_stops_a_band_before_its_first_chunk; prism src/wide_job/tests.rs a_band_canceled_at_a_chunk_edge_leaves_exactly_the_chunks_before_it, an_in_place_band_canceled_mid_band_is_partly_overwritten. Develop tests that run its bands through the chunked code: tests/develop_profile.rs job_conversion_equals_the_serial_wide_transform_for_every_thread_count (1024-pixel tile = 16 chunks; the oracle is chunked too, so it shows route agreement, not a chunk count) and job_contract_violations_keep_their_prism_codes (already-cancelled token stops a real Prism band). No develop test asserts a chunk count or cancels between the chunks of a real Prism band (cancellation_returns_canceled_and_no_partial_output uses a stand-in converter).",
+          "src/convert.rs WIDE_CHUNK_PIXELS doc: now says it is a develop BAND size, not the STU-CON-044 chunk.",
+          "src/convert.rs 'band conversion neither allocates nor charges' now cites prism chunk_accounting_is_bounded_deterministic_and_allocation_free and prism tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count.",
+          "src/lib.rs DESCRIPTOR pending[0]: 'text still names 64-pixel chunks (the wide route uses bands of up to 262144 pixels; enrichment pending)' replaced by the provisional reading; new key profile_transform.chunking states what develop gets from Prism and what no develop test proves.",
+          "src/lib.rs DESCRIPTOR pending[2]: 'non-linear (encoded) profiles and BPC in Prism' implied Prism lacks BPC; Prism's wide route has BPC and four intents. Now: encoded profiles are refused by develop's linear-light inspection (typed unsupported_profile for the encoded fixture, tests/develop_profile.rs profile_transform_admitted) and the converter fixes relative colorimetric with BPC off.",
+          "src/lib.rs DESCRIPTOR profile_transform '(never clipped)' (R7 pre-review v4_07): replaced by the channel_range refusal citing tests/develop_profile.rs profile_transform_admitted; unclamped output and the clip report cite wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip.",
+          "src/lib.rs DESCRIPTOR threads.deterministic and src/pipeline.rs develop_with_threads doc: 'cancellation ... inside bands (cancellation_returns_canceled_and_no_partial_output)' overclaimed (that test uses a stand-in converter that ignores the token). Now: checked between normalisation row bands and tiles; the token is passed to every converter band where Prism checks it per 64-pixel chunk.",
+          "src/dng.rs module doc listed only uncompressed samples; lossless JPEG (compression 7) has been supported since c008daf. Corrected; other compressions are UnsupportedCompression (dng.rs:413).",
+          "src/pipeline.rs module doc 'checked arithmetic' now names the stage-A fast path (stage_a_is_total) that skips per-product refusals only where they cannot fire.",
+          "tests/real_dng.rs run command used plain cargo test, which the workspace environment refuses; now the per-test runner form (flags --run-ignored ignored-only and --no-capture verified in the runner's --help)."
+        ],
+        "v4_06": {
+          "class": "a size/count declared by untrusted bytes drives an allocation (or loop) before the payload present is shown to support it",
+          "regex": "vec!\\[|with_capacity|\\.reserve\\(|\\.resize\\(|\\.to_vec\\(",
+          "scope": "crates/hsk-studio-develop/src/*.rs at 60b0e47 (git grep -n -E on the commit)",
+          "matches": 24,
+          "listed": 24,
+          "comment_lines_among_matches": 0,
+          "previous_list": "26 sites 'at 8962bbc'; 78fd379 deleted convert.rs:192 (its length-of-caller-slice site) and one of the two tile-count sites in pipeline.rs (964/978 became one site); at 0e48167 (before this fix) the 24 sites were pipeline.rs 361,447,532,824,847,848,849,1031,1144 and dng.rs 480,577,788, the others as listed below; this fix's doc edits moved dng.rs and pipeline.rs sites by +1 (above develop_with_threads) or +4 (below it)",
+          "sites": {
+            "curves.rs:17": "not applicable: constant two-point identity curve",
+            "curves.rs:55,62": "not applicable: n is 2..=32 (Curve::new validates the point count before prepare)",
+            "dng.rs:481 samples": "FIXED: payload bound for compression 7 (5ef2dd9) and compression 1 (8962bbc) before the allocation; tests dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload, dng_dims_u32_max_is_a_typed_refusal_without_allocation, dng_aggregate_over_budget_is_refused_before_allocating",
+            "dng.rs:578": "not applicable: constant [0.0]",
+            "dng.rs:789 window bytes": "not applicable: window validated inside the active area (dng.rs:776-783, cfa_plane), which lies inside the frame already bounded by MAX_DNG_PIXELS; saturating math",
+            "ljpeg.rs:37": "not applicable: constant LUT size",
+            "ljpeg.rs:65": "not applicable: copy of Huffman values already inside the DHT segment (total <= 256 checked at ljpeg.rs:30-33)",
+            "ljpeg.rs:334": "FIXED earlier (R3 LJPEG bomb guard): total = lines*per_line*n checked_mul, <= max_samples and <= 8 * stream length (ljpeg.rs:272-283) before decode_scan; lines*row_len equals that total",
+            "par.rs:79,108,123": "not applicable: counts derived from the tile/band counts (bounded by Limits.max_tiles and the plane) and workers <= 64",
+            "pipeline.rs:362,533": "not applicable: w*h of an admitted plane (Limits-bounded; the bytes were supplied by the caller)",
+            "pipeline.rs:448": "not applicable: period*period <= 36",
+            "pipeline.rs:825": "not applicable: developed region of one tile, bounded by the grid tile edge <= Limits.max_tile_edge (invalid_grid) and max_output_bytes (output_too_large) before any tile is computed",
+            "pipeline.rs:848,849,850": "not applicable: tile_pixels = tile edge squared, same bound as pipeline.rs:825",
+            "pipeline.rs:1035": "not applicable: geometries.len() <= tile count <= Limits.max_tiles (too_many_tiles)",
+            "pipeline.rs:1148": "not applicable: crop of an admitted plane under caller-set Limits; develop_to_image refuses a tile count that does not match (invalid_length) before the allocation",
+            "tiff.rs:99": "not applicable: entry count <= MAX_ENTRIES_PER_IFD (1024)",
+            "tiff.rs:179,211": "not applicable: data_of proves count * type_size bytes lie inside the file before the allocation (at most 8x the present bytes)"
+          },
+          "count_check": "listed sites = 24 = regex matches (git grep -c: curves 3, dng 3, ljpeg 3, par 3, pipeline 9, tiff 3; convert.rs and lib.rs 0)"
+        },
+        "same_class_sweep": {
+          "class": "doc/DESCRIPTOR/lane-note claim true when written, false or unproven at head after a later commit or dependency change",
+          "regex": "64-pixel|64 pixel|unaccounted|unmetered|calling thread|one request|per request|requests of|WideEngine|still |not yet|no longer|TODO|pending|serial|PRISM_CHUNK|legacy (plus module-doc reads of every src file and every DESCRIPTOR key)",
+          "found_and_fixed": "see claims_corrected (10 items)",
+          "found_not_stale": "lib.rs module docs and DESCRIPTOR keys limits.spec_v1 (match Limits::SPEC_V1), execution.converter (matches pipeline.rs and tests/develop_parallel.rs), profile_transform.prism_admitted_wide band/job limits (2097152 per band, 65536 per job match MAX_WIDE_PIXELS/MAX_WIDE_JOB_BANDS use), par.rs and examples/develop-bench.rs docs",
+          "not_changed": [
+            "DESCRIPTOR refusals 'nothing clipped, defaulted or silently zeroed' and dng.rs/ljpeg.rs/tiff.rs/curves.rs never-wording in comments: pre-adoption text, not touched after 05:40Z, no single citing test; PLAUSIBLE for the lead register, not changed here",
+            "carried R3/R5/R6 PLAUSIBLE: ljpeg.rs RSTn fill/sequence handling and deny(arithmetic_side_effects) on tiff.rs/ljpeg.rs (R7 pre-review new_findings[5])",
+            "pipeline.rs band_window error order with custom BandLimits (R7 pre-review new_findings[2], PLAUSIBLE, product code change not in this slice)",
+            "tests/real_dng.rs corpus_dir() env/CARGO_MANIFEST_DIR root (R7 pre-review new_findings[3], PLAUSIBLE, #[ignore]d)"
+          ]
+        },
+        "prism_moved_during_the_fix": "prism commits efda89a and 3312f72 (R7 pre-review fixes for ENG-6) landed while this fix was in progress and renamed the cancel test I first cited (cancellation_is_checked_between_chunks_of_at_most_64_pixels, wall-clock) to deterministic tests; the cited names were re-verified against prism 3312f72 (== prism at HEAD 29501d7) before the commit and the docs say 'checked against Prism 3312f72'. A later prism rename makes the cited prism test names stale again: re-check them when prism changes.",
+        "verification": {
+          "check": "cargo check -p hsk-studio-develop --tests: exit 0",
+          "clippy": "cargo clippy -p hsk-studio-develop --tests: exit 0; only the 2 pre-existing too_many_arguments warnings in hsk-studio-observe (another lane), none in develop",
+          "tests": "cargo nextest run -p hsk-studio-develop --no-fail-fast (per-test runner under the disk lock): 28 passed, 1 skipped (the ignored real_dng corpus test), exit 0; run on the tree of 60b0e47 against prism 3312f72 (which contains d7027c3 and e26f623; this lane file had no earlier develop test run recorded against prism after 78fd379's dependency, which was the R7 pre-review's UNVERIFIED)",
+          "descriptor_json": "DESCRIPTOR string extracted from lib.rs and parsed as JSON (node): valid, key profile_transform.chunking present",
+          "lock_wait_s": 51
+        },
+        "workflow_routes": "V4-09 commit via git commit -F with a pathspec; V4-12 scratch files only under scratchpad/smb-develop-prereview; no gameplan step added, no hook block; no new copy of a frozen duplicate; one heredoc-in-bash mishap (a hung python3 call started by this session, stopped with TaskStop) left no files"
       }
     }
   ],
-  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles through the same job API (needs a decision on the linear_light tile contract); optional: finish() on aborted jobs (notes.develop_jobs.abort_policy); STU-CON-044 spec text still names 64-pixel chunks (spec enrichment, Operator); optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
-  "updated_at": "2026-10-11T06:42:12Z"
+  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles through the same job API (needs a decision on the linear_light tile contract); optional: finish() on aborted jobs (notes.develop_jobs.abort_policy); STU-CON-044: Operator decision whether Prism's 64-pixel chunking inside each band (provisional lead reading 07:19:59Z) is enough or the literal one admitted call per 64 pixels / spec enrichment is required; optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
+  "updated_at": "2026-10-11T09:56:43Z"
 }

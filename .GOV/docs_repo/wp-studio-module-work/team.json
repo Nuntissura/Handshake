@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T09:57:04Z",
+ "updated_at": "2026-10-11T09:59:23Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1270,7 +1270,7 @@
     "crates/hsk-studio-develop/**"
    ],
    "launched": "2026-10-11T07:59:09Z",
-   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
+   "status": "done 2026-10-11T09:59:23Z (SMB-DEVELOP READY at 60b0e47)"
   },
   {
    "name": "rem-press-soundness",
