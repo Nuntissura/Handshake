@@ -1540,7 +1540,7 @@
   },
   {
    "name": "builder-reel-plr032",
-   "agent_id": "PENDING-P32",
+   "agent_id": "ab349e73553a5b02d",
    "model": "sonnet",
    "role": "reel PLR-032 + PLR-029 before R8",
    "owns": [
