@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-ADJUSTMENTS-ADVANCED-BLENDING
 file_kind: architecture_decision
-updated_at: 2026-10-11T11:06:15Z
+updated_at: 2026-10-11T11:25:21Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5
 owner: pigment-folio-architect
@@ -343,5 +343,92 @@ Conclusion: no public source defines Blend-If composed with layer effects, and n
 27. Group with a drop shadow whose child layer has its own drop shadow: is the group matte the child's pixel alpha only or the child composite including the child's shadow?
 
 When 24-27 are answered, the definition lands additively: `EffectsWithBlendIf` changes class and gets an evaluator in `effect_math`; `EffectsNested` keeps its class and pigment gains a nested composition the backends match; `tests/effects_ops.rs` becomes the migration list.
+
+</topic>
+
+<topic id="admission-parity" status="decided" version="1" wp="WP-KERNEL-STUDIO" owner="SMB-PIGMENT-ADMIT-PARITY" summary="Sweep of every refusal render-cpu and render-gpu can return after admission; three plan-level gaps closed in pigment (mask on a pass-through layer, premultiplied alpha, leaf-root Normal class), the rest classified" updated_at="2026-10-11T11:25:21Z">
+
+## Admission parity sweep (pigment commit b2f5f81 on codex/handshake-studio-assets)
+
+Problem (R5 pass-through fill, R7 effects and Blend-If): pigment's shared admission admitted a plan feature that both backends then refused under a local key. A host that runs `admit` as a pre-flight saw "admitted"; `execute` then said "unsupported". The lead named `mask_on_pass_through` and `alpha_premultiplied` / `sample_format` (unverified).
+
+Method (read-only on the backends, at pigment fe5fde0 plus b2f5f81): every `unsupported(` call in `render-cpu/src` and `render-gpu/src` (regex `unsupported\(`, excluding the `refusal_keys.rs` test modules, `fn unsupported` and descriptors: 77 sites, 52 render-cpu and 25 render-gpu), the two `map_err(unsupported)` sites (render-gpu `plan_sink.rs:587`, `:596`), the direct `BackendError::Unsupported` in render-gpu `leaf_root_class` (`plan_sink.rs:1047`), and every other typed port error the backends return after admission (SourceMismatch, UnresolvedSource, BudgetExceeded, Overflow, Unavailable, DeviceLost, Canceled, DeadlineExceeded, Sink). Each was read in context and compared with what `admit` / `admit_extended` / `validate` already decide.
+
+Classes: (a) pigment defines the semantics, so the backend must implement them and declares support through a declarable operator that admission asks; (b) no defined semantics, so pigment refuses intrinsically at admission; (c) depends on source data, an opaque payload, a resource or a device, so admission cannot know it: kept and documented; (covered) admission already decides the rule and the backend check is defence in depth; (u) unreachable after admission (internal invariant, or a value pigment's validation already bounds).
+
+### Counts (80 `unsupported` sites)
+
+| Class | Sites | Rules |
+|---|---|---|
+| (a) fixed here | 5 | `alpha_premultiplied` (tile input and target, 4 sites), leaf-root `Blend(Normal)` class (1 site) |
+| (b) fixed here | 2 | `mask_on_pass_through` |
+| (covered) by earlier lanes | 22 | pass-through opacity / fill, non-isolated blended group, blend mode, mask density (v1), mask format, knockout, effects with Blend-If, effects nested, Blend-If clip roles, adjustment kinds, effect features, Solid sample range, clip base pass-through |
+| (c) cannot be known at admission | 13 | listed below, plus the port-error families |
+| (u) unreachable defence | 38 | listed below |
+
+### The open rules (file:line before commit b2f5f81)
+
+| Key | Where | Condition | Class | Decision |
+|---|---|---|---|---|
+| `mask_on_pass_through` | render-cpu `plan_sink.rs:603-605`; render-gpu `plan_sink.rs:526-528` | a coverage mask (any invert, density, feather) on a layer with mode PassThrough | (b) | Pigment refuses intrinsically for every backend: const `PASS_THROUGH_MASK_OPERATOR`, `RenderPlan::has_pass_through_mask`, checked by `admit` and `admit_extended` |
+| `alpha_premultiplied` | render-cpu `:394-396` (tile), `:447-449` (target); render-gpu `:315-317`, `:381-383` | `TileInput.alpha` or `OutputTarget.alpha` is Premultiplied (any node, reachable or not) | (a) | New declarable `ExtOperator::AlphaPremultiplied` (key `alpha_premultiplied`, intrinsic `Approximate`, `ALPHA_BOUNDARY_EXACTNESS`); `RenderPlan::uses_premultiplied_alpha`; undeclared = Unsupported, which both backends already are |
+| leaf-root `normal` | render-gpu `plan_sink.rs:1032-1054` (`leaf_root_class`, after `admit`) | root is a leaf (tile, solid, vector): composited as one Normal layer, so the backend class of `Blend(Normal)` must pass the request floor | (a) | `RenderPlan::has_leaf_root`; admission asks `exactness(Blend(Normal))`; check only, the ledger is unchanged so receipts stay byte-identical |
+| `sample_format` | render-cpu `:450-452`; render-gpu `:384-386` | `OutputTarget.format != RgbF32Le` | (u) | `SampleFormat` has one variant and is `non_exhaustive`: no plan can name another format. An in-crate exhaustive match (unit test `every_enum_a_backend_refuses_on_has_an_admission_decision`) breaks the build when a variant is added, so its decision must be written in `admit_plan_rules` |
+| (order) | `admit_plan_rules` | runs last in `admit` and `admit_extended` | | every plan refused before keeps its key (test `earlier_refusals_keep_their_keys_before_the_new_rules`: v1 density wins over the pass-through mask, fill wins, sample range wins over alpha); order among the new rules is mask, alpha, leaf-root class |
+
+### Evidence for (b) `mask_on_pass_through` (research 2026-10-11; nothing guessed)
+
+| Source | What it says | Read how |
+|---|---|---|
+| pigment `blend_math::StackNode::Group` / `fold_nodes` | pass-through group opacity < 1 is a premultiplied lerp (Approximate, declared per backend as `PassThroughOpacity`); the group has no mask input; fill on a pass-through layer is intrinsically Unsupported (`PASS_THROUGH_FILL_OPERATOR`), Blend-If and effects on a pass-through layer are refused (`BlendIfPassThrough`, `EffectPassThrough`) | read locally |
+| W3C Compositing and Blending 1 (w3.org/TR/compositing-1) | in SVG "mask always creates an isolated group"; opacity below 1 and masking force isolation, so a masked non-isolated group has no definition there | fetched |
+| Spec v02.215 STU-CMP-022 / pass-through wording | pass-through composites straight onto the backdrop; no sentence defines a mask on it | read locally |
+| Adobe Help (helpx.adobe.com) | HTTP 403 for the fetch tool: primary text NOT read (UNVERIFIED) | fetch failed |
+| Web search (Photoshop mask on a Pass Through group) | tutorials say a Pass Through group lets adjustment layers inside it affect layers below; the Foundry Mari docs (an analogy, not Photoshop) say a mask on such a group limits the effect to the masked area. No Photoshop primary text | search snippets only |
+
+Conclusion: the common Photoshop workflow (a mask on a Pass Through group of adjustment layers) probably means `lerp(before, after, mask)` per pixel, but no public source defines it, and pigment's own definition stops at group opacity. The same standard as `blend-if-clip-roles` and `effects-ops` applies: no definition, refuse for every backend and make the definition a D5 case. A product consequence the lead should weigh: PSD files with a masked Pass Through group (not rare) are typed-lossy until D5 case 28 is answered.
+
+### Evidence for (a) `alpha_premultiplied`
+
+Spec v02.215 STU-CMP-022 (`14-studio-creative-suite.md` l.29377): alpha is STRAIGHT or PREMULTIPLIED at every boundary; "Internal compositing operates on a single declared convention and converts at the boundary". Pigment's maths is straight (`Rgba::premultiplied`, `from_premultiplied` exist, `ResolvedTile::planes` yields Straight). So the semantics are spec-defined (convert at the boundary) and only the backends lack the conversion. The class is Approximate because the unpremultiply of a zero-alpha pixel discards its colour, a Studio rule rather than a published formula.
+
+### Remaining sweep rows
+
+Covered (admission decides; the backend check is defence in depth, 22 sites): render-cpu `plan_sink.rs:153` (`Operator::Blend(mode)` mapping), `:551` (pass-through opacity), `:560` (fill), `:564` (non-isolated blended), `:567` (blend mode), `:581` (`effects_with_blend_if`), `:584` and `effects.rs:128` (`effects_nested`), `:601` (mask density, v1), `:614` (mask format), `extended.rs:130` (effect feature); render-gpu `plan_sink.rs:443` (Solid range), `:468`, `:471`, `:475`, `:478`, `:490` (knockout), `:524`, `:534`, `:595` (adjustment kind, same predicate as `extension_exactness`), `:606`, `:618`.
+
+(c) cannot be known at admission (13 sites and the port-error families):
+1. Source resolution and verification: `UnresolvedSource`, `SourceMismatch` for declared shape, stride, hash, non-finite, alpha range and the colour tag (render-cpu `plan_sink.rs:484-485`, `:397-421`, `:608-631`; render-gpu `:424`, `:318-340`, `:538-545`). Depends on the resolved planes.
+2. Tile sample range: `sample_range_outside_unit` from tile data (render-cpu `:436`; render-gpu `:352`). Data. The Solid half is covered.
+3. Vector payload: `vector_geometry`, `vector_aa_samples`, fill colour range, path budget (render-cpu `coverage.rs:25,38`, `plan_sink.rs:340`). The payload type `V` is opaque to pigment.
+4. Mask plane against its declaration and `mask_coverage_gap` (render-cpu `:632-640`; render-gpu `:546-550`): `SourceMismatch` in both, so they agree. The gap depends on the vector content bounds (payload), so pigment cannot decide it uniformly.
+5. `effect_work_limit` (render-cpu `extended.rs:150,380`, `MAX_EFFECT_WINDOW_WORK`) and `effect_cost` (render-gpu `plan_sink.rs:1971`, `FX_PASS_MAX_OPS`): admitted effect parameters (size up to 1000 px, spread up to 1) times the backend's chunk size. render-cpu publishes pigment's `layer_window_cost` for a pre-flight.
+6. `mask_feather_cost` (render-gpu `ext.rs:324`, `plan_sink.rs:365`): host blur cost `(rows + output pixels) x taps` above `2^31` for admitted feather radii up to 10000 px.
+7. Working-set budgets: `BudgetExceeded` (render-cpu `plan_sink.rs:1356`, `extended.rs:146,182`; render-gpu `:240`, `:361`, `:1184`, `:1942`, `:1974`).
+8. `extended.rs:127` (`over_budget` of the reference plane) and the three sample-range mappings `plan_sink.rs:150`, `extended.rs:103,110` (data domain of intermediate values).
+9. Hostile geometry: typed `Overflow` (render-cpu `px.rs`, `plan_sink.rs:1456,1473`; render-gpu `overflow()` sites).
+10. Execution control: `Canceled`, `DeadlineExceeded`, `Sink`, `worker_panic`, `worker_lost`, `plan_digest`, `effect_allocation`.
+11. Device (render-gpu only): `Unavailable(no_adapter | no_device | adapter_timeout)`, `DeviceLost`, `Gpu(device_validation | readback_map_failed | device_fault | device_timeout)`, `Pipeline`.
+
+(u) unreachable after admission (38 sites): `plan_shape` (render-cpu `plan_sink.rs:579,728,734,831,888,992`, `effects.rs:113,165,273`, `extended.rs:501,524`; render-gpu `:1402,1527,1579,1670,1781`), `chunk_scratch` (`:1200`), `effect_scratch` (`effects.rs:168`), `feather_scratch` (`extended.rs:570`), `effect_window_domain`, `effect_source`, `effect_parameter`, `plane_shape` (`extended.rs:126,133,157,159,160,161`), `effect_limit` (`extended.rs:124,155`: `PlanError::EffectLimit` at validate), `mask_feather` / `blend_if` / adjustment parameter mappings (`extended.rs:104,105,111,256`), `blend_error` other codes (`plan_sink.rs:154`), `sample_format` (`:451`, gpu `:385`), render-gpu `mask_feather_radius` (`:360`, validate bounds the radius to 10000 px), `effect_size` and `effect_parameter` (`fx_error`, `:239`): the widest admitted effect blur (`MAX_EFFECT_SIZE_PX` 1000) is 3001 taps and render-gpu `MAX_TAPS` is 3004, pinned by the pigment test `widest_admitted_effect_blur_kernel_fits_the_gpu_tap_bound`; `blend_if_channel` / `blend_if_entries` (`ext.rs:57-70`, `plan_sink.rs:587`: validate refuses a duplicate channel and there are four channels); `curves_lut` / `curves_points` and the unencodable adjustment key (`ext.rs:115-153`, `plan_sink.rs:596`: `AdjustmentOp::prepare` builds the same `PreparedCurve`). If pigment adds a `BlendChannel`, an adjustment kind or a larger effect limit, the matching backend arm becomes reachable: the change must come with its admission decision.
+
+### Pigment changes (additive; v1 `Operator`, `PlanError`, `BackendError` and `MaskInput` untouched)
+
+- `render_plan.rs`: `PASS_THROUGH_MASK_OPERATOR`, `RenderPlan::{has_pass_through_mask, uses_premultiplied_alpha, has_leaf_root}`, `admit_plan_rules` (private to the crate, called last by `admit` and `admit_extended`), descriptor key `admission_parity`, doc on `AlphaConvention` and `SampleFormat`.
+- `render_plan/extensions.rs`: `ExtOperator::AlphaPremultiplied` (one new variant of a `non_exhaustive` enum), `ALPHA_BOUNDARY_EXACTNESS`. `PlanExtensions::validate` is unchanged and does not report it (composite compares its ledger with `validate`; the convention is declared by the plan alone).
+- Tests: `tests/admit_parity.rs` (6) and one in-crate tripwire; pigment 59 pass; clippy clean for pigment.
+
+### What each consumer must now do
+
+- composite (`hsk-studio-composite`): a masked pass-through group lowers to a plan pigment now refuses. Mirror the pass-through fill rule (`evaluate_static.rs` `appearance_block` ~241-243 and `record_appearance` ~212-224, `lower_plan.rs` ~97-110 `Appearance::exactness`): return `Some(PASS_THROUGH_MASK_OPERATOR)` from `appearance_block` when `a.mode == PassThrough && a.mask` (step `Unavailable`, key from pigment), record `PASS_THROUGH_MASK_OPERATOR` as Unsupported in the ledger, lower the exactness to Unsupported, and add a test next to `render_plan_lowering.rs` ~1257 / ~2078 that the lowered plan's refusal under an all-Exact backend equals that key. Composite lowers Straight plans only, so no premultiplied change (do not map a premultiplied target without declaring it).
+- render-cpu: no behaviour change (the wildcard already declares `AlphaPremultiplied` Unsupported). Name `ExtOperator::AlphaPremultiplied => Exactness::Unsupported` in `extension_exactness` (`plan_sink.rs` ~1699-1716) so the declaration is visible. Build the defence-in-depth refusals at `:395`, `:448`, `:604` from pigment (`ExtOperator::AlphaPremultiplied.key()`, `PASS_THROUGH_MASK_OPERATOR`) instead of literals (PLR-006) and extend `refusal_keys.rs` so `admission_and_prepare` covers them; change the descriptor wording from "unsupported" to "refused by pigment admission" for mask on a pass-through layer and premultiplied alpha. The leaf-root rule needs nothing (Normal is Exact).
+- render-gpu: same literal-to-key change at `:316`, `:382`, `:527`; add `ExtOperator::AlphaPremultiplied` to the unsupported side explicitly in `extension_exactness` (`:1113-1136`). `leaf_root_class` (`:1032-1054`) stays only to record `normal: fitted` in the receipt (test `leaf_root_reports_the_blend_kernel_class`); the refusal now comes from admission first with the same error. Still open from `effects-ops`: declare `EffectsNested` (test `fx_stack_mask_group_and_nesting_parity` fails until then).
+- interop-psd: a PSD group with the Pass Through blend key and a layer mask needs a typed loss entry like the clip-role one (`proposal.rs` ~649-695); the owner picks the code (suggest `mask_on_pass_through`); the mask and the group stay preserved.
+
+### D5 oracle cases added (Operator-approved foreground session; never driven by agents)
+
+28. Pass Through group holding a Levels or Curves adjustment layer and a pixel layer in Multiply, with a layer mask on the group (50 % ramp) over a gradient backdrop: per pixel, is the result `lerp(before, after, mask)` (the group contribution weighed by the mask, like group opacity)? Repeat with group opacity 50 % and with the mask inverted or at density 50 %.
+29. Same group with Fill below 100 %: confirm whether Photoshop honours it (pigment refuses it, `PASS_THROUGH_FILL_OPERATOR`).
+
+When 28 is answered the definition lands additively: `StackNode::Group` gets the mask in its lerp factor (`opacity x mask`), the intrinsic refusal becomes a declarable envelope-style operator (as `MaskDensity`), and `tests/admit_parity.rs` `pass_through_mask_*` become the migration list.
 
 </topic>

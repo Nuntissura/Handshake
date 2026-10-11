@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:19:58Z",
+ "updated_at": "2026-10-11T11:27:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2220,20 +2220,24 @@
    "crate": "hsk-studio-pigment",
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "sweep every backend refusal possible after admission; pigment declares/refuses so admission never accepts what backends refuse",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pigment-admit-parity",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "b2f5f81"
+   ],
+   "verdicts": [],
+   "candidate": "b2f5f81",
+   "note": "sweep of 80 backend refusal sites: (a) 2 rules declarable/defined (alpha_premultiplied ExtOperator, leaf-root Normal class at admission), (b) 1 intrinsic refusal (mask_on_pass_through), 22 already admitted-refused, 13 runtime-only, 38 unreachable defence; admit_plan_rules runs last; no v1 enum change; 59 green; D5 cases 28-29"
   },
   {
    "lane_id": "SMB-FX-OPS-ADOPT",
    "crate": "composite + render-cpu + render-gpu + interop-psd",
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "adopt FX-OPS + ADMIT-PARITY keys in one pass (after ADMIT-PARITY lands); fixes render-gpu nesting test regression at HEAD",
-   "phase": "queued (after SMB-PIGMENT-ADMIT-PARITY)",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-fx-ops-adopt",
    "commits": [],
    "verdicts": []
   }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:20:25Z",
+ "updated_at": "2026-10-11T11:27:36Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1500,7 +1500,7 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T11:09:18Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:27:36Z (b2f5f81)"
   },
   {
    "name": "prereview-r8-reel",
@@ -1511,6 +1511,20 @@
     "validation/R8-prereview-reel.json"
    ],
    "launched": "2026-10-11T11:20:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-fx-ops-adopt",
+   "agent_id": "a81d309b2b0fea86e",
+   "model": "sonnet",
+   "role": "SMB-FX-OPS-ADOPT (composite, render-cpu, render-gpu, interop-psd)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-render-cpu/**",
+    "crates/hsk-studio-render-gpu/**",
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T11:27:36Z",
    "status": "running"
   }
  ]

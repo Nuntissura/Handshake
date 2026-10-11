@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-pigment",
-  "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2 + SMB-PIGMENT-WINDOW + SMB-PIGMENT-FX-OPS",
+  "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2 + SMB-PIGMENT-WINDOW + SMB-PIGMENT-FX-OPS + SMB-PIGMENT-ADMIT-PARITY",
   "status": "READY_FOR_VALIDATION",
-  "phase": "SMB-PIGMENT-FX-OPS pushed on fe5fde0 (src d3ce607, tests fe5fde0): check + clippy clean (pigment), 52 pigment tests green (5 new in tests/effects_ops.rs), composite, render-cpu, render-gpu and interop-psd check --tests exit 0; earlier waves unchanged",
+  "phase": "SMB-PIGMENT-ADMIT-PARITY pushed on b2f5f81: check + clippy clean (pigment), 59 pigment tests green (6 new in tests/admit_parity.rs + 1 in-crate tripwire), composite, render-cpu, render-gpu and interop-psd check --tests exit 0; render-cpu + composite 56 tests green; render-gpu 21 of 22 green, the one failure is the expected fx_stack_mask_group_and_nesting_parity (render-gpu must declare EffectsNested); earlier waves unchanged",
   "commits": [
     {
       "sha": "e007703",
@@ -31,6 +31,10 @@
     {
       "sha": "fe5fde0",
       "subject": "Pigment (SMB-PIGMENT-FX-OPS): add tests/effects_ops.rs, the 5 tests for effects_with_blend_if and effects_nested"
+    },
+    {
+      "sha": "b2f5f81",
+      "subject": "Pigment (SMB-PIGMENT-ADMIT-PARITY): mask on a pass-through layer, premultiplied alpha and the leaf-root Normal class are decided at shared admission, not refused by the backends after it"
     }
   ],
   "capabilities_done": [
@@ -39,7 +43,8 @@
     "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)",
     "wave 2 (SMB-EFFECTS-WAVE-2): InnerShadowOp (choke, offset, clipped to the layer alpha), OuterGlowOp (behind content), InnerGlowOp (source edge|centre, over content, clipped to alpha); one shared matte chain with the drop shadow (grow by spread/choke*size as a hard disc, Gaussian of the rest, whole-pixel offset, inverted matte reads 1 beyond the plane); EffectKind +3, effect_support_px, reference_matte / render_layer_reference extended; typed refusals EffectError::Unsupported(EffectFeature: glow_gradient, glow_range, glow_jitter, glow_technique_precise) -> PlanError::EffectUnsupported -> BackendError::Unsupported{operator: feature key} at admission",
     "SMB-PIGMENT-WINDOW: pigment::effect_math::window (additive child module, single owner of tile-sized effect evaluation): window_matte(src: &AlphaSource, &WindowGeometry, &EffectOp, WindowLimits) -> WindowMatte, render_layer_window(...) -> LayerWindow, window_cost / layer_window_cost (exact prediction), stack_support_px; bit-identical to reference_matte / render_layer_reference for all six wave 1 + wave 2 kinds",
-    "SMB-PIGMENT-FX-OPS: ExtOperator::EffectsWithBlendIf (key effects_with_blend_if, intrinsic Unsupported, reported by PlanExtensions::validate instead of blend_if for a layer with effects and non-identity Blend-If; admit_extended refuses it for every backend before any sink call) and ExtOperator::EffectsNested (key effects_nested, intrinsic Approximate, reported when an effect layer's content holds a layer with effects, directly or through nested groups; backends declare it through extension_exactness, admission refuses an Unsupported declaration); additive, non_exhaustive variants"
+    "SMB-PIGMENT-FX-OPS: ExtOperator::EffectsWithBlendIf (key effects_with_blend_if, intrinsic Unsupported, reported by PlanExtensions::validate instead of blend_if for a layer with effects and non-identity Blend-If; admit_extended refuses it for every backend before any sink call) and ExtOperator::EffectsNested (key effects_nested, intrinsic Approximate, reported when an effect layer's content holds a layer with effects, directly or through nested groups; backends declare it through extension_exactness, admission refuses an Unsupported declaration); additive, non_exhaustive variants",
+    "SMB-PIGMENT-ADMIT-PARITY: admit_plan_rules (last in admit and admit_extended, earlier refusals keep their keys): mask_on_pass_through intrinsic refusal (PASS_THROUGH_MASK_OPERATOR, RenderPlan::has_pass_through_mask); ExtOperator::AlphaPremultiplied declarable (key alpha_premultiplied, intrinsic Approximate = ALPHA_BOUNDARY_EXACTNESS, RenderPlan::uses_premultiplied_alpha); leaf-root Blend(Normal) class checked at admission (RenderPlan::has_leaf_root, ledger unchanged); in-crate exhaustive-match tripwire for SampleFormat and AlphaConvention; sweep table in diagnostics/adjustments-advanced-blending.md topic admission-parity"
   ],
   "tests": {
     "argv": [
@@ -51,15 +56,15 @@
       "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "fe5fde0",
-    "passed": 52,
+    "sha": "b2f5f81",
+    "passed": 59,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round; consumers MUST follow notes.fx_ops.consumers (render-gpu must declare EffectsNested or its nested plans are refused at admission; composite ledger; render-cpu/render-gpu local checks become defence in depth); lead decision needed for notes.fx_ops.same_class_open",
-  "updated_at": "2026-10-11T11:08:10Z",
+  "next": "independent validator round; consumers follow notes.admit_parity.consumers (composite mirrors the pass-through mask refusal; render-cpu/render-gpu build their defence-in-depth keys from pigment and name AlphaPremultiplied; render-gpu must declare EffectsNested, see notes.fx_ops.consumers; interop-psd typed loss for a masked pass-through group)",
+  "updated_at": "2026-10-11T11:26:34Z",
   "notes": {
     "brief_deviation_spread": "Brief formula matte' = min(1, matte / (1 - spread)) is NOT implemented: applied to the matte before the blur it is the identity for a binary layer alpha (so spread would do nothing), and applied after the blur it is a different model. Implemented instead the structure of Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (read as a behaviour reference only, GPL, no code copied): spread_px = spread * size is grown as a hard disc dilation (Krita: Gaussian of spread_size then hard edge), blur_px = size - spread_px by Gaussian, then offset, then knockout. Spread 1 = hard matte grown by the full size; spread has no effect at size 0 (matches the Adobe community thread 'spread not working ... only shadows with hard edges'). Lead may reverse; only effect_math::reference_matte (DropShadow arm) and shadow_split change. Hand tests: tests/effects.rs drop_shadow_offset_blur_taps_and_spread.",
     "brief_acceptance_note_stroke": "Acceptance 4 says the 8-neighbour ring is coverage 1 at distance 1. Under the Euclidean model the 12 edge-adjacent ring pixels are exactly 1 and the 4 corner pixels are 1.5 - sqrt(.5) = 0.79289 (round corners), 0 at distance >= 2; inside gives the 8-pixel inner ring exactly. Photoshop's outside-stroke corner shape is UNVERIFIED (D5 13).",
@@ -304,6 +309,397 @@
       "v4_06_sites_note": "the lead named two findings, not a regex; the sweep is the layer-feature combinations validate meets in pigment plus the backend-local unsupported(\"literal\") sites (grep `unsupported\\(\"`) cross-checked against pigment admission",
       "retry_guard": "none hit; cargo check/clippy/nextest each ran once per source state; a first nextest attempt was blocked by the gameplan hook because the command began with a variable assignment before the cd (hook resolved the kernel's WP-KERNEL-012 gameplan); rerun in the documented form `cd <workspace> && source studio-env.sh && cargo ...` (infrastructure: command shape, not a flag change)",
       "commit_note": "d3ce607 carried src only: the new tests/effects_ops.rs was untracked so the pathspec commit skipped it; fe5fde0 adds it (new commit, no amend)"
+    },
+    "v4_06_sites": [
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs:25",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (vector payload V)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs:38",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (vector payload V)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:150",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:153",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:154",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:340",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:395",
+        "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:436",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:448",
+        "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:451",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (sample_format: SampleFormat has one variant; in-crate exhaustive-match tripwire)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:551",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:560",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:564",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:567",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:579",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:581",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:584",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:601",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:604",
+        "verdict": "fixed (b): intrinsic PASS_THROUGH_MASK_OPERATOR refusal in admit_plan_rules"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:614",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:728",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:734",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:831",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:888",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:992",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1200",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:113",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:128",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:165",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:168",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:273",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:103",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:104",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:105",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:110",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:111",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:124",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:126",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:127",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:130",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:133",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:150",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_work_limit, MAX_EFFECT_WINDOW_WORK x chunk size)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:155",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:157",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:159",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:160",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:161",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:256",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:380",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_work_limit, MAX_EFFECT_WINDOW_WORK x chunk size)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:501",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:524",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:570",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:239",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:316",
+        "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:352",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (tile samples)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:360",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:365",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (mask_feather_cost, host blur cost)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:382",
+        "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:385",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (sample_format: SampleFormat has one variant; in-crate exhaustive-match tripwire)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:443",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:468",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:471",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:475",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:478",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:490",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:524",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:527",
+        "verdict": "fixed (b): intrinsic PASS_THROUGH_MASK_OPERATOR refusal in admit_plan_rules"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:534",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:587",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:595",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:596",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:606",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:618",
+        "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1047",
+        "verdict": "fixed (a): leaf-root Blend(Normal) class is checked by shared admission (RenderPlan::has_leaf_root); leaf_root_class stays to record the ledger"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1402",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1527",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1579",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1670",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1781",
+        "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+      },
+      {
+        "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1971",
+        "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_cost, FX_PASS_MAX_OPS)"
+      }
+    ],
+    "v4_06_count": {
+      "lane": "SMB-PIGMENT-ADMIT-PARITY",
+      "regex": "unsupported\\(|map_err\\(unsupported\\) over crates/hsk-studio-render-{cpu,gpu}/src (excluding refusal_keys.rs, fn unsupported, comments, DESCRIPTOR) plus the direct BackendError::Unsupported in render-gpu plan_sink.rs leaf_root_class",
+      "expected": 80,
+      "listed": 80,
+      "by_class": {
+        "c": 13,
+        "covered": 22,
+        "u": 38,
+        "fixed": 7
+      }
+    },
+    "admit_parity": {
+      "lane_id": "SMB-PIGMENT-ADMIT-PARITY",
+      "commit": "b2f5f81416a88735067cc135557eeefe8a80dc7d",
+      "finding_class": "plan-level feature admitted by pigment shared admission, then refused by both backends under a local key (R5 pass-through fill, R7 effects + Blend-If)",
+      "decision_doc": "diagnostics/adjustments-advanced-blending.md topic admission-parity",
+      "counts": {
+        "sites": 80,
+        "a_fixed": 5,
+        "b_fixed": 2,
+        "covered": 22,
+        "c": 13,
+        "u": 38,
+        "rules": {
+          "a": [
+            "alpha_premultiplied (tile + target)",
+            "leaf_root normal class"
+          ],
+          "b": [
+            "mask_on_pass_through"
+          ],
+          "u_forward_guard": [
+            "sample_format"
+          ]
+        }
+      },
+      "new_keys": {
+        "mask_on_pass_through": "PASS_THROUGH_MASK_OPERATOR, intrinsic Unsupported for every backend (RenderPlan::has_pass_through_mask)",
+        "alpha_premultiplied": "ExtOperator::AlphaPremultiplied, intrinsic Approximate, backend declares via extension_exactness (RenderPlan::uses_premultiplied_alpha)",
+        "normal (leaf root)": "existing Operator::Blend(Normal) key, now asked at admission for a leaf root (RenderPlan::has_leaf_root), check only"
+      },
+      "additivity": "v1 Operator, PlanError, BackendError, MaskInput untouched; one new variant of the non_exhaustive ExtOperator; PlanExtensions::validate output unchanged (composite compares its ledger with it)",
+      "same_class_open_resolved": {
+        "mask_on_pass_through": "fixed (b)",
+        "alpha_premultiplied": "fixed (a)",
+        "sample_format": "unreachable today (single non_exhaustive variant); in-crate exhaustive-match tripwire"
+      },
+      "consumers": {
+        "composite": "mirror the pass-through fill rule for a mask: evaluate_static.rs appearance_block (~241) return Some(PASS_THROUGH_MASK_OPERATOR) when mode == PassThrough && mask (step Unavailable), record_appearance (~212-224) record PASS_THROUGH_MASK_OPERATOR as Unsupported, lower_plan.rs Appearance::exactness (~97-110) lower to Unsupported; test next to render_plan_lowering.rs ~1257/~2078. No premultiplied change (Straight plans only)",
+        "render-cpu": "no behaviour change (wildcard already declares AlphaPremultiplied Unsupported); name ExtOperator::AlphaPremultiplied => Unsupported in extension_exactness (plan_sink.rs ~1699-1716); build the defence-in-depth keys at plan_sink.rs 395, 448, 604 from pigment (ExtOperator::AlphaPremultiplied.key(), PASS_THROUGH_MASK_OPERATOR) and extend refusal_keys.rs; descriptor says refused by pigment admission",
+        "render-gpu": "same key change at plan_sink.rs 316, 382, 527; name AlphaPremultiplied in extension_exactness (~1113-1136); leaf_root_class (1032-1054) stays only to record normal: fitted (test leaf_root_reports_the_blend_kernel_class); EffectsNested declaration still open (fx_stack_mask_group_and_nesting_parity fails until then)",
+        "interop-psd": "typed loss entry for a PSD group with the Pass Through blend key and a layer mask (proposal.rs ~649-695 pattern); suggest code mask_on_pass_through; mask and group stay preserved"
+      },
+      "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at b2f5f81; nextest render-cpu + composite 56 passed; render-gpu 22 run, 21 passed, 1 expected failure (fx_stack_mask_group_and_nesting_parity, refused at admission as effects_nested until render-gpu declares EffectsNested)",
+      "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings (two pre-existing hsk-studio-observe too_many_arguments warnings from another lane)",
+      "research": "Photoshop mask on a Pass Through group: Adobe Help 403 (UNVERIFIED); W3C Compositing 1: mask always creates an isolated group (SVG); STU-CMP-022 read locally (convert at the boundary); web search found only tutorials and the Mari docs analogy; D5 cases 28-29 added",
+      "v4": {
+        "V4-01": "no integer decoding added",
+        "V4-03": "no test is silent green; Photoshop parity for the pass-through mask stays NOT_PROVEN (D5 28)",
+        "V4-06": "regex site list in notes.v4_06_sites, count by class in notes.v4_06_count (80 sites, all with a verdict)",
+        "V4-07": "no claim word without a cited test; descriptor admission_parity cites its tests",
+        "V4-09": "commit message through a -F file",
+        "V4-12": "helper script and commit message under the lane scratch folder smb-pigment-admit-parity/",
+        "V4-11": "no file restored with preserved timestamps"
+      },
+      "retry_guard": "none hit; nextest ran once per source state (render-gpu's expected failure is recorded by the hook and is not rerun by this lane)",
+      "red_proof": "not run on a scratch copy: the new tests assert refusals that the previous admit did not give (admit returned Ok for a masked pass-through layer, a premultiplied tile and a leaf root on an Exact floor with a Fitted Normal)"
     }
   }
 }

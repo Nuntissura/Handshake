@@ -244,6 +244,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead acceptance 2026-10-11T11:06:34Z (PLR-049): components Design::new now also refuses repeated component-instance ids and paint-style ids because folio's shared uniqueness pass covers those namespaces (stricter, consistent single owner); write_footprint is (instance_id, '') for whole-instance replacement (PLR-046).
 
+- Lead decision 2026-10-11T11:27:36Z (admission parity, b2f5f81): a mask on a Pass Through group has no defined semantics (W3C Compositing isolates masked groups; pigment defines pass-through opacity but no mask; Photoshop behaviour UNVERIFIED, D5 cases 28-29) -> refused at admission (`mask_on_pass_through`); PSDs with masked pass-through groups import with a typed loss for that group until the oracle answers. Premultiplied alpha is a declarable capability (undeclared = refused).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
