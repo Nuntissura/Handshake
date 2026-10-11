@@ -1232,6 +1232,21 @@
    "verified_at": "71be1aa",
    "disposition": "FIX_LANE",
    "disposition_note": "render-cpu adoption in the PLR-069 lane; render-gpu after D20"
+  },
+  {
+   "id": "PLR-071",
+   "lane": "SMB-WEB-PARITY",
+   "file_line": "crates/hsk-studio-web/src/datauri.rs:609-613",
+   "finding": "doc sentence says 'the collector produces an empty set' (opposite of intent) and cites link_keywords_choose_the_load_contexts, which does not cover animated_loads; R14-O2 cancellation test covers first iteration only and a 20 s wall-clock assertion adds flake surface; R14-O1: URL-only meta refresh reading over-reports vs current Gecko (kept: fail-closed over-report)",
+   "first_seen": "R14-prereview-web-narrow",
+   "seen_in": [
+    "R14-prereview-web-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3d795a5",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next web lane; not reopening the crate before the round"
   }
  ],
  "process_items": [

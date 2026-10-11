@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T20:57:59Z",
+ "updated_at": "2026-10-11T21:11:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -811,12 +811,13 @@
     "recommendation": "FIX_FIRST",
     "at": "2026-10-11T14:13:49Z"
    },
-   "blockers": [
-    {
-     "kind": "awaiting narrow pre-review at 3d795a5",
-     "recorded_at": "2026-10-11T20:57:59Z"
-    }
-   ]
+   "r14_prereview": {
+    "ref": "validation/R14-prereview-web-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "3d795a5",
+    "scope": "narrow e409030..3d795a5 + R13 full pre-review at e409030 (no URL-hiding finding)",
+    "at": "2026-10-11T21:11:03Z"
+   }
   },
   {
    "lane_id": "SMB-SCORE-DEVICE",
@@ -3187,5 +3188,21 @@
   "fix_budget_events": [],
   "notes": "REEL-R11-1..3 CONFIRMED kept as notes by the validator (PLR-066..068); PSD PLR-063..065 notes",
   "infra_notes": "idle sccache pid 342380 left running"
+ },
+ "round_R12_plan": {
+  "at": "2026-10-11T21:11:03Z",
+  "include": [
+   "SMB-WEB-PARITY (claim through 3d795a5)",
+   "SMB-WEB-DIFFTEST (claim incl. later commits)",
+   "SMB-WEB (2-FAIL reopen; R13 full + R14 narrow pre-review SAFE)",
+   "SMB-PIGMENT-PLANLIMITS (5ed1ead, 71be1aa)",
+   "CX-VAL-009 reopens (pigment dependants, web)"
+  ],
+  "exclude": [
+   "SMB-PRESS + DIFFERENCES (R13 remediation running)",
+   "SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "team": "steward sync + canary, 1 validator (opus) + 1 reviewer (sonnet, pigment plan limits)"
  }
 }

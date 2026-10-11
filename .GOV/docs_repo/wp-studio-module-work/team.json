@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T20:26:55Z"
+   "status": "running 2026-10-11T21:11:03Z (R12 sync + canary C18)"
   },
   {
    "name": "research-reel-eng",
@@ -2124,7 +2124,7 @@
     "validation/R14-prereview-web-narrow.json"
    ],
    "launched": "2026-10-11T20:58:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T21:11:03Z (SAFE_TO_JUDGE)"
   }
  ]
 }
