@@ -211,6 +211,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 - Lane-file fixed key set + `date -u` timestamps only (12/17 lane files had future stamps); pathspec-only commits for builders.
 - Adversarial review findings are routed to builders immediately (do not wait for the round to open).
 
+- Workflow v4 (): ten rules V4-01..10 adopted from workflow/workflow-review-ticks.md tick-2 (R5 failure classes: hostile sizes, silent green, frozen duplicates, fault hooks, same-class re-FAIL, doc claims, hostile text, inline free text, rate-limit resilience); text lives in builders/DISPATCH_TEMPLATES.md topic v4-rules; mechanical parts (NOT_PROVEN accounting, machine-local path grep, duplicate fingerprints) go to the round entrypoint step 0 (steward).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

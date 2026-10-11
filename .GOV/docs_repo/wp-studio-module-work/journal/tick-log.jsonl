@@ -29,3 +29,4 @@
 {"t": "2026-10-11T05:35:14Z", "event": "SMB-PRESS READY_FOR_VALIDATION e75bd5a (builder-press-3)", "lanes_moved": ["SMB-PRESS READY"], "commits": ["e75bd5a"], "progress": "direct: product commit"}
 {"t": "2026-10-11T05:35:50Z", "event": "SMB-INTEROP-VECTOR READY_FOR_VALIDATION 3561b12 (rem-vector)", "lanes_moved": ["SMB-INTEROP-VECTOR READY"], "commits": ["3561b12"], "progress": "direct: product commit"}
 {"t": "2026-10-11T05:35:50Z", "event": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE READY_FOR_VALIDATION 3561b12 (rem-vector)", "lanes_moved": ["SMB-INTEROP-VECTOR-FOLIO-MIGRATE READY"], "commits": ["3561b12"], "progress": "direct: product commit"}
+{"t": "2026-10-11T05:36:48Z", "event": "SMB-SCORE READY_FOR_VALIDATION 70ce263 (builder-score-2)", "lanes_moved": ["SMB-SCORE READY"], "commits": ["70ce263"], "progress": "direct: product commit"}

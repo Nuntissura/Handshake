@@ -2,7 +2,7 @@
   "crate": "hsk-studio-score",
   "lane": "hsk-studio-score",
   "status": "READY_FOR_VALIDATION",
-  "phase": "SRC-bounce slice pushed at 2fe5f36 (Engine::bounce_resampled); 25 tests green; ready for independent validator round",
+  "phase": "streaming SRC slice pushed at 70ce263 (streaming ClipResampler + block-streaming bounce_resampled, whole-clip oracle kept); 29 tests green + 1 ignored real-rate 5 min; ready for independent validator round",
   "commits": [
     {
       "sha": "6e17a6a72883cd88a6282c60d8df4562c1458141",
@@ -47,6 +47,10 @@
     {
       "sha": "2fe5f36fa23ab91a3c1e8a2c0aa076a8c8378c70",
       "subject": "Score: bounce over a sample-rate-converting stage (Engine::bounce_resampled: pre -> ClipResampler -> post, ResampledBounceReceipt with exact requested/actual counts, exact input+output ticks, per-stage rate/latency facts, graph identity); ticks_per_sample/sample_to_ticks now accord Timescale"
+    },
+    {
+      "sha": "70ce26392ec14056018645ea6072f3bbe225a961",
+      "subject": "Score: streaming sample-rate conversion (ClipResampler begin/push/finish_stream, bit-identical to the whole-clip path) and block-streaming bounce_resampled with no MAX_BLOCK_FRAMES clip cap; whole-clip path kept as bounce_resampled_whole_clip oracle; working_set_bytes in the receipt"
     }
   ],
   "capabilities_done": [
@@ -60,20 +64,22 @@
     "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised; Observe report(); DESCRIPTOR + examples/score-consumer",
     "R2 remediation: RampedGain cancel/discard keeps pre-block state exactly (Processor::commit, Chain forwarding); resample exact integer count with trimmed_tail_frames receipt field and zeroed unpublished tail; both with regression tests",
     "Engine::bounce_resampled (STU-ARC-021 over a sample-rate converter): graph pre(Processor, input rate) -> ClipResampler -> post(Processor, output rate), whole clip (input and converted clip <= MAX_BLOCK_FRAMES). ResampledBounceReceipt: requested_input_frames, requested_output_frames = ceil(in*out_rate/in_rate) in u128, actual_output_frames (sink total); the three must agree or the bounce is refused (LengthMismatch), nothing clamped/truncated/zero-padded; exact input AND output start/end samples and ticks (output start = input start*out/in must be a whole sample, else OutOfRange), ceil_excess_ticks (< 1 output sample), StageFacts [pre, resampler, post] (kind, in/out rate, in/out frames, compensated latency_samples, identity), embedded pre/post BounceReceipt + ResampleReceipt (pad/drop/trimmed_tail), graph_identity (SHA-256, scheme in docs), digest of the delivered stream. All statically decidable refusals (counts, rates, layouts, capacities, positions, finite input) happen before the first block; the sink is called only by the final stage; slot held throughout; processors reset on any failure. Hand-computed counts: 44.1k->48k 1000->1089, 44100->48000, 441->480, 1->2; 48k->44.1k 1000->919, 48000->44100, 480->441, 1->1; latency 240 @48k and round(220.5)=221 @44.1k compensated without changing counts",
-    "CX-CAP-001: layout.rs ticks_per_sample/sample_to_ticks use accord Timescale::exact_ticks_per_unit / ticks_from_units (local divisor copy removed); behaviour and the foundation_contract tick tests unchanged (MAX_SAMPLE_RATE_HZ stays a score-authored bound). ClipResampler gained channels()/chunk_frames()/identity() (additive); Engine::bounce/resample split into admit + bounce_held/resample_held (pub(crate), behaviour unchanged)"
+    "CX-CAP-001: layout.rs ticks_per_sample/sample_to_ticks use accord Timescale::exact_ticks_per_unit / ticks_from_units (local divisor copy removed); behaviour and the foundation_contract tick tests unchanged (MAX_SAMPLE_RATE_HZ stays a score-authored bound). ClipResampler gained channels()/chunk_frames()/identity() (additive); Engine::bounce/resample split into admit + bounce_held/resample_held (pub(crate), behaviour unchanged)",
+    "Streaming SRC (stream_resample.rs): ClipResampler::begin_stream(input_frames) / push_stream(planar pieces, emit) / finish_stream(emit) -> StreamReceipt / abort_stream / stream_buffer_bytes. Same rubato call sequence as Engine::resample (pad zeros first, a chunk is processed as soon as it is full, last partial chunk with partial_len, silence pumped with partial_len=Some(0); startup delay + alignment drop skipped; delivery stops at the exact integer count), so the delivered samples are BIT-IDENTICAL to the whole-clip path: proven by to_bits equality on 5 rate pairs x 53 lengths (1..40, 63..65, 1005, chunk boundaries 1023..1025, 2047..2049, 4799..4801) with pushes of 1/7/255/1000 frames and on a 4 s 44.1k->48k clip with 4096/333 pushes, plus equal counts, pad/drop/trimmed_tail/delay and peak/rms. Static refusals in begin_stream (0 frames, count overflow, converter that cannot produce the exact count); push refuses non-finite/channel/length mismatch/frames beyond the declared count; any error ends the stream and resets the converter",
+    "Block-streaming Engine::bounce_resampled: processor stages are push-style StageRunners (stage.rs: same block boundaries, latency compensation, settle gate per block and meters as Engine::bounce, BounceRun shared with bounce.rs), the converter streams between them, the sink receives output-timeline chunks as they appear; no MAX_BLOCK_FRAMES cap on clip length; ResampledBounceReceipt EQUALS the whole-clip oracle's receipt field for field except working_set_bytes (6 s 48k->44.1k, limiter latency 341 -> converter -> EQ, blocks 256 and 77, all samples to_bits equal). Engine::bounce_resampled_whole_clip keeps the previous implementation (MAX_BLOCK_FRAMES bound) as the oracle. ResampledBounceReceipt.working_set_bytes reports the bounce's own buffers: streaming 10_640 B for a mono 256-frame-block graph (staging 2 x 1024 B + converter 4096 B in + 4496 B out) independent of clip length, versus the clip buffers of the whole-clip path"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-score --tests --no-fail-fast",
     "exit": 0,
-    "sha": "2fe5f36",
-    "passed": 25,
+    "sha": "70ce263",
+    "passed": 29,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round on 2fe5f36; then: streaming (chunked) ClipResampler so a bounce is not bounded by MAX_BLOCK_FRAMES (about 23.8 s at 44.1 kHz), loudness (spec gap STU-FX-147) once the Operator selects a standard, mix/send graph across rates, score-device/score-plugin consume Processor + Engine::process",
-  "updated_at": "2026-10-11T05:15:45Z",
+  "next": "independent validator round on 70ce263; then: loudness (spec gap STU-FX-147) once the Operator selects a standard, mix/send graph across rates, streaming Engine::resample (publish converted clip into a caller block without the whole-clip bound), score-device/score-plugin consume Processor + Engine::process",
+  "updated_at": "2026-10-11T05:35:41Z",
   "notes": {
     "mt": "MT-35541",
     "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
@@ -118,9 +124,39 @@
       "src_bounce": {
         "passed": 5,
         "failed": 0
+      },
+      "streaming_src": {
+        "passed": 4,
+        "failed": 0,
+        "ignored": 1
       }
     },
     "check_clippy": "check and clippy -p hsk-studio-score --tests --examples: PASS, no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe); cargo check -p hsk-studio-score-device -p hsk-studio-score-plugin --tests: PASS at 2fe5f36",
+    "streaming_slice": {
+      "commit": "70ce26392ec14056018645ea6072f3bbe225a961",
+      "files": "src/stream_resample.rs (new), src/stage.rs (new), src/src_bounce.rs (streaming bounce_resampled, whole-clip oracle kept as bounce_resampled_whole_clip), src/bounce.rs (BounceRun/ReceiptHeader shared, batched digest updates), src/resample.rs and src/engine.rs (crate-internal field visibility), src/lib.rs (exports + DESCRIPTOR), tests/streaming_src.rs (new), tests/src_bounce.rs (the two clip-length refusals now target the whole-clip oracle)",
+      "new_public_api": "ClipResampler::{begin_stream, push_stream, finish_stream, abort_stream, stream_buffer_bytes}, StreamReceipt, StreamEmit, Engine::bounce_resampled_whole_clip, ResampledBounceReceipt.working_set_bytes (new field on last slice's receipt). No existing public item renamed or removed; ScoreError unchanged. Behaviour change: Engine::bounce_resampled no longer refuses clips longer than MAX_BLOCK_FRAMES (the refusal moved to the oracle variant).",
+      "tests_new": [
+        "streaming_resampler_is_bit_identical_to_the_whole_clip_oracle (to_bits equality, 5 pairs x 53 lengths + 4 s clip, awkward push sizes, counts hand-checked as ceil(frames*out/in))",
+        "streaming_bounce_equals_the_whole_clip_bounce (limiter 341 latency -> converter -> EQ, 6 s 48k->44.1k = 264_600 frames, blocks 256 and 77, whole receipt equal except working_set_bytes)",
+        "five_minutes_bounce_exactly_in_bounded_memory (300 s at 4.41k->4.8k mono: 1_323_000 -> 1_440_000 frames, both over MAX_BLOCK_FRAMES; tone deviation < 0.003 at the end; working set and allocation count equal to a 2 s clip's)",
+        "stream_misuse_and_failures_end_the_stream_and_leave_it_reusable (every misuse error, receiver error, reuse equals a fresh converter, mid-bounce cancel then clean rerun equals the oracle)",
+        "five_minutes_at_44k_to_48k (#[ignore], real rates)"
+      ],
+      "measured_real_rate_5min": {
+        "run": "cargo test -p hsk-studio-score --test streaming_src -- --ignored --nocapture at 70ce263, debug test profile",
+        "result": "300 s mono 44100->48000: 13_230_000 -> 14_400_000 frames (exact), 146.1 s wall, tone deviation < 0.003 over the whole clip, working_set_bytes 10_640, peak extra allocated bytes 10_872, 18 allocation calls (a 2 s clip of the same graph: 10_640 B, 10_872 B, 18 calls, so no per-block allocation)",
+        "measured_by": "per-thread counting global allocator in tests/streaming_src.rs around the bounce call; excludes the caller's input clip, the caller-owned blocks and the sink"
+      },
+      "in_suite_timing": "tests/streaming_src.rs non-ignored: 4 tests, 24.7 s wall total (five_minutes_bounce_exactly_in_bounded_memory 14 s); full crate 29 tests",
+      "limitations": [
+        "The converter is exactly the same Async sinc as the whole-clip path, so the 128-input-frame startup delay is compensated by the same pad/drop; a clip must still be at least 1 frame and its converted length is the exact ceil count.",
+        "Chunks reach the sink while later input is still being processed, so they are provisional until the receipt returns (documented on bounce_resampled); non-finite output of the pre stage surfaces as NotFinite after earlier chunks.",
+        "Engine::resample (single published block) is unchanged and keeps the MAX_BLOCK_FRAMES bound; only the bounce graph streams.",
+        "working_set_bytes excludes rubato's internal history buffer (size not exposed by rubato) and the caller-owned blocks and input clip."
+      ],
+      "retry_guard": "no gameplan block occurred; no gameplan step added"
+    },
     "src_bounce_slice": {
       "commit": "2fe5f36fa23ab91a3c1e8a2c0aa076a8c8378c70",
       "files": "src/src_bounce.rs (new), tests/src_bounce.rs (new), bounce.rs and resample.rs (admit split, pub(crate) helpers), layout.rs (accord), lib.rs (exports + DESCRIPTOR)",

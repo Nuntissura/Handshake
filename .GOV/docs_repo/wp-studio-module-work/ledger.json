@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:35:50Z",
+ "updated_at": "2026-10-11T05:36:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -169,14 +169,15 @@
     "d339544",
     "b5e9e19",
     "346b947",
-    "2fe5f36"
+    "2fe5f36",
+    "70ce263"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a"
    ],
    "lane_file": "builders/lanes/hsk-studio-score.json",
-   "candidate": "2fe5f36",
-   "note": "slice: Engine::bounce_resampled pre->ClipResampler->post with ResampledBounceReceipt (requested in/out vs actual, LengthMismatch on disagreement, per-stage facts, latency 240/221), refusals before first block; layout.rs ticks via accord Timescale (CX-CAP-001); 25/25; limit: whole-clip converter <= MAX_BLOCK_FRAMES (~23.8 s @44.1k) -> streaming resampler next",
+   "candidate": "70ce263",
+   "note": "streaming SRC: begin/push/finish/abort_stream bit-identical to whole-clip (to_bits, 5 rate pairs x 53 lengths); bounce_resampled streams block-by-block, no MAX_BLOCK_FRAMES cap; 300 s 44.1k->48k exact 13,230,000->14,400,000 frames, working set 10,640 B constant, 18 allocs; whole-clip kept as oracle; 29 green + 1 ignored real-rate",
    "review_findings": "R2-review-b CONFIRMED fixed: ramp cancel (b5e9e19, + chain stage case), exact resample count (d339544 + receipt b5e9e19); 3 PLAUSIBLE open",
    "review_findings_r3": "R3 FAIL_V1 remediated 346b947 (regression tests fail on old code)"
   },

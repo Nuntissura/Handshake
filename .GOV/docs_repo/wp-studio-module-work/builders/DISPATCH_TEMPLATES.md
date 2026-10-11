@@ -32,7 +32,26 @@ RETRY GUARD (GLOBAL-GAMEPLAN-003/004): when the gameplan hook blocks an identica
 
 DEADLINE: first pushed commit within 30 min; then a pushed commit at least every 30 min.
 
+V4 RULES: mandatory for every builder and remediation agent; read topic `v4-rules` below.
+
 FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, suggested next slice.
+
+</topic>
+
+<topic id="v4-rules" status="active" version="1" summary="Workflow v4 amendments adopted 2026-10-11T05:40Z from workflow/workflow-review-ticks.md tick-2 (R5 failure classes)">
+
+## Workflow v4 rules (every code agent)
+
+- [V4-01] Hostile sizes: every module that decodes untrusted bytes (files, wire, worker replies) carries `#![deny(clippy::arithmetic_side_effects)]` in new code and on any module you touch; use checked/saturating/wrapping explicitly with a typed error on overflow.
+- [V4-02] Check size bounds AND the running aggregate before allocating; every decoder has at least a `dims_u32_max`-style test and an `aggregate_over_budget`-style test.
+- [V4-03] No silent green: a test that cannot prove its claim (no hardware, missing corpus) is `#[ignore]` with a reason, or prints a line starting `NOT_PROVEN:` (the round counts it as NOT_PROVEN, never PASS). Tests never read machine-local paths (no `C:/`, drive letters, user profile); external corpora come from the checked-in corpus-root config.
+- [V4-04] Fault-injection hooks exist only under `cfg(test)` or a non-default `test-faults` feature; never in default product builds.
+- [V4-05] Frozen duplicates (D16 ZIP/deflate/CRC, D18 worker supervision, interop-media timecode): never add another copy; the round step 0 refuses new matches of the duplicate fingerprints.
+- [V4-06] Remediation names the failure CLASS and a search regex for it; the agent lists every matching site in the crate with fixed/not-applicable per site in the lane notes. A count mismatch blocks READY_FOR_VALIDATION.
+- [V4-07] A doc/DESCRIPTOR claim using never/always/guarantees/proves must cite the test that proves it, or be weakened.
+- [V4-08] Hostile text formats (CSS, SVG/XML, HTML, PDF strings): tokenize per the spec (decode escapes first), never substring-match raw text; at least 3 adversarial tests (escape, comment/decoy, case/whitespace).
+- [V4-09] Free text goes through files: `git commit -F <file>` and Write/Edit tools, never long inline shell heredocs (the gameplan hook gates words inside quoted text, D3).
+- [V4-10] Lead procedure: reviews resume per lane (incremental files, no reviewer sub-agent fan-out); at most 8 Opus and 18 agents running; verdict agents (validator/reviewers/remediation) launch before new slices.
 
 </topic>
 
