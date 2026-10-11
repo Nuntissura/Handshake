@@ -2,7 +2,7 @@
   "crate": "hsk-studio-score-plugin",
   "lane": "hsk-studio-score-plugin",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 + optional native CLAP backend (feature clap) + coordinator R5/V4 remediation: process supervision in one module (supervisor.rs), fault injection behind non-default feature test-faults, V4 hostile-size rules",
+  "phase": "R6 remediation of review B pushed at 7d5641c: 2 CONFIRMED + 3 PLAUSIBLE addressed (the streaming-hash part of unbounded_buffer is an open cross-crate request); CLAP still proven only for the parameterless gain fixture",
   "commits": [
     {
       "sha": "ccc9c9a",
@@ -23,6 +23,10 @@
     {
       "sha": "6c45e64",
       "subject": "score-plugin: clap_fixture reads the oracle corpus MANIFEST.json (no env var required)"
+    },
+    {
+      "sha": "7d5641cacb990aa43a0b4c0c805f82c48bc9dd15",
+      "subject": "score-plugin R6 remediation: verified private staging copy closes hash-then-load, bounded durations, host-owned state version, executable-directory-only worker lookup, plugin file size charged to the budget"
     }
   ],
   "capabilities_done": [
@@ -46,20 +50,64 @@
     "Oracle corpus lookup (coordinator follow-up): tests/clap_fixture.rs finds the fixture through .config/oracle-corpus.toml (search + max-ancestors, walk up from the workspace root) and <corpus>/score-plugin/clap-gain/MANIFEST.json; pins the library by manifest sha256 and binds it to the fixture source by source_sha256 (steward recipe, verified equal); HSK_SCORE_PLUGIN_CLAP_FIXTURE is only an optional local override; absent root/manifest/library or a differing hash prints 'NOT_PROVEN: <test> <case> reason=...' and returns"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-score-plugin --features clap,test-faults --tests --no-fail-fast with NO HSK_* variable (studio-env.sh cargo form; shared edit tree); default features: 7 tests",
+    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast with --features clap,test-faults (studio-env.sh cargo form, no HSK_* variable)",
     "exit": 0,
-    "sha": "6c45e64",
-    "passed": 11,
+    "sha": "7d5641cacb990aa43a0b4c0c805f82c48bc9dd15",
+    "passed": 22,
     "failed": 0
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "error": "OPEN CROSS-CRATE REQUEST (R6 PLAUSIBLE unbounded_buffer, streaming part): hashing the plugin file needs a streaming SHA-256 over a fixed buffer, but hsk_studio_score::digest::Sha256 is pub(crate) and score-plugin may depend only on accord/score/observe (a local copy would be a second SHA-256 owner, CX-CAP-001). Needs `pub use digest::Sha256` (new/update/finalize) from hsk-studio-score. Interim: file size charged to the admission budget before the read and the host read bounded by it; worker read capped at 512 MiB (not charged to the host budget). DESCRIPTOR hash_buffer says NOT_PROVEN.",
+      "file_line": "crates/hsk-studio-score-plugin/src/host.rs verify_content; src/backend.rs verify_file; src/staging.rs stage_verified",
+      "attempts": 0
+    },
+    {
+      "error": "STEWARD ACTION (carried): .config/round-features.toml needs hsk-studio-score-plugin = [[\"test-faults\"], [\"clap\", \"test-faults\"]] (the file already lists exactly this at bd8533f per R6 review B; nothing new requested). Default features run 9 unit + 7 foundation tests.",
+      "file_line": ".config/round-features.toml",
+      "attempts": 0
+    }
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 67fdd10. Round config: default features = 7 tests (3 wire unit + 4 foundation); steward .config/round-features.toml needs hsk-studio-score-plugin = [\"test-faults\"] to run the 2 fault tests (11 with clap: +2 clap_fixture, which read <corpus>/score-plugin/clap-gain/MANIFEST.json built by tools/run-round.sh from .config/oracle-fixtures.toml; no env var; they print NOT_PROVEN and return when it is absent). Feature clap also needs the steward: registry pins clack-host 0.2.0 / clack-common 0.2.0 / clap-sys 0.5.0 and the native-ffi probe approval for clap-sys@0.5.0 in score-plugin only (dep-requests.jsonl). Next slice: clack-extensions latency + state + audio-ports, VST3 backend, realtime shared-memory handoff (STU-ARC-013), private staging copy to close the hash/load TOCTOU.",
-  "updated_at": "2026-10-11T06:07:22Z",
+  "next": "independent validator round on the pushed SHA (default / test-faults / clap+test-faults units); next slices: hsk-studio-score streaming Sha256 export then streaming hash + O(1) buffer in host and worker, clack extensions (latency, state, audio-ports), VST3 backend, realtime shared-memory handoff (STU-ARC-013), move supervisor.rs to the D18 shared owner (use paths only)",
+  "updated_at": "2026-10-11T07:20:09Z",
   "notes": {
     "verdicts": [
-      {"round": "STUDIO-R6", "lane": "SMB-SCORE-PLUGIN", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V1", "failures": [{"failure_kind": "product", "failure_class": "host-limits-instant-overflow-panic", "file_line": "crates/hsk-studio-score-plugin/src/supervisor.rs:394,453,467; src/host.rs:287-297"}, {"failure_kind": "product", "failure_class": "hash-then-load-window-undisclosed-in-descriptor", "file_line": "crates/hsk-studio-score-plugin/src/clap_backend.rs:68,126-159; src/backend.rs:70-87; src/lib.rs:56"}], "remediation": "Bound spawn_timeout/shutdown_grace (<= MAX_DEADLINE) or checked_add; disclose or close the hash-then-load window", "status_after": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission 6c45e64 (not in bd8533f) queued for next round", "review": "validation/R6-review-b.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-SCORE-PLUGIN:bd8533f9b29c:FAIL_V1", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6", "not_proven": [{"capability": "native CLAP path in the worker (clap-gain fixture)", "reason": "reads HSK_SCORE_PLUGIN_CLAP_FIXTURE (entrypoint unsets HSK_*); corpus MANIFEST reader 6c45e64 after freeze -> R7"}]}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-SCORE-PLUGIN",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "host-limits-instant-overflow-panic",
+            "file_line": "crates/hsk-studio-score-plugin/src/supervisor.rs:394,453,467; src/host.rs:287-297"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "hash-then-load-window-undisclosed-in-descriptor",
+            "file_line": "crates/hsk-studio-score-plugin/src/clap_backend.rs:68,126-159; src/backend.rs:70-87; src/lib.rs:56"
+          }
+        ],
+        "remediation": "Bound spawn_timeout/shutdown_grace (<= MAX_DEADLINE) or checked_add; disclose or close the hash-then-load window",
+        "status_after": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission 6c45e64 (not in bd8533f) queued for next round",
+        "review": "validation/R6-review-b.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-SCORE-PLUGIN:bd8533f9b29c:FAIL_V1",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6",
+        "not_proven": [
+          {
+            "capability": "native CLAP path in the worker (clap-gain fixture)",
+            "reason": "reads HSK_SCORE_PLUGIN_CLAP_FIXTURE (entrypoint unsets HSK_*); corpus MANIFEST reader 6c45e64 after freeze -> R7"
+          }
+        ]
+      }
     ],
     "scope_label": "READY_FOR_VALIDATION covers (1) the isolation/lifecycle slice exercised with the REFERENCE worker and (2) the native CLAP host path exercised against ONE standalone parameterless gain fixture. Not proven: CLAP latency/state/audio-ports/parameters/thread affinity of real third-party plugins, VST3, OS memory caps. Default builds are unaffected by feature clap (OFF).",
     "tests_breakdown": {
@@ -92,10 +140,10 @@
     },
     "known_limits": [
       "CLAP backend: first plugin of the entry only (ApprovedPlugin has no plugin id yet)",
-      "hash then load is two file opens (TOCTOU window); fix = private staging copy in a host-provided directory",
       "all CLAP calls on the worker's single thread (main-thread/audio-thread affinity NOT_PROVEN)",
       "ledger is unbounded for a very long-lived host (one small entry per spawn)",
-      "supervisor.rs time arithmetic (Instant + Duration) is not under deny(arithmetic_side_effects): deadlines are bounded by MAX_DEADLINE (60 s) before they reach it"
+      "R6: hash-then-load is closed for the CLAP backend by the staging copy (worker loads a verified private copy); NOT_PROVEN on Unix against a same-user process that can write the private 0700 directory between verification and dlopen; plugins that need sibling files do not work from a lone staged file",
+      "R6: streaming hash is open (see blockers); the host buffer is charged to the budget, the worker buffer (<= 512 MiB) is not"
     ],
     "v4_06_class_site_lists": {
       "class_A_process_supervision_outside_supervisor_rs": {
@@ -128,6 +176,91 @@
         "count": "6 code sites fixed, 1 stub and 1 documentation site not-applicable, 0 ungated hooks"
       }
     },
-    "corpus_lookup": "11 of 11 tests pass in the edit tree with no HSK_* variable and no NOT_PROVEN line; the corpus root resolved two parents above wt-studio-assets; manifest source_sha256 equals the recomputed tree hash of tests/fixtures/clap-gain/src."
+    "corpus_lookup": "11 of 11 tests pass in the edit tree with no HSK_* variable and no NOT_PROVEN line; the corpus root resolved two parents above wt-studio-assets; manifest source_sha256 equals the recomputed tree hash of tests/fixtures/clap-gain/src.",
+    "remediation_R6": {
+      "source": "validation/R6-review-b.json lane SMB-SCORE-PLUGIN (candidate bd8533f)",
+      "commit": "7d5641cacb990aa43a0b4c0c805f82c48bc9dd15",
+      "findings": [
+        {
+          "kind": "security_toctou (CONFIRMED)",
+          "fix": "staging.rs (worker): read approved file through one handle, hash those bytes, write them to a file created with create_new inside a private per-worker directory (host makes it, passes --stage-dir), re-hash the COPY through a kept handle (Windows share mode read-only: no writer/deleter while held), loader gets the copy path; no --stage-dir => refuses to load. stage_root.rs (host): private per-host directory (0700 on Unix), per-worker subdirectory removed after the reap via Supervisor::spawn SpawnRequest.keepalive; guards keep the host directory alive. DESCRIPTOR authorization.content_check/hash_then_load state the closed window and the NOT_PROVEN remainder",
+          "tests": "staging::tests::{tampering_after_staging_cannot_reach_the_copy, copy_cannot_be_modified_while_held (windows), refusals_leave_nothing_behind}; stage_root::tests; foundation_contract::staging_directories_follow_the_worker; clap_fixture::clap_loads_a_private_verified_copy_not_the_approved_path (Windows OS oracle: approved file deleted while the plugin runs; mapped copy cannot be deleted); clap_fixture_gain_runs_in_the_worker still bit-exact"
+        },
+        {
+          "kind": "unchecked_time_arithmetic (CONFIRMED)",
+          "fix": "IsolatedHost::new rejects spawn_timeout/shutdown_grace of zero or above MAX_DEADLINE with InvalidConfig; supervisor.rs after() = checked_add on a duration clamped to WAIT_CEILING (24 h) used at all three Instant sites; supervisor.rs now carries deny(clippy::arithmetic_side_effects)",
+          "tests": "foundation_contract::host_limits_are_bounded_at_admission (Duration::MAX for both limits and for probe/activate/process/set_parameter/capture_state deadlines, widest accepted limits run end to end); supervisor::tests::deadline_arithmetic_never_overflows"
+        },
+        {
+          "kind": "trust_boundary (PLAUSIBLE)",
+          "fix": "host owns state_version: ParamSet must report host+1, State must report the host version, a worker E_STALE for the host's own version is inconsistent; each => Protocol(UnexpectedKind), worker killed+reaped, host counter untouched; the host no longer adopts E_STALE detail, ParamSet or State numbers (initial Configured version is still taken from the worker: no earlier host value exists). New test-faults modes lie-param-version, lie-capture-version, stale-on-block=N",
+          "tests": "fault_injection::worker_cannot_rewrite_the_state_version (honest control + three lying workers)"
+        },
+        {
+          "kind": "security (PLAUSIBLE, 3rd instance of the R5 item)",
+          "fix": "discover_program/find_beside look only in the running executable's own directory (no parent); all tests and the example already pass the worker program explicitly",
+          "tests": "supervisor::tests::worker_is_found_only_beside_the_running_executable"
+        },
+        {
+          "kind": "unbounded_buffer (PLAUSIBLE, PARTLY fixed)",
+          "fix": "plugin_file_len() before admit; the permit reserves PROBE_BYTES/blocks+state PLUS the file size; verify_content reads through one handle bounded by that charge; staging reads through one handle bounded by MAX_PLUGIN_FILE_BYTES. NOT fixed: O(1) streaming hash (cross-crate, see blockers)",
+          "tests": "foundation_contract::plugin_file_size_is_charged_to_the_budget"
+        }
+      ],
+      "v4_06_class_sites": {
+        "A_instant_plus_duration": {
+          "regex": "Instant::now\\(\\) *\\+|Instant.* \\+ |SystemTime::now\\(\\) *\\+",
+          "sites": [
+            "src/supervisor.rs after() (spawn wall, exchange deadline, terminate patience): fixed (3 callers)",
+            "src/supervisor.rs tests::deadline_arithmetic_never_overflows: not-applicable (test)"
+          ],
+          "count": "0 unchecked production sites remain; 3 fixed callers + 1 test"
+        },
+        "B_worker_reported_numbers_adopted": {
+          "regex": "state_version *=|detail",
+          "sites": [
+            "src/host.rs ParamSet adoption: fixed (host+1 only)",
+            "src/host.rs E_STALE detail adoption: fixed (removed; protocol fault)",
+            "src/host.rs State capture version adoption: fixed (equality, no adoption)",
+            "src/host.rs initial version from Configured: not-applicable (first value, host has none)"
+          ],
+          "count": "4 sites, 3 fixed, 1 not-applicable"
+        },
+        "C_file_read_or_load_by_path": {
+          "regex": "File::open|fs::read|PluginEntry::load|fs::metadata|read_to_end",
+          "sites": [
+            "src/clap_backend.rs load_entry: fixed (staged copy path)",
+            "src/staging.rs stage_verified (2 reads through held/one handle): fixed/new",
+            "src/host.rs plugin_file_len + verify_content: fixed (charged, bounded); early refusal only",
+            "src/backend.rs verify_file (reference backend, hash only, never loads): not-applicable for TOCTOU; whole-file read is the open streaming gap",
+            "examples/score-plugin-consumer.rs fs::read(worker): not-applicable (example hashes its own local worker binary)"
+          ],
+          "count": "6 sites: 3 fixed, 1 new, 2 not-applicable"
+        },
+        "D_program_discovery": {
+          "regex": "current_exe|\\.parent\\(\\)",
+          "sites": [
+            "src/supervisor.rs discover_program/find_beside: fixed (own directory only)"
+          ],
+          "count": "1 site, 1 fixed"
+        }
+      },
+      "v4_07": "absolute claims added to docs/DESCRIPTOR cite their tests or are marked NOT_PROVEN (staging.rs, stage_root.rs, DESCRIPTOR authorization/limits/trust_boundary)",
+      "d18": "no second supervisor copy: Command/env_clear/creation_flags/try_wait/kill/Stdio still occur only in src/supervisor.rs (staging and stage_root use std::fs only); Supervisor::spawn gained SpawnRequest (extra args + keepalive) instead of any host-side process code",
+      "route_notes": {
+        "retry_guard": "no hook block and no failed focused run in this lane; studio-env.sh gained a disk build lock mid-session (sourcing prints an export warning, harmless)",
+        "line_endings": "first edit pass wrote CRLF through Windows Python text mode; normalized to LF before the commit"
+      },
+      "red_proof": {
+        "method": "V4-11/12: a scratch workspace (accord, observe, score + the lane crates copied from the committed tree) under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-r6-redproof/ws with its own target (STUDIO_OWNER=smb-score-r6-redproof); the fixes reverted there by a helper script kept under the session scratchpad smb-score-r6/; the shared edit tree was not touched. Scratch tree left in place (artifact root, not removed).",
+        "at": "2026-10-11T07:20:09Z",
+        "reverted": [
+          "clap_backend.rs: loader given spec.path (the approved path) instead of the staged copy",
+          "supervisor.rs: after() = Instant::now() + wait (no clamp); find_beside also searches the parent directory",
+          "host.rs: spawn_timeout/shutdown_grace upper bounds removed; E_STALE detail / ParamSet / State versions adopted again; plugin file size not charged to the permit"
+        ],
+        "red_result": "exactly 6 tests failed (features clap,test-faults): supervisor::tests::deadline_arithmetic_never_overflows (overflow panic), supervisor::tests::worker_is_found_only_beside_the_running_executable, clap_fixture::clap_loads_a_private_verified_copy_not_the_approved_path (approved file cannot be deleted while mapped), fault_injection::worker_cannot_rewrite_the_state_version, foundation_contract::host_limits_are_bounded_at_admission, foundation_contract::plugin_file_size_is_charged_to_the_budget; the staging unit tests and staging_directories_follow_the_worker stay green (they test code the reverts do not touch)"
+      }
+    }
   }
 }

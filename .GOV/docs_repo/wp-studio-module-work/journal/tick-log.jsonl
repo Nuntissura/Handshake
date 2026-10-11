@@ -87,3 +87,5 @@
 {"t": "2026-10-11T07:07:15Z", "event": "SMB-INTEROP-PSD-ADJ READY_FOR_VALIDATION cbed946 (builder-psd-adj-graph)", "lanes_moved": ["SMB-INTEROP-PSD-ADJ READY"], "commits": ["cbed946"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:18:57Z", "event": "SMB-MOTION-JS-SANDBOX-2 READY_FOR_VALIDATION 288b018 (builder-motion-js-sandbox)", "lanes_moved": ["SMB-MOTION-JS-SANDBOX-2 READY"], "commits": ["288b018"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:19:59Z", "event": "SMB-PRISM-ENG-6 READY_FOR_VALIDATION d7027c3 (rem-prism-r6)", "lanes_moved": ["SMB-PRISM-ENG-6 READY"], "commits": ["d7027c3"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:20:46Z", "event": "SMB-SCORE-DEVICE READY_FOR_VALIDATION 436242f (rem-score-r6)", "lanes_moved": ["SMB-SCORE-DEVICE READY"], "commits": ["436242f"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:20:46Z", "event": "SMB-SCORE-PLUGIN READY_FOR_VALIDATION 7d5641c (rem-score-r6)", "lanes_moved": ["SMB-SCORE-PLUGIN READY"], "commits": ["7d5641c"], "progress": "direct: product commit"}

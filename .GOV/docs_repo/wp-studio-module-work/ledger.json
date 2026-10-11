@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:19:59Z",
+ "updated_at": "2026-10-11T07:20:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -706,17 +706,18 @@
    "crate": "hsk-studio-score-device",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score-device",
    "phase": "validation",
-   "status": "FAIL_V1",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-device",
    "brief": "builders/briefs/hsk-studio-score-device.md",
    "commits": [
-    "d992b40"
+    "d992b40",
+    "436242f"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f"
    ],
-   "candidate": "d992b40",
-   "note": "caps 1-4 pure Rust (grant-checked port, preallocated atomic SPSC ring no unsafe, ClockedSoftwareDevice CloseReport, Observe report, DESCRIPTOR, consumer example) 1d8f1dd + cap 5 cpal-backend (default OFF, f32 output only, exact-format else Unavailable) d992b40; 5 tests + 1 ignored native; native smoke silence 8192/8192 frames reconciled (API-level, not hardware proof); open semantic: Full on try_push counts overrun+discontinuity with dropped_frames 0 under healthy backpressure (review); loopback oracle NOT_PROVEN",
+   "candidate": "436242f",
+   "note": "R6: Full on try_push counts only refused_offers (lead decision: counters = real loss); overruns/discontinuities/dropped_frames only for capture overflow or explicit drop_block; cpal open wait polls cancel; max_bytes_in_flight admission; 10 green (+cpal-backend build); red-proof 4 tests on scratch copy",
    "r6_review_routed": {
     "to": "rem-score-r6",
     "at": "2026-10-11T06:29:17Z",
@@ -733,13 +734,14 @@
    "brief": "builders/briefs/hsk-studio-score-plugin.md",
    "commits": [
     "67fdd10",
-    "6c45e64"
+    "6c45e64",
+    "7d5641c"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f (newer submission 6c45e64 pending)"
    ],
-   "candidate": "6c45e64",
-   "note": "CLAP fixture via .config/oracle-corpus.toml MANIFEST (sha256 + source_sha256 tie), env var only optional override, absent -> NOT_PROVEN; 11 of 11 green with clap+test-faults features and no HSK_* env (absent/mismatch branches not exercised)",
+   "candidate": "7d5641c",
+   "note": "R6: worker loads a private exclusively-created verified copy (never the approved path), deadlines bounded at admission + clamped sums (Duration::MAX tests), host owns state version (lie modes under test-faults), worker found only beside executable; 22 green with clap+test-faults on real fixture; streaming hash follow-up (sha2) requested",
    "r6_review_routed": {
     "to": "rem-score-r6",
     "at": "2026-10-11T06:29:17Z",

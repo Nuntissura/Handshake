@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:19:59Z",
+ "updated_at": "2026-10-11T07:20:46Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1076,7 +1076,7 @@
     "crates/hsk-studio-score-plugin/**"
    ],
    "launched": "2026-10-11T06:29:17Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:20:46Z (SMB-SCORE-PLUGIN READY at 7d5641c)"
   },
   {
    "name": "rem-prism-r6",
