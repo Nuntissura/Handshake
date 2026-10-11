@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:06:34Z",
+ "updated_at": "2026-10-11T11:09:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2178,11 +2178,16 @@
    "crate": "hsk-studio-pigment",
    "origin": "R7 review A: effects+Blend-If admitted then refused by backends; nested effects CPU/GPU disagreement",
    "scope": "pigment-owned Unsupported operator effects_with_blend_if + declarable operator effects_nested; consumers adopt after",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pigment-fx-ops",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "d3ce607",
+    "fe5fde0"
+   ],
+   "verdicts": [],
+   "candidate": "fe5fde0",
+   "note": "ExtOperator::EffectsWithBlendIf intrinsic Unsupported (no public definition; D5 24-27), ExtOperator::EffectsNested declarable (Approximate); 52 pigment green. CONSUMERS MUST ADOPT: render-gpu declare EffectsNested (else its nesting parity test fails at HEAD), render-cpu declare Unsupported explicitly, composite ledger keys, interop-psd typed loss for effects + non-identity blend ranges"
   },
   {
    "lane_id": "SMB-PRESS-DIFFERENCES",
@@ -2201,6 +2206,28 @@
    "origin": "R7: SMB-RENDER-GPU's no-adapter regression probe prints NOT_PROVEN while testing the opt-out, so every round including render-gpu exits 73",
    "scope": "probe tests the opt-out path without emitting the round marker (capture/assert instead of print), keeping real NOT_PROVEN reporting unchanged",
    "phase": "queued (after D20 or as separate lane)",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
+   "scope": "sweep every backend refusal possible after admission; pigment declares/refuses so admission never accepts what backends refuse",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-pigment-admit-parity",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FX-OPS-ADOPT",
+   "crate": "composite + render-cpu + render-gpu + interop-psd",
+   "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
+   "scope": "adopt FX-OPS + ADMIT-PARITY keys in one pass (after ADMIT-PARITY lands); fixes render-gpu nesting test regression at HEAD",
+   "phase": "queued (after SMB-PIGMENT-ADMIT-PARITY)",
    "status": null,
    "owner": null,
    "commits": [],
@@ -2417,12 +2444,15 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-11T08:06:27Z",
+  "at": "2026-10-11T11:09:18Z",
   "steps": [
-   "1. Check agents that were still running at the limit (rem-press-soundness opus, rem-motionjs-nul, builder-prism-eng8 (FIX_FIRST prism-eng-5/6 first), builder-develop-prereview, builder-psd-receipt (+ Blend-If clip losses), builder-vector-records, builder-blendif-adopt): read their lane files + git log; resume or relaunch with commit-what-is-green.",
-   "2. Fresh steward: sync with kernel-bindings test-faults matrix + any new dep requests; canary in steward-export target (disk lock @2).",
-   "3. Rerun R7 (validator + 3 reviewers) on the new sync; exclusions per ledger round_R7.excluded unless pre-review fixes landed (then judge them).",
-   "4. Workflow agent tick 4: plausible-findings decision register."
+   "1. Wait for: SMB-PIGMENT-ADMIT-PARITY (pigment sweep), rem-reel-r7 (reel proxy trust + reel-native lookup/HELLO), rem-psd-r7 (non-finite descriptors), builder-press-differences.",
+   "2. Then dispatch SMB-FX-OPS-ADOPT (one sonnet owning composite + render-cpu + render-gpu; interop-psd item via whichever agent owns psd) \u2014 fixes render-gpu nesting test regression at HEAD.",
+   "3. V4-13 pre-reviews before R8 for lanes at 2 FAILs: SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER, SMB-PRESS (+ PRESS-DIFFERENCES).",
+   "4. Fresh steward: sync (Cargo.lock shows modified in shared tree from builders \u2014 steward reconciles), canary; check get_usage first (V4-17).",
+   "5. Round R8 lean (1 validator + 2 reviewers).",
+   "6. Queued: SMB-RENDER-GPU-PROBE (round exit 73 noise), SMB-WEB-DIFFTEST, SMB-PIGMENT-PLANLIMITS stub.",
+   "Operator items: D1-D20 (D20 fix budget render-gpu + round entrypoint), STU-CON-044 provisional reading, repo-local target 3.8 GB, C:\\x."
   ]
  }
 }

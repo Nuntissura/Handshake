@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-pigment",
-  "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2 + SMB-PIGMENT-WINDOW",
+  "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2 + SMB-PIGMENT-WINDOW + SMB-PIGMENT-FX-OPS",
   "status": "READY_FOR_VALIDATION",
-  "phase": "windowed matte API complete on pushed f3e75bf (code a797b67, tests green at 379a56f, f3e75bf is comment-only): check + clippy clean (pigment) at f3e75bf, 42 pigment tests green (8 in tests/effect_window.rs + 1 unit test in effect_math/window.rs, 33 earlier); composite, render-cpu, render-gpu and interop-psd check exit 0 at 379a56f; waves 1 and 2 unchanged (d982b5c)",
+  "phase": "SMB-PIGMENT-FX-OPS pushed on fe5fde0 (src d3ce607, tests fe5fde0): check + clippy clean (pigment), 52 pigment tests green (5 new in tests/effects_ops.rs), composite, render-cpu, render-gpu and interop-psd check --tests exit 0; earlier waves unchanged",
   "commits": [
     {
       "sha": "e007703",
@@ -23,6 +23,14 @@
     {
       "sha": "f3e75bf",
       "subject": "Pigment windowed effect mattes: V4-07 wording, doc claims cite their tests (comment-only, no code change)"
+    },
+    {
+      "sha": "d3ce607",
+      "subject": "Pigment (SMB-PIGMENT-FX-OPS): effects + Blend-If and nested effects are decided at shared admission, not refused by backends after it"
+    },
+    {
+      "sha": "fe5fde0",
+      "subject": "Pigment (SMB-PIGMENT-FX-OPS): add tests/effects_ops.rs, the 5 tests for effects_with_blend_if and effects_nested"
     }
   ],
   "capabilities_done": [
@@ -30,26 +38,28 @@
     "render_plan envelope: LayerExtension.effects (absent from the digest when empty), ExtOperator::Effect(EffectKind), PlanExtensions::effect_modes, validate refuses effects on adjustment / pass-through / clipping-run layers and above size, distance, per-layer (64) and per-plan (4096) limits, admit_extended also asks the backend for each effect blend mode (v1 Operator::Blend class); five additive PlanError variants (EffectOnAdjustment, EffectPassThrough, EffectClipRun, EffectParameter, EffectLimit)",
     "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)",
     "wave 2 (SMB-EFFECTS-WAVE-2): InnerShadowOp (choke, offset, clipped to the layer alpha), OuterGlowOp (behind content), InnerGlowOp (source edge|centre, over content, clipped to alpha); one shared matte chain with the drop shadow (grow by spread/choke*size as a hard disc, Gaussian of the rest, whole-pixel offset, inverted matte reads 1 beyond the plane); EffectKind +3, effect_support_px, reference_matte / render_layer_reference extended; typed refusals EffectError::Unsupported(EffectFeature: glow_gradient, glow_range, glow_jitter, glow_technique_precise) -> PlanError::EffectUnsupported -> BackendError::Unsupported{operator: feature key} at admission",
-    "SMB-PIGMENT-WINDOW: pigment::effect_math::window (additive child module, single owner of tile-sized effect evaluation): window_matte(src: &AlphaSource, &WindowGeometry, &EffectOp, WindowLimits) -> WindowMatte, render_layer_window(...) -> LayerWindow, window_cost / layer_window_cost (exact prediction), stack_support_px; bit-identical to reference_matte / render_layer_reference for all six wave 1 + wave 2 kinds"
+    "SMB-PIGMENT-WINDOW: pigment::effect_math::window (additive child module, single owner of tile-sized effect evaluation): window_matte(src: &AlphaSource, &WindowGeometry, &EffectOp, WindowLimits) -> WindowMatte, render_layer_window(...) -> LayerWindow, window_cost / layer_window_cost (exact prediction), stack_support_px; bit-identical to reference_matte / render_layer_reference for all six wave 1 + wave 2 kinds",
+    "SMB-PIGMENT-FX-OPS: ExtOperator::EffectsWithBlendIf (key effects_with_blend_if, intrinsic Unsupported, reported by PlanExtensions::validate instead of blend_if for a layer with effects and non-identity Blend-If; admit_extended refuses it for every backend before any sink call) and ExtOperator::EffectsNested (key effects_nested, intrinsic Approximate, reported when an effect layer's content holds a layer with effects, directly or through nested groups; backends declare it through extension_exactness, admission refuses an Unsupported declaration); additive, non_exhaustive variants"
   ],
   "tests": {
     "argv": [
       "cargo",
-      "test",
+      "nextest",
+      "run",
       "-p",
       "hsk-studio-pigment",
-      "--tests"
+      "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "379a56f",
-    "passed": 42,
+    "sha": "fe5fde0",
+    "passed": 52,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "independent validator round; consumers: render-cpu replaces its per-tile 64 x 64 recompute and the 24 px margin limit (effect_margin) by window_matte / render_layer_window over its tile source with WindowGeometry::uncut(layer, stack_support_px(effects), tile); then satin, gradient/pattern overlay, bevel, gradient glows; follow-ups in notes.windowed_matte.not_addressed",
-  "updated_at": "2026-10-11T07:24:53Z",
+  "next": "independent validator round; consumers MUST follow notes.fx_ops.consumers (render-gpu must declare EffectsNested or its nested plans are refused at admission; composite ledger; render-cpu/render-gpu local checks become defence in depth); lead decision needed for notes.fx_ops.same_class_open",
+  "updated_at": "2026-10-11T11:08:10Z",
   "notes": {
     "brief_deviation_spread": "Brief formula matte' = min(1, matte / (1 - spread)) is NOT implemented: applied to the matte before the blur it is the identity for a binary layer alpha (so spread would do nothing), and applied after the blur it is a different model. Implemented instead the structure of Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (read as a behaviour reference only, GPL, no code copied): spread_px = spread * size is grown as a hard disc dilation (Krita: Gaussian of spread_size then hard edge), blur_px = size - spread_px by Gaussian, then offset, then knockout. Spread 1 = hard matte grown by the full size; spread has no effect at size 0 (matches the Adobe community thread 'spread not working ... only shadows with hard edges'). Lead may reverse; only effect_math::reference_matte (DropShadow arm) and shadow_split change. Hand tests: tests/effects.rs drop_shadow_offset_blur_taps_and_spread.",
     "brief_acceptance_note_stroke": "Acceptance 4 says the 8-neighbour ring is coverage 1 at distance 1. Under the Euclidean model the 12 edge-adjacent ring pixels are exactly 1 and the 4 corner pixels are 1.5 - sqrt(.5) = 0.79289 (round corners), 0 at distance >= 2; inside gives the 8-pixel inner ring exactly. Photoshop's outside-stroke corner shape is UNVERIFIED (D5 13).",
@@ -230,6 +240,70 @@
         "recorded_at": "2026-10-11T11:04:31Z",
         "by": "wp_validator STUDIO-R7"
       }
-    ]
+    ],
+    "fx_ops": {
+      "lane": "SMB-PIGMENT-FX-OPS",
+      "finding_class": "feature combination admitted by pigment shared admission, refused after admission by a backend-local unsupported(literal key) (R5 admitted-then-refused)",
+      "research": "no public definition of Blend-If composed with layer effects or of a group effect over children that have effects: spec v02.215 STU-RAS-041/159 and STU-FX-025 read locally (no combining sentence); Adobe Help HTTP 403 (UNVERIFIED); web search found only tutorials; so refuse (option b). Topic effects-ops in diagnostics/adjustments-advanced-blending.md, D5 cases 24-27.",
+      "keys": {
+        "effects_with_blend_if": "ExtOperator::EffectsWithBlendIf, intrinsic Unsupported, instead of blend_if",
+        "effects_nested": "ExtOperator::EffectsNested, intrinsic Approximate (EFFECT_EXACTNESS), declared per backend"
+      },
+      "consumers": {
+        "render-gpu": "MUST add ExtOperator::EffectsNested => true to the supported arm of extension_exactness (plan_sink.rs ~1115-1131; its wildcard `_ => false` otherwise reports nesting Unsupported and fx_stack_mask_group_and_nesting_parity in tests/gpu_plan.rs ~4502-4577 is refused at admission); effects_with_blend_if local check (plan_sink.rs ~606, test gpu_plan.rs ~4794) becomes defence in depth: use ExtOperator::EffectsWithBlendIf.key()",
+        "render-cpu": "no admission change (wildcard already declares EffectsNested Unsupported; EffectsWithBlendIf is intrinsic); name ExtOperator::EffectsNested => Exactness::Unsupported explicitly in extension_exactness (plan_sink.rs ~1698-1720); local effects_with_blend_if (~581) and effects_nested (~584, plan_sink/effects.rs ~128) checks stay as defence in depth under ExtOperator::*.key(); tests cpu_effects.rs ~534/~551 keep their keys, reached through admission; descriptor text",
+        "composite": "lower_extensions.rs blend_if_operator(role) (~601) must give EffectsWithBlendIf instead of BlendIf for an unclipped layer with effects (or refuse in lowering) and the evaluation ledger must record EffectsNested for an effect layer whose content group holds a layer with effects; equal to PlanExtensions::validate on the lowered plan; descriptor unsupported list",
+        "interop-psd": "typed loss entry for a layer with effects and non-identity blend ranges, like proposal.rs ~649-695 for the clip roles (owner picks the code; suggest effects_with_blend_if)"
+      },
+      "same_class_open": [
+        "mask_on_pass_through: RenderPlan::validate/admit_core admit a coverage mask on a pass-through layer (no check in render_plan.rs validate or admit_core), render-cpu plan_sink.rs ~604 and render-gpu plan_sink.rs ~527 refuse it locally after admission; both refusal_keys.rs files list it as backend-owned. NOT fixed here (not in the finding; the v1 Operator/PlanError are matched by dependents): lead decision",
+        "alpha_premultiplied and sample_format: render-cpu ~395/~448/~451 and render-gpu ~316/~382/~385 refuse a target format/alpha convention after admission; whether pigment admission should own them: UNVERIFIED, lead decision"
+      ],
+      "v4_06_sites": [
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x adjustment (EffectOnAdjustment)",
+          "verdict": "not-applicable (refused by validate)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x pass-through (EffectPassThrough)",
+          "verdict": "not-applicable (refused by validate)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x clip run (EffectClipRun)",
+          "verdict": "not-applicable (refused by validate)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x Blend-If",
+          "verdict": "fixed (EffectsWithBlendIf)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x effects in content",
+          "verdict": "fixed (EffectsNested)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x knockout",
+          "verdict": "not-applicable (knockout refused by validate)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: effects x mask feather/density/invert",
+          "verdict": "not-applicable (both backends implement it, no local refusal found)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: Blend-If x adjustment",
+          "verdict": "not-applicable (defined: weight on f(backdrop), both backends)"
+        },
+        {
+          "file_line": "render_plan/extensions.rs validate: Blend-If x pass-through / clip roles",
+          "verdict": "not-applicable (refused by validate / 0d28c03)"
+        },
+        {
+          "file_line": "render_plan.rs validate: mask x pass-through layer",
+          "verdict": "open (see same_class_open)"
+        }
+      ],
+      "v4_06_sites_note": "the lead named two findings, not a regex; the sweep is the layer-feature combinations validate meets in pigment plus the backend-local unsupported(\"literal\") sites (grep `unsupported\\(\"`) cross-checked against pigment admission",
+      "retry_guard": "none hit; cargo check/clippy/nextest each ran once per source state; a first nextest attempt was blocked by the gameplan hook because the command began with a variable assignment before the cd (hook resolved the kernel's WP-KERNEL-012 gameplan); rerun in the documented form `cd <workspace> && source studio-env.sh && cargo ...` (infrastructure: command shape, not a flag change)",
+      "commit_note": "d3ce607 carried src only: the new tests/effects_ops.rs was untracked so the pathspec commit skipped it; fe5fde0 adds it (new commit, no amend)"
+    }
   }
 }

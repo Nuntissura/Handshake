@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:06:34Z",
+ "updated_at": "2026-10-11T11:09:18Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1444,7 +1444,7 @@
     "crates/hsk-studio-components/**"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "done 2026-10-11T11:06:34Z (bd4e811, 3b6e9a9)"
+   "status": "done"
   },
   {
    "name": "builder-pigment-fx-ops",
@@ -1455,7 +1455,7 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T10:56:49Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:09:18Z (d3ce607, fe5fde0)"
   },
   {
    "name": "rem-reel-r7",
@@ -1489,6 +1489,17 @@
     "crates/hsk-studio-press/**"
    ],
    "launched": "2026-10-11T11:03:27Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-pigment-admit-parity",
+   "agent_id": "a3f9f5c0041454c28",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-ADMIT-PARITY sweep",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T11:09:18Z",
    "status": "running"
   }
  ]

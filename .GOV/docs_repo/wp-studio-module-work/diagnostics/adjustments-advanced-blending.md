@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-ADJUSTMENTS-ADVANCED-BLENDING
 file_kind: architecture_decision
-updated_at: 2026-10-11T07:57:25Z
+updated_at: 2026-10-11T11:06:15Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5
 owner: pigment-folio-architect
@@ -301,5 +301,47 @@ Conclusion: no public source defines Blend-If on a clip base, Blend-If on a clip
 23. Reproduce the reported bug (Underlying Layer ranges stop working when a layer is clipped to a group) in the validation Photoshop build, to separate a bug from a semantic.
 
 When 18-23 are answered, the definition lands additively: a clip-run node in `evaluate_stack`, the two `ExtOperator`s change class, and the tests in `tests/blend_if_clip.rs` become the migration list.
+
+</topic>
+
+<topic id="effects-ops" status="decided" version="1" wp="WP-KERNEL-STUDIO" owner="SMB-PIGMENT-FX-OPS" summary="Effects + Blend-If on one layer: pigment refuses for every backend; nested effects: backends declare support, admission refuses uniformly" updated_at="2026-10-11T11:06:15Z">
+
+## Effects with Blend-If on one layer, and nested effects (R7 review A; commits d3ce607 + fe5fde0 on codex/handshake-studio-assets)
+
+Problem (R5 "admitted then refused" class): `PlanExtensions::validate` admitted a layer with effects AND a non-identity Blend-If as `Effect(kind)` + `BlendIf`, and a layer with effects whose content holds another layer with effects as plain `Effect(kind)`. render-cpu (`plan_sink.rs` `effects_with_blend_if`, `effects_nested`) and render-gpu (`plan_sink.rs` `effects_with_blend_if`) then refused after admission; render-gpu rendered nested effects that render-cpu refused. composite's ledger promised both as renderable.
+
+### Evidence (research 2026-10-11; nothing guessed)
+
+| Source | What it says | Read how |
+|---|---|---|
+| Spec v02.215 STU-RAS-041, STU-RAS-159, STU-FX-025 (`14-studio-creative-suite.md`) | Blend-If is a canonical layer field with eight values per channel; layer effects are `StudioLiveFilter` kinds on raster, vector, text and group layers; "Shadow/glow effects read the layer's alpha and compose behind or inside it". No sentence combines Blend-If with effects, and none says whether the alpha a group's effect reads includes the effects of the group's children. | read locally (grep of all Blend-If mentions in the spec) |
+| Adobe Help (helpx.adobe.com layer-style effects and options overview) | HTTP 403 to the fetch tool: primary text NOT read (UNVERIFIED). | fetch failed |
+| Web search results (Blend If with drop shadow; PSD blending ranges with layer styles) | Tutorials describe Blend If as luminance-based see-through of the layer or the underlying layer, and describe Blend Interior Effects as Group for interior effects (inner glow, satin, overlays). None states whether the ranges weigh a drop shadow or glow matte, the pre- or post-range layer alpha, or what "underlying" reads for an effect. The search summaries themselves label the interaction as unconfirmed. | search snippets only |
+| Earlier evidence in topic `blend-if-clip-roles` | Adobe PSD spec: blending-range field names only; psd-tools, Krita and GIMP ignore Blend-If, so none defines it with effects either. | carried over |
+
+Conclusion: no public source defines Blend-If composed with layer effects, and none defines the matte source of a group effect that contains effects. Any rule written now would be a guess. Lead decision (mirrors 0d28c03): refuse the combination; make the nesting a declared capability.
+
+### Rule (pigment, single owner; `render_plan/extensions.rs`, tests `tests/effects_ops.rs`)
+
+- `ExtOperator::EffectsWithBlendIf`, key `effects_with_blend_if`, intrinsic `Unsupported`. `validate` reports it INSTEAD of `ExtOperator::BlendIf` when a layer has a non-empty effect stack and a non-identity Blend-If (effects are refused on clip roles earlier, so only unclipped layers reach it). Order is first-use: `[Effect(kind).., EffectsWithBlendIf]`. `admit_extended` therefore refuses it with `BackendError::Unsupported { operator: "effects_with_blend_if", exactness: Unsupported }` before any sink call for every backend, even one whose `extension_exactness` claims Exact. Identity ranges are not Blend-If; effects and Blend-If on different layers are unaffected (`effect` + `blend_if`).
+- `ExtOperator::EffectsNested`, key `effects_nested`, intrinsic `Approximate` (`EFFECT_EXACTNESS`, classed like the effects). `validate` reports it once per plan for any layer with effects whose content node (an EARLIER node; later or equal indexes are never followed) is a group holding a layer with effects, directly or through nested group layers (same definition as render-cpu's `has_effects[input]`). A sibling layer with effects, or an effect layer whose content holds none, is not nested. A backend declares support through `extension_exactness(EffectsNested)`: Unsupported -> `admit_extended` refuses as `effects_nested` before any sink call; Approximate (or Fitted) -> admitted and recorded at Approximate (a backend cannot claim better than pigment's class).
+- Pigment defines no nested-effects evaluator: `render_layer_reference` renders ONE layer's effect stack over a content plane; nesting is a composition of those calls (render-gpu's parity test composes them). That is why the class is Approximate and the capability is declared per backend rather than refused by pigment.
+- Additive: two `#[non_exhaustive]` variants; existing keys, classes and admission order unchanged. A backend whose `extension_exactness` ends in a wildcard arm reports both new operators Unsupported until it names them (see below).
+
+### What each backend and consumer must now do
+
+- render-cpu: no behaviour change at admission (its wildcard already declares `EffectsNested` Unsupported; `EffectsWithBlendIf` is intrinsic). Name `ExtOperator::EffectsNested => Exactness::Unsupported` explicitly in `extension_exactness` (`plan_sink.rs` ~1698-1720) so the declaration is visible. Keep the local `effects_with_blend_if` (`plan_sink.rs` ~582) and `effects_nested` (~583, `plan_sink/effects.rs` ~128 run-time guard) checks only as defence in depth under `ExtOperator::EffectsWithBlendIf.key()` / `ExtOperator::EffectsNested.key()`; the tests `cpu_effects.rs` ~534 and ~551 keep their keys but are now reached through shared admission. Descriptor text: say admission, not a local refusal.
+- render-gpu: MUST add `ExtOperator::EffectsNested => true` to the supported arm of `extension_exactness` (`plan_sink.rs` ~1115-1131); its wildcard `_ => false` otherwise reports nesting Unsupported and `fx_stack_mask_group_and_nesting_parity` (`tests/gpu_plan.rs` ~4502-4577) would be refused at admission. Keep the local `effects_with_blend_if` check (~606, test `gpu_plan.rs` ~4794) as defence in depth under `ExtOperator::EffectsWithBlendIf.key()`; admission now refuses it first.
+- composite: `lower_extensions.rs` `blend_if_operator(role)` (~601) must return `EffectsWithBlendIf` instead of `BlendIf` for an unclipped layer that has effects (or lowering refuses such a layer), and the evaluation ledger must record `EffectsNested` for a layer with effects whose content group holds a layer with effects, so its ledger equals pigment's `validate` (assert against `PlanExtensions::validate` on the lowered plan). Descriptor `unsupported` list: add "effects together with Blend-If on one layer (effects_with_blend_if)".
+- interop-psd: a PSD layer with both a layer-effects block and non-identity blend ranges needs a typed loss entry like the clip-role one (`proposal.rs` ~649-695); the owner picks the code (suggest `effects_with_blend_if`); the ranges and the effects stay preserved.
+
+### D5 oracle cases added (Operator-approved foreground session; never driven by agents)
+
+24. Drop shadow + Blend-If This Layer (gray 50/100 split) on a layer over a gradient backdrop: does the shadow follow the layer alpha before the ranges, after them, or ignore them? Repeat with Fill 0 and with Transparency Shapes Layer off.
+25. Same layer with Underlying Layer ranges: do the ranges weigh the shadow (its own blend mode) or only the layer pixels?
+26. Inner shadow / colour overlay (interior effects) + Blend-If, Blend Interior Effects as Group on and off.
+27. Group with a drop shadow whose child layer has its own drop shadow: is the group matte the child's pixel alpha only or the child composite including the child's shadow?
+
+When 24-27 are answered, the definition lands additively: `EffectsWithBlendIf` changes class and gets an evaluator in `effect_math`; `EffectsNested` keeps its class and pigment gains a nested composition the backends match; `tests/effects_ops.rs` becomes the migration list.
 
 </topic>
