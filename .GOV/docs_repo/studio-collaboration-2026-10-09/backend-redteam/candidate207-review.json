@@ -1,0 +1,220 @@
+{
+  "schema_id": "hsk.studio_candidate_backend_review@1",
+  "file_id": "STUDIO-CANDIDATE207-BACKEND-REVIEW",
+  "updated_at": "2026-10-09",
+  "authority": "INDEPENDENT_SCOPED_DESIGN_REVIEW_REFERENCE_ONLY",
+  "scope": "Actual v02.207 Section14 candidate and canonical planned STUDIO_MODULES.json against prior backend findings. Not whole-bundle validation, implementation review or runtime acceptance.",
+  "verdict": "TARGETED_CORE_CONTROLS_ADDED_EXECUTION_AND_MT_PROOFS_PENDING",
+  "runtime_gui_parity": "NOT_RUN_NOT_PROVEN",
+  "current_pointer_at_review": "v02.206",
+  "inspected_inputs": [
+    {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+      "lines": [
+        [
+          185,
+          241
+        ],
+        [
+          22289,
+          22321
+        ],
+        [
+          22403,
+          22415
+        ]
+      ],
+      "inspection": "Actual modified authority clauses plus scoped full-file term searches and inherited retry/privacy/command clauses"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      "sha256": "bc3da3323e95a87bb5913ab70f8e764279360fafc4906f007940174d249fec49",
+      "lines": [
+        [
+          1,
+          1025
+        ]
+      ],
+      "inspection": "All34 module keys/dependencies/foundation capabilities and shared owners/barrier/mirror/forbidden-edge records parsed; selected full provider records opened"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/backpressure-architecture-review.json",
+      "sha256": "667fbb61d04fee7aef73cf0f033923cf74dc8ae1f3f1ce615f8722ee4af875c9"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/independent-adoption-redteam.json",
+      "sha256": "15f5b9f00b0f06408e74ca15b3f15aa70cdbf72e4af0212772c98bd453d2fbac"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/pdf-audio-root-drill.json",
+      "sha256": "1c1e3807c7b38e1741412c64a932319080512527dde07da4063f7287fe2b6946"
+    }
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "check": "Module identity/dependency reconciliation",
+      "observed": "34 unique module keys; declared count34; zero unresolved dependency keys; zero planned DAG cycles; foundation barrier35 members (workspace plus34)"
+    },
+    {
+      "check": "Host-neutral boundary reconciliation",
+      "observed": "kernel_bindings depends only accord/folio/session/observe and explicitly uses transient protocol consumer; actual AppState/native/SurrealDB embedding is later outside assets. PureScore excludes native host/device providers; ReelNative depends on Reel, never the reverse. InteropMedia has neutral accord/folio/observe closure."
+    },
+    {
+      "check": "Negative policy search",
+      "observed": "Full candidate searches found8 idempotency mentions,0 shutdown,0 lease_epoch,1 plugin-state mention (callback prohibition),0 save-mode receipt mentions. Exact findings rely on clauses plus prior caller/callee traces, not absence keywords alone."
+    },
+    {
+      "check": "Preservation versus sanitization",
+      "observed": "STU-IO187/188 and STU-PDF001 explicitly exclude removed source/opaque/history/attachment/thumbnail payloads, distinct policies and independent decompressed-byte inspection"
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "C207-BACKEND-001",
+      "severity": "HIGH",
+      "status": "OPEN_CONTRACT_GAP",
+      "evidence": "Section14:61-77,217; prior BP-F07. The candidate guarantees atomic idempotency and grant recheck, but does not define same-key identity/payload/precondition mismatch semantics.",
+      "counterexample": "An authenticated caller retries the same key with changed patch bytes or another target. A generic key lookup returns the former receipt even though the attempted operation differs; a revoked caller can retrieve restricted prior outcome metadata if retry lookup precedes current authorization.",
+      "required_disposition": "Extend STU-ARC011 or owning canonical request contract: bind idempotency identity to principal/account, project/resource/action, canonical payload hash and original target preconditions. Same-key mismatch returns typed conflict without prior restricted metadata. Authorized identical retry returns committed receipt after fresh resource authorization; never remutate.",
+      "proof": "Cross-principal/resource/payload/revision same-key cases; revoke between commit and retry; real record-user canonical reread proves one patch/event/receipt and no restricted receipt disclosure."
+    },
+    {
+      "id": "C207-BACKEND-002",
+      "severity": "HIGH",
+      "status": "OPEN_CONTRACT_GAP",
+      "evidence": "Section14:217-221; module Session key at703. Prior BP-F01/F05/F08 and proposed shutdown/cancellation contracts.",
+      "counterexample": "Cancel or timeout occurs after durable commit but before receipt. The caller reports canceled and retries with a new key; or old worker returns after actor restart and advances stale state. During shutdown, outstanding reservation/completion ownership prevents drain while actor awaits work replying to its mailbox.",
+      "required_disposition": "Define before-commit cancellation versus committed/outcome-unknown results. Timeout never asserts rollback until canonical reconciliation; postcommit cancel cannot erase accepted edit. Epoch-fence stale restarted worker completions. Close admission, service reserved completion/cancel, checkpoint/reconcile accepted identities, retain bytes/worker/device permits until actual retirement, and never actor-await work needing its own mailbox to deliver.",
+      "proof": "Crash before/at/after transaction and before acknowledgment; saturate all lanes; restart actor with old completion; drain with reserved permits. Independent canonical read/replay and permit accounting verify exact terminal outcomes."
+    },
+    {
+      "id": "C207-BACKEND-003",
+      "severity": "HIGH",
+      "status": "PARTIAL_PLUGIN_CONTRACT",
+      "evidence": "Section14:221,241; module ScorePlugin at864. Prior PDF-AUDIO002/003 trace playback CaptureStates to foreign save and ambiguous empty timeout.",
+      "counterexample": "Foreign state capture times out off callback and returns empty state as success; delivery reopens older audible state. A retired plugin cannot return through saturated handoff and its destructor executes on realtime or wrong-affinity thread. Send+Sync port law at187 is mistaken for permission to move arbitrary foreign instances between threads.",
+      "required_disposition": "Keep Send+Sync on safe facade/command ports, not unproven foreign instances. Define state capture graph revision, per-instance completeness/error/deadline/blob budget and plugin API thread affinity/quiescence. Reserve bounded reclamation capacity before transfer, retain receiver until all instances are reclaimed on permitted thread, and refuse required incomplete state for successful delivery. Native crash/hang containment limits remain explicit.",
+      "proof": "Real changed audible-state save/reopen; capture timeout/oversize/stale graph; close/full return channel; instrument foreign save/process/destroy thread and exactly-once reclamation."
+    },
+    {
+      "id": "C207-BACKEND-004",
+      "severity": "HIGH",
+      "status": "OUTPUT_COMPLETENESS_GAP",
+      "evidence": "Module Score/Session/Reel foundation text and Section14:221. Prior PDF-AUDIO010 exact Sound mix1496-1503 versus engine/io221-236 silently-clamped bounce.",
+      "counterexample": "A long/high-rate/multichannel export is under request-duration limit but render byte/sample cap shortens it and encoder still returns success. Generic bounded processing/typed loss wording does not explicitly reconcile requested versus delivered frames.",
+      "required_disposition": "Require requested and delivered sample/frame range, channel layout/rate/timebase and completeness in delivery receipts. Limits must reject before work or use bounded streaming preserving full range; explicit approved partial outcome cannot be labeled complete. Block-boundary cancellation and discontinuities must preserve exact positions. Add exact frame-count acceptance to Score and delivery MTs.",
+      "proof": "Independent decoded artifact frame count/timecode/duration/channel verification for ranges crossing caps, with no source-sized full-buffer allocation; disk-full/cancel/partial encoder paths never emit complete success."
+    },
+    {
+      "id": "C207-BACKEND-005",
+      "severity": "MEDIUM",
+      "status": "OUTPUT_RECEIPT_GAP",
+      "evidence": "Section14:237 full-save policy; module Press at786. Prior PDF-AUDIO007 automation647-652 versus cos writer178-179.",
+      "counterexample": "Incremental was requested but redaction/encryption/reconstruction forces full save; delivery receipt repeats requested incremental mode despite actual rewrite.",
+      "required_disposition": "Press writer/delivery result must carry actual executed save mode and policy reason separately from requested mode, output digest and exported revision. Preserve forced-full redaction safeguard and do not rebase current authority to stale export bytes.",
+      "proof": "Redacted/reconstructed/encryption-changed incremental request; independent output revision-chain inspection matches receipt. Late export completion leaves newer committed revision intact."
+    }
+  ],
+  "finding_dispositions": {
+    "meaning": "DESIGN_TEXT_DISPOSITION_ONLY; closed_in_candidate does not mean implemented, runtime-proven or all MT payloads refactored",
+    "backpressure": {
+      "BP-F01": "PARTIAL ARC011 atomic transaction and lost-ack recovery present; C207002 completes cancellation/outcomeunknown/fencing",
+      "BP-F02": "CLOSED_IN_CANDIDATE ARC008/012 preallocation, pending-producer, retained-result and multi-budget scope",
+      "BP-F03": "CLOSED_IN_CANDIDATE ARC013 callback bans and separate ScoreDevice/ScorePlugin; actual callback proof pending",
+      "BP-F04": "CLOSED_IN_CANDIDATE ARC011 target/property footprints and disjoint changes",
+      "BP-F05": "PARTIAL ARC012 reserved paths; C207002 mailbox wait-cycle and shutdown completion semantics",
+      "BP-F06": "CLOSED_IN_CANDIDATE ARC008/012 fairness; numerical budgets/service bounds intentionally MT-bound later",
+      "BP-F07": "PARTIAL grants preserved; C207001 identity/payload/retry binding remains",
+      "BP-F08": "PARTIAL ARC012 ownership lease through retirement; C207002 stale epoch/recovery and actual last-owner proof",
+      "BP-F09": "CLOSED_IN_CANDIDATE ARC013 preview-only coalescing with superseded outcome",
+      "BP-F10": "CLOSED_IN_CANDIDATE ARC011/018 selective leaves and no upstream automation owner"
+    },
+    "adoption": {
+      "ADOPT-F001": "CLOSED_IN_CANDIDATE ARC006/016 complete executable foundations and35-member barrier",
+      "ADOPT-F002": "DESIGN_CLOSED34-module planned DAG/provider selection; actual Cargo dependency/feature closure not materialized",
+      "ADOPT-F003": "CLOSED_IN_CANDIDATE ARC018 provider handles hidden and separate approved host toolkit upgrade",
+      "ADOPT-F004": "CLOSED_IN_CANDIDATE ARC011/018 and shared CKC/Surreal/EventLedger owners",
+      "ADOPT-F005": "CLOSED_IN_CANDIDATE IO187 bounded streaming ZIP64/last-good publication/orphan reconciliation",
+      "ADOPT-F006": "CLOSED_IN_CANDIDATE IO188+PDF001 full reachable sanitization and fresh grants",
+      "ADOPT-F007": "CLOSED_IN_CANDIDATE IO186 per-object/version loss and non-equivalence of parse/opaque/preview",
+      "ADOPT-F008": "CLOSED_IN_CANDIDATE InteropLrcat fixed-format immutable bytes/granted WAL, no SQL/query/privateDB",
+      "ADOPT-F009": "CLOSED_IN_CANDIDATE Press/Web now explicit owners using one Folio semantic identity; real source projection proof pending",
+      "ADOPT-F010": "DESIGN_CLOSED ScoreDevice/ScorePlugin separate leaves; C207003/004 completes state and delivered audio contracts",
+      "ADOPT-F011": "CLOSED_IN_CANDIDATE ARC009 and modulemirror one writable owner/subtree provenance/preserveexisting",
+      "ADOPT-F012": "CLOSED_IN_CANDIDATE module descriptor/manual/inspection and ARC014/015; real consumers/runtime tiers pending"
+    },
+    "pdf_audio": {
+      "PDF-AUDIO001": "DESIGN_CLOSED ARC012/013 bounded RT/control isolation; runtime pending",
+      "PDF-AUDIO002": "PARTIAL callback capture banned; C207003 state completeness/deadline/affinity remains",
+      "PDF-AUDIO003": "PARTIAL ScorePlugin lifetime/process boundary; C207003 reserved reclamation and failure policy remains",
+      "PDF-AUDIO004": "CLOSED_IN_CANDIDATE ARC013 overrun/discontinuity/nonblocking capture; exact final-frame stop ack MT proof required",
+      "PDF-AUDIO005": "CLOSED_IN_CANDIDATE IO187 full temporary publication/last-good/authority separation; filesystem durability/reopen faults pending",
+      "PDF-AUDIO006": "CLOSED_IN_CANDIDATE ARC008/012 aggregate worker/result/generation budgets and native providers",
+      "PDF-AUDIO007": "OPEN C207005 actual versus requested save mode receipt",
+      "PDF-AUDIO008": "PARTIAL ARC011 ownership/transactions; C207002 recovery plus C207005 exported revision receipt",
+      "PDF-AUDIO009": "CLOSED_IN_CANDIDATE fresh grants IO188 and SDB005; actual handle/reparse/revocation proof pending",
+      "PDF-AUDIO010": "PARTIAL PDF002 conformance limitations explicit; C207004 exact audio completeness remaining"
+    }
+  },
+  "dependency_review": {
+    "observed": "34 unique nodes, acyclic planned dependency map; no core/native/DB edges in declared module dependencies. Optional native provider direction is outward from pureScore/Reel; InteropMedia no mandatory temporal engine closure. KernelBindings host-neutral protocol permits isolated asset foundations.",
+    "residual": "Composite/render defaults still include pigment/nib/type/prism as deliberate shared render closure; no actual Cargo features/manifests exist to prove narrow raster-only target or exclude native transitive dependencies. Verify closure at foundation implementation; package labels cannot prove compile fanout.",
+    "generic_posture": "Per-module shared proof strings must become operation-specific real consumers and applicable HBR rows; pure leaves must not acquire mandatory scheduler/database/toolkit dependencies merely to exercise host-neutral descriptors."
+  },
+  "COUNTERFACTUAL_CHECKS": [
+    "Removing ARC011 granular target footprints would allow blanket document CAS to regress disjoint edits despite acyclic crates.",
+    "Removing IO188 reachable-set policy would permit sanitized .handshake output to retain unredacted original import bytes even when Press full rewrite is correct.",
+    "Keeping ARC013 but omitting C207003 still lets off-callback state timeout appear as empty successful plugin state."
+  ],
+  "BOUNDARY_PROBES": "Actual candidate versus module declarations and prior traced caller/callee failures, source-only; executable probes not run",
+  "NEGATIVE_PATH_CHECKS": "Same-key changed payload, revoked retry, postcommitcancel, stale worker, saturated retirement, oversized bounce and forced-full receipt counterexamples checked against actual candidate wording",
+  "preservation": "All feature/proprietary decoder parity scope retained by IO186/189 and ARC017. Foundation opaque/loss capability never fulfills editable decoder feature or later host acceptance. No SQL engine/database runtime authorized; fixed-format readonly .lrcat bytes only.",
+  "RESIDUAL_UNCERTAINTY": [
+    "Wholebundle/index/manifest/hash/version uniformity not reviewed here",
+    "All5484 MT fulfillment maps and actual HBR per-MT dispositions not inspected in this scope",
+    "No Cargo manifests, builds, device/plugin/browser runtime or independent storage/render/parity proof executed",
+    "Candidate root may revise files during publishing; findings bind only recorded input hashes"
+  ],
+  "followup_revision": {
+    "inspected_lines": [
+      245,
+      247,
+      249
+    ],
+    "findings": [
+      {
+        "remaining": "Owning MT exact cross-principal/resource/payload/precondition retry and revoked-receipt proof required",
+        "disposition": "CORE_CONTRACT_ADDRESSED_BY_ARC020",
+        "id": "C207-BACKEND-001"
+      },
+      {
+        "remaining": "Exact actor wait-cycle and reserved-permit lifetime/drain implementation proof required",
+        "disposition": "CORE_CONTRACT_ADDRESSED_BY_ARC020",
+        "id": "C207-BACKEND-002"
+      },
+      {
+        "remaining": "Per-instance capture deadline/blob/version and native affinity/isolation specifics delegated to plugin-platform-decision; runtime remains unproven",
+        "disposition": "CORE_CONTRACT_ADDRESSED_BY_ARC021",
+        "id": "C207-BACKEND-003"
+      },
+      {
+        "remaining": "Exact sample/timebase/channel and decoded completeness MT proof required",
+        "disposition": "CORE_CONTRACT_ADDRESSED_BY_ARC021",
+        "id": "C207-BACKEND-004"
+      },
+      {
+        "remaining": "Actual mode/policyreason/digest/revision receipt and stale-export race MT proof required",
+        "disposition": "CORE_CONTRACT_ADDRESSED_BY_ARC021",
+        "id": "C207-BACKEND-005"
+      }
+    ],
+    "scope": "Actual root-added clauses read; original module-graph checks apply only to original captured inputs and are not repurposed as new wholebundle verdict",
+    "anchors": [
+      "STU-ARC-020",
+      "STU-ARC-021",
+      "STU-ARC-022"
+    ],
+    "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-interop-lrcat",
+  "lane": "SMB-INTEROP-LRCAT-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1-complete",
+  "commits": [
+    {"sha": "e478186", "subject": "Lrcat slice 1a: bounded read-only SQLite byte decoder (header, table b-tree, records, overflow, schema, committed-WAL overlay, freelist check), fixed Lightroom extraction into typed proposals with loss/count receipts, fingerprint, synthetic fixtures + generator"},
+    {"sha": "bab2221", "subject": "Lrcat slice 1b: five contract tests, interop-lrcat-consumer example"}
+  ],
+  "capabilities_done": [
+    "granted immutable ByteSource/Grant/WalGrant{None,Granted,PresentButNotGranted} + Limits (main/wal bytes, pages, page reads, rows, cells, payload, overflow pages, depth, columns, opaque retention), every bound checked before allocation or read",
+    "internal bounded SQLite decoder (catalog_bytes): header validation (magic, page size, versions, usable size, payload fractions, encoding 1/2/3, page count rules, truncation), iterative table b-tree walk (0x05/0x0d) with depth cap + visited-page cycle detection, varints, records (selected columns only), overflow chains with page cap + cycle/short/long detection, sqlite_master + bounded CREATE TABLE column/rowid-alias/WITHOUT ROWID tokenizer, freelist trunk-chain anomaly report, encrypted-looking header heuristic; nothing generic is pub",
+    "WAL snapshot (wal_snapshot): header magic/version/page size/checksum, salt + cumulative checksum chain, committed-prefix overlay (page -> WAL offset), db size from last commit frame, uncommitted/invalid tail reported; Fingerprint{main_len,wal_len,committed_wal_len,sha256_main,sha256_wal} taken before and after decode, difference => SourceChanged",
+    "extract_catalog(Grant, Limits, CancellationToken) -> CatalogProposal: photos (path relative to root folder, capture time, rating, pick, color label, orientation, format, size), develop settings opaque + SHA-256 + simple Lua scalars, collections (standard/smart/other), members, keywords, assignments, Adobe_variablesTable schema version; per-entity counts with rows_seen == mapped + lost; aggregated typed LossNote list (editable/translated/approximate/opaque/unsupported/missing); count-only losses for AdditionalMetadata, HarvestedExif, develop history/snapshot, collection content; unmapped tables listed; orphan rows lost not dropped",
+    "report() Observe mapping, DESCRIPTOR (fixed extraction only, no SQL engine, unverified list), interop-lrcat-consumer example (--descriptor, --main FILE [--wal FILE | --wal-present-ungranted])",
+    "fixtures: tests/fixtures/generate_fixtures.py (Python sqlite3 as offline generator ONLY, run once under the artifact root) + synthetic-main.lrcat, synthetic-wal.lrcat + committed and uncommitted-tail -wal, expected TSVs computed from the generator model, PROVENANCE.json with Python SHA-256"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-interop-lrcat --test catalog_decode --no-fail-fast",
+    "exit": 0,
+    "sha": "bab2221",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Steward registry sync for dep-request sha2 0.10.9 (force-soft) for hsk-studio-interop-lrcat (probe approved list), then validator round. Next slice: validator-time oracle on a Lightroom-written catalog (Operator-granted), XMP inflate with output cap (miniz_oxide, dep request), develop settings semantics, CKC promotion via shared ports.",
+  "updated_at": "2026-10-11T03:06:35Z",
+  "notes": {
+    "clippy": "cargo clippy -p hsk-studio-interop-lrcat --tests --examples: no warnings for this crate",
+    "break_it": "7 mutations each fail a test: remove WAL overlay lookup, b-tree cycle check, overflow cycle check, before/after fingerprint compare, WAL frame checksum compare, ungranted-WAL gate, commit-frame rule",
+    "source_basis": "own implementation from sqlite.org/fileformat2.html (WAL header/frame/checksum, table cell + overflow formulas, freelist trunk, header offsets verified by fetch); LightCraft cache read as concept reference only, no code copied (no SOURCE_PROVENANCE entry needed)",
+    "design_choices": [
+      "WalGrant::PresentButNotGranted is Err(UngrantedWal) (fail closed: catalog could be stale); freelist anomalies, uncommitted/invalid WAL tail, unmapped tables are typed LossNotes, not errors; encrypted is Err(Encrypted) by HEURISTIC (no magic + near-uniform bytes)",
+      "main file header version/size is overridden by the last WAL commit frame size and page 1 is read through the overlay",
+      "only a granted WAL is hashed/overlaid; hash of the whole main+WAL is taken twice (before/after) plus the decode read = three reads of the bytes",
+      "report() takes correlation_id/revision like interop-vector (Observation needs them)"
+    ],
+    "unverified": [
+      "Lightroom table/column names beyond the brief list (Adobe_variablesTable.Adobe_DBVersion, AgLibraryCollection.creationId values, AgLibraryFile.idx_filename/baseName/extension, Adobe_images column set) are not yet checked against a Lightroom-written catalog (validator-time oracle)",
+      "KNOWN_PROCESS_VERSIONS is an unofficial community mapping of Camera Raw ProcessVersion internal numbers; KNOWN_SCHEMA_VERSIONS is empty, so every catalog reports schema_version_unrecognised",
+      "SQLite WAL/auto_vacuum pointer-map pages, UTF-16 databases and WITHOUT ROWID tables are handled by code but have no fixture"
+    ],
+    "deps": "sha2 =0.10.9 (force-soft) added in the crate manifest; one dep-requests line appended; Cargo.lock not staged",
+    "git_note": "commit e478186 pre-dates the attribution trailer reminder and carries no Co-Authored-By; later commits do"
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "schema_id": "hsk.studio_preparation_review@1",
+  "file_id": "STUDIO-MODULAR-REVIEW-20261010",
+  "reviewer_thread": "01a122a8-7584-7182-8814-61825d741e87",
+  "updated_at": "2026-10-10",
+  "status": "FINAL_PREPARATION_REVIEW_COMPLETE_NO_OPEN_PREPARATION_BLOCKERS",
+  "law_checkpoint": "a58b905bdb305b3ee8bd1653d2f00dcdd8c17c89",
+  "baseline_checkpoint": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+  "risk_tier": "HIGH",
+  "scope": {
+    "Handshake (Product)": "Read-only Studio spec/contract review; no builds, runtime, native GUI or acceptance verdict",
+    "Repo Governance": "Review-team typed findings only; no canonical author payload edits or Git mutations"
+  },
+  "published_delta_inspected": [
+    "Codex CX-MODULE-LIFECYCLE-001/002: mandatory module maintenance, distinct source and host tasks, independently reread remote source before host writes",
+    "Codex CX-VERIFY-001/002/003: minimum sufficient proof, unchanged-proof reuse, no additional checks or scope",
+    "HBR1.16 HBR-MODULE-LIFECYCLE-001..007 required_action and contract_fields",
+    "V2 WP architecture_binding.module_lifecycle_refs and module maintenance shape",
+    "V2 MT context_capsule.module_maintenance_refs, execution.module_change_stage and source_adoption",
+    "V2 refinement module lifecycle gaps and refs"
+  ],
+  "allocation_observed": {
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json",
+    "status": "AUTHORING_ALLOCATION_GRANTED_CHECKPOINT_A58B905B",
+    "declared_existing_files": 5575,
+    "declared_original_files": 5484,
+    "declared_original_ac_rows": 21145,
+    "declared_foundations": 36,
+    "declared_compound_source_groups": 200,
+    "declared_new_split_tasks": 570,
+    "declared_source_total_before_host": 6145,
+    "host_range": "MT-36189..MT-37188 reserved, not materialized at inspection",
+    "limit": "Allocation is preparatory identity routing, not product evidence or completed preservation proof. Final corpus may change through coordinator-owned assignments."
+  },
+  "minimum_invariant_observations": [
+    {
+      "id": "OBS-001",
+      "claim": "Preservation",
+      "observe": "Existing baseline original IDs, original scope, original acceptance IDs/text and history remain recoverable; each retained obligation resolves through exact inverse mapping to concrete source contributions and required host adoption, including compound owners.",
+      "sources": ["preserved_original", "fulfillment", "partition inverse_mapping", "final _MT_INDEX.json"],
+      "failure_example": "A native-format original AC is mapped only to opaque container preservation and no editable host proof."
+    },
+    {
+      "id": "OBS-002",
+      "claim": "Single owning module and dependency identity",
+      "observe": "Every actual task names one module and writes only its declared roots. Split MTs are genuine identities; source-group parents and legacy slice IDs grant no cross-module writes. Active edges resolve and graph is acyclic.",
+      "sources": ["STUDIO_MODULES.json", "execution.module_ref", "execution.allowed_write_paths", "execution.depends_on", "final index"],
+      "failure_example": "A components task writes Accord structs or depends on a slice string that has no executable MT."
+    },
+    {
+      "id": "OBS-003",
+      "claim": "Implementable task-specific recipes",
+      "observe": "Each chunk's steps, inputs/outputs and proof bind its actual source behavior, canonical files/contracts, real consumer, failure/cancel/recovery outcomes and selected package/features. Planned targets are identified as creation work; concrete planned commands are not claimed executed.",
+      "sources": ["context_capsule", "closure_unit", "execution", "proof.checks", "exact cited source unit"],
+      "failure_example": "An arbitrary hash test or renamed generic four-step checklist substitutes for parameter behavior or native editability."
+    },
+    {
+      "id": "OBS-004",
+      "claim": "Source-first release and separate host adoption",
+      "observe": "Source tasks bind canonical assets repository and module-owned maintenance. Distinct host tasks consume immutable source/release/lock refs through exact adapters and depend on source completion plus independent remote/source proof. Missing runtime pins remain explicit preconditions; no invented revision or receipt.",
+      "sources": ["maintenance", "execution.module_change_stage", "execution.source_adoption", "host task acceptance"],
+      "failure_example": "Host writes are allowed on a local commit or a future note without a distinct stateful host MT."
+    },
+    {
+      "id": "OBS-005",
+      "claim": "Isolated asset closure and meaningful foundations",
+      "observe": "Selected source/package closure excludes Handshake core/native/DB dependencies and all-engine facade. All36 foundation tasks retain real bounded capability/consumer/failure work before domain features. Host-only accepted authority is not an asset proof assertion.",
+      "sources": ["STU-ARC-001/002/010/016", "module catalog", "foundation tasks", "selected proof commands"],
+      "failure_example": "An isolated in-memory adapter claims EventLedger storage acceptance, or a foundation is an empty registry."
+    },
+    {
+      "id": "OBS-006",
+      "claim": "Phase-specific platform and HBR obligations",
+      "observe": "Direct pillar/HBR obligations remain materialized for the actual stage; source contracts carry portable privacy/diagnostic/control ports and host tasks retain real Argus/manual/model/quiet/FR/internal diagnostics/Palmistry/shared SurrealDB proof. ARM and x64 proof are distinct. LRCAT remains bounded read-only byte decoding, no SQL engine.",
+      "sources": ["context_capsule.pillar_refs", "shared_platform_contract", "host proof", "HBR1.16", "STU-ARC-015/017"],
+      "failure_example": "All privacy or Argus rows become blanket NOT_APPLICABLE because initial work is source-only."
+    },
+    {
+      "id": "OBS-007",
+      "claim": "Publication, compatibility and recovery",
+      "observe": "Module lifecycle and host adoption bind compatible exact contracts, private-data exclusion, portable state owners, upgrade/migration/rollback and handpick/custom-destination preservation. Source release proof is separate from host integration acceptance.",
+      "sources": ["maintenance.release", "maintenance.evolution", "source_adoption", "STU-ARC-009", "mirror contract"],
+      "failure_example": "Latest source overwrites a customized mirror or rollback claims restoration after irreversible state migration."
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": ["scope/AC mapping loss", "generic active methods", "compound owner and edge holes", "source/host proof confusion", "unresolved pins relabeled evidence", "asset DB/native coupling", "phase-specific HBR loss"],
+  "INDEPENDENT_CHECKS_RUN": [{"method": "Read scoped published law/template diff and HBR required fields; read approved allocation typed summaries", "result": "New fields and distinct source/host law observed; no frozen authored chunks supplied yet", "proof_class": "Read-only authority/allocation observation"}],
+  "COUNTERFACTUAL_CHECKS": ["If a host task lost its source_adoption.remote_verification_ref precondition, source-first remote proof could be bypassed.", "If original acceptance mapped only to source-phase checks, the distinct host acceptance required by CX-MODULE-LIFECYCLE-002 could disappear."],
+  "BOUNDARY_PROBES": [
+    {
+      "checkpoint": "e276434e",
+      "producer": "MT-35534 proof.checks[0/1].command_or_method",
+      "consumer": "STUDIO_MODULES.json modules[5].maintenance.standalone.test_selector_ref",
+      "observed": "Method says invoke cases through module maintenance test selector. Selector resolves back to MT-35534 proof/checks. maintenance_contracts.build_selection supplies package/source/dependency facts but no terminal test argv/config selector. Same cycle in ten reviewed foundations."
+    },
+    {
+      "checkpoint": "e276434e",
+      "producer": "HBR1.16 rules and current foundation proof/checks[3].command_or_method",
+      "consumer": "Ten foundation context_capsule.pillar_refs and closure_unit.materialized_acceptance[3]",
+      "observed": "Current law has 52 rules; method claims HBR1.16. Materialized rows remain 45 with old registry hash d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57, zero lifecycle rows, and AC004 says all45."
+    }
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    {"method": "Static reference resolution of MT-35534 runtime proof through its module test selector", "result": "Recursive reference returns to the same proof array; no concrete planned runtime command reached", "execution": "No runtime execution"},
+    {"method": "Enumerate seven current HBR-MODULE-LIFECYCLE IDs in ten frozen context_capsule.pillar_refs arrays", "result": "Zero of seven present in every reviewed array", "execution": "Read-only artifact query"}
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "STUDIO-REVIEW-001",
+      "priority": "P1",
+      "status": "RESOLVED_IN_FINAL_PREPARATION_CANDIDATE",
+      "historical_status": "OPEN_REPORTED_TO_VISUAL_WRITER_AND_COORDINATOR",
+      "resolution": {"candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION", "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336", "observation": "Direct current-file reads of all ten affected MTs show 52 pillar rows, seven HBR-MODULE-LIFECYCLE IDs with stage dispositions and PENDING_NOT_RUN proof, and active AC004 methods bound to current52. Original finding and all45 lineage retained; no runtime result accepted."},
+      "checkpoint": "e276434e",
+      "affected_mts": ["MT-35534", "MT-35538", "MT-35544", "MT-35545", "MT-35546", "MT-35548", "MT-35549", "MT-35551", "MT-35557", "MT-35562"],
+      "title": "Current lifecycle law is not materialized in foundation HBR rows",
+      "evidence": ["context_capsule.pillar_refs length45, old HBR1.15 registry_sha256 and no HBR-MODULE-LIFECYCLE-001..007", "closure_unit.materialized_acceptance AC004 says All45 HBR triggers", "proof.checks AC004 method says current HBR1.16", "Current HBR1.16 has52 rules including seven lifecycle obligations"],
+      "counterexample": "A worker satisfies every authored foundation row without independently rereading canonical source release or resolving lifecycle publication/compatibility requirements, then claims the current module contract is complete.",
+      "fix": "Materialize all applicable current lifecycle rules, explicit stage dispositions and proof destinations in canonical MT fields. Preserve old45 source in history; update active AC004/method binding to the current rule set without inventing proof or granting source acceptance as host acceptance.",
+      "minimum_confirmation": "Inspect changed rows for all seven lifecycle IDs, current registry binding and source/host dispositions; reuse unchanged domain recipe observations. No added suite."
+    },
+    {
+      "id": "STUDIO-REVIEW-002",
+      "priority": "P1",
+      "status": "RESOLVED_IN_FINAL_PREPARATION_CANDIDATE",
+      "historical_status": "OPEN_REPORTED_TO_VISUAL_WRITER_AND_COORDINATOR",
+      "resolution": {"candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION", "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336", "observation": "Direct current-file reads of all ten affected MTs resolve proof.checks[0].command_or_method to package-specific cargo test targets and exact named case filters. Provider/default-feature policy and negative cases remain explicit. Targets are planned creation work and must execute before handoff; no target existence or runtime PASS claimed."},
+      "checkpoint": "e276434e",
+      "affected_mts": ["MT-35534", "MT-35538", "MT-35544", "MT-35545", "MT-35546", "MT-35548", "MT-35549", "MT-35551", "MT-35557", "MT-35562"],
+      "title": "Runtime proof selector resolves circularly instead of to a concrete planned command",
+      "evidence": ["Each proof.checks[0/1].command_or_method routes cases through module maintenance test selector", "Each maintenance.standalone.test_selector_ref points back to that MT proof/checks", "maintenance_contracts.build_selection has no terminal runtime argv/config selector; cargo check exists only in AC003"],
+      "counterexample": "A fresh validator follows the test selector and lands on the same method, then invents a cargo filter/runner or treats compilation as executing the named domain cases.",
+      "fix": "Fill existing proof fields with concrete planned natural test-target/filter commands and selected features/config refs, retaining planned target creation and dispatch preconditions. Keep missing targets/pins explicitly unexecuted; no new wrapper, check suite or validator.",
+      "minimum_confirmation": "Follow one changed selector to a terminal planned command for each owning target and confirm named cases/timeout/expected outcomes. Existing component/runtime proof remains future execution work."
+    }
+  ],
+  "reviewed_chunks": [
+    {
+      "checkpoint": "e276434e",
+      "owner": "visual",
+      "mts": ["MT-35534", "MT-35538", "MT-35544", "MT-35545", "MT-35546", "MT-35548", "MT-35549", "MT-35551", "MT-35557", "MT-35562"],
+      "identity_source": "Frozen Git objects read with git show e276434e:<path>; current HEAD was newer and was not substituted for chunk identity",
+      "baseline_comparison": "All ten scope objects and closure_unit.materialized_acceptance arrays equal d8608d99 objects; no submissions or verdicts in these ten",
+      "positive_observations": ["Domain-specific file paths, inputs/outputs and named negative/cancel/recovery cases replace original generic steps", "Independent analytic/native-produced oracles distinguished from self-render or differential-only checks", "Source stage, PENDING/blocked and dispatch_allowed=false retained", "LRCAT byte-only no-SQL/query/write/cache boundary retained", "Native AI/INDD and original parity gaps remain explicit; interchange success does not substitute", "GPU device loss/unavailability cannot become skipped PASS"],
+      "limitations": "This foundation chunk contains no original5484 task rewrites or concrete host tasks; complete preservation/host inverse mapping and final graph are not yet reviewed. No executable target, device, fixture or managed-host proof observed."
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": ["The final review is bounded to the frozen preparation candidate and changed contract surfaces; unchanged preservation, full6204 graph and current52 HBR observations are reused with their stated provenance, not rerun or converted into runtime proof", "Executable source targets, actual original-produced payload/curve/runtime fixtures, provider/device evidence and production host routes remain future implementation dependencies", "No product/runtime/native GUI/parity/release/remote assets proof performed; host45/full-WP implementation and acceptance remain unauthorized"],
+  "product_acceptance_verdict": "NONE_ISSUED",
+  "next_action": "Root may bind this exact report and frozen candidate into the NEW KB transfer. A newly authorized source implementation session starts MT-35528, then the dependency-ordered real foundations; features wait for all36 foundation proof, and host adoption waits for independent immutable remote source/release/lock proof. No host45/full-WP launch or product acceptance follows from this preparation verdict.",
+  "final_review": {
+    "review_id": "STUDIO-REVIEW-FINAL-SPEC209-PREPARATION",
+    "updated_at": "2026-10-10",
+    "verdict": "PREPARATION_CONTRACT_READY_FOR_NEW_KB_TRANSFER_SOURCE_FOUNDATIONS_ONLY",
+    "candidate_binding": {
+      "candidate_id": "STUDIO-SPEC209-FINAL-PREPARATION",
+      "candidate_sha256": "12ac6f7701df8633f31833e27766f7629da1f7df5b905e83b4b7a42ce6a06336",
+      "manifest_ref": "../Handshake_Artifacts/handshake-tool/studio-publication/spec209-final-preparation-candidate.json",
+      "baseline_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+      "frozen_path_count": 83,
+      "changed_source_contract_count": 70,
+      "source_manifest_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae",
+      "binding_observation": "Read the exact candidate manifest. Independently hashed current MT-35528, MT-35530, MT-35534, MT-36240 and MT-36213 raw bytes; all match its declared raw hashes. Root's independent83-path and aggregate digest proof is reused; the review does not claim to have rerun that campaign. review.json is outside the frozen candidate and must be bound separately by its final raw SHA256."
+    },
+    "scope": {
+      "Handshake (Product)": "Read-only spec and preparation-contract readiness. No product edit, build, Cargo/test invocation, GUI run, source publication, host activation or acceptance verdict.",
+      "Repo Governance": "Only this review-team/review.json updated. Prior findings, evidence and chunk history retained. No canonical contract/helper/authority edit, Git mutation, new proof gate or WP012 action."
+    },
+    "risk_tier": "HIGH_PUBLIC_APIS_CONCURRENCY",
+    "DIFF_ATTACK_SURFACES": [
+      "Workspace bootstrap, selected closure and final36 compilation barrier",
+      "Accord/Observe dependency-local consumers versus uncreated Folio/Session packages",
+      "v02.209 folded source roles, inheritance, source/native restrictions, payload/curve evidence and tick conversion",
+      "Published public-contract readiness versus full parent completion and owning state/scheduler authority",
+      "Distinct source-first release and host-adoption pins, whole-criterion versus owned-aspect credit",
+      "Actual native visual/manual proof versus source descriptors, theme metadata or prior frames"
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      {"id": "FINAL-OBS-001", "artifact_refs": ["MT-35528#/scope/allowed_paths", "MT-35528#/proof/checks", "MT-35528#/foundation_contract"], "observation": "tools/workspace-probe.rs is already allowed. All five proof recipes bind an actual standalone manifest/toolchain/lock/selection/provenance consumer with positive and rejection cases without loading uncreated sibling manifests. Empty selected_packages or metadata alone cannot pass. The final36 barrier retains actual materialized package metadata and cargo check --locked --tests; standalone bootstrap proof does not replace module compilation.", "result": "PREPARATION_CORRECTION_PRESENT_RUNTIME_NOT_RUN"},
+      {"id": "FINAL-OBS-002", "artifact_refs": ["MT-35529#/execution", "MT-35529#/proof/checks/0/method_recipe", "MT-35530#/execution", "MT-35530#/proof/checks"], "observation": "Accord selects only hsk-studio-accord with no module dependencies and expressly requires one dependency-local external consumer; the Folio-facing envelope assertion does not require a Folio package build. Observe selects its own closure plus Accord and now drives real caller-owned sink callbacks with an independently reading external collector; Session is explicitly deferred. The six stale Session references in the recorded correction are replaced in active methods/expected outcomes.", "result": "DEPENDENCY_LOCAL_BOOTSTRAP_CONTRACT_COHERENT"},
+      {"id": "FINAL-OBS-003", "artifact_refs": ["MT-35534", "MT-35538", "MT-35544", "MT-35545", "MT-35546", "MT-35548", "MT-35549", "MT-35551", "MT-35557", "MT-35562"], "observation": "Directly read current52 HBR IDs, seven lifecycle rows and terminal planned command selectors for all ten previously affected foundations. Selectors name domain targets and positive/error/cancel/loss cases; PENDING_NOT_RUN and later host proof remain explicit. The two historical findings are resolved only at the preparation layer.", "result": "STUDIO-REVIEW-001_AND_002_RESOLVED"},
+      {"id": "FINAL-OBS-004", "artifact_refs": [".GOV/spec/SPEC_CURRENT.md", ".GOV/spec/master-spec-v02.209/indexed-spec-manifest.json", ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md#STU-PRO-167..174", "MT-36234..MT-36247"], "observation": "Current spec resolves v02.209. Changed contracts preserve thirty-declaration BaseFrame and actual Opaque/Children closure, fixed source slide/row/grid restrictions separately from native authoring, readonly/nullable/optional distinctions, four node kinds, five roles,23 styles,8 curves and2 timing tokens. MT-36237 first requires independently pinned original payload/interaction proof; MT-36240 first requires a numeric or original-produced curve oracle and tolerance. Raw seconds and unset-versus-zero delay do not inherit native millisecond defaults/bounds; Pulse checked254016000000 ticks/s and explicit rounding/loss remain the owner boundary.", "result": "SPEC209_PREPARATION_BOUNDARIES_RETAINED"},
+      {"id": "FINAL-OBS-005", "artifact_refs": ["MT-36197", "MT-36199", "MT-36200", "MT-36210", "MT-36213"], "observation": "Each of five existing host tasks includes its new source MT bindings, unresolved immutable remote revision, separate source submissions/verification, adapter, compatibility and rollback refs. Primary whole-row and companion owned-aspect mappings are individually qualified in host methods; Controls/FIG projection cannot close primary algorithms. Host start/stop conditions block writes without actual remote source proof, pins and separately activated host worktree. Host lifecycle PENDING/ready is not launch authorization.", "result": "SOURCE_FIRST_AND_HOST_CREDIT_BOUNDARIES_RETAINED"},
+      {"id": "FINAL-OBS-006", "artifact_refs": ["MT-34507", "MT-34508", "MT-34514", "MT-36213#/closure_unit/materialized_acceptance", "MT-36213#/proof/checks"], "observation": "New GUI criteria preserve seven exact density members, measured geometry and eight spine identities. Shared Controls/theme ownership, actual Argus/accessibility/default-profile/scale/resize observations and directly inspected professional references are required; a palette declaration cannot pass. The six GUI criteria are retained individually in host acceptance, with truthful canonical manual/descriptor and source-versus-native evidence separation. Runtime/reference inspection remains pending.", "result": "GUI_MANUAL_ACCEPTANCE_CONTRACT_PRESENT_NOT_EXECUTED"}
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      {"id": "FINAL-CF-001", "scenario": "Only workspace/Accord exist; Folio and Session manifests do not exist yet.", "observation": "35528's standalone real probe does not load uncreated siblings;35529 selected closure is Accord-only and its explicit external consumer is dependency-local;35530 uses Observe-local sink plus Accord, with Session conformance deferred. Every actual package compile remains mandatory at final36.", "verdict": "NO_PREPARATION_BOOTSTRAP_DEADLOCK_IN_INSPECTED_CONTRACTS"},
+      {"id": "FINAL-CF-002", "scenario": "The implementer supplies only five role discriminators, maps GENTLE to a similarly named preset, or treats unset delay as zero/default300ms.", "observation": "36237/AC001 blocks working payload parity;36240/AC001 blocks faithful curve rendering without independent mapping/oracle+tolerance;36238/36241 preserve source seconds, presence and profile provenance with checked conversion. Honest opaque/unavailable outcomes cannot close affected feature acceptance.", "verdict": "COUNTERFACTUAL_FALSE_FIDELITY_REJECTED_BY_CONTRACT"},
+      {"id": "FINAL-CF-003", "scenario": "An assets local commit or green source consumer is offered to begin native host writes with unresolved source_revision.", "observation": "Five host start/stop conditions require independent fresh canonical remote source/release/lock verification and actual separate activation. Source receipts and proof refs are future inputs; no local or source-only result closes host rows.", "verdict": "HOST_WRITE_AND_ACCEPTANCE_REMAIN_BLOCKED"},
+      {"id": "FINAL-CF-004", "scenario": "Theme tokens match but dense labels clip or one of eight panels is hidden, or a prior/native-unbound screenshot is offered as proof.", "observation": "34507/34508/34514 and36213 require exact geometry/identities, actual current-grant/revision/frame Argus/accessibility capture and direct reference inspection; copied palette, metadata and source-only assertions are explicitly rejected.", "verdict": "VISUAL_ACCEPTANCE_REMAINS_UNPROVEN"}
+    ],
+    "BOUNDARY_PROBES": [
+      {"id": "FINAL-BOUNDARY-001", "boundary": "Foundation-to-feature", "observation": "Source foundations have no self-referential all36 start requirement. Features reference STUDIO-ALL-FOUNDATIONS; current catalog/readiness requires every real asset capability and consumer before features.36243/36246 consume36237/AC001's pinned payload artifact explicitly without a full-parent completion edge.", "proof_kind": "CONTRACT_READ_ONLY"},
+      {"id": "FINAL-BOUNDARY-002", "boundary": "Source-to-host", "observation": "Standalone source does not own AppState/native/SurrealDB. Host pins and test entrypoints remain unresolved/PENDING, canonical publication excludes governance/private data, and host auth/EventLedger/CRDT/Argus/diagnostic/manual/rollback obligations remain separate.", "proof_kind": "CONTRACT_READ_ONLY"}
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      {"id": "FINAL-NEG-001", "path": "Observe saturation/cancel/rejected sink", "observation": "35530 explicitly rejects false success for lost required delivery and requires attribution-preserving success/error/cancel/saturation behavior through its local sink; private project text cannot escape.", "runtime": "NOT_RUN"},
+      {"id": "FINAL-NEG-002", "path": "Degraded/stale/canceled timing and presentation scheduling", "observation": "35540 requires checked tick/range arithmetic, atomic overlap/locked-link/overflow rejection and cancel with no promotion.36237 uses bounded per-session admission/queues/backpressure, refuses stale/cross-session work and discards late results on cancel/drain; provider loss is unavailable, never success.36241/36247 retain existing scheduler ownership, checked seconds conversion, skipped-slide/manual advance/cancel ordering and no blocking diagnostics/database on realtime callbacks.", "runtime": "NOT_RUN"},
+      {"id": "FINAL-NEG-003", "path": "Unsupported source operation or missing fidelity oracle", "observation": "Source grid clone throws and slide/row clone-parent conflicts remain typed unsupported until original fixture resolution. Missing decoder/payload/curve/profile evidence blocks affected editable/fidelity acceptance; bounded opaque inspection remains truthful and cannot substitute for parity.", "runtime": "NOT_RUN"}
+    ],
+    "INDEPENDENT_FINDINGS": [],
+    "reused_proof": {
+      "preservation": "Prior unchanged original5484 IDs/original21145 acceptance preservation proof reused; no broader preservation rerun.",
+      "graph_and_hbr": {"ref": "../Handshake_Artifacts/handshake-tool/studio-publication/full6204-current-read.json", "actual_artifact_read": true, "contracts": 6204, "primary_source_contracts": 5583, "source_companion_contracts": 576, "host_contracts": 45, "dependency_edges": 237037, "missing_dependency_targets": [], "cycles": [], "typed_current_hbr_assessments": 320268, "source_manifest_sha256": "d67ab2c0345e22fa16808aadb3e6cff8ad83015ccd4ff58016d9219dffac37ae", "provenance": "Root's independent canonical file-read artifact; its proof-only35528/35530 refresh says graph/HBR inputs unchanged. These observations are reused, not represented as reviewer-run scans or runtime evidence."}
+    },
+    "limitations": [
+      "This is the authorized one final bounded preparation review, not a universal implementation audit or new test gate.",
+      "No executable target, source fixture, GPU/device/provider, original behavior, GUI reference/render, release, assets remote landing or authenticated production host route was executed or accepted here.",
+      "Missing source/test targets are intended creation work. They must materialize and execute before owning handoff; their pre-coding absence is not a preparation blocker.",
+      "Source foundation start is conditional on final publication and NEW KB transfer/implementation authorization; feature and host predecessors still apply. Host45/full-WP work is not authorized by this report."
+    ],
+    "completion": {"open_preparation_findings": 0, "historical_findings_preserved": 2, "new_product_acceptance": "NONE", "runtime": "NOT_RUN", "allowed_next_boundary": "NEW_KB_TRANSFER_THEN_AUTHORIZED_SOURCE_FOUNDATIONS", "host_activation": "NOT_AUTHORIZED", "whole_wp_acceptance": "NOT_ISSUED"}
+  }
+}

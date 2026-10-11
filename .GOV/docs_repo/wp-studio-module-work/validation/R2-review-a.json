@@ -1,0 +1,296 @@
+{
+  "round": "STUDIO-R2",
+  "reviewer": "A",
+  "reviewed_commit": "87c1cd9570a52f422f6ba3bd1e75f42997682ee0",
+  "base_commit": "55c1096",
+  "method": "Read-only review of committed code via git show/diff 55c1096..87c1cd9 (= origin/codex/handshake-studio-assets after fetch). No cargo runs (working tree differs from the commit). Arithmetic and oracle values were recomputed by hand. Package, interop-psd and develop were reviewed by delegated Opus readers; reviewer A spot-verified every CONFIRMED item there against the committed source.",
+  "lanes": [
+    {
+      "lane": "hsk-studio-package",
+      "crate": "hsk-studio-package",
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/manifest.rs:126-130; src/read.rs:248-269,326-335; src/limits.rs:1-2,10-11",
+          "evidence": "No aggregate bound on decoded zstd bytes. Each zstd Asset row only needs raw_len <= max_entry_bytes (512 MiB). max_total_bytes is checked against stored sizes only, and nothing sums raw_len. into_opened retains every decoded asset (process_entry(entry, true) then assets.insert). N small RLE frames, each ~16 KiB stored and 512 MiB decoded with a valid sha256, therefore force about N x 512 MiB of memory while stored bytes stay far under 4 GiB. This breaks the STU-IO-187 aggregate inflated bound. limits.rs doc still says 'nothing is ever inflated and no ratio bomb exists'. The bomb test covers one entry only.",
+          "remediation": "Sum decoded sizes (raw_len or len) in Manifest::validate, reject above max_total_bytes; add multi-entry bomb test"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/zip.rs:596-608",
+          "evidence": "ZIP64 is detected purely by finding SIG_LOCATOR64 in the 20 bytes before the EOCD, even when no EOCD field holds a 0xFFFF/0xFFFFFFFF sentinel. A plain (Auto) archive whose last CD record has a 16-byte name and local offset 0x07064b50 places 50 4b 06 07 there. The reader then fails with 'locator_disk', so the crate's own writer output is unreadable by its own reader (deterministic, narrow trigger).",
+          "remediation": "Only look for the ZIP64 locator when an EOCD field is a sentinel; otherwise parse as plain ZIP"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/zip.rs:518-535 (used at 755, 838)",
+          "evidence": "zip64_extra silently skips every extra-field id other than 0x0001 in both CD and local headers, and the two extra blocks are never compared. This contradicts the canonical-form claim in the zip.rs module doc ('rejects anything the writer never emits ... parser differentials cannot hide content'). An Info-ZIP Unicode Path field (0x7075) can show another tool a different name, and up to 64 KiB of hidden bytes per header are accepted.",
+          "remediation": "Reject any extra id except 0x0001 and require identical CD/local extra blocks"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/lib.rs:34; src/limits.rs:1-2",
+          "evidence": "The DESCRIPTOR model manual is stale for slice 2 (43e1baf). 'authority' still lists streaming from Read and the stale-temp sweep as pending. 'api' omits read_package_stream, PackageReader, preflight_stream, sweep_stale_temps and WriteOptions.asset_codec. 'limits' omits max_window_bytes and says store_only. The lane file builders/lanes/hsk-studio-package.json is also slice-1 only: 'nothing is ever inflated', and known_gaps still lists 'No streaming from Read'.",
+          "remediation": "Update DESCRIPTOR api/limits/authority and limits.rs doc for slice 2; sync lane capabilities_done/known_gaps"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/zip.rs:139-145",
+          "evidence": "The file-vs-directory PathConflict check uses exact names only. 'A' plus 'a/b' passes even though it conflicts on case-insensitive extraction, against the claimed dup + case-fold dup + file-vs-dir rule.",
+          "remediation": "Run the prefix PathConflict check over case-folded names too"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/src/save.rs:178-198",
+          "evidence": "On Windows, rename is not followed by any directory or metadata flush (only the cfg(unix) branch syncs the parent directory), so the save is atomic but not proven durable across power loss. On unix, a dir.sync_all() failure is ignored (let _).",
+          "remediation": "Document the Windows durability residual in DESCRIPTOR; surface unix dir-fsync failure as a typed warning"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-package/examples/package-consumer.rs:109; src/read.rs:386-398",
+          "evidence": "For ReadOnly inspections, manifest.document_id is never checked. The consumer prints it raw inside quotes, so a document_id containing '\"' yields malformed or injected JSON output.",
+          "remediation": "Emit document_id via serde_json::to_string, or charset-validate document_id in Manifest::validate"
+        }
+      ],
+      "recommendation": "FAIL"
+    },
+    {
+      "lane": "hsk-studio-interop-psd",
+      "crate": "hsk-studio-interop-psd",
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "cap_duplicate",
+          "file_line": "crates/hsk-studio-interop-psd/src/blend.rs:8-176; src/lib.rs:24; src/layers.rs:275; src/proposal.rs:95",
+          "evidence": "The crate still defines and exports its own 28-member 'pub enum BlendMode' (ALL, from_key, name()). That enum is the public return type of PsdLayer::blend_mode() and LayerAppearance.blend_mode. studio_mode() was added beside the enum instead of replacing it. diagnostics/render-plan-ir.md requires PSD keys to map to pigment StudioBlendMode 'instead of the crate-local 28-member enum', and its validator control (grep for a second 'enum BlendMode' outside pigment) matches here. name() also gives a second key set (color_burn, linear_dodge, color) that disagrees with pigment's (colour_burn, linear_dodge_add, colour).",
+          "remediation": "Delete enum; const [([u8;4],StudioBlendMode);28] table; blend_mode()->Option<StudioBlendMode>; drop name()"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/document.rs:255-260",
+          "evidence": "image_data is read only when r.remaining() >= 2. A single trailing byte after the layer-and-mask section is dropped: PsdDocument has no field for it and write_psd never emits it. The 'unmodified document re-emits byte-identical' claim therefore fails for that input.",
+          "remediation": "Keep a <2-byte tail in PsdDocument, re-emit it in write_psd; add a 1-byte-tail round-trip test"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/layers.rs:186-191,343",
+          "evidence": "LayerMask::parse returns None for the real_flags/real_default_color/real_rect fields whenever flags bit 4 (mask parameters present) is set. Per the PSD layout those real fields still follow the parameter bytes, so channel_rect(-3) falls back to the user-mask rect and the public decode_channel(-3) uses the wrong geometry. to_proposal does not use this path today.",
+          "remediation": "Parse parameter flags/values, then the real fields; add a fixture with flags 0x10 plus a -3 channel"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/lib.rs:59",
+          "evidence": "DESCRIPTOR 'pending' still lists proposal_mapping although to_proposal ships and is exported (lib.rs:38-41). The model manual is stale.",
+          "remediation": "Remove proposal_mapping from pending; list the real pending items (mask sidecar, ICC conversion of tiles)"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/compression.rs:94",
+          "evidence": "decode_rle calls Vec::with_capacity(total) before validating any row data. A ~33 KB count table for a 16384x16384 32-bit layer allocates 1 GiB and only then fails with RleShort. The allocation is bounded by max_decoded_bytes but amplified about 30,000:1, and an allocation failure aborts the process.",
+          "remediation": "Cap initial capacity at min(total, data.len()*64) and grow; test a large rect with a tiny RLE table"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/document.rs:176-192",
+          "evidence": "merged_oracle_rgba8 returns None only for Placeholder. When resource 1057 is absent (Unknown) it returns Some(pixels) without saying so, so a placeholder merged image without 1057 can still be served as an oracle.",
+          "remediation": "Return the MergedStatus with the pixels, or None for Unknown unless the caller opts in"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:280-286,467,506",
+          "evidence": "Inside groups, input_ordinal 0 is the bottom-most child (the composite convention). Root graph.outputs are emitted top-first in panel order and there is no root mix, so the root stacking order is the opposite of the group convention. The test checks only outputs.len()==2.",
+          "remediation": "Emit root outputs bottom-first or add a root ordered_composite; assert root order in a test"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:371-402",
+          "evidence": "tiles_for allocates and zeroes 1 MiB per grid cell before the any_alpha sparsity check, and layer rects are not clamped to the canvas. An off-canvas 2^28x1 layer with an all-zero alpha channel iterates about 1M cells, bounded only by cancellation.",
+          "remediation": "Clamp iteration to the canvas or cap cell count; check alpha before allocating tile buffers"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-interop-psd/src/loss.rs:125; src/layers.rs:349-356",
+          "evidence": "pass_through_on_leaf_layer requires GroupRole::None, so a leaf with an unknown lsct type and key 'pass' gets no blend and no such loss code. A luni name over max_name_units also silently falls back to the Pascal name, with no loss entry.",
+          "remediation": "Emit pass_through_on_leaf_layer for any non-folder; add a layer_name_unicode_over_limit loss code"
+        }
+      ],
+      "recommendation": "FAIL"
+    },
+    {
+      "lane": "hsk-studio-develop",
+      "crate": "hsk-studio-develop",
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/dng.rs:379,396-398 (tile dims only checked != 0 at :255-259)",
+          "evidence": "expected = u64(block_w)*u64(block_h)*bytes_per_sample is unchecked, and tile dimensions are never bounded by image dimensions. Hostile tiled 16-bit DNG: TileWidth=2^31+32768, TileLength=2^32-65535, 4x4 image. Then across=down=1 and the product overflows u64. In debug builds this panics at :379. In release it wraps to 65536, the 65536-byte region passes, and data[at..at+2] at :398 panics with index out of range. Reachable from the public decode_container(), and contradicts tiff.rs 'every offset and count is checked'.",
+          "remediation": "checked_mul for expected; reject tile dims > image dims; assert at+bps <= data.len()"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "fake_test",
+          "file_line": "crates/hsk-studio-develop/tests/develop_dng.rs:428-441 vs src/dng.rs:653-659",
+          "evidence": "The warm-neutral test compares recipe.camera_to_profile_rgb*(gain.*n) with P*camera_to_xyz_d50*n. The recipe matrix is built as P*C2X*diag(1/gain), so the two sides are equal by construction for any C2X. The ForwardMatrix 'D = diag(1/ReferenceNeutral)' factor is never independently checked, because every other colour test uses neutral (1,1,1), where D=I. Removing D from color.rs:384-385 would still pass every test.",
+          "remediation": "Assert C2X*n == FM*(1,1,1) (maps to D50) for a non-unit neutral; add an AnalogBalance/CameraCalibration case"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/pipeline.rs:75-84,171-175,285-287",
+          "evidence": "Limits has pub fields and is accepted by CfaPlane::with_limits and DngRaw::cfa_plane. Limits{min_bayer_side:1,..} admits a 1-pixel side. demosaic then calls reflect(.., 1), where period = 2*(1-1) = 0, and rem_euclid(0) panics. Reachable through the public demosaic/develop.",
+          "remediation": "Enforce min side >= 2 (Bayer) / >= 6 (X-Trans) in with_limits regardless of caller Limits"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/dng.rs:19-61,415-436",
+          "evidence": "BlackLevelDeltaH (50715) and BlackLevelDeltaV (50716) are neither parsed nor refused (no reference anywhere in the crate). A DNG carrying them silently gets wrong black levels, contradicting the crate's 'nothing clipped or defaulted' rule and the claimed BlackLevel support.",
+          "remediation": "Apply DeltaH/DeltaV per the DNG spec, or refuse with UnsupportedContainer when present"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/dng.rs:19-61",
+          "evidence": "OpcodeList1/2/3 (51008/51009/51022) are silently ignored. The DNG rule (UNVERIFIED recollection) is that a non-optional opcode a reader cannot apply must not be skipped silently, for example a GainMap.",
+          "remediation": "Refuse when an opcode list holds a non-optional opcode; skip optional ones with a report entry"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/dng.rs:131-133",
+          "evidence": "Lookup::get falls back to IFD0 for raw-IFD-local tags (RowsPerStrip, SamplesPerPixel, Compression, BlackLevel, ActiveArea). A raw SubIFD without RowsPerStrip can then inherit the preview's value, mixing tags across IFDs.",
+          "remediation": "Restrict IFD0 fallback to IFD0-scoped DNG tags (colour, version, model)"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/dng.rs:370",
+          "evidence": "vec![0u16; w*h] (up to 512 MiB) is allocated from header-claimed dimensions before any strip or tile region is checked against the file size, so a tiny file can force a large allocation.",
+          "remediation": "Verify all block byte ranges lie within the file before allocating samples"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/color.rs:181-202,387-391",
+          "evidence": "The LightSource->CCT table uses physical CCTs. The Adobe SDK values (UNVERIFIED recollection) differ, and the table has no provenance citation. The ColorMatrix-only path maps the neutral to k*D50 with no Y=1 normalisation, unlike the FM path. Tolerances of ±0.01 cannot tell these apart.",
+          "remediation": "Cite table provenance and pin one weight exactly; normalise CM-only neutral to Y=1 or document and test the scale"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-develop/src/pipeline.rs:107-113",
+          "evidence": "Limits::name() reports any non-SPEC_V1 limits as 'large', so the receipt's limits label can be wrong. Separately, the lane file builders/lanes/hsk-studio-develop.json omits the DNG capabilities (e4d2b52) and still says dng_reader_next.",
+          "remediation": "Report 'custom' unless the struct equals a named preset; sync lane capabilities_done"
+        }
+      ],
+      "recommendation": "FAIL"
+    },
+    {
+      "lane": "SMB-PIGMENT-ENG-1",
+      "crate": "hsk-studio-pigment",
+      "findings": [
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:255-263 vs src/blend_math.rs:300-306,511-512",
+          "evidence": "validate() checks only Solid alpha against [0,1]. Finite rgb outside [0,1] (e.g. [2,0,0,1]) passes validate and admit, but blend_rgb/composite_over refuse it with OutOfDomain. That refusal can surface mid-execution, after chunks have reached the sink, contradicting the port rule 'refusal before any sink call'.",
+          "remediation": "Refuse Solid rgb outside [0,1] in validate (or add an HDR operator class) so admission refuses first"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "missing_capability",
+          "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:386-424",
+          "evidence": "TilePlanes::matches compares DECLARED hashes, size, format and space only. Nothing checks plane length against stride*height or hashes the bytes; Mask::validate (tile.rs) does both for masks. ResolvedTile::planes() also skips validate_shape. Every backend must re-implement plane and hash verification, a panic and CX-CAP-001 drift risk. The test's SourceMismatch case varies only the declared hash.",
+          "remediation": "Add one shared TilePlanes::verify(input, space): stride/length bounds plus sha256 of bytes; backends call it"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:554-556",
+          "evidence": "admit() always validates with PlanLimits::default() (65,536 nodes and layers, depth 64). Neither the caller nor the backend can tighten plan limits through the shared admission.",
+          "remediation": "Carry PlanLimits in ExecuteRequest (or an admit parameter) and use it in admit"
+        }
+      ],
+      "recommendation": "PASS"
+    },
+    {
+      "lane": "SMB-FOLIO-ENG-1",
+      "crate": "hsk-studio-folio",
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "cap_duplicate",
+          "file_line": "crates/hsk-studio-folio/src/timeline.rs:71-79,217-222",
+          "evidence": "Public SequenceFrameRate::fps_fraction() re-implements hsk-studio-pulse src/time.rs:40 fps_fraction: the same gcd(TICKS_PER_SECOND, ticks_per_frame) reduction, a capability claimed by the pulse lane, commit 416b376, which predates folio 89201e7. Folio also adds a private gcd copy. Folio validation does not use it (it uses accord()), and folio's own module doc (timeline.rs:3-4) says frame-rate conversion belongs to Pulse. CX-CAP-001.",
+          "remediation": "Drop folio fps_fraction (callers use .accord() + pulse fps_fraction) or move it to accord FrameRate for both"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "bug",
+          "file_line": "crates/hsk-studio-folio/src/timeline.rs:237-242",
+          "evidence": "handle() rejects only backslash, a leading '/' and 'X:' drive prefixes. Relative paths ('media/a.mov', '../../x.mov') and URIs ('file:x') pass as artifact_manifest_id/object_id, so 'media handle never a path' is only partly enforced. The tests cover rooted forms only.",
+          "remediation": "Restrict handles to an opaque-id charset (no '/', '..', ':'); add relative-path negative cases"
+        }
+      ],
+      "recommendation": "FAIL"
+    },
+    {
+      "lane": "SMB-ACCORD-ENG-1",
+      "crate": "hsk-studio-accord",
+      "findings": [],
+      "recommendation": "PASS"
+    }
+  ],
+  "cross_lane_findings": [
+    {
+      "severity": "CONFIRMED",
+      "kind": "cap_duplicate",
+      "owner_lane": "hsk-studio-composite",
+      "file_line": "crates/hsk-studio-composite/src/blend.rs:14,51,110,186,421,470,506,620; examples/composite-consumer.rs:3",
+      "evidence": "At 87c1cd9 composite still owns BlendSpace, Fidelity, a 35-member BlendMode, MODE_TABLE, separable_fn, set_lum, blend_rgb and composite_over, all duplicating pigment::blend_math (render-plan-ir.md migration step 1 is not done).",
+      "remediation": "Delete composite blend.rs and its tests; import pigment::blend_math per render-plan-ir.md migration"
+    },
+    {
+      "severity": "CONFIRMED",
+      "kind": "cap_duplicate",
+      "owner_lane": "hsk-studio-render-cpu",
+      "file_line": "crates/hsk-studio-render-cpu/src/sample_math.rs:17,142,217,237; src/plan_sink.rs:30,51,220,251",
+      "evidence": "render-cpu still defines its own BlendMode and f64 blend_rgb/set_lum/soft_light, plus BlendSpace, PixelSink, RenderPlan and RenderReceipt, duplicating pigment render_plan and blend_math.",
+      "remediation": "Implement pigment RenderBackend; delete the local enum, math and plan/sink/receipt types"
+    },
+    {
+      "severity": "CONFIRMED",
+      "kind": "cap_duplicate",
+      "owner_lane": "hsk-studio-pulse",
+      "file_line": "crates/hsk-studio-pulse/src/time.rs:31-37",
+      "evidence": "pulse::time::checked_sub(Ticks,Ticks) duplicates the new accord Ticks::checked_sub (b1fe6e8). Its doc comment 'accord::Ticks has no subtraction' is now false.",
+      "remediation": "Use Ticks::checked_sub from accord (map TickOverflow to Underflow at the pulse boundary) and delete the copy"
+    },
+    {
+      "severity": "PLAUSIBLE",
+      "kind": "cap_duplicate",
+      "owner_lane": "hsk-studio-pulse",
+      "file_line": "crates/hsk-studio-pulse/src/rational.rs:33-75",
+      "evidence": "SpeedMath::duration_for_span recomputes span*den/|num| exactly, the same derivation folio exposes publicly as StudioClip::derived_duration (folio needs it for validation and pulse can reach folio).",
+      "remediation": "Have pulse consume folio derived_duration (or agree one owner) to avoid divergent exactness rules"
+    }
+  ],
+  "accord_notes": "Ticks Ord/Hash and checked_sub/saturating_sub are correct and minimal. The test values (1000-400=600, underflow -> TickOverflow, sort, HashSet dedupe) are independent of the implementation. No forbidden items.",
+  "residual_uncertainty": "No tests were executed. CONFIRMED items rest on reading the code plus hand arithmetic, not runtime reproduction. PLAUSIBLE items that cite DNG/Adobe SDK behaviour are marked UNVERIFIED recollection. Pigment PASS covers the owner module only; workspace-wide CX-CAP-001 compliance for blend/plan depends on the cross-lane migrations listed above."
+}

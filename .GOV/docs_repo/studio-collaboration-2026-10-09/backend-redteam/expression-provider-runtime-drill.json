@@ -1,0 +1,309 @@
+{
+  "schema_id": "hsk.studio_expression_runtime_drill@1",
+  "file_id": "STUDIO-EXPRESSION-RUNTIME-DRILL-20261009",
+  "updated_at": "2026-10-09",
+  "authority": false,
+  "owner": "backend-redteam/pressure",
+  "verdict": "SOURCE_INSPECTED_CANDIDATE_CONDITIONAL_RUNTIME_NOT_PROVEN",
+  "risk_tier": "HIGH",
+  "scope": {
+    "product": "Handshake (Product): rquickjs0.14.0 wrapper and bundled engine source audit",
+    "repo_governance": "Repo Governance: this owned JSON only",
+    "product_spec_mt_wp012_git_process_mutations": "NONE",
+    "build_runtime_native_gui": "NOT_RUN",
+    "source_acquisition": "Pinned crate downloads and safe extraction only; upstream scripts never executed"
+  },
+  "reviewed_expression_report": {
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+    "inspection": "Parsed all top-level fields; inspected decisions001/002/003 including Date, proposed limits, fuel, aliases, rejected candidates, source findings, meaningful proof, limits and candidate identity. Combined full output truncated; remaining decision fields reread separately.",
+    "preserved_contract": "333 identifiers and37 signatures remain compatibility target; deterministic AST/profile and source-preserving unsupported diagnostics; cycles rejected at commit; error fallback explicitly recorded. Runtime choice does not prove AE semantics.",
+    "correction_required": "Retain conservative exclusion of custom/rust-alloc pending proof, but qualify the categorical custom-allocator no-op statement as a wrapper documentation warning contradicted by the bundled engine paths inspected here.",
+    "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c"
+  },
+  "module_boundary": {
+    "selection": "Operator-approved optional hsk-studio-motion-js provider behind neutral Motion interface",
+    "neutral_motion": "No C dependency required by neutral Motion domain/types/validation/host ports; pure modules remain host-independent and embeddable by other hosts",
+    "provider": "rquickjs plus native bundled C lives in optional provider; source acquisition is not dependency installation or packaging proof",
+    "owners": "Existing kernel sandbox, JobRuntime, ResourceBroker and document proposal/commit ports retain platform ownership. No second scheduler, database or capability owner."
+  },
+  "source_identity": {
+    "cache": "../gov_runtime/tools/studio-expression-source-cache",
+    "wrapper_vcs": "d7ef5eeae702fea24c03643064de454f1c1dd4b0 from package .cargo_vcs_info.json; crate archives are actual inspected bytes",
+    "engine": "Bundled QuickJS-NG source reports0.16.2 in quickjs.h1450-1453; not Bellard live2026-06-04 or an assumed independent NG git commit",
+    "engine_identity_limit": "Version macros and package hashes establish bundled bytes; separate QuickJS-NG upstream commit identity was not established and is not invented.",
+    "archives": [
+      {
+        "crate": "rquickjs",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs/rquickjs-0.14.0.crate",
+        "sha256": "a0a22bf72f515cc4189dd7c63d016f6de92a11eee98ddf7dd64794198f6eb34e"
+      },
+      {
+        "crate": "rquickjs-core",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs-core/rquickjs-core-0.14.0.crate",
+        "sha256": "6657979a24d543e5fc66f32cef2f47ca82ce8eb55cec5f7d59a12b7b570bbf24"
+      },
+      {
+        "crate": "rquickjs-sys",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs-sys/rquickjs-sys-0.14.0.crate",
+        "sha256": "cee271d0eeba64f0915b846cb7ae02e16faf3dfdffdca91731101d9d30fe3423"
+      }
+    ]
+  },
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "EXPR-RT-001",
+      "severity": "P1_DOC_SOURCE_DISCREPANCY",
+      "finding": "core runtime raw.rs288-292 and base.rs152-160 warn set_memory_limit is a no-op with custom allocator/rust-alloc. Actual bundled QuickJS-NG quickjs.c1981-2073 checks runtime malloc_limit in calloc/malloc/realloc above the configured allocation functions. JS_NewRuntime2 stores custom functions2323-2335; JS_SetMemoryLimit writes the tracked cap2441-2443. allocator feature is an empty compatibility feature in core Cargo.toml; rust-alloc selects new_with_allocator in raw.rs168-174. Do not turn the documentation caveat into a verified universal behavior claim for these bytes.",
+      "control": "Keep default allocator as candidate policy and forbid feature drift until meaningful runtime quota probes reconcile the discrepancy. If custom allocation is later admitted, independently measure both engine allocation accounting and allocator physical bytes/RSS, OOM/realloc recovery and bootstrap allocations; correct wrapper documentation upstream if reproduced."
+    },
+    {
+      "id": "EXPR-RT-002",
+      "severity": "P1_RESOURCE_BOUNDARY",
+      "finding": "Engine memory cap is runtime tracked allocation accounting, not whole-worker RSS. arena_new1751-1777 allocates an arena through mf.js_malloc; js_malloc_rt charges usable block size plus overhead after allocation2021-2026. Runtime bootstrap starts unlimited2321 and allocates the Runtime before caller can set the limit. Rust source CString conversion, opaque state, host snapshots/result detachment, compiled caches and aggregate runtimes are outside this engine cap.",
+      "control": "Charge worker/bootstrap/arena/host/cache/input/result bytes separately through existing ResourceBroker and bounded admission. Set nonzero cap before creating user context/source. Treat32MiB as proposed JS accounting policy, not hard32MiB RSS; measured overhead and aggregate active/retiring count must be explicit."
+    },
+    {
+      "id": "EXPR-RT-003",
+      "severity": "P1_STACK_FAIL_OPEN",
+      "finding": "raw.rs297-307 maps stack limits above16MiB to0, which disables checking. Bundled update_stack_limit3123-3133 also sets stack_limit0 on __wasi__ independent of requested value. Calling a setter is not proof that a cap is active on every target.",
+      "control": "Validate configuration nonzero and <=16MiB before setter, reject unsupported targets/configurations with typed diagnostic, and prove stack exhaustion on each selected target. Native proposed256KiB needs compile/runtime proof; WASI needs a separately enforced stack boundary before adoption. No pure-Rust or portable-stack guarantee is made."
+    },
+    {
+      "id": "EXPR-RT-004",
+      "severity": "P0_HARDSTOP_GAP",
+      "finding": "Interrupt handler is cooperative engine polling. Counter resets to10000 at quickjs.c556,8648-8667; polls occur at call entry18074 and branch opcodes19151 onward, not every bytecode. Parser/compiler path js_parse_program37967-38000 and compile/eval38205-38230 has no direct interrupt polling; complete js_poll_interrupts census contains no parser/compiler-region sites. Native String.repeat48038-48079 and BigInt basecase multiplication12452-12464/12890-12905 contain loops without direct interrupt polls. Limits on source/heap constrain inputs but do not establish50ms/500ms hard deadlines.",
+      "control": "Use semantic AST/checkpoint fuel shared across nested evaluations/retries as the deterministic allowance, interrupt deadline as backstop, plus an independently enforced owned-worker boundary for compile/builtin/FFI/teardown hardstop. Reject or bound out-of-profile computational builtins. Production worker termination applies only to product-owned workers; this audit does not start or stop processes. No timeout setter or cancellation flag alone proves removal of a stuck in-process C call."
+    },
+    {
+      "id": "EXPR-RT-005",
+      "severity": "P1_INTERRUPT_COVERAGE",
+      "finding": "Regex execution does have cooperative timeout polling: libregexp.c76 counter10000,2798-2804,2929 and other backtracking sites; quickjs.c49605-49610 invokes the configured runtime handler. A blanket claim that regex is entirely uninterruptible would be wrong. This does not prove interruption latency for regex compilation, all character loops, engine builtins or host callbacks. A returned true engine poll raises InternalError and marks it uncatchable8642-8655; wrapper trampoline434-466 catches Rust panic, records it and returns true.",
+      "control": "Independent fixtures must distinguish JS try/catch evasion, regex matching/compilation, parser, builtin C loops and deliberately stalled host functions; record cancel-request-to-terminal latency by path, not a single infinite-loop test. Interrupt callback must be small/nonblocking and never reenter runtime; host callbacks charge shared budget and use independent cancellation/timeouts."
+    },
+    {
+      "id": "EXPR-RT-006",
+      "severity": "P1_OWNERSHIP_AND_TEARDOWN",
+      "finding": "Runtime Send/Sync are gated by parallel and rely on serialized locking(base.rs229-240), not concurrent evaluation. Context::with121-128 holds the runtime lock across closure execution and updates stack top; context drop under parallel contention defers free to pending_free(base.rs9-34), later drained by raw runtime/drop133-152. RawRuntime Drop clears opaque, frees C runtime then opaque. Long C work can retain locks and contexts; cloned Context/Runtime or captured values extend lifetime. Async does not make CPU evaluation nonblocking.",
+      "control": "Use one owned worker execution lane per runtime, default no parallel/futures for synchronous expression provider, no live JS handles across worker boundary. Immutable typed inputs/results only; retain ResourceBroker permits until contexts, JS handles, runtime, native arena and pending frees are actually reclaimed. Cancellation must not acquire the same held runtime lock to set its flag. Prove reentry/deadlock, drop-after-error and cross-thread final-drop behavior if parallel ever adopted."
+    },
+    {
+      "id": "EXPR-RT-007",
+      "severity": "P1_PROFILE_ENFORCEMENT",
+      "finding": "Context::full adds standard intrinsics including Date/Eval/Promise/Performance/WeakRef; builder.rs54-99 exposes selective intrinsic construction. The engine implements modern syntax, so native engine support does not enforce the selected ES2018-shaped synchronous profile or deterministic Date/random/locale policy.",
+      "control": "Construct minimal context through admitted intrinsics and trusted host compilation path; enforce parsed AST/bindings and inaccessible constructor/eval routes rather than text deletion. No loader/dyn-load/Promise/timers/shared-memory/native extension access. Deterministic Date profile replaces every admitted route, seeded functions replace permitted randomness, and unsupported source remains preserved/disabled with exact diagnostics. Test ordinary source compilation still works under selected intrinsic policy; no assumption that removing Eval alone supplies this."
+    }
+  ],
+  "proposed_configuration": {
+    "candidate": "Exact rquickjs/core/sys0.14.0 only pending locked dependency graph and platform gate",
+    "allocator": "Default allocation policy initially; custom/rust-alloc require reconciliation and independent quota proof",
+    "stack": "Nonzero validated <=16MiB; proposed256KiB native; reject unproved target",
+    "features": "Minimal explicit configuration; no full/full-async/dyn-load/loader/parallel/futures merely for convenience",
+    "runtime_count": "Bound existing scheduler admission and resident bytes globally/per composition; never unrestricted runtime per property",
+    "inputs_outputs": "Original report source256KiB/result1MiB/cache32MiB1024entries are policy proposals, not measured success",
+    "limits": "Heap32MiB and interactive50ms/offline500ms are proposed policy dimensions, not passed SLOs or exact interrupt intervals",
+    "compile_cache": "Engine/version/ABI/profile/source hash identity, byte/entry caps; never load unauthenticated foreign bytecode as trusted compiled cache",
+    "worker": "Existing sandbox/default-deny ports, no shadow platform service; optional provider C dependency absent from neutralMotion"
+  },
+  "primary_research": [
+    {
+      "url": "https://docs.rs/crate/rquickjs/latest",
+      "observed": "0.14.0 published2026-09-18; moving latest is discovery only"
+    },
+    {
+      "url": "https://docs.rs/rquickjs/0.14.0/rquickjs/struct.Runtime.html",
+      "status": "Exact source endpoints inaccessible through web tool; no repeated retries; crate archive source substituted as primary evidence"
+    },
+    {
+      "url": "https://github.com/DelSkayn/rquickjs",
+      "status": "Current project discovery; immutable crate archive is reviewed source"
+    },
+    {
+      "url": "https://bellard.org/quickjs/quickjs.html",
+      "status": "Earlier expression report reference only; not evidence for bundled NG version or allocator implementation"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "rquickjs-core-0.14.0/src/runtime/raw.rs",
+      "sha256": "e7f70ab2752c2c91fcd36474d326fc24b3e4fd7c346dcc52a01673abb3eb36eb",
+      "anchors": "107-152,168-243,284-307,434-466",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/runtime/base.rs",
+      "sha256": "1e5c5e85453096e647867d3978a03298614fa609c243f90270a339c000ae399c",
+      "anchors": "152-170,229-240",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/context/base.rs",
+      "sha256": "c5049fd11c92e56f602c4baf4c3b7a666b0b5623c5c03c546335984bc1a94fb5",
+      "anchors": "9-34,68-95,121-128",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/context/builder.rs",
+      "sha256": "26edc7f818b3d28a9a344dd3295b42b4f74aec26dd02b622f97d8b94d55d37b0",
+      "anchors": "54-99",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/context/ctx.rs",
+      "sha256": "fe07e4b747af7500adee79c379e304c705069d52c3a6b49ddcbba5719541885d",
+      "anchors": "136-155",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/allocator.rs",
+      "sha256": "301baa03e63c247b710e3359bfed959195e0649214d0f650b6901d7bc83f88c0",
+      "anchors": "20-80,142-150",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/src/allocator/rust.rs",
+      "sha256": "15243e4e4eff57237553f814cf8f9f373466ae42fe6252223a460dc34c4d9dd8",
+      "anchors": "20-113",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-core-0.14.0/Cargo.toml",
+      "sha256": "a496d9302ac21dbb9415d7bb64e0f3e46e0a14ff748c15bd18275c3cba5d54f3",
+      "anchors": "features/dependencies",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-sys-0.14.0/quickjs/quickjs.c",
+      "sha256": "3a6b52a225c21709ef1fd314183efd3af862e867ce4ef8caabcae67922a745b3",
+      "anchors": "556,1751-1777,1981-2073,2321-2335,2441-2443,3123-3145,8642-8667,12452-12464,12890-12905,18074,19151-19244,37967-38000,38205-38230,44720-44795,48038-48079,49605-49610",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-sys-0.14.0/quickjs/quickjs.h",
+      "sha256": "979127138da79cad5ddc7effa1afb13e8b02f744da2aa36844d4cb9d8cb92de9",
+      "anchors": "1450-1453",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-sys-0.14.0/quickjs/libregexp.c",
+      "sha256": "af13e996abb1767fe0cdfda123c45b811d53688d403a2ac47142e97bf79f1fae",
+      "anchors": "76,2798-2804,2929,3040,3132,3156",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-sys-0.14.0/build.rs",
+      "sha256": "d392d7194ae5bcaa0e0dac28a14c55656f6cf2cce3b16a8e6968c09e2ecfff85",
+      "anchors": "121-145,254-272",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-sys-0.14.0/.cargo_vcs_info.json",
+      "sha256": "928dfaffb7b301694480badbe339e40b72bf207a6cc1bcbc988ffaab7294c098",
+      "anchors": "1-6",
+      "inspection": "SOURCE_ONLY"
+    },
+    {
+      "path": "rquickjs-0.14.0/Cargo.toml",
+      "sha256": "de848a9b8eb9204e12e150c60872c8ade11c445887e364531e224ab4948c49ae",
+      "anchors": "dependencies/features",
+      "inspection": "SOURCE_ONLY"
+    }
+  ],
+  "DIFF_ATTACK_SURFACES": [
+    "No product diff authorized; candidate provider adoption compared to actual source and expression report",
+    "Documentation versus bundled C enforcement",
+    "Native allocation versus JS accounting",
+    "Compilation/builtin/hostcall versus interrupt polling",
+    "Stack setter versus actual target enforcement",
+    "Runtime locks and delayed destruction",
+    "Full intrinsic realm versus deterministic profile"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Downloaded immutable0.14.0 crate bytes, validated archive members and extracted without upstream script execution",
+    "Direct wrapper allocator/setter to bundled C allocation path reconciliation",
+    "Full js_poll_interrupts/lre timeout site census plus compiler/builtin bodies",
+    "Context locking, conditional Send/Sync, pending frees and runtime destruction inspection",
+    "Parsed expression report and preserved semantic/future-proof requirements"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If malloc-limit comparison in js_malloc_rt were removed, a default/custom allocator could admit more runtime-accounted allocation despite calling set_memory_limit.",
+    "If stack configuration accepted17MiB, raw setter would convert it to0 and disable the requested boundary.",
+    "If only JS loop interruption were tested, unpolled compiler/native builtin/hostcallback paths could retain worker after cancellation.",
+    "If Context::full replaced admitted intrinsic construction, forbidden nondeterministic or dynamic facilities could enter the realm."
+  ],
+  "BOUNDARY_PROBES": [
+    {
+      "boundary": "wrapper docs versus bundled C",
+      "method": "STATIC_SOURCE",
+      "result": "CUSTOM_ALLOCATOR_CAVEAT_DISCREPANCY"
+    },
+    {
+      "boundary": "interrupt registration versus compiler/native builtin",
+      "method": "STATIC_SITE_CENSUS",
+      "result": "NO_HARDSTOP_PROOF"
+    },
+    {
+      "boundary": "stack setter versus raw/WASI",
+      "method": "STATIC_SOURCE",
+      "result": "DISABLING_PATHS_IDENTIFIED"
+    }
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    {
+      "case": "stack0/>16MiB/WASI",
+      "method": "STATIC_BRANCH",
+      "result": "CHECK_DISABLED"
+    },
+    {
+      "case": "interrupt-handler panic",
+      "method": "STATIC_BRANCH",
+      "result": "UNWIND_CAPTURED_INTERRUPT_REQUESTED_NOT_RUNTIME_PROVEN"
+    },
+    {
+      "case": "context drop under lock contention",
+      "method": "STATIC_BRANCH",
+      "result": "PENDING_FREE_UNDER_PARALLEL; retention bounded externally"
+    }
+  ],
+  "future_proof": [
+    {
+      "id": "EXPR-RT-PROOF-001",
+      "status": "NOT_RUN",
+      "oracle": "Independent external RSS/allocator-byte monitor and exact error outputs",
+      "cases": "Default/custom/rust-alloc configurations, engine cap boundary and low-limit bootstrap, arena fragmentation, realloc failure, large parser/cache/host/result buffers; no categorical allocator behavior guarantee before reproduction"
+    },
+    {
+      "id": "EXPR-RT-PROOF-002",
+      "status": "NOT_RUN",
+      "oracle": "External cancel-request/worker-terminal timing, CPU and UI liveness",
+      "cases": "Infinite JS loop and catch attempt, parser/compiler depth and many tokens, sparse-large Array.sort, String.repeat, admitted regex matching/compilation, rejected BigInt and stalled native host callback; timeout during teardown; show owned worker hardstop through existing sandbox"
+    },
+    {
+      "id": "EXPR-RT-PROOF-003",
+      "status": "NOT_RUN",
+      "oracle": "Target-specific stack exhaustion and repeated fresh worker lifecycle",
+      "cases": "Each supported native target, stack0/16MiB/+1 policy rejection, WASI unsupported refusal, recursive compile/eval, cancellation, panics, context/JS handle retention, parallel/drop/reentry if enabled; permits stay charged through terminal reclamation"
+    },
+    {
+      "id": "EXPR-RT-PROOF-004",
+      "status": "NOT_RUN",
+      "oracle": "Original app fixtures plus independent deterministic repeat/order/timezone comparison",
+      "cases": "333 identifier/37 signature contract behavior, binding-aware AST lowering, Date profile integer boundaries, seeded randomness, locale, forbidden constructor chains/jobs/imports, nested dependency/retry shared fuel, cyclic commit rejection and explicit render error receipt"
+    },
+    {
+      "id": "EXPR-RT-PROOF-005",
+      "status": "NOT_RUN",
+      "oracle": "Independent concurrency/fault/account sentinel and canonical DB reread",
+      "cases": "Simultaneous frames/principals admission, byte/worker saturation, starvation/cancel lane, fresh context state, no private input/result/stack trace leakage, deadline late results ignored, no accepted mutation lost, neutralMotion build dependency graph excludes C provider when disabled"
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "Source paths establish enforcement locations and gaps, not measured bounds or successful lifecycle behavior.",
+    "No C/Rust code, tests, build scripts, engine instance or native GUI executed; no process started/stopped.",
+    "Crate archive hashes are byte identities; registry metadata checksum independent comparison and exact NG upstream commit remain external provenance gaps.",
+    "Poll census proves inspected direct sites only; native callees may have distinct checks, and no universal uninterruptibility claim is made.",
+    "Default provider is conditional; optional provider platform/toolchain/license/security updates require existing adoption gates."
+  ]
+}

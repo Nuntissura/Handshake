@@ -1,0 +1,3228 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "schema_version": "microtask_contract_v2_preservation_asset_first",
+  "identity": {
+    "mt_id": "MT-36241",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "Pulse source slide timing, checked tick conversion and scheduler behavior",
+    "group": "STUDIO_ASSET_FEATURE",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": null,
+    "wp_contract_digest": null,
+    "binding_status": "ROOT_FINALIZATION_REQUIRED",
+    "preparation_snapshot": {
+      "identity": {
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "Studio modular assets and retained Handshake integration",
+        "version": 1,
+        "contract_revision": 2,
+        "lifecycle_profile": "NON_EXECUTION_STUB"
+      },
+      "working_sha256": "5abe7ea4eb3992a4f9c86fd55692a98a6cb45178d00a9ce4bf47360888dc7782",
+      "not_an_execution_pin": true
+    }
+  },
+  "gameplan_ref": ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "id": "STU-PRO-174",
+        "anchor": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+        "verbatim": "**[STU-PRO-174] Slide timing folded into Pulse.** The source `timing` record has required `type` exactly `ON_CLICK` or `AFTER_DELAY`, and optional `delay: number` explicitly in seconds. Raw source absence and zero are different and MUST round-trip distinctly. Any source runtime normalization that ignores/resets delay for `ON_CLICK` is separate from the preserved raw projection and must cite its profile; an example value is not a default. Pulse converts source duration/delay into the existing integer 254 016 000 000-ticks-per-second time base using checked range/conversion and explicit rounding/loss metadata, retains raw seconds and provenance, and never inherits prototype-millisecond bounds. Native playback/manual advance, skipped-slide traversal, timer cancellation and deterministic ordering reuse the existing presentation/interaction scheduler and bounded admission path; realtime callbacks must not perform blocking diagnostics or database work. Shared Controls, typed commands, Argus snapshots and both manual layers expose authored timing, effective timing and cancellation outcomes. No feature implementation is accepted until its affected timing and overflow cases are proven.",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "start_line": 20654,
+        "end_line": 20654,
+        "body_sha256": "a7757b10a85df41708ea4ff1c439c60563d1af89d411d2f1f15e07d1b3713c16",
+        "hash_encoding": "UTF8 exact paragraph, no final LF"
+      }
+    ],
+    "read_context": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20638",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:22592-22599",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json"
+    ],
+    "pillar_refs": [
+      {
+        "rule_id": "HBR-PRIV-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any resource authorization or discovery boundary",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "cross_boundary_default_deny_negative_suite",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "same_project_and_cross_project_isolation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "mixed_scope_derivation_non_widening_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "concurrent_revocation_and_context_switch_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "Pulse owns local typed timing/scheduling and preserved raw projection, not remote transport, token linking or import/export service. Interop-Fig and host own those boundaries; any added remote path requires reassessment before coding.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "remote_delegation_and_sync_scope_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-PRIV-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
+        "assessment": "APPLIES",
+        "reason": "Immutable timing inputs/outcomes carry resource, Principal, AccessSpace, session, revision and provenance through existing Accord/Folio ports; mixed grants, stale/revoked context, concurrent actors and protected diagnostic metadata are negative cases. Native backend grants and visibility are proven separately in MT-36200.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any product behavior",
+        "assessment": "APPLIES",
+        "reason": "Public timing, loss, denial and cancellation outcomes feed existing typed observability ports without callback database writes; native EventLedger/PromotionGate/FEMS/TraceProjection and three-tier diagnostic consumers are actual MT-36200 proof, never simulated source authority.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_ledger_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model invocation path",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "No model invocation, ModelAdapter or ToolGate dispatch is created by this timing capability.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_session_trace",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP produces any artifact intended for authority state",
+        "assessment": "APPLIES",
+        "reason": "Public timing, loss, denial and cancellation outcomes feed existing typed observability ports without callback database writes; native EventLedger/PromotionGate/FEMS/TraceProjection and three-tier diagnostic consumers are actual MT-36200 proof, never simulated source authority.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any collaborative state surface",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "The standalone timing capability consumes immutable Folio references; it does not implement a CRDT surface. Actual host collaborative edits/revision promotion remain a separate MT-36200 boundary.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_reconnect_and_promotion",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "No model lane adapter or provider routing path is changed.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_cross_lane_trace_comparison",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
+        "assessment": "APPLIES",
+        "reason": "Public timing, loss, denial and cancellation outcomes feed existing typed observability ports without callback database writes; native EventLedger/PromotionGate/FEMS/TraceProjection and three-tier diagnostic consumers are actual MT-36200 proof, never simulated source authority.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable behavior",
+        "assessment": "APPLIES",
+        "reason": "Public timing, loss, denial and cancellation outcomes feed existing typed observability ports without callback database writes; native EventLedger/PromotionGate/FEMS/TraceProjection and three-tier diagnostic consumers are actual MT-36200 proof, never simulated source authority.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_trace_projection_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates or modifies any UUID generation site in product code",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "Timing consumes existing resource identities and revisions; no new UUID mint site is declared. Any mint site found during scoped implementation must be reassessed before creation.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-INT-009",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
+        "assessment": "APPLIES",
+        "reason": "Public timing, loss, denial and cancellation outcomes feed existing typed observability ports without callback database writes; native EventLedger/PromotionGate/FEMS/TraceProjection and three-tier diagnostic consumers are actual MT-36200 proof, never simulated source authority.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any shared state surface",
+        "assessment": "APPLIES",
+        "reason": "Controlled concurrent sessions/operator edits exercise bounded admission, same-deadline/manual races, immutable revision rejection, cancellation, drain and recovery. Proof artifacts use an independently bound owner-scoped CX-984 directory; cleanup touches only that owner's disposable output.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "concurrent_session_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-004"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
+        "assessment": "APPLIES",
+        "reason": "Controlled concurrent sessions/operator edits exercise bounded admission, same-deadline/manual races, immutable revision rejection, cancellation, drain and recovery. Proof artifacts use an independently bound owner-scoped CX-984 directory; cleanup touches only that owner's disposable output.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "concurrency_primitive_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-004"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any operator-facing surface",
+        "assessment": "APPLIES",
+        "reason": "Controlled concurrent sessions/operator edits exercise bounded admission, same-deadline/manual races, immutable revision rejection, cancellation, drain and recovery. Proof artifacts use an independently bound owner-scoped CX-984 directory; cleanup touches only that owner's disposable output.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "parallel_operator_agent_ui_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-004"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "No cross-agent message/handoff protocol is created; typed scheduling and commands consume existing session attribution.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "typed_routing_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Controlled concurrent sessions/operator edits exercise bounded admission, same-deadline/manual races, immutable revision rejection, cancellation, drain and recovery. Proof artifacts use an independently bound owner-scoped CX-984 directory; cleanup touches only that owner's disposable output.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-004"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-SWARM-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Controlled concurrent sessions/operator edits exercise bounded admission, same-deadline/manual races, immutable revision rejection, cancellation, drain and recovery. Proof artifacts use an independently bound owner-scoped CX-984 directory; cleanup touches only that owner's disposable output.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-004"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-VIS-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
+        "assessment": "APPLIES",
+        "reason": "Pulse supplies authored/effective/cancel descriptors and headless snapshot contract. Actual native Argus stable author_id, request agent_label, observed frames/error scan and constrained/edge-state proof are MT-36200; missing paths block that native verdict.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-VIS-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any captured frame produced for HBR-VIS-001",
+        "assessment": "APPLIES",
+        "reason": "Pulse supplies authored/effective/cancel descriptors and headless snapshot contract. Actual native Argus stable author_id, request agent_label, observed frames/error scan and constrained/edge-state proof are MT-36200; missing paths block that native verdict.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "renderer_console_error_report",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-VIS-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any feature visible at multiple viewports or states",
+        "assessment": "APPLIES",
+        "reason": "Pulse supplies authored/effective/cancel descriptors and headless snapshot contract. Actual native Argus stable author_id, request agent_label, observed frames/error scan and constrained/edge-state proof are MT-36200; missing paths block that native verdict.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "capture_matrix",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-VIS-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches a non-UI behavior",
+        "assessment": "APPLIES",
+        "reason": "Pulse supplies authored/effective/cancel descriptors and headless snapshot contract. Actual native Argus stable author_id, request agent_label, observed frames/error scan and constrained/edge-state proof are MT-36200; missing paths block that native verdict.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "trace_projection_inspection",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-VIS-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
+        "assessment": "APPLIES",
+        "reason": "Pulse supplies authored/effective/cancel descriptors and headless snapshot contract. Actual native Argus stable author_id, request agent_label, observed frames/error scan and constrained/edge-state proof are MT-36200; missing paths block that native verdict.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-QUIET-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automated test or agent run",
+        "assessment": "APPLIES",
+        "reason": "Selected source proofs and native automation run hidden/headless with no focus/global input effects; unavailable quiet paths block the affected proof.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "headless_run_with_focus_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-QUIET-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automation surface",
+        "assessment": "APPLIES",
+        "reason": "Selected source proofs and native automation run hidden/headless with no focus/global input effects; unavailable quiet paths block the affected proof.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "automation_path_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-QUIET-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "The public timing library launches no background process, CLI or sandbox. Any actual proof runner that does so must bind/reclaim its own process before that run.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "process_lifecycle_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-QUIET-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP requires foreground interaction that cannot be eliminated",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "No foreground requirement; asset proof and later Argus controls use headless/hidden paths.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "foreground_exception_declaration_and_operator_warning",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MAN-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Update canonical asset UserManual from the timing/command descriptor source in the same implementation change; MT-36200 updates and proves the internal host UserManual. Entries state units, presence semantics, normalized profile, failures, recovery and diagnostic tiers.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "user_manual_diff_in_same_commit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MAN-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any change to UserManual content",
+        "assessment": "APPLIES",
+        "reason": "Update canonical asset UserManual from the timing/command descriptor source in the same implementation change; MT-36200 updates and proves the internal host UserManual. Entries state units, presence semantics, normalized profile, failures, recovery and diagnostic tiers.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "no_context_model_operation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MAN-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any UserManual entry that describes a wired code surface",
+        "assessment": "APPLIES",
+        "reason": "Update canonical asset UserManual from the timing/command descriptor source in the same implementation change; MT-36200 updates and proves the internal host UserManual. Entries state units, presence semantics, normalized profile, failures, recovery and diagnostic tiers.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "manual_self_consistency_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MAN-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Update canonical asset UserManual from the timing/command descriptor source in the same implementation change; MT-36200 updates and proves the internal host UserManual. Entries state units, presence semantics, normalized profile, failures, recovery and diagnostic tiers.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-006"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-STOP-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
+        "assessment": "APPLIES",
+        "reason": "Keep all seven acceptance units and actual proof in scope; preserve incomplete state and escalate exact dependency after the governed attempt threshold. Preparation cannot grant dispatch or PASS.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-STOP-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
+        "assessment": "APPLIES",
+        "reason": "Keep all seven acceptance units and actual proof in scope; preserve incomplete state and escalate exact dependency after the governed attempt threshold. Preparation cannot grant dispatch or PASS.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-STOP-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer considers stopping work on an MT, WP, or session",
+        "assessment": "APPLIES",
+        "reason": "Keep all seven acceptance units and actual proof in scope; preserve incomplete state and escalate exact dependency after the governed attempt threshold. Preparation cannot grant dispatch or PASS.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-STOP-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters a dependency that blocks completion of the current work",
+        "assessment": "APPLIES",
+        "reason": "Keep all seven acceptance units and actual proof in scope; preserve incomplete state and escalate exact dependency after the governed attempt threshold. Preparation cannot grant dispatch or PASS.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-STOP-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
+        "assessment": "APPLIES",
+        "reason": "Keep all seven acceptance units and actual proof in scope; preserve incomplete state and escalate exact dependency after the governed attempt threshold. Preparation cannot grant dispatch or PASS.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-COMPART-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-COMPART-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any validation round of a product WP once build units exist",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-COMPONENT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
+        "assessment": "APPLIES",
+        "reason": "Reuse the existing Pulse timing/scheduler mechanic and existing Folio/Components/Controls descriptor owners; no duplicate scheduler, document, control/manual or prototype time owner.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-COMPONENT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP declares a new canonical mechanic or capability owner",
+        "assessment": "NOT_APPLICABLE",
+        "reason": "No new canonical owner: extend the existing Pulse timing mechanic and consume existing Folio/Components/Controls/Observe owners.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Write only the selected Pulse module root; resolve its exact dependency/features closure and independently selectable package, measuring warm build budget at actual validation rather than rebuilding the full host.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": false,
+          "shared_control_descriptor": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": false,
+          "uuid_generation": false,
+          "new_canonical_owner": false,
+          "module_change_stage": "standalone_source",
+          "native_adoption": "MT-36200"
+        },
+        "scope_evidence_refs": [
+          "MT-36241#/scope",
+          "MT-36241#/context_capsule/specification_anchor_refs",
+          "MT-36241#/closure_unit/materialized_acceptance"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36200/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "sole configured external CX-984 root from verified HANDSHAKE_GOV_ROOT; runtime owner binding PENDING",
+        "proof_check_refs": [
+          "MT-36241-ASSET-AC-007"
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ]
+      }
+    ],
+    "current_hbr_assessment": {
+      "version": "1.16.0",
+      "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+      "assessed_rule_count": 52,
+      "source_capability_ref": "MT-36241#/execution",
+      "host_proof_pending": true
+    },
+    "runtime_lane_refs": [
+      "Canonical assets standalone_source then distinct exact-pinned host_adoption MT-36200"
+    ],
+    "inspection_route_refs": [
+      "Existing Observe/Controls public command/state descriptors",
+      "MT-36200 native Argus with stable author_id and request agent_label"
+    ],
+    "account_bound_resource_refs": [
+      "Existing Accord Principal/AccessSpace/grant bindings and Folio sequence/layer references"
+    ],
+    "consumed_capability_refs": [
+      {
+        "module_ref": "STUDIO-MODULE-PULSE",
+        "mt_ref": "MT-35540",
+        "capability": "Canonical checked integer ticks and existing presentation/interaction scheduler/admission"
+      },
+      {
+        "module_ref": "STUDIO-MODULE-ACCORD",
+        "mt_ref": "MT-35529",
+        "capability": "Typed schema, Principal/grant and revision preconditions"
+      },
+      {
+        "module_ref": "STUDIO-MODULE-FOLIO",
+        "mt_ref": "MT-35531",
+        "capability": "Immutable shared sequence/layer identity and skipped-slide order"
+      },
+      {
+        "module_ref": "STUDIO-MODULE-OBSERVE",
+        "mt_ref": "MT-35530",
+        "capability": "Bounded typed outcome/inspection/manual descriptors outside realtime callback"
+      },
+      {
+        "module_ref": "STUDIO-MODULE-COMPONENTS",
+        "mt_ref": "MT-35539",
+        "capability": "Source transition description; consume exact duration seconds, do not own transition/easing engine"
+      },
+      {
+        "module_ref": "STUDIO-MODULE-CONTROLS",
+        "mt_ref": "MT-35553",
+        "capability": "Consume existing shared timing/control/command descriptors; no control engine duplication"
+      }
+    ],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/11/maintenance_contracts"
+    ],
+    "context_digest": null
+  },
+  "closure_unit": {
+    "outcome": "Working source-owned Pulse slide timing preserves raw source presence/seconds while checked canonical ticks drive bounded deterministic native scheduling through existing public owners; source/host runtime parity remains pending until independently proven.",
+    "requirement_refs": [
+      "STU-PRO-174"
+    ],
+    "acceptance_refs": [
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "Pin the actual SlideTransition/timing declaration and affected source runtime profile/fixture before a version-specific normalization or fidelity claim. Required type is exactly ON_CLICK or AFTER_DELAY; delay is optional number in seconds. Keep the Plugin API 1.141.0 commit 07157d96c58add71d234b13bfd55b53abdce76b8 declaration provenance separate from current 2026-10-10 documentation normalization whose pinned-version applicability is UNVERIFIED until the original runtime fixture resolves it. Missing runtime proof remains NOT_PROVEN; an example is never a default."
+      },
+      {
+        "id": "AC-002",
+        "text": "Round-trip raw authored timing with exact type token, presence of delay, numeric seconds and source/version provenance. Missing delay, explicit zero and explicit nonzero remain distinct; ON_CLICK raw delay survives even when a separately identified runtime profile ignores or resets its effective value. No new default, invented precision/step or prototype-millisecond bound is applied."
+      },
+      {
+        "id": "AC-003",
+        "text": "Convert source duration and effective delay seconds using the existing canonical integer tick field at exactly 254016000000 ticks/second. Check finite numeric input, representable range, intermediate multiplication/addition and destination deadline before conversion; emit deterministic explicit rounding/loss metadata and preserve raw seconds. Reject unrepresentable inputs without clamp, wrapping, widened stored schema or float timing authority. Resolve the existing stored type and approved rounding policy before implementation rather than inventing a sign/range."
+      },
+      {
+        "id": "AC-004",
+        "text": "Deliver native timing behavior through the existing presentation/interaction scheduler and bounded admission ports. ON_CLICK advances only through accepted explicit manual advance; AFTER_DELAY follows the resolved source/native profile for absent/zero/nonzero delay. Exercise skipped-slide traversal, same-deadline ordering, manual/timer races, stale callbacks, cancellation, revocation, backpressure, drain and restart with immutable identity/revision; reject or cancel stale work rather than retarget it."
+      },
+      {
+        "id": "AC-005",
+        "text": "Realtime timer callbacks perform only bounded scheduling/notification work through existing owners. No blocking database, diagnostic, logging or allocation-heavy capture path enters the callback. Capture typed timing/cancellation outcomes outside it; prove bounded cancellation/admission and deterministic event order under load against an independent controlled clock/event oracle, then measure the affected actual callback path."
+      },
+      {
+        "id": "AC-006",
+        "text": "Expose authored raw timing, effective ticks/profile/rounding/loss, manual-advance availability and cancellation outcome through existing typed commands, shared Controls descriptors and Argus inspection contracts. Update canonical asset UserManual and the later host internal UserManual through the same descriptor source; truthful usage, units, missing/zero semantics, error recovery and diagnostic posture match the executable behavior. Actual native captures, error scan, constrained/edge states and quiet interaction remain MT-36200 host proof."
+      },
+      {
+        "id": "AC-007",
+        "text": "Pass focused executable standalone proof on the owned public Pulse contract with exact dependency/features/toolchain/artifact isolation, independent original profile and numeric/scheduler oracles, all affected timing/overflow negatives and public loss/cancel output. Publish the allowlisted source to canonical assets GitHub with immutable release/dependency digests and independently re-read the remote source before any separate MT-36200 host adoption. Never use this preparation, an installed copy, a fixture or a self-authored receipt as proof of actual source/native parity."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    ],
+    "operator_decision_refs": [
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/7"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Presence-preserving raw/effective timing, checked numeric range and scheduler races require independent source/runtime and conversion oracles.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-MODULE-PULSE",
+    "build_unit_ref": "STUDIO-MODULE-PULSE",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35540",
+      "MT-35529",
+      "MT-35530",
+      "MT-35531",
+      "MT-35539",
+      "MT-35553"
+    ],
+    "contract_dependency_kind": "depends_on_completion",
+    "start_precondition": {
+      "dispatch_allowed": false,
+      "required_conditions": [
+        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
+        "ROOT_FINALIZED_WP_AND_SOURCE_WORKTREE_ASSIGNMENT",
+        "INDEPENDENT_CONTRACT_REVIEW",
+        "SCOPED_EXISTING_CANONICAL_PORT_AND_SCHEDULER_SEARCH",
+        "DECLARED_FOUNDATION_CAPABILITIES_ACTUALLY_PROVEN",
+        "SOURCE_PROFILE_AND_EXISTING_TICK_FIELD_ROUNDING_POLICY_RESOLVED",
+        "EXACT_DEPENDENCY_FEATURE_TOOLCHAIN_LOCK_AND_OWNER_ISOLATION_BOUND",
+        "OWNED_FOCUSED_PROOF_RECIPE_BUDGET_ORACLES_RESOLVED"
+      ],
+      "foundation_barrier_ref": "STUDIO-ALL-FOUNDATIONS",
+      "target_existence_timing": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation.",
+      "runtime_proof_status": "PENDING"
+    },
+    "allowed_write_paths": [
+      "handshake-studio-assets/crates/hsk-studio-pulse/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "shared_resource_locks": [
+      "Actual source session owns selected Pulse closure; workspace manifest/lock changes remain workspace owner, not this feature MT"
+    ],
+    "inputs": [
+      {
+        "kind": "verified_canonical_source",
+        "status": "INSPECTED_NOT_EXECUTED",
+        "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+        "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+        "start_line": 20654,
+        "end_line": 20654,
+        "clause_sha256": "a7757b10a85df41708ea4ff1c439c60563d1af89d411d2f1f15e07d1b3713c16",
+        "canonical_spec_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+        "clause_body_ref": "MT-36241#/context_capsule/specification_anchor_refs/0/verbatim"
+      },
+      {
+        "kind": "source_profile_provenance",
+        "declaration": {
+          "plugin_api_version": "1.141.0",
+          "commit": "07157d96c58add71d234b13bfd55b53abdce76b8"
+        },
+        "current_documentation": {
+          "inspected_on": "2026-10-10",
+          "subject": "SlideTransition ON_CLICK normalization",
+          "pinned_version_applicability": "UNVERIFIED_UNTIL_ORIGINAL_RUNTIME_FIXTURE"
+        },
+        "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20638",
+        "example_is_default": false
+      },
+      {
+        "kind": "planned_source_selection",
+        "status": "NOT_IMPLEMENTED",
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "source_root": "handshake-studio-assets/crates/hsk-studio-pulse",
+        "package": "hsk-studio-pulse",
+        "default_features": false,
+        "dependency_module_keys": [
+          "accord",
+          "folio",
+          "observe"
+        ],
+        "features": "Exact actually required existing provider/consumer features resolve under owned source activation, no broad workspace closure."
+      },
+      {
+        "kind": "typed_timing_input",
+        "raw_timing": {
+          "required_type": [
+            "ON_CLICK",
+            "AFTER_DELAY"
+          ],
+          "delay": {
+            "type": "number",
+            "required": false,
+            "unit": "seconds",
+            "missing_distinct_from_zero": true
+          }
+        },
+        "duration": {
+          "owner_ref": "STUDIO-MODULE-COMPONENTS",
+          "unit": "seconds"
+        },
+        "tick_rate_per_second": 254016000000,
+        "stored_type": "Consume verified existing canonical integer tick field; no widened/reminted schema",
+        "normalization": "Effective source/native profile result separate from preserved raw; profile/rounding/loss/provenance explicit."
+      },
+      {
+        "kind": "exact_blocker",
+        "status": "PENDING",
+        "diagnosis": "Actual callable ports, natural targets, tick field range/rounding profile, original runtime oracle and authorized canonical source session are not supplied by this preparation."
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Resolve source schema/profile and independently pin actual original-produced timing behavior; keep immutable declaration and current-documentation claims separate."
+      },
+      {
+        "n": 2,
+        "step": "Invoke owned Pulse timing import/projection/serialization public port using presence-aware raw fields; verify separately derived effective timing."
+      },
+      {
+        "n": 3,
+        "step": "Drive the canonical checked seconds-to-ticks conversion and deadline arithmetic through the public timing port; capture exact loss/rounding receipts."
+      },
+      {
+        "n": 4,
+        "step": "Schedule the typed timing record using the existing public presentation/interaction scheduler; never create a second scheduler."
+      },
+      {
+        "n": 5,
+        "step": "Measure the actual selected callback and admission/cancel paths after implementation; inspect call graph and observed runtime boundaries."
+      },
+      {
+        "n": 6,
+        "step": "Consume existing shared command/control/inspection/manual descriptor ports for the public timing outcome and cancellation result."
+      },
+      {
+        "n": 7,
+        "step": "Run selected source public contract and boundary checks after targets exist; publish canonical allowlisted release only under its owning authorized source session."
+      }
+    ],
+    "expected_outputs": [
+      "Owned presence-aware raw/effective timing public contract and checked canonical seconds-to-ticks conversion",
+      "Existing scheduler-bound timing/advance/skip/cancel behavior with bounded callback/admission contracts",
+      "Shared command/control/inspection descriptors and canonical asset UserManual update",
+      "Actually executable focused owned proof and independent numeric/source/scheduler evidence",
+      "Allowlisted immutable canonical assets source/release/lock/provenance; distinct MT-36200 host adoption contribution"
+    ],
+    "stop_conditions": [
+      "Unresolved source profile, canonical stored type/rounding or oracle: retain exact blocker, no fidelity/default claim",
+      "Missing existing scheduler/port requires scoped owner resolution, no substitute scheduler or silent cross-module edit",
+      "Nonfinite/overflow/stale/revoked/pressure path produces typed rejection/cancel, no silent clamp or retarget",
+      "No host write before independent canonical remote source landing and standalone source proof; no host or runtime authorization from this contract"
+    ],
+    "may_create_canonical_capability": false,
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts",
+      "owner_dir": null,
+      "env": {},
+      "flags": null,
+      "reference_runner": null,
+      "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
+      "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
+      "resolved_absolute_root_proof_required_before_run": true,
+      "proof_status": "PENDING",
+      "owner_dir_template": "WP-KERNEL-STUDIO/MT-36241/{VERIFIED_OWNER_SLUG}/",
+      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
+      "resolved_absolute_owner_root": null,
+      "runtime_binding_required_before_run": true,
+      "mutable_suffixes": {
+        "cargo": "cargo-target/",
+        "cache": "cache/",
+        "logs": "logs/",
+        "coverage": "coverage/",
+        "TMP": "tmp/",
+        "TEMP": "tmp/"
+      },
+      "same_disk_build_rule": "At most one actual build per physical disk; independent owners have disjoint mutable targets/caches/TMP/TEMP/logs."
+    },
+    "git_rules": [
+      "This is nonexecution preparation; coordinator alone publishes governance.",
+      "Actual source implementation commits under assigned canonical assets source worktree/session authority; standalone canonical GitHub source landing independently re-read before host adoption.",
+      "No governance copies, product worktree changes or Git mutation are authorized by this preparation."
+    ],
+    "module_change_stage": "standalone_source"
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json#/proof"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-36241-ASSET-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-001; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Pin the actual SlideTransition/timing declaration and affected source runtime profile/fixture before a version-specific normalization or fidelity claim. Required type is exactly ON_CLICK or AFTER_DELAY; delay is optional number in seconds. Keep the Plugin API 1.141.0 commit 07157d96c58add71d234b13bfd55b53abdce76b8 declaration provenance separate from current 2026-10-10 documentation normalization whose pinned-version applicability is UNVERIFIED until the original runtime fixture resolves it. Missing runtime proof remains NOT_PROVEN; an example is never a default.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Resolve source schema/profile and independently pin actual original-produced timing behavior; keep immutable declaration and current-documentation claims separate.",
+          "inputs": [
+            "Pinned declaration corpus at Plugin API1.141.0 commit07157d96c58add71d234b13bfd55b53abdce76b8",
+            "Original source/runtime fixtures for ON_CLICK and AFTER_DELAY with absent, zero and nonzero delay"
+          ],
+          "outputs": [
+            "Source/version/fixture digests",
+            "Profile-qualified raw/effective field and normalization table",
+            "UNVERIFIED or NOT_PROVEN outcome when runtime/version oracle is absent"
+          ],
+          "negative_path": "Reject unsupported type/missing required type and do not claim pinned-version normalization from the current documentation alone.",
+          "independent_oracle": "Actual immutable vendor declaration plus independently obtained original-produced runtime fixtures, not values emitted by the implementation under test.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-002; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Round-trip raw authored timing with exact type token, presence of delay, numeric seconds and source/version provenance. Missing delay, explicit zero and explicit nonzero remain distinct; ON_CLICK raw delay survives even when a separately identified runtime profile ignores or resets its effective value. No new default, invented precision/step or prototype-millisecond bound is applied.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Invoke owned Pulse timing import/projection/serialization public port using presence-aware raw fields; verify separately derived effective timing.",
+          "inputs": [
+            "ON_CLICK and AFTER_DELAY crossed with omitted delay, explicit0 and explicit0.5seconds",
+            "ON_CLICK profile that ignores/resets effective delay while retaining raw projection",
+            "Missing/unknown type, wrong JSON field type and unsupported profile"
+          ],
+          "outputs": [
+            "Byte/field-equivalent preserved raw source projection and provenance",
+            "Effective timing labeled by explicit selected profile",
+            "Typed invalid/unsupported/loss outcomes"
+          ],
+          "negative_path": "No omitted field becomes0, no ON_CLICK normalization overwrites raw seconds, and no example seeds a default.",
+          "independent_oracle": "Original raw fixture presence/type/numeric tokens; compare against a reference parser/presence census independent of the Pulse producer.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-003; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Convert source duration and effective delay seconds using the existing canonical integer tick field at exactly 254016000000 ticks/second. Check finite numeric input, representable range, intermediate multiplication/addition and destination deadline before conversion; emit deterministic explicit rounding/loss metadata and preserve raw seconds. Reject unrepresentable inputs without clamp, wrapping, widened stored schema or float timing authority. Resolve the existing stored type and approved rounding policy before implementation rather than inventing a sign/range.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Drive the canonical checked seconds-to-ticks conversion and deadline arithmetic through the public timing port; capture exact loss/rounding receipts.",
+          "inputs": [
+            "0,0.5,1,2.25seconds =>0,127008000000,254016000000,571536000000ticks respectively when the existing stored type admits them",
+            "Fractional nonintegral tick input and both sides of a rounding boundary under the independently approved policy",
+            "Existing stored-type minimum/maximum and just-outside values; large intermediate/deadline addition overflow; nonfinite/wrong-type input",
+            "Negative seconds characterized by the actual source/native profile, rejected or explicit supported policy, never guessed"
+          ],
+          "outputs": [
+            "Checked canonical tick value or typed range/nonfinite/profile rejection",
+            "Raw seconds plus rounding direction/residual/loss metadata",
+            "No silent clamp, wrap, ms rescale or stored-width change"
+          ],
+          "negative_path": "Check intermediate and destination range before narrowing or admission; no prototype300ms/30000ms law is imported.",
+          "independent_oracle": "Independent exact rational/decimal arithmetic using the verified canonical field range and selected rounding policy; compare before and after every conversion.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-004; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Deliver native timing behavior through the existing presentation/interaction scheduler and bounded admission ports. ON_CLICK advances only through accepted explicit manual advance; AFTER_DELAY follows the resolved source/native profile for absent/zero/nonzero delay. Exercise skipped-slide traversal, same-deadline ordering, manual/timer races, stale callbacks, cancellation, revocation, backpressure, drain and restart with immutable identity/revision; reject or cancel stale work rather than retarget it.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Schedule the typed timing record using the existing public presentation/interaction scheduler; never create a second scheduler.",
+          "inputs": [
+            "Mixed ordered slides with skipped first/middle/last entries and all-skipped termination",
+            "Manual advance before/at/after deadline; same-deadline timers; reordered/revised slide while callback is queued",
+            "Cancel, drain, restart, authority revocation and admission saturation with a controlled clock"
+          ],
+          "outputs": [
+            "Deterministic accepted/rejected advance/event sequence and final current-slide identity",
+            "Single resolved winner for manual/timer races with stale-generation rejection",
+            "Typed cancellation/no-op/pressure/drain result and immutable context"
+          ],
+          "negative_path": "No duplicate advance, skipped-slide hang, cross-session retargeting, unbounded queue or stale timer side effect.",
+          "independent_oracle": "Independent controlled clock and expected identity/revision event trace; the expected schedule is supplied independently of the implementation producer.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-005",
+        "kind": "benchmark",
+        "claim_refs": [
+          "AC-005",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-005; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Realtime timer callbacks perform only bounded scheduling/notification work through existing owners. No blocking database, diagnostic, logging or allocation-heavy capture path enters the callback. Capture typed timing/cancellation outcomes outside it; prove bounded cancellation/admission and deterministic event order under load against an independent controlled clock/event oracle, then measure the affected actual callback path.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Measure the actual selected callback and admission/cancel paths after implementation; inspect call graph and observed runtime boundaries.",
+          "inputs": [
+            "Owner-approved callback/admission/cancel budgets and bounded workload recorded before run",
+            "Slow/failing diagnostic/database consumer outside realtime callback",
+            "Timer storm and cancellation/revocation while pressure is active"
+          ],
+          "outputs": [
+            "Measured callback and cancellation distributions with exact candidate/toolchain/features",
+            "Bounded queue/overrun/backpressure outcomes",
+            "Evidence blocking I/O/diagnostics/database activity is deferred outside callback"
+          ],
+          "negative_path": "Pressure and failed downstream telemetry cannot make timer callback block or silently drop authoritative timing outcomes.",
+          "independent_oracle": "External measurement plus instrumented boundary counters/trace, inspected actual code path; a mock-only callback does not prove the production path.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-006; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Expose authored raw timing, effective ticks/profile/rounding/loss, manual-advance availability and cancellation outcome through existing typed commands, shared Controls descriptors and Argus inspection contracts. Update canonical asset UserManual and the later host internal UserManual through the same descriptor source; truthful usage, units, missing/zero semantics, error recovery and diagnostic posture match the executable behavior. Actual native captures, error scan, constrained/edge states and quiet interaction remain MT-36200 host proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Consume existing shared command/control/inspection/manual descriptor ports for the public timing outcome and cancellation result.",
+          "inputs": [
+            "Authored missing/zero delay and effective normalized timing",
+            "Overflow/profile unavailable/cancelled/stale/pressure outcomes",
+            "Read-only observer and current grant/revision contexts"
+          ],
+          "outputs": [
+            "Typed authored/effective state and cancellation descriptors",
+            "Same-source asset manual entry and host UserManual adoption obligation",
+            "Later MT-36200 Argus snapshot/layout/error-scan proof refs"
+          ],
+          "negative_path": "No stale success state, hidden loss, restricted source metadata leak, or manual entry claiming an unavailable command.",
+          "independent_oracle": "Compare independently constructed expected typed state against actual public snapshots and manual-command consistency; real native GUI evidence is a separate host result.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      },
+      {
+        "check_id": "MT-36241-ASSET-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-PRO-174"
+        ],
+        "command_or_method": "After the owning foundation creates manifests/public proof targets, execute the selected hsk-studio-pulse natural contract target through the owned public port for AC-007; bind exact argv/feature closure and independent oracle before run. Recipe below is planned, not executed.",
+        "expected": "Pass focused executable standalone proof on the owned public Pulse contract with exact dependency/features/toolchain/artifact isolation, independent original profile and numeric/scheduler oracles, all affected timing/overflow negatives and public loss/cancel output. Publish the allowlisted source to canonical assets GitHub with immutable release/dependency digests and independently re-read the remote source before any separate MT-36200 host adoption. Never use this preparation, an installed copy, a fixture or a self-authored receipt as proof of actual source/native parity.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate/source/toolchain/features/lock and owner-scoped artifact binding",
+          "Nonzero executed target/case count with independent inputs/expected/actual output",
+          "Typed error/loss/cancel/pressure metadata plus scoped negative trace",
+          "Actual original-produced runtime/profile evidence where fidelity is asserted; absence remains NOT_PROVEN",
+          "Current HBR source/host dispositions and canonical UserManual/inspection outcome"
+        ],
+        "method_recipe": {
+          "selected_package": "hsk-studio-pulse",
+          "feature_policy": "Exact locked selected dependency closure; no full workspace/native build for module-only proof.",
+          "operation": "Run selected source public contract and boundary checks after targets exist; publish canonical allowlisted release only under its owning authorized source session.",
+          "inputs": [
+            "Actual foundation-created Pulse manifest/public contract targets",
+            "Verified source checkout, selected package/features/toolchain/lock, owner-scoped external artifacts",
+            "Immutable source/release/dependency and independent remote verification; existing hostMT-36200"
+          ],
+          "outputs": [
+            "Nonzero executed test count and inspected exact-candidate evidence",
+            "Canonical source commit/tree/subtree and immutable release/artifact digests",
+            "Independent remote read and source proof refs ready for distinct exact-pinned host adoption"
+          ],
+          "negative_path": "No broad workspace/host rebuild, unresolved target success, copied governance, private input publication, installed-copy substitute or local-only source landing claim.",
+          "independent_oracle": "Independent source contract review plus fresh canonical GitHub source/release re-read; actual native results belong toMT-36200.",
+          "spec_gap": "Existing field signedness/range, approved rounding/profile and natural executable targets must be inspected/resolved by authorized implementation; do not invent bounds or defaults.",
+          "planned_compile_argv": null,
+          "compile_timeout_seconds": null,
+          "canonical_source_before_host": true,
+          "host_mt_refs": [
+            "MT-36200"
+          ]
+        },
+        "materialization_status": "PENDING_NOT_IMPLEMENTED",
+        "materialization_timing": "Owned manifests/targets materialize during foundation/source coding; actual executable target and real results before handoff, never prerequisite to their creation."
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/crates/hsk-studio-pulse/**",
+      ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36200.json"
+    ],
+    "extra_build_proofs": [],
+    "proof_materialization_status": "PENDING_ACTUAL_TARGETS_AND_RUNTIME"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": "Required if the consumed canonical manual declares MANUAL_VERSION",
+    "target_entries": [
+      "Canonical asset UserManual: Pulse slide timing, checked seconds/ticks, profile and raw/effective presence semantics",
+      "MT-36200 internal host UserManual: shared command/Controls/Argus routes and cancellation/recovery"
+    ],
+    "expected_evidence": [
+      "No-context purpose/invocation/input/output/navigation/failure/recovery instructions using actual callable descriptors",
+      "Self-consistency against public timing/command surface",
+      "Flight Recorder/internal_diagnostics/Palmistry posture explicitly WIRED, NOT_APPLICABLE-with-reason or DEFERRED-with-reason in actual host adoption"
+    ],
+    "location": "Existing canonical asset manual/descriptor owner; native internal manual viaMT-36200",
+    "reason": "STU-PRO-174 explicitly requires both manual layers and authored/effective/cancellation state."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "Source presence/units/profile fidelity, checked arithmetic and deterministic bounded scheduling",
+    "risks": [
+      {
+        "risk": "Omitted delay becomes zero or runtime normalization destroys raw capture",
+        "mitigation": "Presence-aware raw projection separate from profile-qualified effective timing; round-trip original fixtures."
+      },
+      {
+        "risk": "Milliseconds/defaults or widened tick schema hide overflow and loss",
+        "mitigation": "Existing canonical field, checked arithmetic and independent exact numeric oracle; explicit rounding/range/loss result."
+      },
+      {
+        "risk": "Manual/timer races and skipped slides cause duplicate advance, stale callback or loops",
+        "mitigation": "Existing scheduler generation/revision preconditions, bounded admission/cancel/drain and controlled-clock event oracle."
+      },
+      {
+        "risk": "Realtime diagnostics or database calls stall timing",
+        "mitigation": "Bounded notification in callback, deferred existing observability consumer and actual runtime boundary measurements."
+      },
+      {
+        "risk": "Current docs are falsely asserted as pinned runtime fidelity",
+        "mitigation": "Keep immutable declaration/current documentation provenance separate; resolve actual affected original fixture first."
+      },
+      {
+        "risk": "Source-only proof masks missing host visibility/privacy/manual or unpublished source",
+        "mitigation": "Qualified AC-to-MT36200 mapping; independent canonical remote source proof first; actual host Argus/grants/diagnostics later."
+      }
+    ],
+    "minimum_controls": [
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007"
+    ]
+  },
+  "activation": {
+    "disposition": "NON_AI_CURRENT_SCOPE",
+    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
+    "source_owner_resolution": "EXACT_SINGLE_PARAGRAPH_20654_AND_EXISTING_PULSE_OWNER",
+    "semantic_trigger_flags": {
+      "resource": true,
+      "owned_gui": false,
+      "shared_control_descriptor": true,
+      "collaborative_state": false,
+      "queue_or_inflight": true,
+      "interop_or_remote": false,
+      "uuid_generation": false,
+      "parked_ai": false
+    },
+    "current_dispatch_authorized": false
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": "PENDING",
+    "active": false,
+    "validator_verdict": "PENDING",
+    "contract_preparation_only": true,
+    "blocked_on": "AUTHORIZED_NEW_SOURCE_IMPLEMENTATION_SESSION_AND_ACTUAL_FOUNDATION_PROFILE_PROOF",
+    "updated_at_utc": "2026-10-10T05:46:04Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-36241",
+  "clause": "STU-PRO-174 exact published paragraph20654",
+  "spec_anchor": [
+    "STU-PRO-174"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Pin the actual SlideTransition/timing declaration and affected source runtime profile/fixture before a version-specific normalization or fidelity claim. Required type is exactly ON_CLICK or AFTER_DELAY; delay is optional number in seconds. Keep the Plugin API 1.141.0 commit 07157d96c58add71d234b13bfd55b53abdce76b8 declaration provenance separate from current 2026-10-10 documentation normalization whose pinned-version applicability is UNVERIFIED until the original runtime fixture resolves it. Missing runtime proof remains NOT_PROVEN; an example is never a default.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Round-trip raw authored timing with exact type token, presence of delay, numeric seconds and source/version provenance. Missing delay, explicit zero and explicit nonzero remain distinct; ON_CLICK raw delay survives even when a separately identified runtime profile ignores or resets its effective value. No new default, invented precision/step or prototype-millisecond bound is applied.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Convert source duration and effective delay seconds using the existing canonical integer tick field at exactly 254016000000 ticks/second. Check finite numeric input, representable range, intermediate multiplication/addition and destination deadline before conversion; emit deterministic explicit rounding/loss metadata and preserve raw seconds. Reject unrepresentable inputs without clamp, wrapping, widened stored schema or float timing authority. Resolve the existing stored type and approved rounding policy before implementation rather than inventing a sign/range.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Deliver native timing behavior through the existing presentation/interaction scheduler and bounded admission ports. ON_CLICK advances only through accepted explicit manual advance; AFTER_DELAY follows the resolved source/native profile for absent/zero/nonzero delay. Exercise skipped-slide traversal, same-deadline ordering, manual/timer races, stale callbacks, cancellation, revocation, backpressure, drain and restart with immutable identity/revision; reject or cancel stale work rather than retarget it.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "Realtime timer callbacks perform only bounded scheduling/notification work through existing owners. No blocking database, diagnostic, logging or allocation-heavy capture path enters the callback. Capture typed timing/cancellation outcomes outside it; prove bounded cancellation/admission and deterministic event order under load against an independent controlled clock/event oracle, then measure the affected actual callback path.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "Expose authored raw timing, effective ticks/profile/rounding/loss, manual-advance availability and cancellation outcome through existing typed commands, shared Controls descriptors and Argus inspection contracts. Update canonical asset UserManual and the later host internal UserManual through the same descriptor source; truthful usage, units, missing/zero semantics, error recovery and diagnostic posture match the executable behavior. Actual native captures, error scan, constrained/edge states and quiet interaction remain MT-36200 host proof.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "Pass focused executable standalone proof on the owned public Pulse contract with exact dependency/features/toolchain/artifact isolation, independent original profile and numeric/scheduler oracles, all affected timing/overflow negatives and public loss/cancel output. Publish the allowlisted source to canonical assets GitHub with immutable release/dependency digests and independently re-read the remote source before any separate MT-36200 host adoption. Never use this preparation, an installed copy, a fixture or a self-authored receipt as proof of actual source/native parity.",
+      "evidence_kind": "runtime_assertion",
+      "proof_target": null,
+      "proof_target_status": "PENDING_OWNED_TARGET_MATERIALIZATION_DURING_CODING",
+      "source": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654"
+    }
+  ],
+  "acceptance_criteria_count": 7,
+  "scope": {
+    "summary": "Pulse timing preserves optional raw seconds and checked canonical ticks, reuses existing bounded presentation/interaction scheduling and exposes authored/effective/cancelled outcomes.",
+    "allowed_paths": [
+      "handshake-studio-assets/crates/hsk-studio-pulse/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "code_surfaces": [
+      "handshake-studio-assets/crates/hsk-studio-pulse"
+    ],
+    "source_status": "PLANNED_NOT_IMPLEMENTED",
+    "proof_targets_materialization": "Foundation creates owned manifests/targets during coding; executable target and real results required before foundation handoff, never before creation."
+  },
+  "hbr_obligations": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007"
+  ],
+  "fulfillment": {
+    "schema_id": "hsk.studio_mt_fulfillment@1",
+    "asset_owner_ref": "STUDIO-MODULE-PULSE",
+    "asset_acceptance_refs": [
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007"
+    ],
+    "status": "PENDING",
+    "later_kernel": {
+      "host_adoption_mt_refs": [
+        "MT-36200",
+        "MT-36210",
+        "MT-36213"
+      ],
+      "qualified_ac_to_host_adoption_mts": {
+        "MT-36241/AC-001": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "MT-36241/AC-002": [
+          "MT-36200",
+          "MT-36210",
+          "MT-36213"
+        ],
+        "MT-36241/AC-003": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "MT-36241/AC-004": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "MT-36241/AC-005": [
+          "MT-36200"
+        ],
+        "MT-36241/AC-006": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "MT-36241/AC-007": [
+          "MT-36200"
+        ]
+      },
+      "source_requirement": "Actual canonical assets GitHub landing and independent standalone proof precede distinct exact-pinned MT-36200; preparation is not source or host proof.",
+      "status": "PENDING",
+      "production_requirement": "Actual native scheduler/Controls/Argus/current grants/EventLedger/recovery/three-tier diagnostics and both manual layer visibility proven by existing hostMT-36200."
+    },
+    "asset_slices": [
+      {
+        "slice_id": "MT-36238-ASSET-INTEROP_FIG",
+        "owning_module_ref": "STUDIO-MODULE-INTEROP_FIG",
+        "build_unit_ref": "STUDIO-MODULE-INTEROP_FIG",
+        "source_root": "handshake-studio-assets/crates/hsk-studio-interop-fig",
+        "status": "PENDING",
+        "write_authority": "ONLY_SEPARATE_CONTRIBUTION_OWNER_ROOT",
+        "execution_is_separate": true,
+        "requirement_refs": [
+          "STU-PRO-174"
+        ],
+        "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+        "acceptance_refs": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ],
+        "source_parent_refs": [
+          "MT-36238",
+          "MT-36239",
+          "MT-36240",
+          "MT-36241"
+        ],
+        "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+        "scope_fulfillment": {
+          "exact_requirement_refs": [
+            "STU-PRO-174"
+          ],
+          "domain_responsibility": "Implement raw source SlideTransition/style/curve/timing record encode/decode and explicit mapping envelope to Components/Pulse ports; source seconds, token identity, delay absence versus zero, and loss metadata remain distinct from native schedule/easing.",
+          "executable_mt_ref": "./MT-36244.json",
+          "claim_extent": "OWNED_ASPECT_ONLY",
+          "qualified_acceptance_bindings": [
+            {
+              "parent_acceptance_ref": "MT-36241/AC-001",
+              "contribution_acceptance_refs": [
+                "MT-36244/AC-001",
+                "MT-36244/AC-003"
+              ],
+              "owned_aspect": "Raw source timing declaration, presence/unit/version provenance and original source timing/profile fixture capture only; Pulse owns conversion and native scheduler."
+            },
+            {
+              "parent_acceptance_ref": "MT-36241/AC-002",
+              "contribution_acceptance_refs": [
+                "MT-36244/AC-001",
+                "MT-36244/AC-002",
+                "MT-36244/AC-003"
+              ],
+              "owned_aspect": "Interop-Fig timing record encode/decode and round-trip raw seconds, optional delay absence versus zero, ON_CLICK raw/effective normalization provenance and explicit mapping/loss envelope."
+            },
+            {
+              "parent_acceptance_ref": "MT-36241/AC-003",
+              "contribution_acceptance_refs": [
+                "MT-36244/AC-002"
+              ],
+              "owned_aspect": "Preserved raw seconds/provenance and mapping/loss envelope delivered to/from the Pulse public conversion port only; no arithmetic, stored tick law or scheduler duplication."
+            }
+          ],
+          "primary_owner_preserved": "Pulse checked timing conversion and existing scheduler remain MT-36241."
+        },
+        "host_adoption_mt_refs": [
+          "MT-36210"
+        ],
+        "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units",
+        "separate_execution_rule": "Consume foundation-published typed ports; no parent full-completion dependency, no self prerequisite and no cross-owner writes by MT-36241."
+      },
+      {
+        "slice_id": "MT-36238-ASSET-CONTROLS",
+        "owning_module_ref": "STUDIO-MODULE-CONTROLS",
+        "build_unit_ref": "STUDIO-MODULE-CONTROLS",
+        "source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+        "status": "PENDING",
+        "write_authority": "ONLY_SEPARATE_CONTRIBUTION_OWNER_ROOT",
+        "execution_is_separate": true,
+        "requirement_refs": [
+          "STU-PRO-174"
+        ],
+        "clause_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md:20654",
+        "acceptance_refs": [
+          "AC-002",
+          "AC-004",
+          "AC-006"
+        ],
+        "source_parent_refs": [
+          "MT-36238",
+          "MT-36239",
+          "MT-36240",
+          "MT-36241"
+        ],
+        "source_slice_pointer": "./MT-36238.json#/fulfillment/asset_slices",
+        "scope_fulfillment": {
+          "exact_requirement_refs": [
+            "STU-PRO-174"
+          ],
+          "domain_responsibility": "Configure shared style/curve/timing descriptors and seconds fields; display raw/effective value, delay-presence and mapping/loss/cancel state; route authoring/playback/manualadvance through Components/Pulse owners.",
+          "executable_mt_ref": "./MT-36247.json",
+          "claim_extent": "OWNED_ASPECT_ONLY",
+          "qualified_acceptance_bindings": [
+            {
+              "parent_acceptance_ref": "MT-36241/AC-002",
+              "contribution_acceptance_refs": [
+                "MT-36247/AC-001"
+              ],
+              "owned_aspect": "Controls seconds field and explicit unset/zero/raw timing display; record serialization remains Interop-Fig and effective conversion remains Pulse."
+            },
+            {
+              "parent_acceptance_ref": "MT-36241/AC-004",
+              "contribution_acceptance_refs": [
+                "MT-36247/AC-003"
+              ],
+              "owned_aspect": "Typed shared action/descriptor consumers route manual advance, skip and cancel to the bounded admitted Pulse owner and display its actual outcomes; no scheduler/conversion implementation."
+            },
+            {
+              "parent_acceptance_ref": "MT-36241/AC-006",
+              "contribution_acceptance_refs": [
+                "MT-36247/AC-001",
+                "MT-36247/AC-002",
+                "MT-36247/AC-003"
+              ],
+              "owned_aspect": "Shared UI/model/accessibility descriptors and authoring/playback actions expose raw/effective seconds/ticks, presence, profile, rounding/loss and cancellation state; Argus/manual consume the same projection."
+            }
+          ],
+          "primary_owner_preserved": "Pulse checked timing conversion and existing scheduler remain MT-36241."
+        },
+        "host_adoption_mt_refs": [
+          "MT-36213"
+        ],
+        "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_source_contribution_allocation/units",
+        "separate_execution_rule": "Consume foundation-published typed ports; no parent full-completion dependency, no self prerequisite and no cross-owner writes by MT-36241."
+      }
+    ],
+    "acceptance_map": [
+      {
+        "acceptance_id": "AC-001",
+        "qualified_source_acceptance_ref": "MT-36241/AC-001",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [
+          "MT-36238-ASSET-INTEROP_FIG"
+        ],
+        "source_contribution_refs": [
+          {
+            "mt_ref": "./MT-36244.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-001",
+                "contribution_acceptance_refs": [
+                  "MT-36244/AC-001",
+                  "MT-36244/AC-003"
+                ],
+                "owned_aspect": "Raw source timing declaration, presence/unit/version provenance and original source timing/profile fixture capture only; Pulse owns conversion and native scheduler."
+              }
+            ]
+          }
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-002",
+        "qualified_source_acceptance_ref": "MT-36241/AC-002",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [
+          "MT-36238-ASSET-INTEROP_FIG",
+          "MT-36238-ASSET-CONTROLS"
+        ],
+        "source_contribution_refs": [
+          {
+            "mt_ref": "./MT-36244.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-002",
+                "contribution_acceptance_refs": [
+                  "MT-36244/AC-001",
+                  "MT-36244/AC-002",
+                  "MT-36244/AC-003"
+                ],
+                "owned_aspect": "Interop-Fig timing record encode/decode and round-trip raw seconds, optional delay absence versus zero, ON_CLICK raw/effective normalization provenance and explicit mapping/loss envelope."
+              }
+            ]
+          },
+          {
+            "mt_ref": "./MT-36247.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-002",
+                "contribution_acceptance_refs": [
+                  "MT-36247/AC-001"
+                ],
+                "owned_aspect": "Controls seconds field and explicit unset/zero/raw timing display; record serialization remains Interop-Fig and effective conversion remains Pulse."
+              }
+            ]
+          }
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200",
+          "MT-36210",
+          "MT-36213"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-003",
+        "qualified_source_acceptance_ref": "MT-36241/AC-003",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [
+          "MT-36238-ASSET-INTEROP_FIG"
+        ],
+        "source_contribution_refs": [
+          {
+            "mt_ref": "./MT-36244.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-003",
+                "contribution_acceptance_refs": [
+                  "MT-36244/AC-002"
+                ],
+                "owned_aspect": "Preserved raw seconds/provenance and mapping/loss envelope delivered to/from the Pulse public conversion port only; no arithmetic, stored tick law or scheduler duplication."
+              }
+            ]
+          }
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200",
+          "MT-36210"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-004",
+        "qualified_source_acceptance_ref": "MT-36241/AC-004",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [
+          "MT-36238-ASSET-CONTROLS"
+        ],
+        "source_contribution_refs": [
+          {
+            "mt_ref": "./MT-36247.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-004",
+                "contribution_acceptance_refs": [
+                  "MT-36247/AC-003"
+                ],
+                "owned_aspect": "Typed shared action/descriptor consumers route manual advance, skip and cancel to the bounded admitted Pulse owner and display its actual outcomes; no scheduler/conversion implementation."
+              }
+            ]
+          }
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-005",
+        "qualified_source_acceptance_ref": "MT-36241/AC-005",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [],
+        "source_contribution_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-006",
+        "qualified_source_acceptance_ref": "MT-36241/AC-006",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [
+          "MT-36238-ASSET-CONTROLS"
+        ],
+        "source_contribution_refs": [
+          {
+            "mt_ref": "./MT-36247.json",
+            "claim_extent": "OWNED_ASPECT_ONLY",
+            "qualified_acceptance_bindings": [
+              {
+                "parent_acceptance_ref": "MT-36241/AC-006",
+                "contribution_acceptance_refs": [
+                  "MT-36247/AC-001",
+                  "MT-36247/AC-002",
+                  "MT-36247/AC-003"
+                ],
+                "owned_aspect": "Shared UI/model/accessibility descriptors and authoring/playback actions expose raw/effective seconds/ticks, presence, profile, rounding/loss and cancellation state; Argus/manual consume the same projection."
+              }
+            ]
+          }
+        ],
+        "host_adoption_mt_refs": [
+          "MT-36200",
+          "MT-36213"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      },
+      {
+        "acceptance_id": "AC-007",
+        "qualified_source_acceptance_ref": "MT-36241/AC-007",
+        "primary_owner_ref": "STUDIO-MODULE-PULSE",
+        "asset_slice_refs": [],
+        "source_contribution_refs": [],
+        "host_adoption_mt_refs": [
+          "MT-36200"
+        ],
+        "status": "PENDING",
+        "claim_extent": "PRIMARY_PULSE_ACCEPTANCE_WITH_EXPLICIT_OWNED_ASPECT_CONTRIBUTIONS"
+      }
+    ],
+    "dependency_reconciliation": {
+      "source_contribution_mt_refs": [
+        "MT-36244",
+        "MT-36247"
+      ],
+      "executable_dependency_refs": [
+        "MT-35540",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35539",
+        "MT-35553"
+      ],
+      "source_contribution_relation": "OWNED_ASPECT_FULFILLMENT_NOT_PARENT_FULL_COMPLETION_EDGE",
+      "self_dependency_present": false,
+      "status": "PENDING_ACTUAL_FOUNDATION_PORTS_AND_CONTRIBUTION_PROOF"
+    }
+  },
+  "derivation": {
+    "derivation_key": "v02.209/STU-PRO-174/clause/20654",
+    "unit_kind": "clause",
+    "source_ref": ".GOV/spec/master-spec-v02.209/spec-modules/14-studio-creative-suite.md",
+    "source_sha256": "7cc2a3a6ecad40142cf5e4313c8bbce8b8dc5dad928981a4d1665142045d480a",
+    "start_line": 20654,
+    "end_line": 20654,
+    "clause_sha256": "a7757b10a85df41708ea4ff1c439c60563d1af89d411d2f1f15e07d1b3713c16",
+    "canonical_spec_commit": "ec1ffbd5bd6a77e725d1eca341f44bf55b71fc92",
+    "source_clause_ref": "MT-36241#/context_capsule/specification_anchor_refs/0/verbatim",
+    "allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/authoring_checkpoint/spec209_unit_allocation/units/7"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36241.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md",
+    "preparation_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json"
+  },
+  "created_at_utc": "2026-10-10T05:46:04Z",
+  "updated_at_utc": "2026-10-10T05:46:04Z"
+}

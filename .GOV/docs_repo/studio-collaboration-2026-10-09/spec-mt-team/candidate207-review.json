@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.studio_candidate_spec_review@1",
+  "file_id": "STUDIO-CANDIDATE207-REVIEW-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_REVIEW_FINDINGS_REPORTED_ROOT_RECONCILIATION_PENDING",
+  "risk_tier": "HIGH_SERIALIZATION_AUTHORITY_CONCURRENCY_MIGRATION",
+  "scope": "Actual written candidate Studio207, inspected crosscut207 clauses, Codex CX503R and STUDIO_MODULES; no candidate edits or runtime proof",
+  "acceptance_boundary": "SPEC_CURRENT observed206; resolver/changelog work remains with root. This report issues no whole-bundle, implementation, runtime, parity or MT acceptance PASS.",
+  "sources": [
+    {"path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md", "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b"},
+    {"path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md", "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66"},
+    {"path": ".GOV/spec/master-spec-v02.207/spec-modules/10-product-surfaces.md", "sha256": "5c2cebe0527c404ffe98aead7a8d6765818e64f251e990339409b143f1f7ba62"},
+    {"path": ".GOV/spec/master-spec-v02.207/spec-modules/11-shared-dev-platform-and-oss-foundations.md", "sha256": "3b5440cde3de6ee68d106e07de81cbf7a15fbad55eceddd914cc7dd7cf9c538e"},
+    {"path": ".GOV/spec/master-spec-v02.207/spec-modules/03-local-first-infrastructure.md", "sha256": "3ce7fcbad9457de4e520aaa621a528ddab05b6bd1bc460c7cb9e8011e8e87675"},
+    {"path": ".GOV/codex/Handshake_Codex_v1.4.md", "sha256": "9c7b316cd2827c94d33d658834120f848d0c2f34d1f7f7b8320236ab9b37d023"},
+    {"path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json", "sha256": "bc3da3323e95a87bb5913ab70f8e764279360fafc4906f007940174d249fec49"}
+  ],
+  "findings": [
+    {
+      "id": "C207-TEAM-001",
+      "severity": "HIGH",
+      "status": "ROOT_REMEDIATION_REQUESTED",
+      "source": "14-studio-creative-suite.md:134,185,215",
+      "observed": "Early architecture item1 still places per-domain implementations under handshake_core::studio src/studio/<domain>, while rewritten ARC001 and ARC010 assign algorithms to independent asset crates and core to authority binding.",
+      "remediation": "Replace that original architecture item with binding-only storage/EventLedger/CRDT/sandbox/promotion/API responsibility consuming typed domain ports. Preserve StudioEngineError/event_family/storage glue and exact later integration ownership; no new override paragraph."
+    },
+    {
+      "id": "C207-TEAM-002",
+      "severity": "HIGH",
+      "status": "ROOT_SCOPE_DISPOSITION_REQUESTED",
+      "source": "14-studio-creative-suite.md:1787-1791 STU-RAS-044; STU-RAS-045",
+      "observed": "RAS044 still mandates native on-device ML-backed object/subject/sky/inpaint/content-aware/denoise/upscale capabilities and calls inference core Studio. Current operator excludes rebuilding/offering Adobe AI for this development scope. Optional cloud RAS045 does not qualify native ML mandate.",
+      "remediation": "Record explicit current activation disposition preserving all existing IDs, original scope and acceptance history. Keep non-AI professional algorithms active, retain AI requirements as historically preserved but excluded from this authorized execution scope unless root has later explicit adoption. Do not silently delete original MTs or reinterpret deterministic workflows as proof of ML parity."
+    },
+    {
+      "id": "C207-TEAM-003",
+      "severity": "HIGH",
+      "status": "ROOT_REMEDIATION_REQUESTED",
+      "source": "10-product-surfaces.md:16-20 SURF-SDB-001; 11-shared-dev-platform-and-oss-foundations.md:18 OSS-SDB-001; Codex:45 CX503R",
+      "observed": "SURF current override still explicitly permits retaining a bounded DuckDB projection, while updated OSS override and CX503R require prior operator approval for any additional database including projection engines.",
+      "remediation": "Qualify SURF allowance with prior explicit operator approval explaining necessity, preferred database and alternatives. Keep historical research and non-authoritative projections distinct from authorization. No generic projection database exception follows from the lrcat byte decoder."
+    },
+    {
+      "id": "C207-TEAM-004",
+      "severity": "MEDIUM",
+      "status": "ROOT_REMEDIATION_REQUESTED",
+      "source": "14-studio-creative-suite.md:30868 STU-SHL-007",
+      "observed": "Candidate SHL007 contains actual mojibake codepoints U+00E2 U+20AC U+201D twice where original206 has U+2014. Raw candidate bytes were independently inspected by spec specialist; this is candidate-only, unlike the retracted original206 encoding warning.",
+      "remediation": "Restore original Unicode punctuation in candidate from raw UTF8 source and reread exact bytes after writing. Do not change preserved206. Source hashes must be refreshed after correction."
+    },
+    {
+      "id": "C207-TEAM-005",
+      "severity": "MEDIUM",
+      "status": "ROOT_REMEDIATION_REQUESTED",
+      "source": "14-studio-creative-suite.md:21255-21257 heading above modified STU-IO-001",
+      "observed": "Modified native container declaration remains under an unchanged-carryforward claim.",
+      "remediation": "Qualify heading and carryforward statement to identify revised IO001 while keeping genuinely unchanged neighboring obligations. Derivation/provenance must not claim unchanged bytes for this amendment."
+    },
+    {
+      "id": "C207-TEAM-006",
+      "severity": "MEDIUM",
+      "status": "CLARIFICATION_AT_ACTIVATION_REQUIRED",
+      "source": "14-studio-creative-suite.md:22383 STU-MAN-003;22428 STU-VAL-002",
+      "observed": "MAN003 still describes absent internal diagnostics/Palmistry as DEFERRED-with-reason, whereas revised VAL002 rejects global deferral as substitution for production integration.",
+      "remediation": "Make MAN003 explicitly reference current per-behavior evidence-bound VAL002 posture: unresolved required host wiring blocks its acceptance. Typed pending posture may describe incomplete implementation but cannot certify any production tier as wired or accepted."
+    },
+    {
+      "id": "C207-TEAM-007",
+      "severity": "HIGH",
+      "status": "EXPLICIT_PREPARATION_INTEGRATION_GAP_ROOT_MT_WORK_PENDING",
+      "source": "STUDIO_MODULES.json foundation_barrier; STU-ARC-016/017; existing _MT_INDEX.json derivation_property; inspected greenroom deriver/roundtrip source in prior reports",
+      "observed": "Candidate adds19 paragraph-opening normative anchors and declares35 foundation members. Module catalog has module IDs, not stable foundation MT/AC fulfillment identities. Existing extraction tooling previously proved anchor coverage only and does not establish exact original task reconstruction. Root is separately editing actual MT contracts; no verdict on unfinished edits is issued here.",
+      "remediation": "Bind every foundation member and new normative obligation to explicit MT/AC fulfillment and later embedding proofs, preserving all5484 originals. New units require append-only IDs or declared no-yield fulfillment with rationale. Update exact derivation/migration property and independently compare canonical ID/unit/scope/AC sets after root migration; blanket module metadata or anchor mentions cannot prove this."
+    }
+  ],
+  "positive_source_observations": [
+    "CX503R and inspected Studio/SURF/OSS exceptions limit lrcat to bounded selected immutable file-byte decoding, prohibit SQL engine/query/connectivity/writable catalog/alternate authority, and route proposals through existing grants/promotion/SurrealDB/EventLedger.",
+    "ARC010 distinguishes workspace owner from Accord and isolates asset host-neutral bridge from actual later kernel/native/Surreal consumers.",
+    "ARC011 retains target/property revision footprints and idempotent atomic authority/EventLedger outcomes rather than blanket document CAS.",
+    "ARC012/013 bound pending producers and retained bytes, release partial reservations, reserve cancel/completion paths and protect realtime callback/recorder invariants.",
+    "ARC014/015 retain shared canonical controls, per-agent view isolation, actor adapter and revision/profile/proxy/grant-bound visual receipts.",
+    "ARC016/017 prohibit hollow foundations and preserve prior scope plus separately required production embedding and all HBR applicability.",
+    "IO186..189 and PDF001/002 retain explicit proprietary editable-format gaps, bounded container transport, sanitized payload scope and independent PDF/prepress/accessibility proof."
+  ],
+  "independent_checks": {
+    "paragraph_opening_anchor_prefilter": {"old":2345,"candidate":2364,"removed":0,"added":19,"limitation":"Lexical definition prefilter; excludes table-only definitions and is not semantic preservation or exact task extraction proof"},
+    "module_registry": {"declared_modules":34,"unique_keys":34,"barrier_members":35,"unknown_dependency_keys":0,"declared_cycles":0,"limitation":"Logical registry only; actual Cargo/features/providers/consumers and build isolation unimplemented"},
+    "original206_integrity": "Fresh Studio206 hash remains d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+    "current_pointer": "Observed SPEC_CURRENT206 during source review; root controls207 publishing"
+  },
+  "DIFF_ATTACK_SURFACES": ["Legacy architecture narrative versus new owner clauses","Current database overrides versus projection allowance","Stable historical scope versus non-AI execution scope","Foundation/module IDs versus real per-MT fulfillment","Container sanitized output versus preserved opaque originals","Admission/cancellation and realtime producer ownership"],
+  "COUNTERFACTUAL_CHECKS": [
+    "If old architecture item1 remains, a no-context builder may legally select core-domain paths and compile the kernel despite new asset isolation.",
+    "If SURF-SDB001 projection allowance remains unqualified, a builder can cite a current override to add an unapproved database despite CX503R.",
+    "If35module barrier members lack stable accepted MT/AC bindings, mere declarations could be used as all-foundations evidence while old acceptance remains unresolved."
+  ],
+  "BOUNDARY_PROBES": ["Compared actual ARC001/010 to early architecture item1","Compared actual CX503R/OSS-SDB001 to SURF-SDB001","Compared module registry IDs/count/barrier to new ARC016/017 and historical MT extraction producer semantics"],
+  "NEGATIVE_PATH_CHECKS": ["Checked absent native providers/decoders remain explicit failures/gaps rather than synthetic parity","Checked candidate rejected permissions/unknown containers/cancel/device-loss clauses retain failure semantics","Checked additional database approval does not become an lrcat query/engine exception"],
+  "residual_uncertainty": ["Root edits candidate/MT/index/resolver/changelog concurrently; observations bind exact snapshots only","No executable Cargo targets/provider consumers or foundation proof yet","No independently proved lossless candidate MT migration yet","No native GUI/original vendor editable/runtime/parity proof","Whole-bundle publishing proof not in scope"],
+  "delegated_reviews": ["candidate207-spec-findings.json","candidate207-module-findings.json"],
+  "final_decision": "SOURCE_RECONCILIATION_REQUIRED; NO_WHOLE_BUNDLE_OR_RUNTIME_PASS"
+}

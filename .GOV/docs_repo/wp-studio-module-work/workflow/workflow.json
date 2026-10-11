@@ -1,0 +1,76 @@
+{
+ "schema": "hsk.studio_module_workflow@1",
+ "version": 2,
+ "adopted": false,
+ "updated_at": "2026-10-11T01:20:00Z",
+ "proposed_by": "workflow agent (Opus, adversarial)",
+ "review_ref": "workflow/workflow-review-001.md",
+ "supersedes": "START_LOG.md#workflow-v1",
+ "operator_decisions_needed": [
+  {"id": "D1", "question": "Builders run focused tests and the validator's failing argv (override CX-EXEC-014 / KB-CAD-001 for this session under CX-021)?", "basis": "Operator msg1 'build it, break it, research and diagnose, fix it'; MT-35536 3 strikes in 13 min with cargo-check-only submissions"},
+  {"id": "D2", "question": "CX-984-002 'at most one build per physical disk': waive for validator rounds running beside builders on D: (C: excluded by Operator), or queue rounds behind builders?", "basis": "studio-round/target and studio-team-dev/target are distinct owners on the same disk"},
+  {"id": "D3", "question": "Change the global gameplan hook to match gated words at command position only (Operator-owned tool)?", "basis": "matches inside quoted strings/heredocs; blocked lead twice"}
+ ],
+ "roles": [
+  {"role": "lead", "model": "opus", "writes_code": false, "duties": ["tick 15 min", "dispatch/resume agents", "ledger index mirror", "one verdict into foundation MT per lane verdict", "<=1 kernel commit per tick", "operator decisions D1-D3"]},
+  {"role": "steward", "model": "opus", "owns": ["handshake-studio-assets/Cargo.toml", "handshake-studio-assets/Cargo.lock", "workspace probe"], "duties": ["single scaffold commit of 27 crates before any builder", "dep-requests merge", "lock-sync commit before each round", "data-driven probe crate list"]},
+  {"role": "builder", "model_by_lane": {"opus": ["type", "composite", "render-cpu", "render-gpu", "develop", "interop-psd", "motion", "reel"], "sonnet": "all other lanes"}, "owns": ["crates/hsk-studio-{crate}/**", "builders/lanes/hsk-studio-{crate}.json"]},
+  {"role": "diagnostics", "model": "opus", "trigger": "same failing assertion twice or red round", "output": "diagnostics/{lane}-{n}.md with cause distinct from earlier, file:line, fix direction, cheapest proof"},
+  {"role": "validator", "model": "opus", "independence": "never builds judged code; one session reused across lane rounds; fresh context only for whole-WP integration verdict (CX-PROOF-005)"},
+  {"role": "research", "model": "sonnet|haiku", "lifecycle": "ends after its note; spawned on demand from a blocker or diagnosis"},
+  {"role": "workflow", "model": "opus", "tick": "cron 11,26,41,56", "writes": ["workflow/*"]}
+ ],
+ "loop": [
+  "steward scaffold commit pushed + cargo metadata --offline green",
+  "brief lands (<=5 KB, >=1 independent oracle, foundation MT ref)",
+  "builder dispatched immediately (wave order)",
+  "implement slice -> check -> clippy -> focused tests (aggregate all case failures)",
+  "commit (crate paths only) + push each compile-green state; lane file updated",
+  "READY_FOR_VALIDATION when brief tests green on pushed SHA",
+  "steward lock-sync commit",
+  "continuous union round (freeze SHA; warm studio-round target; reusable round script)",
+  "PASS -> fresh agent next slice | FAIL -> builder reruns failing argv green before resubmit; second identical failure -> diagnostics"
+ ],
+ "gates": [
+  {"id": "G-SCAFFOLD", "before": "any builder dispatch", "check": "steward scaffold SHA pushed; cargo metadata --offline exit 0"},
+  {"id": "G-WAVE", "before": "wave 2/3 lane dispatch", "check": "every upstream allowed-edge lane has a pushed compile-green commit"},
+  {"id": "G-READY", "before": "status READY_FOR_VALIDATION", "check": "lane file records argv, exit 0 and SHA for check, clippy and the brief's tests on the pushed SHA"},
+  {"id": "G-RESUBMIT", "before": "resubmission after FAIL", "check": "validator's exact failing argv green in lane run on the new SHA"},
+  {"id": "G-TYPE-ROUND", "before": "MT-35536 single approved fix round", "check": "mixed_script_bidi_font_runs and font_axis_missing_cancel_stale (all cases) plus affected Observe/workspace tests green locally"},
+  {"id": "G-ROUND-LOCK", "before": "union round", "check": "no uncommitted crates/*/Cargo.toml; steward lock-sync commit pushed"},
+  {"id": "G-REVERDICT", "before": "re-verdict of a passed lane", "check": "CX-VAL-002 input-path intersection non-empty"}
+ ],
+ "rules": [
+  {"id": "WF2-001", "rule": "Builders run focused tests; builder results are implementation evidence only; validators issue verdicts (CX-PROOF-002). Depends on D1."},
+  {"id": "WF2-002", "rule": "Table-driven tests run every case, collect failures, assert once listing all failing cases; no first-case panic."},
+  {"id": "WF2-003", "rule": "Waves from root workspace.metadata.studio allowed edges: wave1 composite, controls, develop, interop-lrcat, interop-media, interop-psd, interop-vector, layout, motion, package, press, pulse, reel, render-cpu, render-gpu, score, web; wave2 components, interop-layout, motion-js, reel-native, score-device, score-plugin, session; wave3 harness, interop-fig, kernel-bindings."},
+  {"id": "WF2-004", "rule": "Every lane (incl. Type) leaves its crate compile-green at the end of each turn; downstream builders treat upstream compile errors as wait-and-retry, never fix."},
+  {"id": "WF2-005", "rule": "Stage only crates/hsk-studio-{crate}/; never git add -A / commit -a; never stage Cargo.lock or root Cargo.toml (steward-only)."},
+  {"id": "WF2-006", "rule": "Builder writes its Cargo.toml in one Write call; manifest errors in another lane are reported, not fixed."},
+  {"id": "WF2-007", "rule": "Single lane-status source: builders/lanes/hsk-studio-{crate}.json {crate, foundation_mt, status, phase, commits, capabilities_done, tests{argv,exit,sha}, blockers[{error,file_line,attempts}], lock_wait_s, bg_pids, next, updated_at}; written at every commit and before any >2 min op. ledger.json is the lead index mirrored at tick."},
+  {"id": "WF2-008", "rule": "At each lane verdict the lead appends one verdict to the lane's foundation MT JSON; other MT corpus entries untouched this session."},
+  {"id": "WF2-009", "rule": "Continuous union rounds: start when >=1 lane READY and no round running; frozen SHA; persistent warm studio-round target refreshed in place; one reusable round script written in round 1; no per-verdict bespoke scripts; lock-stage-only failure = infrastructure, no status change."},
+  {"id": "WF2-010", "rule": "Every brief <=5 KB with sections identity/edges, reuse APIs (verified), slice, >=1 independent oracle the builder may not edit, <=5 tests, non-goals, foundation MT ref; builders dispatched as each brief lands."},
+  {"id": "WF2-011", "rule": "Oracles: spec numeric tables and PSD merged composite (check hasRealMergedData) before Adobe black-box exports; Adobe exports batched into one Operator-approved session; no lane gated on Adobe."},
+  {"id": "WF2-012", "rule": "No gated hook phrases in commit messages, echo text or heredocs; write such text with the Write tool; on a hook block run the gameplan check and fix the failing step; never rephrase to dodge."},
+  {"id": "WF2-013", "rule": "Use nextest with per-test slow-timeout/terminate-after once installed (CX-EXEC-005); record lock waits ('Blocking waiting for file lock') in lane file."},
+  {"id": "WF2-014", "rule": "Deadlines: no pushed commit 30 min -> lead nudge; 45 min or same error twice -> fresh agent resumed from lane file; fresh agent per slice after its verdict."},
+  {"id": "WF2-015", "rule": "Governance budget: governance writes only on lane status change, verdict or tick line; <=1 kernel commit per lead tick; no new governance file or gameplan step without a named observed failure; compiler/clippy errors never become gameplan steps; target kernel:product commits <=0.5 per interval."},
+  {"id": "WF2-016", "rule": "Research agents end after their note; re-spawn on demand; a note not cited by a brief or diagnosis within 2 ticks is not refreshed."},
+  {"id": "WF2-017", "rule": "Agent resume prompt (add as DISPATCH_TEMPLATES topic 'resume'): 'You were stopped by a lead-session loss. Re-read your lane/state file, run git status -- crates/hsk-studio-{crate} and git log -3 -- crates/hsk-studio-{crate}. Uncommitted edits in your crate are yours: compile; commit+push if green, else continue from lane.next. Do not touch other lanes' files. Update the lane file, then continue the loop.'"},
+  {"id": "WF2-018", "rule": "Lead restart checklist (add as DISPATCH_TEMPLATES topic 'lead-restart'): read team.json and lane files; report stale git index.lock in the product worktree's git dir and orphan cargo/rustc PIDs on D: (never stop them without PROCESS_STOP_APPROVED:<PIDs>); SendMessage-resume each running agent by agent_id with WF2-017; append one tick line; target <5 min restart-to-first-agent-output."},
+  {"id": "WF2-019", "rule": "Never glob or full-read .GOV/task_packets/WP-KERNEL-STUDIO (6223 files, 1.3 GB); use explicit MT paths and JSON leaf selectors."}
+ ],
+ "changes_from_previous": [
+  {"previous": "13.3 h governance-only preparation of 6222 MT contracts before first product line", "now": "brief per crate (<=5 KB) streamed into builders; corpus untouched except one verdict per lane foundation MT", "evidence": "kernel git log prep window: 35 commits, +21.9M lines; 0 product commits"},
+  {"previous": "one serial builder; crate gaps 10->130 min", "now": "parallel lanes in DAG waves (17/7/3)", "evidence": "product/kernel timestamps 2026-10-10"},
+  {"previous": "builder proof = cargo check only; runtime only at verdict", "now": "builder runs brief tests and failing argv before READY/resubmit (D1)", "evidence": "MT-35536 FAIL_V1..V3 in 13 min, all COMPILE_STATIC_PASS_RUNTIME_NOT_RUN"},
+  {"previous": "fail-fast case loop (support/mod.rs:922)", "now": "aggregate all case failures per run", "evidence": "MT-35536 COUNTERFACTUAL_CHECKS"},
+  {"previous": "per-MT cold targets and CARGO_HOME (17 targets)", "now": "one warm team target + one warm round target", "evidence": "Handshake_Artifacts/WP-KERNEL-STUDIO/MT-355*/*/cargo-target"},
+  {"previous": "53 bespoke per-verdict scripts", "now": "one reusable round script", "evidence": "find MT-355* -name '*.py'"},
+  {"previous": "12/26 verdicts re-proved already-passed MTs", "now": "re-verdict only on CX-VAL-002 intersection; data-driven workspace probe", "evidence": "MT-35528 8 verdicts"},
+  {"previous": "66-step gameplan, 11 steps were compiler/lint errors", "now": "machine-check-only dev gameplan; compiler errors never become steps", "evidence": "WP gameplan.yaml step sources"},
+  {"previous": "v1: three lane-state stores (ledger, lane files, MT JSON)", "now": "lane file single source; ledger index; one MT verdict write", "evidence": "START_LOG workflow-v1 vs DISPATCH_TEMPLATES builder STATE"},
+  {"previous": "v1: no recovery path for lead-session loss", "now": "resume + lead-restart templates, PID and index.lock checks", "evidence": "journal/tick-log.jsonl tick 1: 10 agents stopped, no direct progress"}
+ ]
+}

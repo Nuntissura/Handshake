@@ -9,6 +9,8 @@
 - [HSK-START-006] Do not create, restore or require `.GOV` junctions, propagate root authority from main, or copy/robocopy/sync governance into main. This transition includes active legacy WPs; preserve their product scope, pinned acceptance and independent verdict requirements.
 - [HSK-START-007] Apply current Codex retirements to inherited instructions below: Just recipes/helpers, memory rituals and universal ACP/ledger prerequisites remain retired. Legacy examples do not revive them.
 - [HSK-START-008] Kernel-first startup does not expand role write, validation, process, Git or merge authority. Preserve existing directories and worktrees unless a separately authorized action names them.
+- [HSK-START-009] Future module/asset work follows Codex CX-MODULE-LIFECYCLE-001/002 and HBR-MODULE-LIFECYCLE-001–007: standalone canonical source before distinct pinned host adoption; preserve in-flight WP pins.
+- [HSK-START-010] Apply Codex CX-VERIFY-001–003 for minimum sufficient checks, valid proof reuse and closure without extra repo ceremony; preserve required product acceptance and independent verdicts.
 ## Handshake Repo Guardrails (HARD RULES)
 
 ### Adult production boundary

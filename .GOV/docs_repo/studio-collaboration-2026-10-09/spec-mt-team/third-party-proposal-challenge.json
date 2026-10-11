@@ -1,0 +1,178 @@
+{
+  "schema_id": "hsk.studio_third_party_proposal_challenge@1",
+  "file_id": "STUDIO-THIRD-PARTY-CHALLENGE-20261009",
+  "updated_at": "2026-10-09T20:04:45.5101266+02:00",
+  "status": "SOURCE_REVIEW_COMPLETE_PREPARATION_OPEN_GAPS_NOT_RUNTIME_VERDICT",
+  "risk_tier": "HIGH",
+  "scope": {
+    "product": "Read-only proposal/source review",
+    "repo_governance": "Owned review JSON only"
+  },
+  "reviewed_plan_sha256": "c388a9ff57cd79616315ce6c65426bfbd34e43cd34a99ba48c40fcdad0913d57",
+  "independent_checks": [
+    {
+      "method": "Independent filesystem MT-*.json enumeration versus parsed per_mt_bindings ID set",
+      "observed_plan_ids": 5484,
+      "id": "TPC-CHECK-001",
+      "unique_plan_ids": 5484,
+      "limit": "Set preservation only; not full original scope/AC payload reconciliation",
+      "observed_files": 5484,
+      "set_difference_count": 0
+    },
+    {
+      "id": "TPC-CHECK-002",
+      "observed": "Order-dependent derivation keys; token-overlap prior payload mining; arbitrary JSON anchor mentions count coverage; returns zero regardless report verdict. No scripts executed.",
+      "method": "Read deriver producer and roundtrip consumer directly",
+      "anchors": [
+        "spec-derive-microtasks.py:615-620",
+        "spec-derive-microtasks.py:639-640",
+        "spec-roundtrip-check.py:274-290",
+        "spec-roundtrip-check.py:376"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "required_disposition": "Resolve exact workspace owner and per-AC linked asset foundation/feature/embedding fulfillment. Preserve AC IDs and original module/kernel/GPU exclusion scope. Old MT cannot close on workspace compile while kernel AC remains unproven.",
+      "id": "TPC-001",
+      "status": "CORRECTED_TO_EXPLICIT_OPEN_MAPPING",
+      "evidence": [
+        "asset-first-mt-refactor-plan.json#/per_mt_bindings/MT-001",
+        "MT-001.json:39-85"
+      ],
+      "severity": "HIGH",
+      "observed": "Initial Accord execution assignment retracted. Final candidate_module_ref=UNRESOLVED_WORKSPACE_COORDINATION_OWNER, canonical_module_ref=null; all5484 bindings candidate-only. This is honest unresolved preparation, not completed refactor."
+    },
+    {
+      "required_disposition": "Use exact clause responsibility plus producer/consumer lookup. Split compound fulfilled scopes into individually owned leaf units and retain aggregate historical AC obligations. Pulse sequence owner is appropriate only for its real time/edit scheduling scope, not every VID clause. No automatic family-to-leaf assignment.",
+      "id": "TPC-002",
+      "status": "OPEN_SOURCE_OWNER_LOOKUP",
+      "evidence": [
+        "asset-first-mt-refactor-plan.json#/per_mt_bindings/MT-33766",
+        ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:24352",
+        "asset-first-mt-refactor-plan.json#/per_mt_bindings/MT-34218",
+        ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:29836"
+      ],
+      "severity": "HIGH",
+      "observed": "MT-33766 candidate Pulse follows VID family, but STU-VID-060 explicitly assigns format writers to14.13. WEB domain covers source/code/CSS/site/publishing; prior Components family assignment does not establish all those consumers. Canonical fields now null, correctly blocking execution."
+    },
+    {
+      "required_disposition": "Close canonical owner registry before foundation barrier can be evaluated. Each foundation must have meaningful typed ports, actual executable/selective compile consumer, dependency closure, resource/cancellation/diagnostic/manual seams and its acceptance. Empty crates and repeated generic acceptance text cannot establish domain foundations. Features remain independently pending.",
+      "id": "TPC-003",
+      "status": "CORRECTED_TOTAL_REMAINS_OPEN",
+      "evidence": [
+        "asset-first-mt-refactor-plan.json#/foundations",
+        "build-policy-and-next-session.json:77-89",
+        "master-spec-amendment-map.json#/amendments/SPEC207-STU-ARC-007"
+      ],
+      "severity": "HIGH",
+      "observed": "Final count is UNRESOLVED_CANONICAL_REGISTRY_TOTAL; preliminary28 reservations no longer claim total. PDF/prepress, web/prototyping and workspace coordinator remain unresolved owners."
+    },
+    {
+      "required_disposition": "Preparation may publish explicit unresolved fields; affected activation must remain blocked. Record per-rule trigger/result/reason/proof target, actual asset versus later host integration obligation, and named follow-up for deferred diagnostics. Shared immutable proof coverage can be reused; enumerating IDs or marking host pillars not applicable because embedding is later is insufficient.",
+      "id": "TPC-004",
+      "status": "OPEN_HBR_AND_PROOF_DISPOSITIONS",
+      "evidence": [
+        "asset-first-mt-refactor-plan.json#/hbr_evaluation",
+        "asset-first-mt-refactor-plan.json#/per_mt_bindings",
+        "HANDSHAKE_BUILD_RULES.json#/rules",
+        "HANDSHAKE_BUILD_RULES.json#/test_environment_prerequisites"
+      ],
+      "severity": "HIGH",
+      "observed": "All45 HBR IDs enumerated per MT but trigger assessments pending. Exact features/proof selectors unresolved; HBR runner/canary placeholders remain. HBR-COMPART-002 is ACTIVE with deferred_until separate crates; that trigger becomes relevant when this modularity foundation lands. HBR-SWARM-001 requires concurrent agents plus operator edits and no starvation/deadlock."
+    },
+    {
+      "required_disposition": "Before live MT rewrite freeze baseline bytes/hashes; reconcile exact old ID plus derivation identity and old AC/scope payload, explicit approved architecture dispositions and linked fulfillment DAG. Never use old anchor-only roundtrip zero exit as migration acceptance. Preserve original contracts/history while new authoritative fields replace stale executable owners/commands.",
+      "id": "TPC-005",
+      "status": "OPEN_MIGRATION_PROOF",
+      "evidence": [
+        "spec-derive-microtasks.py:615-620",
+        "spec-derive-microtasks.py:639-640",
+        "spec-roundtrip-check.py:274-290",
+        "spec-roundtrip-check.py:376"
+      ],
+      "severity": "HIGH",
+      "observed": "Current deriver/roundtrip cannot prove lossless full5484 migration. ID-set equality independently observed for proposal; full payload preservation not independently established."
+    },
+    {
+      "required_disposition": "Future foundation contracts must cover dev-dependencies, build scripts, workspace defaults/features and facade reexports as well as normal edges. Name admission acquisition order and cancellation/release behavior at decode/render/export allocations; pins, queued bytes and partial decoded outputs count against budgets. Never weaken sandbox/promote/grants/revision recheck merely for standalone execution.",
+      "id": "TPC-006",
+      "status": "OPEN_DEPENDENCY_AND_PARALLEL_BOUNDARY_DETAIL",
+      "evidence": [
+        "master-spec-amendment-map.json#/amendments/SPEC207-STU-OVR-001",
+        "master-spec-amendment-map.json#/amendments/SPEC207-STU-ARC-008",
+        "asset-first-mt-refactor-plan.json#/foundations"
+      ],
+      "severity": "HIGH",
+      "observed": "Proposed clauses correctly separate kernel authority and asset compilation and forbid budget waits while holding authority locks. No implemented dependency graph or runtime proof is claimed."
+    },
+    {
+      "required_disposition": "Bind one canonical asset subtree source, source commit/tree and destination commit; independently compare file set/content. Detect destination edits before refresh, reject conflicting overwrite, preserve handpick siblings and governance exclusion. Publish exact source/patch/dependency identities before later embedding proof.",
+      "id": "TPC-007",
+      "status": "OPEN_MIRROR_PROTOCOL",
+      "evidence": [
+        "master-spec-amendment-map.json#/amendments/SPEC207-STU-ARC-009",
+        "asset-first-mt-refactor-plan.json#/asset_location"
+      ],
+      "severity": "HIGH",
+      "observed": "Mirror provenance/hash and divergence blocking specified, but authoring direction, divergent destination handling and recovery procedure remain pending protocol detail."
+    }
+  ],
+  "counterfactual_checks": [
+    "If derivation_key anchor#kind#index stays unchanged while row order changes, an old stable MT ID can acquire different row meaning; ID-set equality would still pass.",
+    "If STU-VID-060 is implemented only in Pulse without14.13 format writer consumer, timeline compile could pass while delivery/export remains missing.",
+    "If mirror destination content changes while source commit metadata stays fixed, metadata provenance alone can falsely identify a diverged integration candidate."
+  ],
+  "boundary_probes": [
+    "Actual MT001 scope/AC versus final workspace-owner candidate and later embedding requirement",
+    "Deriver producer versus roundtrip consumer",
+    "STU-VID-060 writer authority versus family candidate"
+  ],
+  "negative_path_checks": [
+    "Missing canonical owner/proof/HBR fields remain explicit activation blockers",
+    "Foundation total remains unresolved when PDF/Web/workspace owners absent",
+    "No runtime PASS from source-only reports or placeholder proof commands"
+  ],
+  "residual_uncertainty": [
+    "No product/runtime/parity/native GUI acceptance executed or inferred.",
+    "No final published v02.207 or live rewritten5484 contract set reviewed; proposals can change after recorded hash.",
+    "Per-clause all5484 owner/AC semantic reconciliation remains unresolved in candidate and is not certified here."
+  ],
+  "provenance": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team/asset-first-mt-refactor-plan.json",
+      "sha256": "c388a9ff57cd79616315ce6c65426bfbd34e43cd34a99ba48c40fcdad0913d57",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team/master-spec-amendment-map.json",
+      "sha256": "dd93edae665c2fcdfb478968d0131a8a48c9b76d683a871a81954565d03cdf47",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json",
+      "sha256": "3e4aac9a5231baf9b68d77327d183101930aac2c310275a2ac0a03abe09bf2d1",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py",
+      "sha256": "efb88f4272162dd7201901d2646229f5ea54739c3ab96c74b898c7e8e862c53f",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-roundtrip-check.py",
+      "sha256": "192a7ebeedcfccb5b848e958ce3492fbada98faf97b2c33c156a2b22d7f81aaf",
+      "proof": "INSPECTED_SOURCE_ONLY"
+    }
+  ]
+}

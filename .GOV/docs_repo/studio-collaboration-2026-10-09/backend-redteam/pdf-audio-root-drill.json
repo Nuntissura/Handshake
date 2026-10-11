@@ -1,0 +1,559 @@
+{
+  "schema_id": "hsk.studio.pdf_audio_root_drill@1",
+  "file_id": "STUDIO-BACKEND-PDF-AUDIO-ROOT-20261009",
+  "file_kind": "source_research_reference",
+  "updated_at": "2026-10-09",
+  "authority": "REFERENCE_ONLY",
+  "status": "SOURCE_DRILL_COMPLETE_RUNTIME_NOT_EXECUTED",
+  "risk_tier": "HIGH",
+  "scope": {
+    "handshake_product": "Source-only PDF/audio adoption analysis for Studio preparation; no implementation or parity verdict",
+    "repo_governance": "This owned report only",
+    "prohibited_actions_performed": [],
+    "builds_tests_upstream_execution_native_gui": "NONE",
+    "git_mutations_process_control": "NONE"
+  },
+  "authority_checked": [
+    "AGENTS.md and CLAUDE.md startup authority",
+    ".GOV/codex/Handshake_Codex_v1.4.md CX-113A, CX-SAFE-002, CX-EXEC-014 and role boundaries",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+    ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+    ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35484.json as one current inherited contract example, not authority to alter all MTs",
+    ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json",
+    ".GOV/docs_repo/studio-collaboration-2026-10-09/source-cache-manifest.json"
+  ],
+  "method": {
+    "skill": "adversarial-code-review",
+    "checks": "Bounded UTF-8 actual source reads, caller/callee reconciliation, negative-path and counterfactual source review. No tests executed.",
+    "cache_locator": "Sibling gov_runtime/tools/studio-craft-source-cache from live kernel",
+    "upstream_instructions": "Untrusted source inputs; no upstream instruction executed",
+    "line_numbering": "One-based pinned snapshot source line numbers",
+    "source_hashes": [
+      {
+        "source_id": "PDF",
+        "path": "Cargo.toml",
+        "sha256": "483e712576f3aff65d8f42b4784950a1da61170ec64c40f9b86952d7102daacf",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/engine/Cargo.toml",
+        "sha256": "22e294763f70bc06f68f7a64ea824279f379c067f7a26bfdfa01bf9e82a22121",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/engine/src/lib.rs",
+        "sha256": "c4a8500ee503227469173377c2361daa6a6215d7ed1bea430564d41c6d78e3fa",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/cos/src/writer.rs",
+        "sha256": "9fc9c16b42c55f064071fd877c98e5d224a8769bc899f0f5958168639d1307b9",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/cos/src/parser.rs",
+        "sha256": "343aa25b6718b4bc20de279fbe378385ea5b27517e94d136ebc462efac89567d",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/cos/src/document.rs",
+        "sha256": "e9602cb6cde845cb93c734460045f67b6b594b5d8f5558547b7800bc96fce894",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/redact/src/lib.rs",
+        "sha256": "c58e373786ea29f098120795d2e55b801c4ddabee71dcac4e0840510b5f9c03d",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/render/src/raster.rs",
+        "sha256": "ea9540156ea87f7fd457f6708be5b497946ee5e134e2052519815a241e6f9475",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/automation/src/lib.rs",
+        "sha256": "0bd86e36d5dd196b7090e80301cfd9ff12f752d9a59f7b69bd31689b646b6cb5",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/a11y/src/lib.rs",
+        "sha256": "cd0676e0881e68032918d9a51d739b7eee94e2158e55b11ada98f4e877ff03d6",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "PDF",
+        "path": "crates/preflight/src/lib.rs",
+        "sha256": "47b77370d2a749e4e905e325a9323ab315de53db2c11a7eb140a3bb4e0bba6ea",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "Cargo.toml",
+        "sha256": "fc0f628269664d403f0e7a6613e99ccce67f34610ec64cb0de0e3f8175538614",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/engine/src/lib.rs",
+        "sha256": "a664e53e000dedcb034fa12217549462e4e0830acd6519c39fd78b922ba0d9d7",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/engine/src/io.rs",
+        "sha256": "8e4a91227776b90eb0a607233daeeeb45da3807ab35514eb17e5532e1ed31f85",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/playback/src/lib.rs",
+        "sha256": "b092388e6039b84937d42d427050c968ed073687d801079b2ee63bf5dcef5c82",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/playback/src/record.rs",
+        "sha256": "a7534b67edfe32768edd9f38a3976de35b91ed64e01d316cf2df2751f28948eb",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/mix/src/lib.rs",
+        "sha256": "d70c54e42782b21b5a29a3c636a8fcc5b7cc23464c37c44da7f2837d1dab9fbc",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/clap-host/src/ffi.rs",
+        "sha256": "b8c6a990e3544ca3e04fe210c09e09ec2ebf304d821608ad051f28b97bc383e8",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/clap-host/src/plugin.rs",
+        "sha256": "503e43c13efe7bea7f37cd52f204805c4e6b52effe54031e8da39f3eb09f0bd2",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/ui-egui/src/lib.rs",
+        "sha256": "ab6d8ac89566ebcb43cd1163d252276c593dece529d902b1693d7710d7da1a38",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/audio-io/src/symph.rs",
+        "sha256": "58aae8e36c9ba159a559875b1b50456439e466e80acd65545e0cd4ddb8885fae",
+        "inspection": "Targeted actual source ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/dsp/src/lib.rs",
+        "sha256": "494454bc58fcca2231645a9e84850dc39cfc7351a4ce9c0df9f2353038f2a1c2",
+        "inspection": "Targeted actual DSP execution ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/dsp/src/meter.rs",
+        "sha256": "a4fff608f81d2c976a44295d7585c8bd3d2744b1c2a0cf8aa92c63df748ae407",
+        "inspection": "Targeted actual DSP execution ranges; not exhaustive every-line audit"
+      },
+      {
+        "source_id": "SOUND",
+        "path": "crates/dsp/src/offline.rs",
+        "sha256": "b6e53a23ab43bfafbafaa2f0f71c5dff35bbe55465faf76a461712a03c85cd68",
+        "inspection": "Targeted actual DSP execution ranges; not exhaustive every-line audit"
+      }
+    ],
+    "prior_reports_reconciled": [
+      ".GOV/reference/studio_app_feature_research/repass-2026-10-09/pdfcraft-source-audit.json",
+      ".GOV/reference/studio_app_feature_research/repass-2026-10-09/media-photo-workflows.json",
+      ".GOV/reference/studio_app_feature_research/repass-2026-10-09/handshake-root-drill.json"
+    ],
+    "coverage_limitation": "Full commit snapshots are available. This report directly inspects targeted execution and failure paths only; inventory counts and hashes do not claim all source lines audited."
+  },
+  "sources": [
+    {
+      "source_id": "PDF",
+      "repository": "https://github.com/storytold/pdfcraft",
+      "commit": "f626db25cca2c89f8fa3f7e30d22bf59faea65ec",
+      "snapshot_directory": "pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec",
+      "archive_sha256": "1553b2be296e90cdcf6d771b4145db0b4329900173f3d9d5912816a9d5dbadb8",
+      "root_observations": "Cargo.toml:1-40 workspace leaf split; 43-45 hayro/hayro-syntax/lopdf; 95-101 vendored patches. crates/engine/Cargo.toml:13-36 façade directly depends on PDF leaves. APIs are synchronous mutable Session with COW COS edits. Leaf split does not establish independent runtime budgets or Studio ownership."
+    },
+    {
+      "source_id": "SOUND",
+      "repository": "https://github.com/storytold/soundcraft",
+      "commit": "eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "snapshot_directory": "soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a",
+      "archive_sha256": "2ac734a1e87397cb327904039908d001bf62d03a0546ee797919bfaafed230c7",
+      "root_observations": "Cargo.toml:14-29 leaves distinguish time/audio-I/O/MIDI/video/DSP/plugin hosts/model/mix/engine/playback/automation/UI; 35 rayon, 39 symphonia, 41 cpal. Engine mutable control document and playback Arc snapshot are already separated. This is useful ownership precedent, not a bounded realtime contract."
+    }
+  ],
+  "execution_roots": [
+    {
+      "id": "PDF-EDIT-SAVE",
+      "path": [
+        "engine/lib.rs:2254 Session::apply",
+        "2273 clone COS",
+        "2278 run_edit on clone",
+        "2329 replace editor COS",
+        "2333 undo push",
+        "2339 refresh_scoped",
+        "2340-2350 refresh failure rollback",
+        "2352-2353 dirty/generation",
+        "2488 save_bytes",
+        "cos/writer.rs:175 write_incremental",
+        "178-179 full-save policy",
+        "automation/lib.rs:638 doc_save",
+        "649 write_atomic",
+        "651 mark_saved",
+        "engine/lib.rs:2516 reopen"
+      ],
+      "actual_semantics": "COW clone before mutation; refresh must succeed before edit accepted in memory; save bytes are separate from external write; rebase follows successful external write. No persisted EventLedger atomicity or expected-revision API is supplied by this chain."
+    },
+    {
+      "id": "PDF-REDACTION",
+      "path": [
+        "engine/lib.rs:1640-1641 ApplyRedactions -> redact::apply",
+        "redact/lib.rs:399-418 region residue check",
+        "421 require_full_save",
+        "engine/lib.rs:2495 write_incremental",
+        "cos/writer.rs:178-179 write_full"
+      ],
+      "actual_semantics": "The full rewrite flag is enforced. A claim that generic Save necessarily preserves pre-redaction incremental bytes is contradicted by this inspected chain. Export residue, backups and recovery artifacts remain future independent proof surfaces."
+    },
+    {
+      "id": "PDF-PIXELS-WORKERS",
+      "path": [
+        "engine/lib.rs:506,2481 refresh -> RenderPool::new",
+        "render/raster.rs:115-117 per-result pixel/side caps",
+        "188 render_page",
+        "229 render_into",
+        "367 results channel",
+        "404 wake channel",
+        "446 set_queue",
+        "454 try_recv/watchdog",
+        "527 interpreter cancellation flag",
+        "544 parser +545 per-worker render cache",
+        "576 render_page",
+        "582-584 discard abandoned result",
+        "587 result send",
+        "517-521 Drop signals stop"
+      ],
+      "actual_semantics": "Queue replacement and taken-request deduplication exist; watchdog reports errors and caps replacements per pool. Cancellation is cooperative and a long operator can finish after abandonment. Results and wake notifications use std mpsc channels. Inline fallback renders synchronously in try_recv."
+    },
+    {
+      "id": "SOUND-CONTROL-PLAYBACK",
+      "path": [
+        "engine/lib.rs:217 execute",
+        "228 saved Arc document",
+        "231 catch_unwind",
+        "245 undo",
+        "249 journal",
+        "253-259 error rollback",
+        "playback/lib.rs:514 update_session",
+        "515 plugin prepare on control thread",
+        "516 Cmd::Session send",
+        "132 drain commands",
+        "146 adopt instances",
+        "156 replace playback snapshot",
+        "195 render_next",
+        "256 fill",
+        "mix/lib.rs:1005 run_strips ->1008 rayon"
+      ],
+      "actual_semantics": "Control and callback document ownership are distinct. Control prepare and callback adopt preserve plugin lifecycle intention. Unbounded channel and full drain have no per-block admission allowance. Local revision/undo/journal are not durable Studio authority."
+    },
+    {
+      "id": "SOUND-PLUGIN-STATE-LIFECYCLE",
+      "path": [
+        "playback/lib.rs:521 capture_states",
+        "525-529 send request and wait up to2s",
+        "136-138 callback capture",
+        "mix/lib.rs:412-425 capture_states",
+        "clap-host/plugin.rs:259-260 save_state",
+        "clap-host/ffi.rs:1015-1021 foreign state save into Vec",
+        "playback/lib.rs:187-190 retire return send",
+        "332-335 control thread garbage drop",
+        "clap-host/ffi.rs:1253-1263 drop GUI/deactivate/destroy"
+      ],
+      "actual_semantics": "Third-party save_state runs in callback command drain; returned blobs allocate. Timeout/disconnect returns an empty list, also used for valid no-plugin/no-state results. The plugin library/vtable runs in host process; Rust panic recovery is not native fault containment."
+    },
+    {
+      "id": "SOUND-RECORD-DELIVERY",
+      "path": [
+        "playback/record.rs:59 input callback",
+        "65 try_lock captured Vec",
+        "66-72 cap/backlog append",
+        "106-109 take",
+        "engine/io.rs:219 bounce_bytes_with",
+        "240 render_main",
+        "mix/lib.rs:1501 render_range",
+        "1513 whole-range output allocation",
+        "engine/io.rs:450 save_session",
+        "467 write_session",
+        "501-503 encode/direct audio write",
+        "512-516 serialize/temp manifest/rename",
+        "521-535 open and decode referenced media"
+      ],
+      "actual_semantics": "Recording buffers are memory-backed; a sample cap exists. Offline bounce allocates whole output. Session manifest rename is distinct from preceding media writes. Missing media is reported rather than fatal in open_session."
+    },
+    {
+      "id": "SOUND-DSP-METER-RESAMPLE",
+      "path": [
+        "dsp/lib.rs:175-208 Plugin prepare/process/latency/tail/state interface",
+        "engine/io.rs:225-235 normalize/loudness/true-peak/encode",
+        "dsp/meter.rs:264-282 K-weighted accumulation",
+        "285-295 oversampled true-peak FIR",
+        "356-374 histogram-gated integrated LUFS",
+        "engine/io.rs:531-533 imported rate conversion",
+        "dsp/offline.rs:187-205 windowed sinc accumulation",
+        "219-229 resample and MAX_OFFLINE_SAMPLES clamp"
+      ],
+      "actual_semantics": "DSP leaf has prepared in-place Plugin processing with sample-offset notes and explicit latency/tails. Meter uses energy histogram/gates and FIR true peak. Offline resampler returns complete Vec channels and clamps output length to MAX_OFFLINE_SAMPLES; this requires exact range/metadata proof, not a textbook-algorithm accuracy claim."
+    }
+  ],
+  "independent_findings": [
+    {
+      "id": "PDF-AUDIO-001",
+      "severity": "HIGH",
+      "class": "ADOPTION_REALTIME_BOUNDARY",
+      "source": "SOUND playback/lib.rs:132-177,377,385,515-516; mix/lib.rs:1005-1008",
+      "observed": "Unbounded command channel carries Arc snapshots and prepared plugin instances; callback drains until queue empty. Rayon parallel strip work executes synchronously from render path.",
+      "counterexample": "A swarm continuously publishes snapshots faster than callback admission while export jobs occupy Rayon workers. The callback has no code-defined limit on command-drain work or global pool interference. This can exceed a device deadline; no xrun was measured here.",
+      "adaptation": "Document proposal/commit actor publishes an immutable acknowledged revision through a bounded realtime handoff; coalesce superseded preview snapshots only, never accepted edits. Bound command count/bytes and prepared-instance slots before enqueue. Reserve transport-stop/cancel lane. Use preplanned audio graph and dedicated admitted render workers or serial callback DSP; offline jobs use existing JobRuntime, not shared uncontrolled pool contention.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-002",
+        "STU-PAR-003",
+        "STU-SDB-004"
+      ],
+      "future_mt_proof": "Under concurrent proposals/import/render/export, count callback allocations, max queue slots/bytes, callback time distribution and missed device deadlines; verify every accepted revision replays and every rejected admission has typed overload receipt; no actor starves. Thresholds must be contract-defined for device/configuration."
+    },
+    {
+      "id": "PDF-AUDIO-002",
+      "severity": "HIGH",
+      "class": "PLUGIN_STATE_COMPLETENESS_AND_THREADING",
+      "source": "SOUND playback/lib.rs:136-138,521-529; mix/lib.rs:412-425; clap-host/ffi.rs:1015-1021; ui-egui/lib.rs:387-395",
+      "observed": "Callback calls foreign save_state and allocates returned blobs. Two-second wait failure silently becomes empty state list; UI consumer updates nothing for empty list. CLAP FFI already caps each state at64MiB (ffi.rs55,649-660), so the finding is callback work/completeness/aggregate budget, not absence of a per-state cap.",
+      "counterexample": "A hosted plugin takes longer than a block to save state, or state capture times out after the plugin changed. Caller cannot distinguish no state from capture unavailable and may export with older stored state. Source shows ambiguity, not an observed wrong export.",
+      "adaptation": "Versioned state-capture protocol with requested graph revision, per-instance status, explicit deadline/cancel outcome and blob budget. Quiesce or transfer instance to authorized control thread according to plugin API requirements; do not merely move foreign calls to arbitrary worker threads. Save/delivery refuses required missing state or emits an explicit operator-approved partial outcome.",
+      "spec_anchors": [
+        "STU-IO-012",
+        "STU-CON-007",
+        "STU-PAR-001"
+      ],
+      "future_mt_proof": "Plugin state fixture changes audible output; timeout/refusal/oversized blob and stale graph results cannot produce a success receipt. Prove restored/reopened audible state independently and thread affinity with hosted real plugins; fixture-only host success is insufficient."
+    },
+    {
+      "id": "PDF-AUDIO-003",
+      "severity": "HIGH",
+      "class": "PLUGIN_NATIVE_FAULT_AND_RETIREMENT",
+      "source": "SOUND clap-host/ffi.rs:129,989,1180-1236,1253-1263; playback/lib.rs:144,187-190,332-335,459-474",
+      "observed": "Native plugins load through libloading and execute foreign vtables in process. Retired instances normally return to control thread, but ignored SendError owns the undelivered payload and its drop path is not retained for later control-thread reclamation. Silent fallback clock is a spawned thread with no join handle stored in Player.",
+      "counterexample": "A plugin crashes or hangs in process/save_state; catch_unwind in control Engine cannot contain native memory faults. If return receiver closes, a failed garbage send can destroy payload on its sending thread. Teardown during callback/fallback exit needs explicit ownership proof.",
+      "adaptation": "Plugin host capability boundary owned by existing process/resource lifecycle controls; crash-isolated worker for untrusted native binary where latency envelope supports it, declared compatibility limits otherwise. Bounded prepared/retired slot pool reserves return capacity before transfer; explicit shutdown handshake keeps receiver alive until all instances reclaimed on required thread. Store owned worker handle and terminal outcome; no opportunistic kill of unrelated processes.",
+      "spec_anchors": [
+        "STU-PAR-005",
+        "STU-QUIET-003",
+        "STU-SDB-005"
+      ],
+      "future_mt_proof": "Instrument process/save/destroy thread identity; fail return channel, close session mid-update, disconnect device, stall/crash plugin worker and exhaust retirement budget. Account for every instance/library/worker exactly once and keep operator UI/state/committed edits recoverable."
+    },
+    {
+      "id": "PDF-AUDIO-004",
+      "severity": "HIGH",
+      "class": "RECORD_CAPTURE_OVERLOAD",
+      "source": "SOUND playback/record.rs:35,55-73,106-109,159-175",
+      "observed": "MAX_SAMPLES and backlog limit exist, but checks occur before extend; callback extends captured/backlog Vec. Full backlog accepts no further blocks. take() returns shared captured Vec, while callback-local backlog has no explicit flush/ack protocol. Monitor ring is lossy and uses try_lock.",
+      "counterexample": "Contention fills callback backlog then user stops a take before next successful append. Pending capture has no explicit drain handshake; full backlog blocks are silently omitted. At cap boundary a final append may exceed nominal cap by backlog plus block. No capture loss was executed or measured.",
+      "adaptation": "Preallocated nonblocking realtime queue with exact frame sequence IDs, admitted bytes/slots, recorder-worker streaming chunks, and explicit overrun discontinuity receipt. Capture stop waits for ordered final-frame acknowledgement on control path; monitor drops and recording loss use distinct outcomes. Never silently compress lost time.",
+      "spec_anchors": [
+        "STU-IO-012",
+        "STU-PAR-001",
+        "STU-CON-007"
+      ],
+      "future_mt_proof": "Force consumer stall, queue full, stop-with-pending-block, cap-crossing, device error and disk full. Compare frame IDs/sample content/duration against independent input; any loss is explicitly positioned and save success cannot hide it."
+    },
+    {
+      "id": "PDF-AUDIO-005",
+      "severity": "HIGH",
+      "class": "PACKAGE_SAVE_ATOMICITY",
+      "source": "SOUND engine/io.rs:467-517,521-535",
+      "observed": "Audio writes precede JSON temp-file rename. The manifest temp name is deterministic scraft.tmp. No fsync/whole-package commit appears in inspected function. Autosave overwrite branch reuses already-existing per-source-ID audio without rewriting; normal collision loop stops after k>999.",
+      "counterexample": "Two same-target saves contend for identical temp name; process/disk failure between media write and manifest replacement creates partial artifact publication. >999 filename collisions can reach existing target after loop break. Existing autosave file with changed same-ID media needs semantic freshness proof. These are path-level risks, not files observed corrupted.",
+      "adaptation": "ResourceBroker-granted export staging with unique operation ID, content-addressed media, complete manifest/hash inventory and atomic publish protocol per filesystem capability. Durable authority remains SurrealDB/EventLedger. Export records source revision and committed artifact digest; retry dedups publication. Collision exhaustion is an explicit error. Define crash durability separately from rename atomicity.",
+      "spec_anchors": [
+        "STU-SDB-004",
+        "STU-IO-012",
+        "STU-HIS-004"
+      ],
+      "future_mt_proof": "Fault every media/manifest/publish boundary, contend same destination, simulate disk full/collision exhaustion and mutate same-ID media. Independent reopen sees previous complete package or new complete package; no success receipt points to mixed or missing content. Canonical authority survives rejected publication."
+    },
+    {
+      "id": "PDF-AUDIO-006",
+      "severity": "HIGH",
+      "class": "PDF_AGGREGATE_RENDER_BUDGET",
+      "source": "PDF render/raster.rs:115-117,341-347,367,404,446-450,455-457,517-521; engine/lib.rs:506,2481",
+      "observed": "Per-render pixel limits and capped per-pool watchdog replacements exist. Queue is caller-sized Vec; wake/results channels are unbounded. Refresh replaces pools; Drop sets cancellation flags and does not join workers. Long content operator can run to completion after cancellation. Inline fallback runs on caller thread.",
+      "counterexample": "Many documents or rapid revisions each create bounded pools; stalled old operators retain bytes/parser/cache while new pools render. Per-pool bound does not bound total live workers/results/decoded buffers. Repeated wake signals or unconsumed distinct-tag outputs can accumulate.",
+      "adaptation": "One JobRuntime-owned admission controller across documents/revisions with worker, decode/cache/result byte budgets; generation-tagged immutable input and stale-result discard before expensive encode/upload. Retired work retains its permits until actually exits. Bounded completion channel and coalesced wake notification. Never run hostile PDF inline on operator UI; a declared headless worker fallback or explicit unavailable result is required.",
+      "spec_anchors": [
+        "STU-PAR-001",
+        "STU-PAR-003",
+        "STU-QUIET-003",
+        "STU-SDB-005"
+      ],
+      "future_mt_proof": "Rapid-edit/multi-document adversarial PDFs, long image-decode operators, slow consumers, worker spawn failure and cancel storms. Measure total active/retired workers, input/decoded/cache/pixel/result bytes, time to cancellation acknowledgement and fairness. Device loss requeues only admitted unchanged revisions; no stale visible/persisted result."
+    },
+    {
+      "id": "PDF-AUDIO-007",
+      "severity": "MEDIUM",
+      "class": "PDF_SAVE_RECEIPT_MODE",
+      "source": "PDF automation/lib.rs:647-652; engine/lib.rs:2495; cos/writer.rs:178-179",
+      "observed": "doc_save receipt incremental is !full requested flag, although save_bytes/write_incremental can execute write_full because redaction/encryption/reconstruction requires it.",
+      "counterexample": "After applied redaction, explicit full:false produces a full rewrite but response still says incremental:true. This is a source-supported receipt mismatch; redaction bytes are not thereby retained.",
+      "adaptation": "Writer returns actual save mode plus policy reason and resulting artifact digest/revision. Handshake delivery receipt reports requested and executed mode separately. Preserve forced-full safeguard.",
+      "spec_anchors": [
+        "STU-CON-007",
+        "STU-IO-012",
+        "STU-HIS-001"
+      ],
+      "future_mt_proof": "Save redacted/reconstructed/encryption-changed documents with incremental request; independently inspect resulting revision chain and assert executed mode receipt agrees. Negative control normal edit remains declared incremental."
+    },
+    {
+      "id": "PDF-AUDIO-008",
+      "severity": "HIGH",
+      "class": "ASYNC_REVISION_AND_HISTORY_ADOPTION",
+      "source": "PDF engine/lib.rs:2254,2329-2353,2511-2525; SOUND engine/lib.rs:90-108,217-260",
+      "observed": "Mutable upstream session/engine APIs implement local rollback/history; PDF mark_saved accepts bytes without expected generation and rebases current editor. Sound rollback restores document/revision/dirty, not every control field or completed filesystem effect.",
+      "counterexample": "An adapter exports revision N asynchronously; revision N+1 commits before mark_saved(N). Directly calling upstream rebase can replace newer editor state with older bytes and clear dirty state. A failed multi-output action cannot undo already-written files by restoring Arc document. This scenario is an adapter hazard; upstream serialized usage was not shown to do it.",
+      "adaptation": "Owned per-document proposal/commit actor serializes authority decisions with immutable snapshots. Commit requires expected revision/idempotency/privacy scope in same SurrealDB transaction as ledger/projection updates. Export never rebases live authority to arbitrary stale bytes; acknowledge only exported revision and leave newer dirty state. All side effects have staged prepare/publish/abort semantics. No coarse shared mutable document Mutex/RwLock or universal CAS merge claim.",
+      "spec_anchors": [
+        "STU-SDB-004",
+        "STU-ARC-005",
+        "STU-PAR-002",
+        "STU-HIS-001",
+        "STU-HIS-002",
+        "STU-HIS-004"
+      ],
+      "future_mt_proof": "Interleave export N, accepted edit N+1, late completion, restart and retry; canonical reread/empty-database replay preserves N+1 with exact ledger history. Stale/conflicting proposals fail explicitly; duplicate key returns prior receipt without mutation. Fault external effect before/after authority commit."
+    },
+    {
+      "id": "PDF-AUDIO-009",
+      "severity": "HIGH",
+      "class": "PRIVACY_AND_PATH_GRANT_BOUNDARY",
+      "source": "PDF automation/lib.rs:85,100,104-109,1461-1496,1813-1837; SOUND engine/io.rs:276-277,435-436,527-528",
+      "observed": "PDF optional root confinement canonicalizes existing ancestor; default root is None. Writes later create directories/staging/rename. Sound core I/O directly consumes paths. Neither is Handshake account/Principal/AccessSpace authority.",
+      "counterexample": "A writable filesystem ancestor changes between lexical/canonical resolution and open; optional path root cannot represent revoked account access or authorize derivative previews/plugin scans. A preview or failure diagnostic leaks document metadata after AccessSpace change unless delivery reauthorizes.",
+      "adaptation": "ResourceBroker grants at ingress and artifact delivery plus authenticated record-user authority checks; stable handle/approved artifact IDs rather than raw ambient path authority. Bind actor/account/AccessSpace/project/revision to each job/receipt and prevent cross-tenant caches/results. Existing grant resolver owns canonical opening and revocation policy; do not copy a second broker or standalone automation server.",
+      "spec_anchors": [
+        "STU-SDB-005",
+        "STU-PAR-004",
+        "STU-ARC-005"
+      ],
+      "future_mt_proof": "Cross-account/project/AccessSpace denial including failure diagnostics, exports, waveforms, embedded PDF assets, plugin state and recovery snapshots. Revoke grant during worker execution and swap ancestor/reparse point between admission/open; no unauthorized bytes or existence metadata delivered."
+    },
+    {
+      "id": "PDF-AUDIO-010",
+      "severity": "HIGH",
+      "class": "BOUNDED_INPUT_AND_PROFESSIONAL_PROOF",
+      "source": "PDF cos/parser.rs:12,90; cos/document.rs:808-810,963; preflight/lib.rs:32-54; a11y/lib.rs:390-401; SOUND audio-io/symph.rs:123-124,180-181; mix/lib.rs:1501-1516",
+      "observed": "PDF parser depth/xref limits, audio decoded-sample limit and pixel limits are present; whole-range audio export allocates all samples. Preflight enumerates A2b/A3b and a11y preserves manual/skipped outcomes. Limits/profile findings are not complete prepress/accessibility/audio-post parity proof. Sound render_range1496-1503 caps total samples at1<<29 and silently shortens len; bounce_bytes_with io221-235 separately limits duration to4h but does not report shortening before successful encode.",
+      "counterexample": "One valid operation stays under each local cap but multiple concurrent operations exceed global memory; a PDF accessibility report with manual rules cannot certify usability, and a PDF/A check cannot certify PDF/X spot/overprint or CJK/RTL fidelity. A2h stereo192kHz request passes4h duration guard but exceeds1<<29 aggregate samples; render_range truncates output length. This is source-derived arithmetic, not an executed audio artifact.",
+      "adaptation": "Streaming/block export and explicit request-range limits under existing admitted byte budgets; preserve typed partial/manual/skipped findings. Shared color/text/layout/render owners provide print, transparency, shaping and PDF placement semantics through ports. PDF parser/render/preflight/a11y leaves are reusable candidates, not separate product document/history/export authority. Reject ranges that cannot be delivered in full or stream entire range; never silently clamp requested output duration. Keep existing64MiB plugin-state and audio-sample limits while adding aggregate admission.",
+      "spec_anchors": [
+        "STU-DOC-001",
+        "STU-DOC-004",
+        "STU-IO-010",
+        "STU-IO-011",
+        "STU-IO-012",
+        "STU-PAR-001"
+      ],
+      "future_mt_proof": "Independent decompression/recursion/malformed/encrypted/signed corpus plus real print/prepress/CJK/RTL/accessibility workflows; byte/object/text/OCR/render residue after redaction across original revisions/attachments/recovery exports. Audio long-session block export, metadata/channel/loudness/dither/resampling/plugin recall proof with independent audio analyzer and real session reopen. Verify requested start/end versus encoded frame count at and above render cap, including2h stereo192kHz, without accepting shortened success."
+    }
+  ],
+  "selected_tradeoffs": [
+    "Preserve upstream COW document snapshots and off-callback plugin preparation as patterns; adapt authoritative commit/replay/privacy ownership to existing kernel ports.",
+    "Reuse focused COS writer/parser, PDF render adapter, preflight findings, DSP/time/MIDI/audio codecs and plugin-host abstractions after exact per-file dependency/license/patch review.",
+    "Separate PDF object interchange and audio DSP/device lifecycle capabilities from one giant Studio engine dependency root; share document/history/export/color/text/UI primitives across domains.",
+    "Bound bytes as well as job slots, and hold retired-worker permits until work actually ends. Queue depth alone cannot bound RGBA/audio/plugin-state payloads.",
+    "Preview work may be superseded with explicit stale outcome; committed edit history is never dropped to relieve pressure."
+  ],
+  "rejected_tradeoffs": [
+    "Whole upstream façade/UI/automation-daemon import as Studio authority",
+    "Unbounded std channels/spawn/global Rayon contention on admitted realtime path",
+    "Shared mutable document coarse lock as swarm concurrency policy",
+    "Universal lock-free/wait-free or automatic CAS merge promise",
+    "Per-domain canonical database, history, scheduler or ResourceBroker",
+    "Fixture or source-review parity PASS; PDF/A/UA certification from rule count",
+    "A redaction residual-original defect claim contradicted by require_full_save chain",
+    "Native GUI/Adobe source behavior claim from installed package names alone"
+  ],
+  "foundation_execution_floor": {
+    "status": "PROPOSED_ADAPTATION_NOT_IMPLEMENTED",
+    "pdf_minimum": "Authorized immutable input -> parse document/page/object -> actual bounded page pixels/text -> one typed editable annotation/object operation -> serialized artifact -> independent reopen, retaining source revision and actual save policy; malformed/cancel/privacy failure are typed.",
+    "audio_minimum": "Authorized PCM asset -> sample/channel/time metadata -> admitted block DSP/mix -> actual block output and offline artifact -> independent decode; control-to-render revision handoff, stop acknowledgement, bounded queue and diagnostic counters work before hosted plugins/features.",
+    "shared_minimum": "Every proposed crate has executable port consumer and at least one actual capability transfer, error/cancellation path and resource ownership proof; empty trait/crate/manifest/command registry is insufficient. All crate/module foundations precede feature implementation as operator requested.",
+    "mt_handling": "Parent preserves all existing 5484 MT IDs/scope and adds approved foundation/dependency contracts; this report changes none. Exact future proof commands/feature sets belong to parent-authored MT contracts, not invented here."
+  },
+  "ownership_ports": [
+    {
+      "owner": "Existing JobRuntime",
+      "port": "admit/cancel/status using scoped job and lease; byte/worker/device budgets and per-actor fair admission; no second scheduler",
+      "existing_source_inspected": "WP012 src/backend/handshake_core/src/jobs.rs:21-49 create_job and startup gate; full JobRuntime implementation/capacity not established by this read"
+    },
+    {
+      "owner": "Existing ResourceBroker",
+      "port": "authenticated resource grants for input/output/derived artifacts and delivery",
+      "existing_source_inspected": "Current Master Spec STU-SDB-005:69-77 requires this owner; exact broker type not claimed inspected in this drill"
+    },
+    {
+      "owner": "Existing SurrealDB/EventLedger",
+      "port": "atomic authority mutation + expected revision + idempotency + ledger/history/projection",
+      "existing_source_inspected": "WP012 src/backend/handshake_core/src/storage/surreal/event_ledger.rs:338-490 inspected idempotency create/read fallback; not proof Studio transaction already exists"
+    },
+    {
+      "owner": "Existing Argus, Flight Recorder, internal_diagnostics, Palmistry and UserManual",
+      "port": "module command/result/revision/resource visibility with scoped diagnostics; audio callback emits bounded counters/telemetry only, never recorder/DB calls",
+      "existing_source_inspected": "HBR registry and prior handshake-root-drill references checked; each concrete module integration remains future runtime proof"
+    }
+  ],
+  "adversarial_review": {
+    "DIFF_ATTACK_SURFACES": "No implementation diff supplied; audited pinned adoption boundaries: command producer/callback consumer, state capture/save, media/manifest publication, generation/rebase, render pool cancellation/retirement, grants/delivery, checker claim scope.",
+    "INDEPENDENT_CHECKS_RUN": [
+      "Reopened full redaction -> full_save flag -> generic save -> writer redirection chain independently of prior report",
+      "Traced realtime CaptureStates through mix and CLAP FFI rather than accepting callback-never-blocks comment",
+      "Compared Sound media write/manifest rename and open-session reader",
+      "Compared Pdf doc_save executed writer policy to incremental receipt",
+      "Reconciled four-hour bounce guard with MAX_RENDER_SAMPLES clamp and actual encode caller; inspected CLAP state size cap to avoid false missing-limit claim"
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If cos/writer.rs178 full_save_required redirect is removed, redaction generic incremental save can retain prior bytes; preserved existing control is required",
+      "If playback/lib.rs132 command drain is bounded without separate stop/state/instance admission, pending state and plugin retirement can be starved or lost; overload semantics must be explicit",
+      "If PDF engine mark_saved2516 rebases stale bytes after newer promotion, current editor and dirty receipt can regress; expected exported revision is required",
+      "If write_session503 media publication succeeds but516 manifest rename fails, memory rollback cannot undo that external artifact"
+    ],
+    "BOUNDARY_PROBES": "Source producer/consumer call chains and writer/reader semantics inspected; executable probes NOT_RUN",
+    "NEGATIVE_PATH_CHECKS": "Source checks: state capture timeout/disconnect, recorder backlog/full cap, PDF refresh rollback, full-save policy, worker spawn fallback/watchdog cancellation, native plugin return failure, file collision and manifest failure. Executable fault injection NOT_RUN",
+    "RESIDUAL_UNCERTAINTY": [
+      "No binaries compiled/run, no real devices/plugins/PDF fixtures or native Adobe GUI inspected",
+      "No measured xrun, allocator bound, memory high-water, fairness or cancellation latency",
+      "No exact audio-post new spec anchor verified; approved operator scope is explicit but final parent spec enrichment pending",
+      "No claim PDF conformity, redaction residue absence, package crash durability or native plugin thread safety proved",
+      "Current foundational crate list and final dependency graph reviewed by sibling ownership specialist; this drill does not certify 28-crate plan"
+    ]
+  },
+  "parent_disposition_required": "Carry source-backed risks and concrete controls into approved v02.207/refinement/foundation MTs with exact proof commands; root retains publishing/MT/state authority. Do not mark adoption or runtime parity PASS from this report."
+}

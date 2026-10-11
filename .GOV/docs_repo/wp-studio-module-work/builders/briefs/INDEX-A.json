@@ -1,0 +1,129 @@
+{
+  "file_id": "BUILDER-BRIEFS-INDEX-A",
+  "file_kind": "builder_brief_index",
+  "updated_at": "2026-10-11T07:50:00Z",
+  "wp": "WP-KERNEL-STUDIO",
+  "reader": "spec-reader-A",
+  "wave_definition": "1 = slice needs only the existing 8 crates (accord, observe, folio, chronicle, prism, pigment, nib, type); 2 = needs another new crate",
+  "briefs": [
+    {
+      "crate": "package",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-package.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35547, test target foundation_contract. New deps: zip =8.6.0 (deflate-flate2), sha2 =0.10.9 force-soft, serde/serde_json existing pins. zip 9.0.x published 2026-10-09/10 judged too fresh. Duplicate-name rejection in zip crate UNVERIFIED (check ourselves)."
+    },
+    {
+      "crate": "interop-psd",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-psd.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "pigment", "prism", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35548, test target psd_edit_roundtrip. Recommended option A: vendor subset of photocraft-psd (pinned cache, MIT OR Apache-2.0, 5.6k LOC, flate2+thiserror) under third-party/ with provenance like hsk-studio-type; option B own parser. No PSD/IDML/FIG/AI fixtures found on the machine (bounded search): lead/operator must supply Photoshop-authored files, otherwise Adobe parity is NOT_PROVEN."
+    },
+    {
+      "crate": "render-cpu",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-render-cpu.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "pigment", "nib", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35545, test target cpu_plan. Only new dep kurbo =0.13.1 (already pinned by nib). OPEN DECISION: no Cargo edge between composite and render-cpu/render-gpu, and renderers have no folio -> neutral render-plan IR home undecided (candidate: pigment module); slice keeps a render-cpu-local plan IR."
+    },
+    {
+      "crate": "composite",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-composite.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "pigment", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35544, test target static_plan. No new deps. Same plan-IR ownership open decision as render-cpu. Spec gap: direction of input_ordinal (bottom-first?) not stated; slice documents ordinal 0 = first composited, UNVERIFIED."
+    },
+    {
+      "crate": "develop",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-develop.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "pigment", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35538, test target develop_recipe. Spec STU-CON-042..045 (l.22572-22600) is an exact numeric contract (decoded CFA u16le, bilinear_reflect_native_v1); builder must read it fully. No new deps. SSE2 route and X-Trans deferred; profile transform only identity (prism later)."
+    },
+    {
+      "crate": "layout",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-layout.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "type", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35537, test target threaded_reflow. New dep unicode-linebreak =0.1.5 (Apache-2.0, 2023). Folio has no frame/thread type (gap) so frames are caller-supplied; real Type shaping harness is ~1300 LOC so slice uses a narrow ShapedParagraph input + adapter. SourceRange units (byte vs scalar) UNVERIFIED."
+    },
+    {
+      "crate": "components",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-components.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35539, test target instance_resolution. No new deps; the layout edge (text/frame reflow) is a later capability, so the slice can start in wave 1 although the MT lists MT-35537 as dependency. Spec gap: STU-DS-117 override record lists node/field names but not where override values live."
+    },
+    {
+      "crate": "render-gpu",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-render-gpu.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "pigment", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35546, test target gpu_plan. New dep wgpu =27.0.1 (host lock via egui-wgpu 0.33.3; Craft uses 30 - version contradiction flagged). Heavy build; readback test needs a real adapter and must fail as NOT_PROVEN if none (no skip-as-pass). Exact wgpu 27 API names UNVERIFIED."
+    },
+    {
+      "crate": "interop-vector",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-vector.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "nib", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35549, test target vector_edit_roundtrip. New deps roxmltree =0.21.1 (0.21.0 yanked), svgtypes 0.16.1. PDF is a trait port (no press edge). AI native decode is an explicit blocker; AI marker names UNVERIFIED."
+    },
+    {
+      "crate": "press",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-press.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35557, test target pdf_delivery. New dep lopdf =0.45.0 (MIT, 2026-09-08, default-features=false; feature names/incremental save UNVERIFIED); fallback = vendor pdfcraft-cos subset. Independent reopen oracle needs a scanner other than the editing parser."
+    },
+    {
+      "crate": "interop-layout",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-layout.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "folio", "layout", "observe"],
+      "suggested_wave": 2,
+      "notes": "foundation MT-35551, test target layout_edit_roundtrip. Needs hsk-studio-layout for thread/overset (steps 1-3 can start earlier). Deps zip =8.6.0, roxmltree =0.21.1, sha2 pin. INDD magic bytes UNVERIFIED; INDD stays an explicit blocker."
+    },
+    {
+      "crate": "interop-fig",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-fig.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35550, test target fig_import. Container/identity/opaque/version-reject slice only (wave 1, synthetic fixtures); semantic decode needs components + a real Figma-authored fixture and stays NOT_PROVEN (wave 2+). Deps zip =8.6.0, kiwi-schema 0.2.1 (MIT, 2023), ruzstd (currency UNVERIFIED). .fig layout from community sources, not official."
+    },
+    {
+      "crate": "controls",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-controls.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35553, test file tests/foundation_numeric.rs. New dep egui =0.33.3 (default_fonts, accesskit) matching host lock (Craft uses 0.36 - contradiction flagged); optional dev-dep egui_kittest =0.33.3 without features. Spec question: fine_step 0.001 finer than precision 2."
+    },
+    {
+      "crate": "web",
+      "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-web.md",
+      "ready": true,
+      "depends_on_crates": ["accord", "observe"],
+      "suggested_wave": 1,
+      "notes": "foundation MT-35558, test target source_dom_patch. No deps: in-crate span-preserving HTML subset scanner because prep marks parser/provider pin selection as blocking (no fake provider choice). Provider decision (html5ever 0.40.1 / lol_html 3.0.1 / CSS) is the lead's. Folio StudioDocument has no web `mode` field (gap)."
+    }
+  ],
+  "cross_cutting_findings": [
+    "Cargo metadata vs STUDIO_MODULES: only difference is pigment (Cargo allowed includes folio, STUDIO_MODULES depends_on does not); all 14 assigned crates match exactly.",
+    "Render plan IR has no allowed owner edge: composite produces it, render-cpu/render-gpu consume it, but there is no composite<->render edge and the renderers have no folio.",
+    "Version contradictions: egui 0.33.3 + wgpu 27.0.1 (host lock) vs Craft egui 0.36 + wgpu 30; briefs pin the host versions.",
+    "No PSD/PSB/IDML/INDD/AI/FIG fixtures found on the machine (bounded find under D:/Projects/LLM projects maxdepth 6 and Downloads); Adobe/Figma-authored fixtures must be supplied before any parity claim.",
+    "Oracle notes (black-box only, no decompilation) are included in interop-psd, composite, render-cpu, develop, layout as requested."
+  ]
+}

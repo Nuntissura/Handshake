@@ -1,0 +1,346 @@
+{
+  "schema_id": "hsk.studio_open_contract_decisions@1",
+  "file_id": "STUDIO-ORIGINAL-OPEN-CONTRACT-DECISIONS-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_DECISIONS_INDEPENDENTLY_REVIEWED_ROOT_PUBLICATION_AND_RUNTIME_PROOFS_REQUIRED",
+  "authority": "REFERENCE_ONLY; root publishes spec/MT contracts. SPEC_CURRENT still identifies206;207 is inspected candidate.",
+  "scope": {
+    "handshake_product": "Source-backed closure proposals, no implementation/runtime/parity verdict",
+    "repo_governance": "Owned adobe-original-team JSON only"
+  },
+  "preservation": [
+    "Retain all5484 prior MT IDs, intent and scope",
+    "All34 assets foundations before domain features",
+    "One Folio document, shared Controls and Chronicle",
+    "SurrealDB/EventLedger sole authority; no SQL engine/query/writable catalog/second database",
+    "Host owns governance, grants, plugin schema and promotion"
+  ],
+  "decisions": [
+    {
+      "id": "STUDIO-OPEN-REDO-001",
+      "resolves": "STU-CON-006(1)",
+      "owners": [
+        "MT-011",
+        "MT-499",
+        "MT-552",
+        "Chronicle"
+      ],
+      "selection": "Deep undo and redo through all retained promoted history entries, with no arbitrary one-level/64-entry durable depth cap.",
+      "contract": [
+        "One per-file global promoted-history order is the default, preserving HIS002 most-recent entry semantics. History-query includes actor attribution; explicit target-entry revert is a separate typed operation, not a silently changed default actor filter.",
+        "Undo/redo are new receipted promoted operations referencing the original entry and inverse lineage. New accepted edit after undo starts a new active history branch; previously undone branch remains queryable/auditable and may be explicitly replayed as a new proposal.",
+        "Inverse commands and snapshot-backed patches validate current object/property read/write preconditions. Never replace the whole document to erase intervening unrelated work. Stale/overlapping inverse yields conflict and an inspectable proposal, not successful undo or silently skipped entry.",
+        "Redo depth is limited only by retained reachable history and artifact availability under host retention policy. Cache budgets bound resident entries and load older entries on demand; eviction does not delete durable history or reachable snapshots. Missing artifact yields actionable unavailable outcome, never approximate reconstruction.",
+        "Draft-local Yjs undo is separately scoped by transaction origin and explicit gesture boundary. It never claims to undo promoted authority. Retain existing Yjs-compatible update-log selection and pre-promotion boundary; no new Loro/Automerge engine.",
+        "Every promoted batch remains auditable, including history-control commands. Undo/redo navigation uses explicit semantic-entry lineage/cursor; repeated undo selects the preceding still-applied semantic edit, not the just-recorded undo control receipt. Reverting a history-control operation is explicit redo, preventing an undo/redo loop."
+      ],
+      "basis": "HIS001-004 require unified ledger-backed history. PhotoCraft ops stores max64 COW snapshot states and clears redo; useful memory-budget example, unsuitable durable authority. Yjs documents origin-scoped selective undo and stopCapturing; use only draft mechanics.",
+      "rejected": [
+        "One-level durable redo cap discards useful retained capability",
+        "Copy PhotoCraft in-memory pop as authority",
+        "Local-actor default silently changes HIS002",
+        "Whole-document snapshot restore overwrites concurrent work"
+      ],
+      "proof": [
+        "Promote3 domains, undo3, redo3, restart and independently reread canonical heads/events/artifacts",
+        "New edit after undo: branch preserved but active redo unavailable",
+        "Default global Undo selects most-recent applied semantic entry across actors. Separately, explicit older target-entry revert preserves foreign disjoint edit and conflicts on overlapping edit, with exact entry/property evidence; do not use this latter proof to imply default actor-local Undo.",
+        "Cold cache still replays retained history; missing snapshot never reports success"
+      ]
+    },
+    {
+      "id": "STUDIO-OPEN-EVENT-001",
+      "resolves": "STU-CON-006(2)",
+      "owners": [
+        "MT-003",
+        "MT-553",
+        "Chronicle",
+        "Controls",
+        "Session"
+      ],
+      "selection": "Explicit semantic command-batch/gesture boundaries; accepted event stream is lossless. Coalesce only replaceable uncommitted previews.",
+      "contract": [
+        "A gesture binds actor/session/document, command ID, gesture ID, base target revisions and descriptor/profile version at begin; bounded delta chunks feed a private draft; end submits one proposal batch and one unified history entry.",
+        "Record every ordered nonreplaceable input necessary for replay, or its immutable typed artifact reference and digest, plus deterministic seeds/provider/version. Pointer pressure/time samples required by brush semantics remain ordered; never drop them merely to retain final cursor position.",
+        "The22 canonical semantic event types retain their identities. A transaction may emit multiple typed semantic events in one batch with deterministic order/sequence, correlation, causation, actor, payload hashes and one promotion receipt. Do not force mixed-domain batches into a generic mutation event.",
+        "Only an uncommitted preview with same actor/document/gesture/output slot may supersede another preview. Surface typed superseded/stale revision. Never merge across actors, files, distinct commands or accepted batches.",
+        "Exact shared SHL194 exit map: release, focus loss, modal opening and400ms after last wheel notch finalize the valid gesture once through actor-specific host promotion/approval. Escape restores the pre-press private draft value and closes exactly one receipted aborted history-scope entry with no document-content mutation; this entry is distinguishable from promoted semantic edits and excluded from undo/redo cursor. Explicit cancellation similarly closes aborted scope. No exit bypasses proposal approval. After acceptance cancellation requires Chronicle undo. Finalize rechecks foreign-write footprints/grants; stale conflict closes failed scope without content mutation. Lease/stop epoch changes reject stale chunks. Bounded compute chunks retain one semantic gesture and ordered replay artifact under ARC admission.",
+        "Recovery rediscoveries resolve the same promotion idempotency key; no per-frame automatic promotion or time-window heuristic creates multiple unintended history entries."
+      ],
+      "basis": "ARC011/013 already separate serialized promotion from replaceable preview; Yjs500ms capture default is not a reliable semantic authority boundary.",
+      "rejected": [
+        "Timer-only grouping",
+        "One authority event per mouse move",
+        "Last-point-only destructive stroke record",
+        "Drop oldest accepted edit on overloaded queue"
+      ],
+      "proof": [
+        "Pressure-sensitive long stroke replays exact output digest after restart",
+        "Two actors same property cannot coalesce",
+        "Preview supersession versus accepted edit overload produce distinct outcomes",
+        "Crash after commit/before reply applies once. Drive release/focus loss/modal opening/Escape/wheel400ms and assert exactly one scope entry each; Escape is aborted with unchanged content and undo cursor, successful finalized scopes have one promoted history entry; pending approval cannot masquerade as accepted."
+      ]
+    },
+    {
+      "id": "STUDIO-OPEN-AUTOACCEPT-001",
+      "resolves": "STU-CON-006(3)",
+      "owners": [
+        "MT-554",
+        "host PromotionGate",
+        "DCC Approval Inbox"
+      ],
+      "selection": "Default auto-accept OFF. Support bounded operator-preauthorized policy evaluated by the host, never by the authoring model.",
+      "contract": [
+        "Host policy identifies operator grant/receipt, immutable policy version, explicit command allowlist, document/object scope, resource and diff limits, validator catalog/version, expiry/revocation, author separation and required audit fields. A proposal cannot set or relax these fields.",
+        "Initial eligible class is deterministic reversible in-document parameter/style edits to existing explicitly granted objects, with no unresolved/blocking validation, no schema loss and an available validated inverse. Eligibility alone is not approval: matching unrevoked operator policy is required.",
+        "Delete/destructive flatten, external filesystem overwrite/export, import replacement, plugin install/code/expression activation, network/process/credential actions, asset retirement and governance decisions stay outside this class. They retain their existing host approval boundary.",
+        "Preview/actor-local view state requires no authority promotion; do not call it auto-accept. Recheck current grants/footprints and policy at promotion transaction, record the genuine host policy decision and validation run, preserve rejection evidence.",
+        "WP012 PromotionGate::decide currently insists on approval_source=operator_review_receipt. Add a typed host policy approval variant through the existing owner before enabling auto-accept; never counterfeit that operator source or fabricate a review receipt. Spec evaluate/implementation decide naming needs adapter reconciliation, not a parallel gate.",
+        "Policy revocation prevents subsequent promotions; it does not silently erase earlier accepted work. Operator controls enrollment and limits; safe OFF default permits implementation preparation without asking operator to choose a technical default.",
+        "Allowlist is semantic and versioned, not a label based on a scalar payload. Parameter/style operations that retire content, hide/remove objects, change external references, activate code or produce irreversible effects remain excluded even if encoded as one property. Unknown operation risk is ineligible."
+      ],
+      "basis": "PW003 explicitly blocks self-approval; direct promotion.rs225-273 validates genuine operator source and passed artifact-bound validation.",
+      "rejected": [
+        "Author labels own proposal low-risk",
+        "Treat validation PASS as approval",
+        "Synthetic operator_review_receipt",
+        "Studio-only approval inbox/policy engine"
+      ],
+      "proof": [
+        "Forged source/author-granted policy denied",
+        "Expired/revoked/out-of-scope policy denied without authority rows",
+        "Allowed reversible edit yields genuine host policy receipt and independent canonical reread",
+        "Overlapping edit invalidates target preconditions despite policy; failure keeps draft evidence"
+      ]
+    },
+    {
+      "id": "STUDIO-OPEN-RASTER-001",
+      "resolves": "STU-CON-006(4)",
+      "owners": [
+        "MT-004",
+        "MT-555",
+        "Folio",
+        "Pigment",
+        "host ResourceBroker"
+      ],
+      "selection": "Typed tile/object metadata and content-addressed artifact references in Folio/SurrealDB; bulk raster bytes in the existing artifact tier. Draft CRDT carries typed references/operations, never pixel blobs or a second authoritative tile database.",
+      "contract": [
+        "Tile identity includes canonical object/layer/grid coordinate, format/color/schema, dimensions and content hash. Avoid pointer-address COW identities from PhotoCraft; content identity must survive processes/restart.",
+        "Persist validated immutable artifact bytes before accepting their reference. Serialized SurrealDB transaction checks grants, target versions and complete read/write footprints then writes references, accepted head, events and idempotency outcome atomically.",
+        "Disjoint tile writes may both promote only if their declared reads remain valid. Same-tile or dependent backdrop/effect reads conflict unless a deterministic semantic rebase is validated against current state. Pixel-region disjointness alone does not prove filters/brushes independent.",
+        "Yjs-compatible draft stores addressable operation/proposal IDs and typed refs; draft convergence never approves last-writer-wins tile authority. Unsupported/lossy schema mapping blocks promotion with preserved evidence.",
+        "Snapshots/history reuse artifact references. Uncommitted/orphan blobs are reclaimable only through existing host lifecycle after reachable accepted/history/draft/proposal/export references are accounted for. No cleanup performed by Studio leaf code.",
+        "ResourceBroker reserves decoded and retained bytes before decode/cache/fanout; canceled or superseded outputs release owned leases, never foreign graph resources. Missing/hash-mismatched artifact is a typed integrity failure."
+      ],
+      "basis": "RAS116 already resolves bulk-byte exclusion. ARC011 rules out blanket CAS; kernel crdt_adr72-77 selects Surreal update-log/Yjs-compatible draft boundary.",
+      "rejected": [
+        "Pixel arrays in CRDT/authority database",
+        "SQLite tile catalog",
+        "CRDT merge directly promotes refs",
+        "Whole-document CAS blocks every disjoint tile",
+        "Unreferenced-at-this-instant eager deletion"
+      ],
+      "proof": [
+        "Two disjoint writes accepted; same tile conflict retained",
+        "Backdrop-sensitive read invalidation despite disjoint writes",
+        "Crash after blob/before transaction leaves no accepted head; crash after transaction returns same receipt",
+        "Undo/restart validates retained hash; missing/corrupt artifact fails closed",
+        "Reachable history/proposal reference prevents reclaim"
+      ]
+    },
+    {
+      "id": "STUDIO-OPEN-FR-001",
+      "resolves": "STU-CON-006(5)",
+      "owners": [
+        "MT-003",
+        "MT-545",
+        "host KernelEventType/Flight Recorder"
+      ],
+      "selection": "Register all22 STUDIO wire variants and an explicit corresponding FR-EVT-STUDIO family through existing host catalogs and durable mirror lifecycle.",
+      "contract": [
+        "Generate the mapping from the existing canonical event catalog, preserving wire and family IDs; every variant enters required_first_slice_events and strict payload/schema/version validation. No duplicate Studio recorder/catalog or generic System-only substitute for business registration.",
+        "Envelope binds document/workspace, canonical actor/session, batch/promotion/event IDs, sequence/correlation/causation, exact revision, payload hash and typed artifact refs. Denials/proposals/previews are distinguishable from accepted authority events.",
+        "Durable authority receipt precedes mirror attempt. Reuse inspected native-editor pending/completion reconciliation pattern, not its editor-specific schema. FR uses deterministic workspace-partitioned ID, verifies immutable matching envelope on retry, and claims mirrored only after exact FR row exists.",
+        "Mirror failure does not undo an accepted authority mutation or claim FR completion. Pending state remains observable/recoverable; restart reconciles without duplicate rows and rejects same-ID/different-payload collision.",
+        "Audio callbacks use preallocated bounded POD handoff to off-thread aggregation; never call locking general recorder. Overrun records discontinuity/loss with bounded safe output, not silent successful recording. Workspace read/grant filtering remains host-owned."
+      ],
+      "basis": "Kernel mod493-507 strict required-list parsing; NewKernelEvent547-561 envelope; native-editor api1581-1645 implements durable pending then exact mirror then completion. This is source precedent, not Studio runtime proof.",
+      "rejected": [
+        "FR first then ledger",
+        "Claim mirror done on queued attempt",
+        "Reuse same-ID mismatched row",
+        "General recorder in realtime callback"
+      ],
+      "proof": [
+        "All22 strict registration/payload mappings roundtrip; unknown/version-invalid rejected",
+        "Crash at each pending/FR/completion boundary reconciles once",
+        "Poison pending rows cannot starve later valid rows",
+        "Cross-workspace reads denied/filtered; exact-ID collision refused",
+        "Realtime allocation/lock instrumentation and deliberate bounded handoff overrun"
+      ]
+    },
+    {
+      "id": "STUDIO-OPEN-PLUGIN-BOUNDARY-001",
+      "resolves": "STU-CON-006(6)",
+      "owners": [
+        "MT-509",
+        "backend-team host plugin owner"
+      ],
+      "selection": "Consume the backend team's single host-wide capability/permission schema; this report does not redefine it.",
+      "required_interface": [
+        "Typed schema/version and stable plugin identity",
+        "Host grant/revocation and resource/process ownership",
+        "Declared commands, inputs/outputs, determinism and diagnostics",
+        "Promotion cannot be bypassed by plugin callback",
+        "Default-deny unknown/unsupported capability; same policy for GUI/model/headless"
+      ],
+      "cross_team_action": "Root routes this interface and AUTOACCEPT/FR boundaries to backend-team for owner reconciliation before publication. Retain MT509 scope; host integration remains a predecessor, not waived.",
+      "cross_team_binding": {
+        "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-decision.json",
+        "inspected_sections": [
+          "decision",
+          "provider_selection",
+          "required_controls PLATFORM01-13"
+        ],
+        "alignment": "Matches host-wide schema/lifecycle/authority owner; native and WASM providers remain optional and separately bounded. Existing platform lifecycle is planned gap, not falsely claimed implemented.",
+        "sha256": "f64928b63054c13f58c88a78fd36c7e967f65b1466165db8cea352732f1c002f"
+      }
+    }
+  ],
+  "related_reports": [
+    "open-expression-decisions.json",
+    "open-composition-controls-decisions.json"
+  ],
+  "remaining_operator_owned_actions": [
+    "Enroll/revoke actual auto-accept policies and set their granted scope/limits",
+    "Approve any destructive host retention change; no purge/deletion policy is inferred"
+  ],
+  "proof_status": "SOURCE_RESEARCH_ONLY; none of the required implementation/runtime/GUI/parity proofs executed",
+  "restart": "Read related reports and independent challenge, reverify hash bindings, route owner conflicts to root. Never promote this report as spec authority.",
+  "evidence": [
+    {
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+      "lines": [
+        [
+          205,
+          225
+        ],
+        [
+          532,
+          550
+        ],
+        [
+          22322,
+          22346
+        ],
+        [
+          22416,
+          22422
+        ],
+        [
+          32616,
+          32624
+        ]
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/promotion.rs",
+      "sha256": "d7fb25724ce0f23978eef879bbf9b128a7a919199b4d7fdca814f6f6cca2c647",
+      "lines": [
+        182,
+        289
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/crdt_adr.rs",
+      "sha256": "b0fb2d35a5999c294da997a73dd155b030e2c9b1e6430c22e29d2337dcdcfcf5",
+      "lines": [
+        62,
+        140
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/kernel/mod.rs",
+      "sha256": "b7b707f86e30b7509dc073da32593feba5c5a1e9d998e27832137df10989fc8a",
+      "lines": [
+        493,
+        561
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/api/flight_recorder.rs",
+      "sha256": "ac4cf9e013b9921f73e9fd099e496ccb7de952115aba6241a833fb34aa0642b5",
+      "lines": [
+        1562,
+        1659
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/ops/src/lib.rs",
+      "sha256": "abf273426ee15eb03d53ebe0db958d37ecbebc9a29e6d02a5864b9d9cd658339",
+      "lines": [
+        38,
+        135
+      ],
+      "inspection": "DIRECT_SOURCE_READ"
+    }
+  ],
+  "external_sources": [
+    {
+      "pattern": "Origin-scoped selective draft undo; explicit stopCapturing; timer default unsuitable promoted gesture authority",
+      "inspected_at": "2026-10-09",
+      "url": "https://docs.yjs.dev/api/undo-manager"
+    },
+    {
+      "pattern": "Explicit groups and remote-change awareness; comparison only, existing Yjs boundary retained",
+      "inspected_at": "2026-10-09",
+      "url": "https://www.loro.dev/docs/advanced/undo"
+    },
+    {
+      "pattern": "Conflict representation comparison; no new engine selected",
+      "inspected_at": "2026-10-09",
+      "url": "https://automerge.org/docs/reference/documents/conflicts/"
+    }
+  ],
+  "required_publication_reconciliation": [
+    {
+      "refs": [
+        "STU-SHL-194",
+        "STU-HIS-001"
+      ],
+      "text": "One receipted gesture-scope disposition for each exit, including aborted Escape; only accepted content batches produce applied semantic StudioHistoryEntry/undo cursor. Distinguish these counts explicitly in schema, GUI/model history and acceptance."
+    },
+    {
+      "refs": [
+        "STU-PW-003",
+        "STU-CON-006(3)"
+      ],
+      "text": "Use existing PromotionGate owner; reconcile spec evaluate naming to actual decide and add genuine host policy approval variant before enabling automatic class."
+    },
+    {
+      "refs": [
+        "STU-FX-110",
+        "STU-FX-149",
+        "STU-SHL-190",
+        "STU-SHL-191",
+        "STU-SHL-192"
+      ],
+      "text": "Publish composition-controls selected reconciliation; one mechanic, discrete quantum vs continuous pointer sensitivity, legal values vs soft resistance."
+    }
+  ],
+  "independent_review": {
+    "findings": 6,
+    "sha256": "ef7c18bbcaac8dde7cedeaef7936dd4fe2624831a4f108981d164e063edf02b3",
+    "checks": 7,
+    "disposition": "Gesture/Date proposal defects corrected; publication and host/runtime/import proof predecessors retained; no runtime/parity PASS",
+    "post_review_mutation": "Only status and this reviewer binding added; no decision/evidence changes",
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-decisions-independent-review.json",
+    "subject_sha256_before_review_metadata": "29713b14bf25dffb9846469adcc6219885948d23375129cc8538e683fb4c5c13"
+  }
+}

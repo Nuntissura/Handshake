@@ -1,0 +1,727 @@
+{
+  "schema_id": "hsk.studio_original_design_research@1",
+  "file_id": "STUDIO-ORIGINAL-DESIGN-20261009",
+  "updated_at": "2026-10-09",
+  "owner": "design_original",
+  "authority": "REFERENCE_ONLY_ROOT_RETAINS_EDITING_PUBLISHING_AUTHORITY",
+  "status": "SOURCE_RESEARCH_COMPLETE_RUNTIME_PARITY_NOT_PROVEN",
+  "scope": {
+    "handshake_product": "Research Illustrator/InDesign/Figma original workflows versus selected pinned Craft function bodies and current Studio contracts",
+    "repo_governance": "Owned design-original.json only; no spec/MT/status edits"
+  },
+  "inspection_limits": [
+    "No builds/tests/upstream execution/vendor GUI/binary decompilation/Git mutations",
+    "Native control automation unavailable; installed sample scripts are readable resources, not native GUI or engine proof",
+    "Exact local selected bytes inspected; not exhaustive source audit; no runtime or parity PASS",
+    "All fixture cases proposed; original reference documents/exports/font/profile bytes and original traces not acquired",
+    "No Adobe AI implementation proposed",
+    "Existing 5484-MT scope and IDs remain preserved; no new replacement task IDs allocated"
+  ],
+  "sources": [
+    {
+      "id": "DO-SRC-AI-PRINT",
+      "url": "https://helpx.adobe.com/illustrator/using/printing-color-separations.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Preview eye controls affect display only; output plates have separate print controls. Registration includes spot plates; screen preview excludes printer marks, screening, trapping and emulsion proof.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-AI-APPEARANCE",
+      "url": "https://helpx.adobe.com/illustrator/using/appearance-attributes.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Object/group/layer appearance supports multiple fills/strokes, ordered effects and visibility; scope and order are authored semantics.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-AI-EXPAND",
+      "url": "https://helpx.adobe.com/illustrator/desktop/manage-objects/arrange-objects/expand-objects.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Expand and Expand Appearance are distinct editing operations; appearance may disable Expand until appearance expansion.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-AI-KEYS",
+      "url": "https://helpx.adobe.com/uk/illustrator/using/default-keyboard-shortcuts.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Pen gesture Spacebar-drag repositions the current anchor while drawing; interaction state matters.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-ID-PDFDOM",
+      "url": "https://developer.adobe.com/indesign/uxp/dom/api/p/pdf-export-preset/",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "PDF export exposes independent structure/hyperlink/bookmark/layer flags, effective destination/output-condition readbacks, and simulateOverprint converts spot inks to process with validity restrictions.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-ID-ORDER",
+      "url": "https://helpx.adobe.com/indesign/desktop/interactive-elements-and-forms/forms-and-pdfs/set-reading-order.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Articles define content reading order independently of visual layout; tagging-order and tagged-PDF export flags activate it.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-ID-SHAPER",
+      "url": "https://helpx.adobe.com/uk/indesign/desktop/language-and-proofing/language-settings/change-default-shaping-engine.html",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "World-Ready uses Harfbuzz by default and exposes a legacy-engine preference; compatibility depends on engine choice.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-FIG-SIZING",
+      "url": "https://developers.figma.com/docs/plugins/api/properties/nodes-layoutsizinghorizontal/",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "HUG is valid for auto-layout frames/text, FILL for auto-layout children; invalid use throws rather than silently adapting.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-FIG-NODES",
+      "url": "https://developers.figma.com/docs/plugins/api/node-properties/",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "counterAxisSpacing applies to HORIZONTAL or VERTICAL wrapping frames and is positive; reactions, min/max constraints and mode resolution are separately represented.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-FIG-PROPS",
+      "url": "https://developers.figma.com/docs/plugins/api/properties/ComponentPropertiesMixin-componentpropertydefinitions/",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "BOOLEAN/TEXT/INSTANCE_SWAP property names include unique # identifiers; full property name is required by related APIs.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-FIG-REACTION",
+      "url": "https://developers.figma.com/docs/plugins/api/Reaction/",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "A reaction requires a trigger and nonempty ordered action list.",
+      "runtime_inspection": false
+    },
+    {
+      "id": "DO-SRC-FIG-CONDITIONAL",
+      "url": "https://help.figma.com/hc/en-us/articles/15253220891799-Multiple-actions-and-conditionals",
+      "checked_at": "2026-10-09",
+      "kind": "PRIMARY_OFFICIAL_DOCUMENTATION",
+      "claim": "Multiple actions and conditional branching are authored prototype behaviors, beyond static screen links.",
+      "runtime_inspection": false
+    }
+  ],
+  "local_authority_evidence": [
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        8051,
+        8088
+      ],
+      "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        7118,
+        7146
+      ],
+      "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        19831,
+        19853
+      ],
+      "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "DO-WF-ILLUSTRATOR-PREPRESS",
+      "steps": [
+        "Create CMYK artboards with bleed; place linked raster with pinned profile",
+        "Draw/edit paths and compound holes; author multiple fills/strokes and scoped effects",
+        "Reuse symbols/global spot swatches; proof chosen output without converting authority colors",
+        "Check overprint/knockout and per-plate coverage; preserve separate preview/output flags",
+        "Export editable native plus chosen PDF/X with marks/bleed; reopen and inspect plates/geometry/unsupported receipts"
+      ],
+      "sources": [
+        "DO-SRC-AI-PRINT",
+        "DO-SRC-AI-APPEARANCE",
+        "DO-SRC-AI-EXPAND"
+      ],
+      "fixtures": [
+        "DO-FIX-001",
+        "DO-FIX-002",
+        "DO-FIX-008"
+      ]
+    },
+    {
+      "id": "DO-WF-INDESIGN-PUBLICATION",
+      "steps": [
+        "Import IDML with links/fonts/parent pages/styles and preservation bytes",
+        "Compose threaded multilingual stories with independent scope/engine and document CJK tables",
+        "Apply variable axes, table/footnote/running-header/cross-reference semantics and inspect overset",
+        "Preflight fonts/links/color/ink and package resources",
+        "Author Articles reading order independently of stacking; tag headings/figures/tables",
+        "Export press PDF and accessible PDF/EPUB/HTML; independently reopen structural and visual results"
+      ],
+      "sources": [
+        "DO-SRC-ID-PDFDOM",
+        "DO-SRC-ID-ORDER",
+        "DO-SRC-ID-SHAPER"
+      ],
+      "fixtures": [
+        "DO-FIX-002",
+        "DO-FIX-003",
+        "DO-FIX-004",
+        "DO-FIX-005"
+      ]
+    },
+    {
+      "id": "DO-WF-FIGMA-DESIGN-SYSTEM",
+      "steps": [
+        "Create component property schemas with stable IDs, variants and nested instances",
+        "Bind variables/aliases/collections and inherited/explicit modes",
+        "Author nested auto-layout/constraints with legal sizing and clamps",
+        "Swap component/variant preserving compatible overrides and reporting losses",
+        "Author ordered reaction actions, conditions and interactive component state",
+        "Export/reimport and compare semantic layout/action graphs; replay prototype with isolated sessions"
+      ],
+      "sources": [
+        "DO-SRC-FIG-SIZING",
+        "DO-SRC-FIG-NODES",
+        "DO-SRC-FIG-PROPS",
+        "DO-SRC-FIG-REACTION",
+        "DO-SRC-FIG-CONDITIONAL"
+      ],
+      "fixtures": [
+        "DO-FIX-006",
+        "DO-FIX-007"
+      ]
+    }
+  ],
+  "control_semantics": [
+    {
+      "id": "DO-CTRL-001",
+      "rule": "Preview plate eye toggles are display state; output plate enablement is export/print state; undo/receipts must distinguish them.",
+      "sources": [
+        "DO-SRC-AI-PRINT"
+      ]
+    },
+    {
+      "id": "DO-CTRL-002",
+      "rule": "Object/group/layer and per-fill/per-stroke effect targets, order, hide/expand operations are distinct. Pen modifiers are gesture-state controls.",
+      "sources": [
+        "DO-SRC-AI-APPEARANCE",
+        "DO-SRC-AI-EXPAND",
+        "DO-SRC-AI-KEYS"
+      ]
+    },
+    {
+      "id": "DO-CTRL-003",
+      "rule": "Logical article order, page stacking, thread order and tab order are different stored concerns; tagged flag alone does not prove accessibility.",
+      "sources": [
+        "DO-SRC-ID-ORDER",
+        "DO-SRC-ID-PDFDOM"
+      ]
+    },
+    {
+      "id": "DO-CTRL-004",
+      "rule": "Sizing mode has node-context legality; component property identity is full stable key; prototype trigger requires ordered nonempty actions.",
+      "sources": [
+        "DO-SRC-FIG-SIZING",
+        "DO-SRC-FIG-PROPS",
+        "DO-SRC-FIG-REACTION"
+      ]
+    }
+  ],
+  "craft_findings": [
+    {
+      "id": "DO-FIND-001",
+      "classification": "EXISTING_SCOPE_ADOPTION_GAP",
+      "finding": "DesignCraft fill overprint is detected but not exported; spot Separation support alone cannot prove production separations.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/export.rs",
+          "sha256": "73e011be76c54fe4f22d4c0280e4588b76cf785a6bbaf4d89f18ea9b6b365338",
+          "lines": [
+            855,
+            867
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-LAY-160",
+        "STU-LAY-250"
+      ],
+      "mt_refs": [
+        "MT-30844",
+        "MT-30845",
+        "MT-464"
+      ],
+      "mitigation": "Bind a shared ink-aware export/render plan; reject or disclose unsupported overprint before promotion; preserve separate preview and output controls.",
+      "fixture": "DO-FIX-001"
+    },
+    {
+      "id": "DO-FIND-002",
+      "classification": "EXISTING_SCOPE_ADOPTION_GAP",
+      "finding": "Actual PDF/X postprocessing writes an OutputIntent using Generic CMYK, independent of chosen export destination; warnings are returned in an otherwise successful ExportReport when intent creation/check fails.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/pdfx.rs",
+          "sha256": "a972d1c86f0cb9563878a0e8fcf819b4a8e55d6e13faae3f24045023b5299e3f",
+          "lines": [
+            25,
+            84
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/export.rs",
+          "sha256": "73e011be76c54fe4f22d4c0280e4588b76cf785a6bbaf4d89f18ea9b6b365338",
+          "lines": [
+            227,
+            238
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-LAY-160",
+        "STU-IO-010"
+      ],
+      "mt_refs": [
+        "MT-464",
+        "MT-249"
+      ],
+      "mitigation": "Use chosen profile bytes/output condition, expose effective readback and separate file-produced from standard-conformant status. Require independent object/standard inspection.",
+      "fixture": "DO-FIX-002"
+    },
+    {
+      "id": "DO-FIND-003",
+      "classification": "EXISTING_SCOPE_ADOPTION_GAP",
+      "finding": "Tagged PDF exists. Its inspected tag_tree emits stories/figures in first appearance order, with heading/blockquote/P mappings. This path does not consult an article-order input; do not infer complete accessible publication output from tagged=true.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/export.rs",
+          "sha256": "73e011be76c54fe4f22d4c0280e4588b76cf785a6bbaf4d89f18ea9b6b365338",
+          "lines": [
+            640,
+            710
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/export.rs",
+          "sha256": "73e011be76c54fe4f22d4c0280e4588b76cf785a6bbaf4d89f18ea9b6b365338",
+          "lines": [
+            188,
+            204
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-PRO-043c",
+        "STU-SHL-113"
+      ],
+      "mt_refs": [
+        "MT-33363",
+        "MT-34585"
+      ],
+      "mitigation": "Resolve canonical content order for PDF/EPUB/HTML; independently inspect structure tree, table semantics, alt text, language and keyboard/tab order.",
+      "fixture": "DO-FIX-003"
+    },
+    {
+      "id": "DO-FIND-004",
+      "classification": "EXISTING_SCOPE_ADOPTION_GAP",
+      "finding": "IDML reader caps initial capacity but reads every ZIP entry fully; duplicate names overwrite HashMap entries; missing included parts continue. Anchored groups containing TextFrame are not handled by the has_text=false branch.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs",
+          "sha256": "f7b738aa8968dad814860cd7bb23657d6993882895cc015332178637e0c06ba3",
+          "lines": [
+            40,
+            70
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs",
+          "sha256": "f7b738aa8968dad814860cd7bb23657d6993882895cc015332178637e0c06ba3",
+          "lines": [
+            1671,
+            1680
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-LAY-064",
+        "STU-IO-008"
+      ],
+      "mt_refs": [
+        "MT-462"
+      ],
+      "mitigation": "Bound inflated total/part bytes and part count before reading; reject duplicate mandatory parts; preserve unhandled anchored content with source bytes and loss receipt rather than claim full fidelity.",
+      "fixture": "DO-FIX-004"
+    },
+    {
+      "id": "DO-FIND-005",
+      "classification": "EXISTING_SCOPE_ADOPTION_GAP",
+      "finding": "DesignCraft composition selects greedy for tab-containing paragraphs or glyph count over 4000 even when paragraph composer was selected. Shaping function uses vertical/contextual paths and bypasses word cache for RTL; real implementation exists but exact complex-script parity remains unproven.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs",
+          "sha256": "6872eb2c48a24bdc9683df5b902c205b0ead1bf2411e0088f13a1f11318586c0",
+          "lines": [
+            605,
+            625
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs",
+          "sha256": "6872eb2c48a24bdc9683df5b902c205b0ead1bf2411e0088f13a1f11318586c0",
+          "lines": [
+            738,
+            755
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/shape.rs",
+          "sha256": "5f9c6ca8c17de95fea073e477a15be67df43decf3be85f8a508a2d610a813e2a",
+          "lines": [
+            669,
+            699
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-TYP-135",
+        "STU-TYP-136",
+        "STU-TYP-137",
+        "STU-TYP-019"
+      ],
+      "mt_refs": [
+        "MT-200",
+        "MT-30904",
+        "MT-30905",
+        "MT-220"
+      ],
+      "mitigation": "Report effective breaker/shaper/font bytes/axes/language/features; retain requested scope and avoid silent composer substitution. Compare glyph clusters, line breaks, frame/page boundaries and overset.",
+      "fixture": "DO-FIX-005"
+    },
+    {
+      "id": "DO-FIND-006",
+      "classification": "SPEC_MT_DRIFT_EXISTING_SCOPE",
+      "finding": "MT-200 still mandates four composer choices from superseded STU-TYP-010. Current spec explicitly supersedes it with two independent axes, all six combinations, plus registry precedence; MT-30904/30905 already cover current clauses.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+          "lines": [
+            8051,
+            8078
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-200.json",
+          "sha256": "6c370a7923b4d0fff9b6d638d32c996211885d423efc1c9136c3b6c7cf761d6d",
+          "lines": [
+            1,
+            200
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-TYP-010",
+        "STU-TYP-135",
+        "STU-TYP-136"
+      ],
+      "mt_refs": [
+        "MT-200",
+        "MT-30904",
+        "MT-30905"
+      ],
+      "mitigation": "Preserve MT-200 ID and original intent, replace stale acceptance with current two-axis scope and explicit ownership links to derived MTs; do not add duplicate feature scope.",
+      "fixture": "DO-FIX-005"
+    },
+    {
+      "id": "DO-FIND-007",
+      "classification": "TRUE_SPEC_PARITY_RESTRICTION_REQUIRES_RECONCILIATION",
+      "finding": "STU-DS-144 and MT-33100 restrict wrapping to HORIZONTAL. Current official Figma node API says counter-axis spacing applies to HORIZONTAL or VERTICAL wrapping frames. This is a documented source-semantic mismatch, not an observed Figma GUI result.",
+      "evidence": [
+        {
+          "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+          "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+          "lines": [
+            19831,
+            19853
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "external_refs": [
+        "DO-SRC-FIG-NODES"
+      ],
+      "spec_refs": [
+        "STU-DS-144"
+      ],
+      "mt_refs": [
+        "MT-33100",
+        "MT-359"
+      ],
+      "mitigation": "Root should reconcile vertical-wrap legality and track original capture/version provenance before changing closed enum behavior; retain original IDs. Distinguish Studio-native negative spacing extension from Figma counterAxisSpacing positivity.",
+      "fixture": "DO-FIX-006"
+    },
+    {
+      "id": "DO-FIND-008",
+      "classification": "SOURCE_DOCUMENTATION_CONTRADICTION",
+      "finding": "DesignCraft PDF lib header claims tagged PDF/bookmarks/hyperlinks and OutputIntent absent, but current export body sets tag tree, emits annotations and invokes make_pdfx4. Header TODO is stale and cannot establish absence. Earlier early-message absence claim retracted.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/lib.rs",
+          "sha256": "10656b7841f20eea20f1741b23873013ba75631508846bff7a35aacde8d61470",
+          "lines": [
+            21,
+            25
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/export.rs",
+          "sha256": "73e011be76c54fe4f22d4c0280e4588b76cf785a6bbaf4d89f18ea9b6b365338",
+          "lines": [
+            197,
+            234
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/pdf/src/pdfx.rs",
+          "sha256": "a972d1c86f0cb9563878a0e8fcf819b4a8e55d6e13faae3f24045023b5299e3f",
+          "lines": [
+            53,
+            84
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "mitigation": "Base adoption inventory on reachable function bodies and output fixtures, not headers, roadmap counts or test names."
+    },
+    {
+      "id": "DO-FIND-009",
+      "classification": "NON_EQUIVALENT_SEMANTIC_OWNERS",
+      "finding": "Inspected VectorCraft fx path separates object effects from per-fill/per-stroke effects and has container appearance. Publication stories/frames and Figma properties/variants/prototypes cannot be replaced by these vector appearance primitives. No absence claim is made about all uninspected VectorCraft code.",
+      "evidence": [
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/vectorcraft-825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/render/src/fx.rs",
+          "sha256": "b075d9c90d0dbb61b07322c14df9c4489d25584def2d74bd25591b1f106ffb2f",
+          "lines": [
+            44,
+            64
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        },
+        {
+          "path": "../gov_runtime/tools/studio-craft-source-cache/vectorcraft-825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/render/src/fx.rs",
+          "sha256": "b075d9c90d0dbb61b07322c14df9c4489d25584def2d74bd25591b1f106ffb2f",
+          "lines": [
+            114,
+            144
+          ],
+          "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+        }
+      ],
+      "spec_refs": [
+        "STU-DS-119",
+        "STU-PRO-027"
+      ],
+      "mt_refs": [
+        "MT-33075",
+        "MT-33325",
+        "MT-329"
+      ],
+      "mitigation": "Reuse shared geometry/color/fonts and UI controls while retaining appearance, publication flow and component/prototype semantic owners.",
+      "fixture": "DO-FIX-007"
+    }
+  ],
+  "spec_mt_deltas": [
+    {
+      "id": "DO-DELTA-001",
+      "kind": "PROOF_STRENGTHENING_EXISTING_SCOPE",
+      "mt_refs": [
+        "MT-30844",
+        "MT-30845",
+        "MT-464"
+      ],
+      "fixtures": [
+        "DO-FIX-001",
+        "DO-FIX-002"
+      ],
+      "change": "Add independent ink/output-intent/standard proof and explicit unsupported-result semantics; do not add duplicate prepress features."
+    },
+    {
+      "id": "DO-DELTA-002",
+      "kind": "PROOF_STRENGTHENING_EXISTING_SCOPE",
+      "mt_refs": [
+        "MT-33363",
+        "MT-34585",
+        "MT-462"
+      ],
+      "fixtures": [
+        "DO-FIX-003",
+        "DO-FIX-004"
+      ],
+      "change": "Use article/structure/package source reconciliation rather than screenshot/export-success proxies."
+    },
+    {
+      "id": "DO-DELTA-003",
+      "kind": "RECONCILE_SUPERSEDED_CONTRACT_PRESERVE_ID",
+      "mt_refs": [
+        "MT-200",
+        "MT-30904",
+        "MT-30905",
+        "MT-220"
+      ],
+      "fixtures": [
+        "DO-FIX-005"
+      ],
+      "change": "Preserve original composer intent and ID, reconcile to current two-axis contract and existing derived owners."
+    },
+    {
+      "id": "DO-DELTA-004",
+      "kind": "PROPOSED_SPEC_CORRECTION_ROOT_REVIEW_REQUIRED",
+      "spec_refs": [
+        "STU-DS-144"
+      ],
+      "mt_refs": [
+        "MT-33100",
+        "MT-359"
+      ],
+      "fixtures": [
+        "DO-FIX-006"
+      ],
+      "change": "Reconcile horizontal-only wrap restriction with current official vertical-wrap API semantics and retain version provenance."
+    },
+    {
+      "id": "DO-DELTA-005",
+      "kind": "PROOF_STRENGTHENING_EXISTING_SCOPE",
+      "mt_refs": [
+        "MT-329",
+        "MT-33075",
+        "MT-33325",
+        "MT-33195"
+      ],
+      "fixtures": [
+        "DO-FIX-006",
+        "DO-FIX-007"
+      ],
+      "change": "Preserve full foreign component-property identity on import, override receipt and action order; test distinct semantic owners."
+    }
+  ],
+  "fixture_gaps": [
+    {
+      "id": "DO-FIX-001",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "CMYK packaging art with two named spots, 100% K small type overprinting cyan, white knock-out, translucent group over two spots, and registration marks. Toggle preview plate eye without changing exported plate set.",
+      "oracle": "Independent PDF object inspection for Separation/DeviceN, overprint fill/stroke flags and output-intent bytes; ink-aware per-plate render comparison against approved original exports. Composite screenshot is insufficient."
+    },
+    {
+      "id": "DO-FIX-002",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Export same document to two distinct pinned CMYK ICC profiles and an incompatible target; include placed PDF with object-stream/xref-stream/transparency groups.",
+      "oracle": "Extract and hash embedded profile, inspect OutputCondition identifiers/effective receipt, independent PDF/X conformance and per-plate render. Failed conformance must not be labelled conformant."
+    },
+    {
+      "id": "DO-FIX-003",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Three-column article with sidebar visually above main text but ordered after it; threaded story spans pages, table with headers, figure alt text, decorative parent item, language changes and links/forms.",
+      "oracle": "Independent structure-tree traversal and text extraction order plus reader/focus path; compare PDF/EPUB/HTML logical order. Pixel match can coexist with wrong accessibility."
+    },
+    {
+      "id": "DO-FIX-004",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "IDML containing anchored TextFrame within Group, missing referenced Story part, duplicate designmap.xml, unknown namespace extension, large inflated part and external link outside resolver capability.",
+      "oracle": "Independent XML/package/source reconciliation; preserve source bytes and identify unmaterialized content in receipt; bounded memory/cancellation and fail-closed required-part behavior."
+    },
+    {
+      "id": "DO-FIX-005",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Arabic/Hebrew mixed RTL/LTR digits, Indic conjuncts, Japanese vertical ruby/kinsoku/warichu, variable axes including custom axis, missing fallback glyph, tabular paragraph and 3999/4001-glyph every-line paragraphs.",
+      "oracle": "Pinned font bytes and original-engine/version export; compare Unicode clusters, glyph IDs/advances, line-break/frame/page/overset metrics. All six composer combinations and named-registry precedence. Sharing Harfbuzz family is not parity proof."
+    },
+    {
+      "id": "DO-FIX-006",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Nested vertical and horizontal wrap frames; text HUG versus child FILL, min/max clamps, absolute badge, negative Studio gap, positive Figma cross gap, strokes-in-layout and baseline alignment.",
+      "oracle": "Official node-schema roundtrip plus pinned original export of sizes/transforms, typed legality errors and screenshot comparison; no silent coercion of illegal FILL/HUG."
+    },
+    {
+      "id": "DO-FIX-007",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Two TEXT properties with same display title and different # IDs; nested instance swaps and preserved/drop-reported overrides; variable mode inherited then overridden; hover/press variant with ordered set-variable, conditional and navigate actions.",
+      "oracle": "Independent semantic node/action diff and deterministic interaction trace; ensure instance state isolation, undo group, revision checks and no duplicate mutation after lost reply. Static symbol render is insufficient."
+    },
+    {
+      "id": "DO-FIX-008",
+      "status": "REQUIRED_NOT_ACQUIRED",
+      "case": "Logo with multiple fills/strokes, per-item offset, group opacity, live brush/width profile; Pen Spacebar anchor move mid-drag, Alt handle conversion, Escape cancellation and keyboard-only appearance reordering.",
+      "oracle": "Original command/action trace and live-vs-expanded geometry/appearance/render comparison; pen input replay and accessibility focus/labels. Requires native original controls unavailable in this session."
+    }
+  ],
+  "installed_readable_resources": [
+    {
+      "id": "DO-INSTALLED-SPLITSTORY",
+      "evidence": {
+        "path": "C:/Program Files/Adobe/Adobe InDesign 2026/Scripts/Scripts Panel/Samples/JavaScript/SplitStory.jsx",
+        "sha256": "c8a43bea85f5fb08668fe2fee492401c164cd920507148ea1d3b5a4e069d3b50",
+        "lines": [
+          1,
+          72
+        ],
+        "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+      },
+      "kind": "READABLE_VENDOR_SAMPLE_SCRIPT_NOT_ENGINE_OR_GUI_PROOF",
+      "finding": "SplitStory documents deleting overset text and losing inter-frame hyphenation, then duplicates frames and removes originals backwards.",
+      "derived_control": "Do not adopt destructive sample behavior implicitly; require exact loss receipt and reversible command."
+    },
+    {
+      "id": "DO-INSTALLED-TABUTILITIES",
+      "evidence": {
+        "path": "C:/Program Files/Adobe/Adobe InDesign 2026/Scripts/Scripts Panel/Samples/JavaScript/TabUtilities.jsx",
+        "sha256": "aaf8027b3969e770d61cf6aaece08dc3320dc1810a4bf84ffa31b69efba5a9e8",
+        "lines": [
+          1,
+          90
+        ],
+        "inspection": "DIRECT_BYTES_AND_LINE_RANGE"
+      },
+      "kind": "READABLE_VENDOR_SAMPLE_SCRIPT_NOT_ENGINE_OR_GUI_PROOF",
+      "finding": "TabUtilities uses insertion-point/frame-column geometry and explicit alignment/leader; displays dialogs and forces interaction. It was read only, never run.",
+      "derived_control": "Cursor-coordinate tabs and column-edge tabs are different commands; model APIs use explicit structured geometry, not foreground scripts."
+    }
+  ],
+  "production_controls": "Each future semantic owner and reusable bound control requires Argus structured state/operator screenshots, model commands, UserManual/FR/internal_diagnostics/Palmistry obligations per active HBR; bounded jobs/bytes/cancellation before feature adoption; shared SurrealDB/EventLedger authority. This report does not invent executable proof commands.",
+  "restart": "Review each finding against its exact hash/range; root decides edits. Acquire missing original fixtures before any runtime-parity conclusion.",
+  "read_probe_failure": {
+    "cause": "Python cp1252 stdout could not encode U+2192 in IDML source",
+    "recovery": "Subsequent bounded reads set sys.stdout.reconfigure(encoding=utf-8); root informed; shared gameplan unchanged"
+  }
+}

@@ -760,3 +760,23 @@ known_gaps:
 review:
   verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec. 2026-07-20 adversarial audit added: the corpus is NOT yet exhaustive enough to claim full non-AI parity for any of the 5 apps (58 verified feature gaps + 41/113 workflow needs partial-or-uncovered); see 58/59/60/61 and 08 SFR-GAP-021 / SFR-REMAINING-GAP-011..015."
   updated_at: "2026-10-09"
+
+repass_2026_10_09_selected_architecture:
+  authority: .GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json
+  spec_candidate: .GOV/spec/master-spec-v02.207/indexed-spec-manifest.json
+  approval_signature: ilja091020261912
+  modules: 35
+  foundation_members: 36
+  sequence: All 36 meaningful workspace/module foundations before asset features;
+    later actual Handshake embedding retains original acceptance.
+  decisions: .GOV/docs_repo/studio-collaboration-2026-10-09/session.json
+  independent_reviews:
+  - .GOV/docs_repo/studio-collaboration-2026-10-09/root-independent-review.json
+  - .GOV/docs_repo/studio-collaboration-2026-10-09/mt-preservation-independent-review.json
+  - .GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/plugin-platform-adversarial.json
+  - .GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-decisions-independent-review.json
+  - .GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team/asset-contract-independent-review.json
+  source_only: true
+  implementation_runtime_native_GUI_parity: NOT_RUN
+  spec_current_ref: .GOV/spec/SPEC_CURRENT.md
+  source_preparation_status: RECONCILED_RUNTIME_NOT_RUN

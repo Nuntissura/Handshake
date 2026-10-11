@@ -1,0 +1,52 @@
+{
+  "crate": "hsk-studio-pigment",
+  "lane": "SMB-PIGMENT-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "render-plan IR + RenderBackend port + blend_math + clip-to-base route; R3 remediation: a pass-through base of a clipping run is refused by validate (276e2a3)",
+  "commits": [
+    {
+      "sha": "276e2a3",
+      "subject": "Pigment R3: validate refuses a pass-through base of a clipping run (PlanError::ClipBasePassThrough, plan_clip_base_pass_through), so admit refuses uniformly before any backend work; regression test with hand-derived node ids"
+    },
+    {
+      "sha": "4e533d5",
+      "subject": "Pigment: clip-to-base route in the render-plan IR (MaskFormat::BaseAlpha, MaskInput::clip_to_base, validate rules, admit refusal unless the backend opts in, Approximate)"
+    },
+    {
+      "sha": "4c3ac91",
+      "subject": "Pigment: shared render-plan IR, RenderBackend port and single-owner StudioBlendMode blend math"
+    }
+  ],
+  "capabilities_done": [
+    "render_plan IR + RenderBackend port + shared admit(); blend_math single owner (35 modes, exactness classes); clip-to-base route (MaskFormat::BaseAlpha), opt-in via supports_clip_to_base",
+    "R3 (validation/R3-review.json, SMB-PIGMENT-ENG-1 CONFIRMED): RenderPlan::validate now refuses a clipping run whose base (nearest earlier unclipped layer) has the group-only PassThrough mode with the additive PlanError::ClipBasePassThrough{node} (code plan_clip_base_pass_through), reported after ClipFields/ClipWithoutBase/ClipPassThrough on the clipped layer; admit therefore returns BackendError::InvalidPlan(ClipBasePassThrough) before any backend work, consistent with composite lowering and render-cpu/render-gpu execute-time refusals"
+  ],
+  "tests": {
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "hsk-studio-pigment",
+      "--tests"
+    ],
+    "exit": 0,
+    "sha": "276e2a3",
+    "passed": 14,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Independent validator round on 276e2a3. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE items for pigment (Solid rgb outside [0,1] accepted by validate, shared TilePlanes verification, PlanLimits through admit).",
+  "updated_at": "2026-10-11T03:18:00Z",
+  "notes": {
+    "r3_remediation": {
+      "finding": "R3 SMB-PIGMENT-ENG-1 CONFIRMED: validate() checked the clipped layer but never the BASE's mode, so [pass-through group base, clip_to_base Normal layer] validated and was admitted for an opted-in backend; render-cpu/render-gpu refused it only at execute.",
+      "fix": "crates/hsk-studio-pigment/src/render_plan.rs: base found with rposition over earlier unclipped layers (same existence rule as before); base mode facts().applicability == GroupOnly -> PlanError::ClipBasePassThrough{node}; doc on MaskFormat::BaseAlpha and DESCRIPTOR clip_to_base text updated.",
+      "test": "tests/render_plan.rs clip_base_pass_through_is_refused_by_validate_and_admit: [PassThrough base, clipped] and a longer run -> Err(ClipBasePassThrough{node:4}) (node 4 = the isolated group holding the run in the hand-built 5-node plan), code plan_clip_base_pass_through, admit with an opted-in Exact backend -> InvalidPlan(ClipBasePassThrough{node:4}); controls: a pass-through layer that is not a run base (unclipped neighbour or a Normal base after it) and a Normal base both validate.",
+      "tests_run": "pigment --tests 14/14 (render_plan 4, blend_math 6, masked_patch 4); clippy --tests clean for pigment",
+      "dependents": "cargo check --tests of render-gpu, develop, interop-psd clean (no exhaustive match on PlanError outside pigment); composite 13/13 and render-cpu 11/11 after their own R3 commits. render-cpu test clip_to_base_hidden_base_lowering_shape_and_refusals now expects InvalidPlan(ClipBasePassThrough{node:4}) instead of Unsupported{clip_base_pass_through} because validation refuses first; render-cpu/render-gpu execute-time copies remain as defense in depth (render-gpu not touched).",
+      "date": "2026-10-11T03:18:00Z"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+ "round": "STUDIO-R4",
+ "reviewed_commit": "2abb984a9a32489bc7886b793d10b06901742c5a",
+ "base_commit": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+ "reviewer": "independent adversarial reviewer (Opus), read-only, committed blobs only",
+ "status": "PARTIAL",
+ "status_note": "Handback was forced before the 10 per-crate sub-reviews returned. Only the lanes listed under lanes[] were fully reviewed. Lanes in pending_lanes have NO verdict from this review; do not read their absence as PASS.",
+ "lanes": [
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "file_line": "handshake-studio-assets/tools/run-round.sh:220-226",
+     "evidence": "The new doctest unit runs `cargo test --doc -p CRATE [--features SET]` directly. The comment at :21 notes nextest skips doctests. No per-test slow-timeout/terminate-after applies, so a hanging doctest stalls the round with no round.json and no TIMEOUT record. This breaks CX-VAL-005 ('run every test ... under a per-test timeout') and CX-EXEC-005, which also forbids wrapping the whole run in a timeout.",
+     "remediation": "Give each doctest a per-test watchdog that records TIMEOUT, or get a lead exemption for doctests",
+     "commit": "cd29932"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_integrity",
+     "file_line": "handshake-studio-assets/tools/run-round.sh:159-162,214-216; .config/round-features.toml:8-10",
+     "evidence": "A declared feature set that the crate manifest lacks is recorded feature_absent and has no exit impact. Renaming or dropping reel `av1`, motion-js `quickjs` or type `harfrust` would silently stop their feature-gated tests while the round exit stays 0. Nothing checks that a feature unit ran more tests than the default unit.",
+     "remediation": "Make feature_absent for a declared (crate, set) an infrastructure exit, or report it in the summary line",
+     "commit": "cd29932"
+    }
+   ],
+   "checked": "CR fix at 2abb984 is real: sys.stdout.reconfigure(newline='\\n') (:130) plus status=${status%$'\\r'} (:212). Feature units run -p CRATE --features SET with their own build, run and junit (:218, :193-199), and stale junit is removed before each run (:196). The junit parser maps skipped to skipped, never passed (:268), and ignored doctests count as skipped (:280). HSK_* vars are unset. C: paths and paths inside the workspace are refused. Results dir must sit inside the export owner dir. workspace-probe only adds bin/test/bench array tables and APPROVED rows (reel libc+rav1d, interop-layout, harness, web, lrcat), matching the registry metadata diff. No stdin-consumption risk in the plan loop: cargo and nextest give children null stdin.",
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "findings": [],
+   "checked": "Crate unchanged 404ff3a..2abb984 (git diff --quiet). R3 runtime gap closed by the steward: .config/round-features.toml:8 declares hsk-studio-type=[[\"harfrust\"]], Cargo.toml:10 defines harfrust=[\"dep:harfrust\"], and tests/harfrust_spike.rs is #![cfg(feature=\"harfrust\")], so it now runs in the features unit. R3 PLAUSIBLE (harfrust shape not interruptible) still stands; spike only, D7 pending.",
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "findings": [],
+   "checked": "Crate unchanged since 404ff3a. The entrypoint now has a doctest unit (run-round.sh:220-226), so the R3 inconclusive cause is gone. The R3 validator found 0 runnable doc fences, so the unit should report 0 tests and exit 0.",
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "forbidden",
+     "file_line": "handshake-studio-assets/crates/hsk-studio-prism/tests/wide_profiles.rs:154-162",
+     "evidence": "Still present at 2abb984: the test reads the machine-local absolute path 'C:/Program Files (x86)/Common Files/Adobe/Color/...' as optional evidence and skips when it is absent. This is an R3 cross-lane item, unremediated.",
+     "remediation": "Drop the machine path or gate it behind an explicit env var recorded as NOT_PROVEN",
+     "commit": "fb03223"
+    }
+   ],
+   "checked": "Already PASS_V1 at 404ff3a (ledger). Crate unchanged 404ff3a..2abb984, so no new code to review.",
+   "recommendation": "PASS"
+  }
+ ],
+ "pending_lanes": [
+  {"lane": "SMB-RENDER-GPU", "crate": "hsk-studio-render-gpu", "note": "R3 fix commit b7d90dc not verified"},
+  {"lane": "SMB-RENDER-CPU", "crate": "hsk-studio-render-cpu", "note": "R3 fix commit 9468d33 not verified (fill_opacity refusal, panic-hang)"},
+  {"lane": "SMB-COMPOSITE", "crate": "hsk-studio-composite", "note": "product code at evaluate_static.rs:302-335 and lower_render_plan.rs:241-265 now drops the clipped run under a hidden or empty base (base_dropped / base_live); regression test NOT checked"},
+  {"lane": "SMB-PIGMENT-ENG-1", "crate": "hsk-studio-pigment", "note": "render_plan.rs:389-402 adds PlanError::ClipBasePassThrough using rposition for the nearest base; test and removal of backend copies NOT checked"},
+  {"lane": "SMB-CONTROLS", "crate": "hsk-studio-controls", "note": "descriptor.rs:85-97, 682-686: precision-aware clean grid plus StepNoEffect refusal look correct for the R3 input (0.5, precision 9, Fine); test NOT checked"},
+  {"lane": "SMB-NIB-ENG-1", "crate": "hsk-studio-nib", "note": "owned_path.rs: write_number uses exponent form above 24 bytes (budget 156 of 160 recomputed); is_closed now shares check_structure with validate. Parse and canonical uniqueness and tests NOT checked"},
+  {"lane": "SMB-SCORE", "crate": "hsk-studio-score", "note": "bounce.rs: digest, sink, labels and receipt now use out.layout(); test NOT checked"},
+  {"lane": "SMB-INTEROP-PSD", "crate": "hsk-studio-interop-psd", "note": "export.rs:93-102 mark_merged_stale and :263 tile length check present; tests NOT checked"},
+  {"lane": "SMB-INTEROP-PSD-WIDE", "crate": "hsk-studio-interop-psd", "note": "not reviewed"},
+  {"lane": "SMB-REEL", "crate": "hsk-studio-reel", "note": "dcc1b37 not verified"},
+  {"lane": "SMB-REEL-ENG-3", "crate": "hsk-studio-reel", "note": "partial: lib.rs:12-13 forbid(unsafe) without av1 and deny with av1; only src/av1/ffi.rs has #![allow(unsafe_code)]; ffi copy bounds read OK. Trusted-input gating, licenses and fixture provenance NOT checked"},
+  {"lane": "SMB-INTEROP-MEDIA", "crate": "hsk-studio-interop-media", "note": "4a6bb19 not verified"},
+  {"lane": "SMB-MOTION-JS", "crate": "hsk-studio-motion-js", "note": "a53c52d R3 fixes not verified"},
+  {"lane": "SMB-MOTION-JS-WORKER", "crate": "hsk-studio-motion-js", "note": "partial: workers spawn with env_clear, null stderr and piped stdio. The pub #[doc(hidden)] WorkerConfig.test_fault (quickjs_worker.rs:86) and the worker-side HSK_MOTION_JS_WORKER_TEST_FAULT env read (quickjs.rs:240-258, quickjs_worker.rs:614) ship test fault modes (DeafInterrupt, AsyncAbort) in product code (PLAUSIBLE). Rest NOT checked"},
+  {"lane": "SMB-PRESS", "crate": "hsk-studio-press", "note": "full crate not reviewed"},
+  {"lane": "SMB-WEB", "crate": "hsk-studio-web", "note": "not reviewed"},
+  {"lane": "SMB-KERNEL-BINDINGS", "crate": "hsk-studio-kernel-bindings", "note": "not reviewed"},
+  {"lane": "SMB-HARNESS", "crate": "hsk-studio-harness", "note": "not reviewed"},
+  {"lane": "SMB-INTEROP-LRCAT", "crate": "hsk-studio-interop-lrcat", "note": "not reviewed (CX-503R)"},
+  {"lane": "SMB-INTEROP-LAYOUT", "crate": "hsk-studio-interop-layout", "note": "not reviewed"},
+  {"lane": "SMB-LAYOUT-FOLIO-MIGRATE", "crate": "hsk-studio-layout", "note": "not reviewed"},
+  {"lane": "SMB-FOLIO-ENG-4", "crate": "hsk-studio-folio", "note": "not reviewed"},
+  {"lane": "SMB-COMPONENTS", "crate": "hsk-studio-components", "note": "not reviewed"},
+  {"lane": "SMB-SESSION", "crate": "hsk-studio-session", "note": "not reviewed"},
+  {"lane": "SMB-PACKAGE-STREAM-SAVE", "crate": "hsk-studio-package", "note": "not reviewed"},
+  {"lane": "SMB-INTEROP-VECTOR", "crate": "hsk-studio-interop-vector", "note": "slice 2 f0cdb55 not reviewed (lane PASS_V1 at 404ff3a)"},
+  {"lane": "SMB-DEVELOP", "crate": "hsk-studio-develop", "note": "not reviewed"},
+  {"lane": "SMB-DEVELOP-WIDE", "crate": "hsk-studio-develop", "note": "not reviewed"}
+ ],
+ "global_scan": "Over files changed 404ff3a..2abb984: no .GOV reads, no absolute machine paths, no todo!/unimplemented! in product src. All touched crates except folio and nib carry #![forbid(unsafe_code)]; neither has unsafe. unsafe appears only in reel src/av1/ffi.rs and the test-only counting allocators (package tests/streaming_save.rs, session tests/session_contract.rs)."
+}

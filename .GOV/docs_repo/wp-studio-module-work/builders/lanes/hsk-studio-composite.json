@@ -1,0 +1,159 @@
+{
+  "crate": "hsk-studio-composite",
+  "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 3 + clip align: clipping lowered to pigment clip-to-base route; pass-through group as clip base is a typed Unavailable (5814f8d)",
+  "commits": [
+    {
+      "sha": "99a03e6",
+      "subject": "Composite R3: a hidden or empty clip base drops its clipped run in evaluation too (an Unavailable clipped layer no longer blocks the parent) and lowering stops checking that run's status for an empty base; regression test with hand-derived statuses, extents and layer counts"
+    },
+    {
+      "sha": "5814f8d",
+      "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"
+    },
+    {
+      "sha": "26f835e",
+      "subject": "slice 3 (composite): lower Folio clipped layers to the clip-to-base route"
+    },
+    {
+      "sha": "4e533d5",
+      "subject": "slice 3 (pigment, additive): clip-to-base route in the render-plan IR"
+    },
+    {
+      "sha": "118f8f8",
+      "subject": "slice 2: delete local blend copy, use pigment blend_math/render_plan, lower_to_render_plan with validate(), Folio appearance (mode, opacity, fill, mask), root wrap"
+    },
+    {
+      "sha": "a6f2c7e",
+      "subject": "slice 1: reference text"
+    },
+    {
+      "sha": "e362ba6",
+      "subject": "slice 1: prism Transfer mapping, blend-law sweep (both moved to pigment)"
+    },
+    {
+      "sha": "d5ed91a",
+      "subject": "slice 1: lower_plan, evaluate_static, observe report, consumer example, tests"
+    },
+    {
+      "sha": "4eb5cec",
+      "subject": "slice 1: local blend maths (since deleted), plan lowering, static eval"
+    }
+  ],
+  "capabilities_done": [
+    "plan: lower() -> LoweredPlan; Step carries StepAppearance (StudioBlendMode from Folio u16, opacity/fill fractions from percent, clipped, enabled mask); Kahn order, fanout once, cycle/stale/budget/cancel; layer/node projections",
+    "eval: evaluate -> EvalReport (tile-grid bounding extents, hidden excluded, clipped inputs add no extent beyond their base, vector/text/unresolved/unassigned-profile Unavailable, typed mode-applicability refusals); RenderReceipt{revision, blend_profile_bound, blend_space, ExactnessLedger incl. clip_to_base Approximate}",
+    "render plan: lower_to_render_plan(plan, report, snapshot, root, OutputTarget, &dyn TileInfoSource) -> RenderLowering{validated pigment RenderPlan, SourceKey->TileRef, mask planes, ledger}; appearance on each Layer; non-neutral root wrapped; hidden/empty dropped",
+    "clipping: Folio `clipped` lowers to MaskInput::clip_to_base() on the clipped layer; base = nearest unclipped input below in the group (consecutive clipped layers share it); hidden or empty base drops its clipped layers; Unavailable (typed, never ignored) for: no base (bottom layer or clipped root), clipped layer with its own mask (one mask slot), clipped layer that is a pass-through group",
+    "clip align (new, SMB-COMPOSITE-CLIP-ALIGN): a visible non-empty pass-through group (default group mode) serving as a clip base is Unavailable `clip_base_pass_through` at both evaluate (parent step status + ledger operator clip_base_pass_through Unsupported, receipt lowest Unsupported) and lower_to_render_plan (authoritative, exactly when a clipped layer would be emitted on that base), consistent with render-cpu's typed refusal; a hidden or empty pass-through base drops its clipped layers (no refusal); an isolated (non-pass-through) group base lowers normally",
+    "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer",
+    "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals"
+  ],
+  "tests": {
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "hsk-studio-composite",
+      "--tests",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "sha": "99a03e6",
+    "passed": 13,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Independent validator round on 99a03e6. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE items for composite (pigment Operator keys derived from literals, non-neutral pass-through root). Open from before: Photoshop semantics for a pass-through group as clip base and for the clipping-group rule are UNVERIFIED (oracle pending).",
+  "updated_at": "2026-10-11T03:18:00Z",
+  "notes": {
+    "clip_align_lane": {
+      "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+      "files": [
+        "src/evaluate_static.rs",
+        "src/lower_render_plan.rs",
+        "src/lib.rs (DESCRIPTOR)",
+        "tests/render_plan_lowering.rs"
+      ],
+      "reason_code": "clip_base_pass_through",
+      "rationale": "render-cpu 9819e52 refuses a pass-through group as clip base (no isolated content to take the base alpha from, pigment defines G from isolated base content and blends with the base's mode); composite no longer emits a plan the backends will refuse. Photoshop semantics UNVERIFIED pending the oracle.",
+      "test_added": "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger (lowering Err Unavailable, ledger Unsupported, parent step Unavailable, hidden base drops run, isolated Normal group base still lowers)",
+      "test_counts": "render_plan_lowering 7/7 (6 existing + 1), static_plan 5/5, unit 0; clippy --tests --examples clean for composite",
+      "tree": "shared edit tree; crate-scoped pathspec commit 5814f8d pushed"
+    },
+    "tests_detail": "composite: static_plan 5/5, render_plan_lowering 7/7. Earlier slice: pigment render_plan 3/3, blend_math 6/6 unchanged; cargo check --tests --examples of pigment + render-cpu + render-gpu + interop-psd + develop clean.",
+    "pigment_change_note": {
+      "commit": "4e533d5",
+      "files": [
+        "crates/hsk-studio-pigment/src/render_plan.rs",
+        "crates/hsk-studio-pigment/tests/render_plan.rs"
+      ],
+      "design": "Clip-to-base is encoded WITHOUT changing any existing public struct or exhaustive enum, so render-cpu/render-gpu/interop-psd/develop and their literals still compile: MaskFormat (already non_exhaustive) gains BaseAlpha; MaskInput::clip_to_base() is the one canonical encoding (key 0, empty placement, zero hash, density 1, not inverted); PlanError gains ClipWithoutBase/ClipFields/ClipPassThrough; Operator::Mask(BaseAlpha) key 'clip_to_base', intrinsic Approximate; RenderBackend gains default method supports_clip_to_base() = false and admit() refuses any plan using the route as Unsupported{operator:'clip_to_base'} before consulting backend.exactness(), so a backend that has not opted in can never render a clipped layer unclipped. The base is implicit (nearest earlier unclipped layer, Photoshop rule), so an explicit clip_base index would be redundant; validate enforces a base exists, canonical fields, and no pass-through reference.",
+      "semantics_recorded_in_doc": "run [base, c1..cn] = isolated unit G: G starts as base content with the base's own mask; each ci composited onto G with its own mode/opacity/fill, source alpha multiplied by base alpha, G alpha held at base alpha; G composited onto the parent backdrop with the BASE's mode/opacity/fill. Approximate: Photoshop's exact rule UNVERIFIED (oracle pending).",
+      "backend_status": "render-cpu implements the route (9819e52, supports_clip_to_base = true, pass-through base refused); render-gpu does not yet (admit refuses, typed)",
+      "follow_up": "when render-cpu/render-gpu structs are next touched, the route could be promoted to a first-class Layer field; not done now to keep dependents compiling"
+    },
+    "spec_clarifications": [
+      "Root-reachability narrowing (accepted by the coordinator): lower_to_render_plan requires availability only of steps reachable from the requested root through visible inputs, plus unresolved issues on those layers' ids and an unbound blending profile; an unrelated vector/text output does not block a group render",
+      "Folio clipped semantics assumed from Photoshop: consecutive clipped layers clip to the nearest unclipped layer below; a hidden base hides its clipped layers; a clipped layer cannot be the bottom layer of a group. UNVERIFIED against Photoshop (oracle pending)",
+      "Mask density/inverted are not stored by Folio (lowered as 1.0/false); mask `linked` is authoring-only; multi-tile mask = one caller-stitched plane (TileInfoSource::mask_sha256)",
+      "input_ordinal 0 = first composited (bottom-most): SPEC GAP, UNVERIFIED against Photoshop (matches pigment Group.layers bottom-first)"
+    ],
+    "assumptions_for_validator_and_spec_queue": [
+      "exactness 'exact' = published W3C formula, not Adobe parity (pigment facts); Photoshop group/fill/soft-light/clipping mappings UNVERIFIED",
+      "Root rendered regardless of its visibility flag; root blend mode irrelevant over a transparent backdrop (W3C ab=0) but its opacity/fill/mask apply via a synthetic wrapper",
+      "Extents are bounding upper bounds; opacity and masks do not shrink them"
+    ],
+    "dep_requests": [
+      "serde_json 1.0.151 dev-dependency (std) logged earlier"
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-COMPOSITE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_class": "clip-under-hidden-base-over-refusal",
+            "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276"
+          }
+        ],
+        "remediation": "In evaluate skip status/extent of clipped inputs whose base is hidden or empty (mirror lowering base rule); add test",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE:404ff3ae8cd7:FAIL_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE-CLIP-ALIGN:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ],
+    "r3_remediation": {
+      "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
+      "fix": "src/evaluate_static.rs: StepEval::is_ready_and_empty (Ready with no extent; an Unavailable step is not empty); evaluate() tracks base_dropped = base hidden || ready-and-empty and `continue`s a clipped input under a dropped base before the status match (pass-through check unchanged for live bases). src/lower_render_plan.rs phase 1: base_live = base visible && !ready-and-empty, so the dropped run is not made reachable and its status is not checked; module doc updated.",
+      "test": "tests/render_plan_lowering.rs hidden_or_empty_clip_base_drops_its_clipped_run_even_when_that_run_is_unavailable: hidden base + clipped layer with own mask -> clipped step Unavailable(clipped_with_mask_unsupported) but root Ready/extent None and lowering gives an empty root; same for a visible empty raster base; control: visible non-empty base still blocks (root input_unavailable naming layer 3; lowering Unavailable clipped_with_mask_unsupported); [hidden base 2, clipped 3 dropped, base 6, clipped 7]: clipped 7 with own mask blocks naming layer 7 not 3, without the mask root Ready with extent (0,0)+16x16, lowering keeps [base 6, clipped 7] and 2 sources.",
+      "red_before_fix": "verified: against the pre-fix evaluate_static.rs/lower_render_plan.rs the new test fails (root status Unavailable input_unavailable:SLYR-...0003/source/out); fix restored byte-identical afterwards.",
+      "tests_run": "composite --tests --no-fail-fast 13/13 (static_plan 5, render_plan_lowering 8); clippy --tests --examples clean; no crate depends on composite",
+      "date": "2026-10-11T03:18:00Z"
+    }
+  }
+}

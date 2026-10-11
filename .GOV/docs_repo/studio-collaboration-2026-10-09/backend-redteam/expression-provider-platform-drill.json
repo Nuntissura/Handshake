@@ -1,0 +1,348 @@
+{
+  "schema_id": "hsk.source_drill@1",
+  "file_id": "STUDIO-EXPRESSION-PROVIDER-PLATFORM-DRILL-20261009",
+  "status": "SOURCE_ONLY_NO_ADOPTION_OR_RUNTIME_VERDICT",
+  "risk_tier": "HIGH",
+  "scope": {
+    "Handshake (Product)": "Read-only expression provider/platform research",
+    "Repo Governance": "This report only",
+    "prohibited_actions": "No builds, tests, engine execution, process control, Git mutations or product/spec/MT/WP012 writes",
+    "inspection_limit": "Focused actual Cargo/build/binding/runtime and Effect semantic paths; not an exhaustive dependency or platform audit",
+    "preparation": "Shared before_dispatch check PASS25/25 observed before acquisition"
+  },
+  "inputs": {
+    "expression_report": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+    "parsed_fields": [
+      "schema_id",
+      "file_id",
+      "updated_at",
+      "status",
+      "owner",
+      "authority",
+      "current_spec",
+      "existing_owners",
+      "decisions",
+      "source_findings",
+      "meaningful_proof",
+      "sources",
+      "limits",
+      "candidate_identity"
+    ],
+    "report_read": "Parsed complete JSON and inspected decision language/profile, Date contract, provider candidate/configuration/policy/rejections, identifier selection, source findings, proof/sources/limits and baseline identity. No report edit.",
+    "effect_commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+    "wp012_commit_from_input": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "authority_owners": {
+      "language": "STU-MOT-083/142 MT-33940",
+      "identifiers": "STU-MOT-073a/144 MT-33912",
+      "signatures": "STU-MOT-075 MT-33933",
+      "determinism": "STU-MOT-076 MT-33934",
+      "dependency_cycles": "STU-MOT-077 MT-33935",
+      "fallback_receipts": "STU-MOT-078 MT-33936",
+      "sandbox": "STU-MOT-079 MT-33937"
+    }
+  },
+  "pins": [
+    {
+      "crate": "rquickjs",
+      "version": "0.14.0",
+      "checksum": "a0a22bf72f515cc4189dd7c63d016f6de92a11eee98ddf7dd64794198f6eb34e",
+      "source": "https://static.crates.io/crates/rquickjs/rquickjs-0.14.0.crate",
+      "metadata": "https://crates.io/api/v1/crates/rquickjs/0.14.0",
+      "verified": "Fetched exact registry version and matched archive SHA256"
+    },
+    {
+      "crate": "rquickjs-core",
+      "version": "0.14.0",
+      "checksum": "6657979a24d543e5fc66f32cef2f47ca82ce8eb55cec5f7d59a12b7b570bbf24",
+      "source": "https://static.crates.io/crates/rquickjs-core/rquickjs-core-0.14.0.crate",
+      "verified": "Matched registry checksum"
+    },
+    {
+      "crate": "rquickjs-sys",
+      "version": "0.14.0",
+      "checksum": "cee271d0eeba64f0915b846cb7ae02e16faf3dfdffdca91731101d9d30fe3423",
+      "source": "https://static.crates.io/crates/rquickjs-sys/rquickjs-sys-0.14.0.crate",
+      "vcs": "d7ef5eeae702fea24c03643064de454f1c1dd4b0 path_in_vcs=sys",
+      "bundled_engine": "QuickJS-NG0.16.2 per quickjs/quickjs.h:84,1450-1453; engine source bytes pinned by crate and file hashes. Wrapper VCS SHA is not independently established as upstream QuickJS-NG submodule commit.",
+      "verified": "Matched registry checksum"
+    },
+    {
+      "crate": "boa_engine",
+      "version": "0.22.0",
+      "checksum": "5d6aaf7fdc4299df68adb67e1a5440a51d34630a1f5271b9698fd74bc97b60d9",
+      "source": "https://static.crates.io/crates/boa_engine/boa_engine-0.22.0.crate",
+      "metadata": "https://crates.io/api/v1/crates/boa_engine/0.22.0",
+      "verified": "Matched registry checksum and exact EffectCraft Cargo.lock534-537"
+    }
+  ],
+  "cache": {
+    "canonical_rquickjs": "../gov_runtime/tools/studio-expression-source-cache/{rquickjs,rquickjs-core,rquickjs-sys}-0.14.0",
+    "boa": "../gov_runtime/tools/sourcecache/expression-providers/boa_engine-0.22.0",
+    "registry_metadata": "../gov_runtime/tools/sourcecache/expression-providers/*-registry.json",
+    "acquisition_note": "Concurrent acquisition crossed team notification: duplicate checksum-identical rquickjs archives also exist under expression-providers. No deletion/cleanup performed; report uses team canonical cache."
+  },
+  "platform_matrix": [
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "binding": "src/bindings/x86_64-pc-windows-msvc.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus cc-selected compatible MSVC C compiler/SDK; sys build sets CFLAGS /DWIN32_LEAN_AND_MEAN /std:c11 /experimental:c11atomics",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "aarch64-pc-windows-msvc",
+      "binding": "src/bindings/aarch64-pc-windows-msvc.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust ARM64 target plus compatible ARM64 C compiler/SDK and link environment; identical MSVC flag branch",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "binding": "src/bindings/x86_64-apple-darwin.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus cc-selected compatible macOS C compiler/SDK/link environment",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "aarch64-apple-darwin",
+      "binding": "src/bindings/aarch64-apple-darwin.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus compatible Apple ARM64 C compiler/SDK/link environment; cross-target success requires actual proof",
+      "proof": "NOT_BUILT_NOT_RUN"
+    }
+  ],
+  "build_feature_contract": {
+    "wrapper": "rquickjs Cargo.toml13-16 MSRV1.87 edition2021; default58 std; core dependency140-142 semver0.14.0, not an exact equals pin. Adopted workspace lock/registry checksums must pin the full graph.",
+    "native_build": "sys build.rs121-145 copies bundled headers and compiles libregexp.c/libunicode.c/quickjs.c/dtoa.c via cc; compile libquickjs.a at272. Shipping Rust bindings does not remove native compilation.",
+    "bindings": "sys src/lib.rs16-19 includes target-specific bundled file without bindgen. build.rs293-329 warns when absent but later include needs a file. bindgen feature uses bindgen0.72/libclang at378-405; host==target may reuse bundle351-363. update-bindings regenerates and can write source binding files408+. Not enabled/executed in this audit.",
+    "minimal_proposal": "Optional provider dependency default-features=false with std only; do not select full/full-async, loader/dyn-load, chrono or futures for this synchronous denied-ambient profile. Keep allocator/rust-alloc absent initially pending separate accounting audit; do not repeat wrapper custom-allocator no-op documentation as established C behavior.",
+    "feature_risk": "rquickjs full78-90 enables loader/dyn-load/chrono, full-async additionally futures. Cargo feature unification can enable these indirectly; packaging proof needs resolved feature graph, not just one Cargo line.",
+    "WASI_distinction": "build.rs228-243 can select/download WASI SDK24 via curl/tar if targeting WASI without explicit SDK/no-SDK configuration; this is not the desktop build path. No WASI download or build script ran.",
+    "language_intrinsics": "Context::base/custom/full at core context/base.rs61-95 allow restricted intrinsic selection. Feature minimization alone does not remove eval/Function/constructor paths, Date, randomness or standard language builtins from a full context; actual exposed realm must be proved."
+  },
+  "thread_lifecycle": {
+    "without_parallel": "core safe_ref.rs1-14 selects Rc/RefCell; Runtime/Context Send/Sync implementations are cfgparallel only. Construct/use/drop on the owned worker thread rather than move provider internals through host-neutral ports.",
+    "with_parallel": "safe_ref.rs5-14 selects Arc/Mutex; runtime/base.rs229-242 and context/base.rs132-140 provide unsafe Send/Sync behind runtime-global locking. Context::with121-128 holds that lock for the whole callback and refreshes stack top. This serializes runtime access; it is not parallel evaluation within one runtime or nonblocking scheduling.",
+    "reentrancy": "A host callback reentering Context::with on the same runtime encounters the already-held Mutex/RefCell path. Avoid runtime lock recursion; use same scoped Ctx or bounded staged host requests. No hang was executed.",
+    "context_drop": "context/base.rs9-36 frees with lock; parallel contended drop queues pointer in pending_free sender. raw.rs121-154 documents drain on later lock ownership or runtime drop; RawRuntime drop drains, clears opaque and frees VM. Do not claim a proven leak merely from queued frees; admission must bound contexts and reclamation backlog.",
+    "affinity": "parallel wrapper safety concerns serialized QuickJS state, not arbitrary host callbacks/foreign destructors or callback thread safety. Prefer fixed owned worker runtime and immutable request/result data; actual selected feature/callback/drop behavior needs platform proof.",
+    "cache": "Do not share raw live JS values/Script/Context across engines/realms or persist binary bytecode without engine/source/profile/ABI identity; request compilation lifecycle and cache byte quota are separate from library Send/Sync claims."
+  },
+  "boa_and_effect": {
+    "alternative": "Boa0.22.0 is a Rust ECMAScript parser/bytecompiler/VM, not a JavaScript-to-Rust source translator. Its package Cargo.toml13-14 requires edition2024 and MSRV1.91.0. Pure-Rust engine implementation does not by itself prove an FFI-free transitive product graph or sandbox/resource safety.",
+    "limits": "Boa src/vm/runtime_limits.rs1-95 provides stack, loop, recursion and backtrace limits; default loop is u64::MAX21, recursion51222 and stack10240 at24. No whole-heap quota/deadline API is evidenced in this inspected interface; do not claim universal engine absence.",
+    "clock": "context/mod.rs121 stores Rc<dyn Clock>; builder1142-1147 allows injected clock, default1211 is StdClock. This is a useful seam, but deterministic Date profile also needs parsing/prototype/method semantics and must not delegate forbidden forms to engine defaults.",
+    "actual_effect": "Effect Cargo.toml60 declares boa0.22 default-features=false; lock534-537 pins0.22.0 matching registry. expr Cargo24-25 enables js for wasm. runtime.rs29-42 uses per-thread Context, memoized compiled Script by text; native host/op, noise/wiggle/random callbacks120-205 and prelude loaded210-230. Detached Out66-84 is a useful host-neutral result shape to adapt.",
+    "effect_recovery": "Thread local runtime is ManuallyDrop29-34 to avoid thread-exit GC order; run398-426 drops/recreates mid-thread once after stack error. Do not assert it is never reclaimed in any path. Cache18,233-248 is count4096 then clear, not a byte cap. Recovery/replay must consume aggregate fuel.",
+    "semantic_seams": "Reuse concrete host request/response types, thisComp/thisLayer/property sampling and compatibility cases as references. Effect native_random200-205 uses layerIndex/propertyuid/userSeed/time/counter; runtime257-265 casts identities to f64; repeated-host misses165-179 and evaluation pending273-276 require budget/determinism adaptation. Do not copy these as stable-path exact identity semantics.",
+    "rewriter": "Effect rewrite.rs1-9,513-532 is a tokenizer/group precedence source transformation. Compound assignment explicitly evaluates target twice. Both Boa and QuickJS need semantic-preserving AST/source-map lowering for AE vector arithmetic; selecting QuickJS does not replace host compatibility work, and choosing Boa does not require a new JS-to-Rust translator."
+  },
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "EXPR-PLATFORM-F01",
+      "severity": "HIGH",
+      "finding": "QuickJS candidate must be identified as rquickjs0.14.0 + bundled QuickJS-NG0.16.2, not a moving Bellard engine manual version.",
+      "evidence": "sys quickjs.h84,1450-1453; .cargo_vcs_info.json; registry checksum",
+      "counterexample": "A limit/interrupt behavior inferred from another QuickJS release is published as this provider's guarantee despite a different bundled implementation.",
+      "remediation": "Pin crate/lock/features and bundled engine hashes; use actual C implementation audit in expression-provider-runtime-drill.json before adopting memory/interrupt claims.",
+      "proof": "Actual engine version identity in receipts and four-platform compiler/runtime boundary proof; no compatibility label from documentation alone."
+    },
+    {
+      "id": "EXPR-PLATFORM-F02",
+      "severity": "HIGH",
+      "finding": "Bundled bindings cover four desktop targets, but C toolchain and feature-unification closure remain adoption gates.",
+      "evidence": "sys build.rs153-195,258-272,293-405; target binding files; wrapper Cargo47-120",
+      "counterexample": "A nominal pure-Rust asset build pulls optional FFI default/full features or ARM64 C compilation fails despite bundled binding presence.",
+      "remediation": "Put FFI provider behind explicit optional leaf feature/package with default pure host-neutral contract closure; pin graph and avoid full/async/loader/dyn-load. No handshake_core/native imports in asset public contracts.",
+      "proof": "Independent closure/build and selected provider runtime on Windows/macOS x64/ARM64; negative missing-toolchain diagnostic; resolved features match manifest. No compile claim in this report."
+    },
+    {
+      "id": "EXPR-PLATFORM-F03",
+      "severity": "HIGH",
+      "finding": "parallel permits serialized cross-thread access; it does not provide concurrent VM work, bounded runtime lock waiting or host-callback affinity safety.",
+      "evidence": "safe_ref.rs1-48; context/base.rs121-140; runtime/base.rs229-242; raw.rs121-154",
+      "counterexample": "One long evaluation holds runtime lock; another actor waits without a bounded admission outcome, or host callback recursively locks the same runtime.",
+      "remediation": "Use shared JobRuntime admission, fixed worker ownership and bounded immutable handoff; no locks in realtime audio callback or document authority while waiting; enforce deadline/cancel at worker boundary.",
+      "proof": "Contention/reentry/cancel/shutdown/queued-drop tests, bounded reclamation counters, affinity checks and per-actor fairness. No observed deadlock claimed."
+    },
+    {
+      "id": "EXPR-PLATFORM-F04",
+      "severity": "HIGH",
+      "finding": "Effect's actual compound-assignment rewrite violates the required evaluation-order-preserving compatibility seam for side-effectful targets.",
+      "evidence": "Effect rewrite.rs525-532",
+      "counterexample": "arr[i++] += [1,0] is lowered with arr[i++] repeated, changing which element is read/written and incrementing i twice. Source analysis only; no expression executed.",
+      "remediation": "Real AST reference evaluation with temporary base/index exactly once, correct coercion/order and source mapping. Do not treat a lenient translator or changed JS engine as the remedy.",
+      "proof": "Differential fixtures for computed property/getters/postincrement/short-circuit/vector operations across approved providers; preserve333 identifiers and37 signatures."
+    },
+    {
+      "id": "EXPR-PLATFORM-F05",
+      "severity": "HIGH",
+      "finding": "Boa is a viable pure-Rust alternative candidate with explicit clock/limit seams, but copied Effect wiring does not prove clean-state, full-memory, aggregate-budget or deterministic profile conformance.",
+      "evidence": "Boa RuntimeLimits1-95/context Clock121,1142-1147,1211; Effect runtime29-42,200-248,398-426",
+      "counterexample": "Many byte-heavy cached scripts or staged nested reads remain below count/loop limits while memory or total frame work exceeds policy; a global prototype mutation survives into another evaluation.",
+      "remediation": "Keep evaluator host-neutral and provider selection explicit. Boa and optional FFI QuickJS implement the same versioned deterministic profile, budgets, source/error mapping and host ports; fail unavailable provider explicitly rather than silently translate/fallback.",
+      "proof": "Fresh realm contamination tests, reversed render order/clock/locale variation, host/retry aggregate limits, byte-cache accounting, bad result/fallback receipt and process reclamation."
+    }
+  ],
+  "proposed_adaptation": {
+    "status": "PROPOSAL_NOT_IMPLEMENTED",
+    "boundary": "Host-neutral expression profile/parser-compatibility/host snapshot/result/loss/error/budget ports in owning Studio modules. Optional QuickJS FFI implementation is a selectable leaf provider, not default authority over document state or new platform owner. Boa can implement the same port after independent resource/profile proof; it is not automatically selected as fallback.",
+    "why_optional": "Preserves cheap pure Rust contract/semantic build closure while allowing concrete stronger VM memory/interrupt primitives where proven. Optional provider does not waive required expression capability or embedding acceptance; actual execution remains explicitly unavailable until chosen provider is materialized and proved.",
+    "existing_reuse": "Accord identities/revisions, Motion semantic evaluator ownership, shared kernel sandbox/JobRuntime/ResourceBroker/PromotionGate, Observe diagnostics and existing expression MTs; no private scheduler/store/catalog.",
+    "spec_MT_deltas": "Refine existing MOT083/142 and MT33940 provider/feature/pin/closure contract, MOT079/MT33937 platform/worker enforcement, MOT075/076 and MT33933/33934 AST-order/profile/deterministic clock, MOT077/078 existing dependency/error acceptance. Preserve333 target/37 signatures and exact existing IDs; source-only research is not an authority edit."
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Current expression research versus immutable provider source, not product diff",
+    "Cargo features -> native build/binding selection",
+    "Send/Sync -> lock/reentry/drop lifetime",
+    "Effect rewrite -> JS reference semantics",
+    "VM limits -> host/shared worker resource enforcement"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    "Exact crates.io version metadata/archive checksums",
+    "Effect lock pin compared against fetched Boa archive",
+    "Opened actual sys build and four bundled bindings",
+    "Opened core locks/context ownership/drop paths",
+    "Opened Effect compound-assignment transform and runtime/recovery versus provider profile"
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    "If context/base.rs125 runtime lock were removed, wrapper Send/Sync safety rationale no longer holds.",
+    "If rewrite.rs532 repeats a computed target with postincrement, source reference evaluation order is changed.",
+    "If sys target bundled binding is missing without bindgen, src/lib.rs19 cannot include it despite build warning."
+  ],
+  "BOUNDARY_PROBES": [
+    "Package feature graph to native build/target binding",
+    "Context::with producer scope to host callback reentry",
+    "Effect source compound assignment to generated target reference",
+    "Cached thread runtime to clean profile and shared budget contract"
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Source missing-binding warn/include failure path",
+    "Source contended Context drop deferred queue/drain",
+    "Source repeated computed target in compound assignment",
+    "Source unsupported/denied profile features versus full context intrinsics"
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No compiler, VM, platform, timing, memory or numerical behavior executed",
+    "Native toolchains are source requirements, not live installed toolchain findings",
+    "C allocator/interrupt internals are pressure-owned companion audit; wrapper documentation conflict requires that evidence",
+    "Boa transitive graph, callback affinity, engine semantic parity and process isolation remain runtime/build proofs",
+    "No full platform PASS or selected implementation claim"
+  ],
+  "verdicts": {
+    "tests": "NOT_RUN",
+    "platform": "SOURCE_BINDINGS_PRESENT_RUNTIME_UNPROVEN",
+    "semantic": "ADAPTATION_REQUIRED",
+    "final": "NO_PASS"
+  },
+  "source_hashes": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+      "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-0.14.0/Cargo.toml",
+      "sha256": "de848a9b8eb9204e12e150c60872c8ade11c445887e364531e224ab4948c49ae"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/Cargo.toml",
+      "sha256": "e127f802730c72074e34db76bd24ebbec3d7fa15cbb6da81b034d02b372452e3"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/build.rs",
+      "sha256": "d392d7194ae5bcaa0e0dac28a14c55656f6cf2cce3b16a8e6968c09e2ecfff85"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/src/lib.rs",
+      "sha256": "42f61e2b92547d519616085523e6f4ecb9ea31c741c2846c481754b532c426ef"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/.cargo_vcs_info.json",
+      "sha256": "928dfaffb7b301694480badbe339e40b72bf207a6cc1bcbc988ffaab7294c098"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/quickjs/quickjs.h",
+      "sha256": "979127138da79cad5ddc7effa1afb13e8b02f744da2aa36844d4cb9d8cb92de9"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/src/bindings/x86_64-pc-windows-msvc.rs",
+      "sha256": "0c77b47f08c7ea686f5f4eba53c4d5e1f19c20c53f2d085ee2453969f5da801f"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/src/bindings/aarch64-pc-windows-msvc.rs",
+      "sha256": "0c77b47f08c7ea686f5f4eba53c4d5e1f19c20c53f2d085ee2453969f5da801f"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/src/bindings/x86_64-apple-darwin.rs",
+      "sha256": "d117928c085b9f341176d79e0b831b9fadf6a824c8d10fbbfa3155c93b6b823b"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-sys-0.14.0/src/bindings/aarch64-apple-darwin.rs",
+      "sha256": "d117928c085b9f341176d79e0b831b9fadf6a824c8d10fbbfa3155c93b6b823b"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/safe_ref.rs",
+      "sha256": "f94ca7c42f20257348d92db7900e0b42e6119064d725d47312e9d57843dbc1b3"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/runtime/base.rs",
+      "sha256": "1e5c5e85453096e647867d3978a03298614fa609c243f90270a339c000ae399c"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/runtime/raw.rs",
+      "sha256": "e7f70ab2752c2c91fcd36474d326fc24b3e4fd7c346dcc52a01673abb3eb36eb"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/context/base.rs",
+      "sha256": "c5049fd11c92e56f602c4baf4c3b7a666b0b5623c5c03c546335984bc1a94fb5"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-expression-source-cache/rquickjs-core-0.14.0/src/context/owner.rs",
+      "sha256": "2a71c53639ebdf39fc0869ff23877c541581fe632e742a57cbb683fabdf37e81"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/Cargo.toml",
+      "sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/Cargo.lock",
+      "sha256": "09da330da6d6ce74e9d5393db580de38dac0196a62b9204194bcb130f7ec0e05"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/Cargo.toml",
+      "sha256": "4ec1fb92a0388b0b666b4587f018ad619b5db6461c703aba7985aad01e115a02"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/lib.rs",
+      "sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/rewrite.rs",
+      "sha256": "b21528183623d0bafe41ee797ab135dffb87ef597a15711a908b5c312128969e"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/host.rs",
+      "sha256": "ba394151f28635aba7a77ad6c5e3c83228cdb38a492bfe2a2b4deb45e9910538"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/effectcraft-2a460986ee7a4b32656a3d434849693904b486bc/crates/expr/src/prelude.js",
+      "sha256": "3f9ac5374d88227f0ee2f22da0c0a7b95edaf47dad3c233d1a82b3a0db7ef243"
+    },
+    {
+      "path": "../gov_runtime/tools/sourcecache/expression-providers/boa_engine-0.22.0/Cargo.toml",
+      "sha256": "cdeb5b6d30a1f333ff221c5ade9869f894641c705b562dab809da7445786d8d8"
+    },
+    {
+      "path": "../gov_runtime/tools/sourcecache/expression-providers/boa_engine-0.22.0/src/vm/runtime_limits.rs",
+      "sha256": "3cd40f72da37af2cbad1821ef88331c68666970f2c932cf289092848833a91cf"
+    },
+    {
+      "path": "../gov_runtime/tools/sourcecache/expression-providers/boa_engine-0.22.0/src/context/mod.rs",
+      "sha256": "1c58395d0e9b86d314a21b68b96f0ff5076b9599f77965c7c2cf18ee3fc1d416"
+    }
+  ]
+}

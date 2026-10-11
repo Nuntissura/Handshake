@@ -1,0 +1,38 @@
+{
+ "crate": "workspace",
+ "lane": "SMB-ROUND-ENTRYPOINT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "entrypoint v2 + steward sync pushed; round candidate 2abb984 (lock synced, probe 35/35, steward canary C2 exit 0)",
+ "commits": [
+  {"sha": "cd29932", "subject": "Round entrypoint: feature matrix, doctest step, full results, owner-dir guard"},
+  {"sha": "1262c05", "subject": "Steward sync: lock, registry pins and probe approvals for 198a8e5"},
+  {"sha": "f433989", "subject": "workspace-probe: accept Cargo bin/test/bench target tables"},
+  {"sha": "2abb984", "subject": "run-round: plan rows without CR on Windows (feature/doctest units ran as not-run)"}
+ ],
+ "capabilities_done": [
+  "feature matrix .config/round-features.toml (type harfrust, motion-js quickjs, reel av1): one (crate, features) unit each with own build, run, doctests; absent feature -> feature_absent recorded, not run",
+  "doctest step: cargo test --doc per selected crate with a doctested lib, default + each declared set",
+  "full results: round.json@2 units with exits + pass/fail/skip counts + per_crate_default; tests.json with every reported test incl. passing names; junit per unit with success output stored and skipped tests listed",
+  "owner guard: export-mode results dir must be inside the export owner dir (never another owner's export); steward canaries use studio-team-dev/steward-export, validators studio-round/",
+  "step 0 fail-fast unchanged (cargo metadata --locked --offline + registry-sync check, exit 75)",
+  "steward sync 1262c05: lock derived offline from 198a8e5 manifests; 10 approvals added (harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2); license gate OK; D9 edge not added",
+  "probe accepts Cargo [[bin]]/[[test]]/[[bench]] tables (motion-js motion-js-worker bin rejected unsupported_array_table at 1262c05)"
+ ],
+ "tests": {"argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C2-2abb984 --target-dir studio-team-dev/target (export of 2abb984)", "exit": 0, "sha": "2abb984", "passed": 34, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "stay available for lead; next steward sync on request",
+ "updated_at": "2026-10-11T03:36:43Z",
+ "notes": {
+  "round_candidate": "2abb984a9a32489bc7886b793d10b06901742c5a (tree 4b8a299d... at f433989 + interop-layout 5e058ae + entrypoint fix); manifests and Cargo.lock identical to sync 1262c05",
+  "canary_C2": "results Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C2-2abb984; 2026-10-11T03:32:21Z..03:35:53Z; step0 clean; default 31 run 31 passed 225 skipped; motion-js+quickjs 1/1; reel+av1 1/1; type+harfrust 1/1 (36 skipped); 38 doctest units exit 0 (workspace has 0 doctests: all doc code blocks are text); 42 units, exit 0; round.json sha256 90ddc1ae..., tests.json 074f528b..., junit.xml 7c09f9c2...",
+  "canary_C1": "f433989: default unit 31/31 passed, then feature/doctest units recorded not-run and aggregation exit 70: Windows python text stdout put CR on plan rows (status 'run\\r'); fixed in 2abb984; no gameplan step (tool fix by commit)",
+  "probe": "2abb984: 35/35 accepted (rustc +1.97.1 of committed probe sha256 22d4fe74...; provenance steward/probe/provenance-2abb984.toml); feature selections type/harfrust, reel/av1, motion-js/quickjs accepted at 1262c05",
+  "dep_requests": "all 41 lines pinned as requested except interop-media sha2 0.10.9 (line 19): not in interop-media's manifest at the candidate, nothing to pin; none refused by license or native policy",
+  "doctest_cost": "per-crate doctest units rebuild some libs (feature sets differ from the union build): ~2.5 min of the 3.5 min canary; acceptable while rounds are serialized",
+  "canary_scope": "canary runs the first listed test per package per unit: feature units prove the feature builds (QuickJS C engine, rav1d, harfrust) but may run a non-feature test; full rounds run all tests per unit",
+  "shared_index": "per WORKSPACE_RULES the shared index keeps stale entries for root Cargo.toml, Cargo.lock, tools/** and .config/** after CAS commits; builders must keep pathspec-only commits",
+  "edit_tree_root_manifest": "shared worktree root Cargo.toml working copy predates 404ff3a (holds the reverted interop-media->pulse metadata edge, lacks newer registry sections); metadata only, cargo builds unaffected; HEAD is authoritative"
+ }
+}

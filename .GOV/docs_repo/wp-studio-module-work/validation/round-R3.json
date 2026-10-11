@@ -1,0 +1,988 @@
+{
+ "round": "STUDIO-R3",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003"
+ ],
+ "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+ "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+ "candidate_note": "coordinator re-freeze 57ce0fa -> 404ff3a (steward sync for 62ea29a) before any union build; no 57ce0fa build ran",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 574,
+  "manifest_sha256": "fee4f3e5de8a4a539fbbd399f2e4338dec4a2cd0bf20b0e7e9ea2c0de143f04a",
+  "git_blob_equal": true,
+  "refresh": "export-refresh.sh in place 2026-10-11T02:43:21Z: 0 added/changed/deleted, 574 unchanged (steward had refreshed it to 404ff3a at 02:39:16Z)"
+ },
+ "started_at": "2026-10-11T02:47:36Z",
+ "completed_at": "2026-10-11T03:11:21Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS (GP-001/004/012 checks; confirms re-bound 3x as builder pushes moved HEAD; last @4c76e379)",
+ "canary": {
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3-canary",
+  "started_at": "2026-10-11T02:46:05Z",
+  "ended_at": "2026-10-11T02:46:58Z",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean",
+  "build_exit": 0,
+  "run_exit": 0,
+  "summary": "23 tests run: 23 passed, 156 skipped"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-accord",
+   "hsk-studio-components",
+   "hsk-studio-composite",
+   "hsk-studio-controls",
+   "hsk-studio-develop",
+   "hsk-studio-folio",
+   "hsk-studio-interop-media",
+   "hsk-studio-interop-psd",
+   "hsk-studio-interop-vector",
+   "hsk-studio-layout",
+   "hsk-studio-motion",
+   "hsk-studio-motion-js",
+   "hsk-studio-nib",
+   "hsk-studio-package",
+   "hsk-studio-pigment",
+   "hsk-studio-prism",
+   "hsk-studio-pulse",
+   "hsk-studio-reel",
+   "hsk-studio-render-cpu",
+   "hsk-studio-render-gpu",
+   "hsk-studio-score",
+   "hsk-studio-session",
+   "hsk-studio-type"
+  ],
+  "started_at": "2026-10-11T02:48:27Z",
+  "ended_at": "2026-10-11T02:49:34Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "summary": "301 tests run: 301 passed, 1 skipped (develop real_dng ignored)",
+  "hashes": {
+   "junit.xml": "7c98306bc820806033ac5bfbc781704ba9149c82fca2422854ad19c2f5ed4f2c",
+   "run.stderr.txt": "13289677db102742ff77e32224dcc8c9fe6077ceb40de68d003261e6eae834e9",
+   "round.json": "45c199a1a7d19af89c2b26bf2adb9ac2f546ff2a98ceef1cceacbd22657c5b69",
+   "build.stderr.txt": "64afca0ad59658e371b8bf537e37186ca698b6d2b76f2784a56a9811ba1a0d92"
+  },
+  "per_crate": {
+   "accord": 17,
+   "components": 5,
+   "composite": 12,
+   "controls": 9,
+   "develop": 11,
+   "folio": 28,
+   "interop-media": 4,
+   "interop-psd": 12,
+   "interop-vector": 5,
+   "layout": 5,
+   "motion": 8,
+   "motion-js": 4,
+   "nib": 8,
+   "package": 14,
+   "pigment": 13,
+   "prism": 32,
+   "pulse": 13,
+   "reel": 20,
+   "render-cpu": 8,
+   "render-gpu": 6,
+   "score": 18,
+   "session": 8,
+   "type": 41
+  }
+ },
+ "probe": {
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3-probe",
+  "binary": "studio-round/probe/R3/workspace-probe.exe from tools/workspace-probe.rs sha256 13b038b9",
+  "provenance": "studio-round/probe/R3/provenance-404ff3a.toml",
+  "accepted": "23/23 in-scope crates",
+  "rejected": []
+ },
+ "adversarial_review": {
+  "ref": "validation/R3-review.json sha256 86318905 (recommendation_404ff3a used)",
+  "reviewed": "57ce0fa + diff to 404ff3a; validator used recommendation_404ff3a and re-verified every CONFIRMED item that drives a FAIL",
+  "not_covered": [
+   "SMB-PRISM-ENG-1..4",
+   "SMB-INTEROP-VECTOR",
+   "SMB-ROUND-ENTRYPOINT",
+   "SMB-TYPE (MT-35536)",
+   "SMB-MOTION (unchanged since 87c1cd9; R2-b PASS)"
+  ],
+  "validator_disagreements": [
+   "SMB-COMPOSITE-CLIP-ALIGN PASS (reviewer FAIL): over-refusal root is SMB-COMPOSITE evaluate_static.rs:334-340 (d5ed91a/26f835e)",
+   "SMB-INTEROP-MEDIA blocked not FAIL: duplicate fix depends on Operator D9 (SMB-INTEROP-MEDIA-PULSE)",
+   "SMB-TYPE-ENG-1 / SMB-TYPE-DOCTEST inconclusive (reviewer PASS): no runtime result line in the round log"
+  ]
+ },
+ "r2_findings_remediation": "verified at 404ff3a: package 4/4, interop-psd 4/4, develop 4/4, folio fps 1/1, score 2/2, reel 7/7, type provenance 2/2 (150/150 blob hashes), composite/render-cpu/pulse cap duplicates removed",
+ "mt_35536_type_foundation_contract_env_free": "PASS: foundation_contract 2/2 (font_axis_missing_cancel_stale, mixed_script_bidi_font_runs) from export with no HSK_* variables (entrypoint env_unset empty; defaults under CARGO_MANIFEST_DIR)",
+ "included": [
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel"
+  },
+  {
+   "lane": "SMB-MOTION",
+   "crate": "hsk-studio-motion"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session"
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism"
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type"
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace"
+  },
+  {
+   "lane": "SMB-TYPE-ENV",
+   "crate": "hsk-studio-type"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-1",
+   "crate": "hsk-studio-accord"
+  },
+  {
+   "lane": "SMB-TYPE-FONTS",
+   "crate": "hsk-studio-type"
+  },
+  {
+   "lane": "SMB-TYPE-FIXTURES",
+   "crate": "hsk-studio-type"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio"
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-2",
+   "crate": "hsk-studio-accord"
+  },
+  {
+   "lane": "SMB-TYPE",
+   "crate": "hsk-studio-type"
+  }
+ ],
+ "included_count": 37,
+ "excluded": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "reason": "candidate 8b24131 not an ancestor of 404ff3a (R4)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA-PULSE",
+   "crate": "hsk-studio-interop-media",
+   "reason": "status BLOCKED (Operator D9), not READY"
+  },
+  {
+   "lane": "SMB-STEWARD",
+   "crate": "workspace",
+   "reason": "status 'done', not READY_FOR_VALIDATION"
+  },
+  {
+   "lane": "lanes with status null",
+   "crate": "-",
+   "reason": "no submission (interop-fig, interop-layout, harness, kernel-bindings, web, score-device, score-plugin, reel-native, interop-lrcat, motion-js-worker, reel-eng-1..3, pulse-eng-1, prism-eng-5, reel-native-eng-1, layout-folio-migrate)"
+  }
+ ],
+ "scope_rule": "READY_FOR_VALIDATION lanes whose candidate and listed commits are ancestors of 404ff3a (ledger snapshot sha256 13b457b9 @02:42:58Z) + SMB-TYPE PASS_V4 returned by CX-VAL-009",
+ "verdict_counts": {
+  "PASS_V1": 21,
+  "FAIL_V1": 12,
+  "BLOCKED": 1,
+  "inconclusive": 2,
+  "PASS_V5": 1
+ },
+ "lanes": [
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "5/5 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: KP demerits 12100 / badness 800 rejection recomputed by hand; R3-review PASS",
+   "idempotency_key": "STUDIO-R3:SMB-LAYOUT:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "11/11 pass, real_dng ignored",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "black-delta-i64-overflow-panic",
+     "file_line": "crates/hsk-studio-develop/src/dng.rs:744 (black_at :684-696; DeltaH/V :573-587)",
+     "evidence": "DeltaH +-1e300 accepted; site black saturates to i64 MIN/MAX; site_black-channel overflows: panic dev/test (public decode_container+cfa_plane)",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-develop/src/dng.rs:744 (black_at :684-696; DeltaH/V :573-587)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "corpus-default-path-mismatch",
+     "file_line": "crates/hsk-studio-develop/tests/real_dng/fetch-corpus.sh:9 vs tests/real_dng.rs:91",
+     "evidence": "script DEST (5x ..) lands inside wt-studio-assets; test default (4x ..) is sibling Handshake_Artifacts",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-develop/tests/real_dng/fetch-corpus.sh:9 vs tests/real_dng.rs:91"
+    }
+   ],
+   "remediation": "Reject effective black outside [0,white] at decode; checked_sub at dng.rs:744; one shared corpus default path",
+   "note": "R2-review-a CONFIRMED items verified fixed (checked tile mul :434, Limits min side >=2, DeltaH/V applied, FM neutral test non-tautological); new defect introduced by 01bfeb3",
+   "idempotency_key": "STUDIO-R3:SMB-DEVELOP:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "5/5 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "override-type-unchecked-for-bound-fields",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:684-689",
+     "evidence": "override type compared only to node.fields literal; property-ref/variable-bound field accepts any value type",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-components/src/instance_resolution.rs:684-689"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "dead-action-reachability",
+     "file_line": "crates/hsk-studio-components/src/prototype.rs:141-172",
+     "evidence": "actions after index 0 warned action_after_navigation but still add reachability edges (Navigate B, Navigate C -> C reachable)",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-components/src/prototype.rs:141-172"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "duplicate-member-id-accepted",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:482-505,534",
+     "evidence": "validate_set checks duplicate variant assignments only; two members with one component_id register",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-components/src/instance_resolution.rs:482-505,534"
+    }
+   ],
+   "remediation": "Type-check overrides vs property/variable type; reach edges only for action 0; reject dup member ids",
+   "note": "R3-review also CONFIRMED switch_variant Ok on non-set instance (:635,737,901), not re-verified by validator",
+   "idempotency_key": "STUDIO-R3:SMB-COMPONENTS:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R2 checked_sub/fps duplicates removed (delegates accord FrameRate::fps_fraction); R3-review PASS",
+   "idempotency_key": "STUDIO-R3:SMB-PULSE:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "18/18 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "bounce-uses-input-layout-for-output",
+     "file_line": "crates/hsk-studio-score/src/bounce.rs:114,208,264 (accepts in!=out :135; Pan dsp.rs:173)",
+     "evidence": "bounce sizes kept/sink/digest/labels from request.layout (input); Pan mono->stereo admitted, R channel dropped silently",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-score/src/bounce.rs:114,208,264 (accepts in!=out :135; Pan dsp.rs:173)"
+    }
+   ],
+   "remediation": "Use output layout for kept/sink/digest/receipt labels in bounce, or refuse in!=out layout before the first block",
+   "note": "R2-review-b CONFIRMED ramp cancel + exact resample count verified fixed (ramp.rs:80-113, resample.rs u128 div_ceil)",
+   "idempotency_key": "STUDIO-R3:SMB-SCORE:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "20/20 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "ebml-lace-size-sum-overflow",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:886",
+     "evidence": "sizes.iter().sum() unchecked; each lace size only bounded by i64 checked_add; >=3 large sizes overflow u64: panic dev/test",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-reel/src/matroska.rs:886"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "matroska-pts-delta-overflow",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:1045,1049",
+     "evidence": "samples[j].pts - pts and e - pts unchecked i64 subtraction on file-derived timecodes",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-reel/src/matroska.rs:1045,1049"
+    }
+   ],
+   "remediation": "try_fold+checked_add for lace sizes -> Corrupt; checked_sub for pts deltas; add hostile matroska tests",
+   "note": "R2-review-b 7 CONFIRMED verified fixed (wav saturating_sub :316, y4m ascii tag :116, moov checked_add :1287, edit-inside-sample :1186-1200, compact PCM, accord timescale, sound v2 parsed); defects are in fa365cd slice 3",
+   "idempotency_key": "STUDIO-R3:SMB-REEL:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-MOTION",
+   "crate": "hsk-studio-motion",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "8/8 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "unchanged since 87c1cd9; R2-review-b PASS; tests pass in export",
+   "idempotency_key": "STUDIO-R3:SMB-MOTION:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "12/12 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "clip-under-hidden-base-over-refusal",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276",
+     "evidence": "visible Unavailable clipped child under hidden/empty base blocks parent in evaluate; lowering drops it then refuses on parent status",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276"
+    }
+   ],
+   "remediation": "In evaluate skip status/extent of clipped inputs whose base is hidden or empty (mirror lowering base rule); add test",
+   "note": "typed over-refusal, no wrong pixels; root lines d5ed91a/26f835e",
+   "idempotency_key": "STUDIO-R3:SMB-COMPOSITE:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger pass",
+   "failures": [],
+   "remediation": null,
+   "note": "own change (5814f8d rendered pass-through base check) correct and tested; disagrees with R3-review FAIL: over-refusal root is SMB-COMPOSITE evaluate :334-340; comment :315 overstates until that fix",
+   "idempotency_key": "STUDIO-R3:SMB-COMPOSITE-CLIP-ALIGN:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "8/8 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "pass-through-fill-opacity-ignored",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:432 (fold :517 unused on non-isolated path :771-773)",
+     "evidence": "pass-through refused only for opacity<1; fill_opacity<1 admitted (FillOpacity Approximate) and rendered at full strength",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-render-cpu/src/plan_sink.rs:432 (fold :517 unused on non-isolated path :771-773)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "parallel-delivery-hang-on-panic",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1159-1214",
+     "evidence": "abort set only after delivery loop; sink/worker panic leaves workers in window wait, thread::scope never returns",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-render-cpu/src/plan_sink.rs:1159-1214"
+    }
+   ],
+   "remediation": "Refuse pass-through when opacity*fill_opacity<1; set abort+notify via unwind guard; catch_unwind workers -> Failed",
+   "note": "lines from 1e3cfaf/2d06a3a (this lane); R2 cap duplicates removed (no local BlendMode/blend math)",
+   "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "clip_to_base 3 tests pass",
+   "failures": [],
+   "remediation": null,
+   "note": "clip-to-base runs + pass-through base refusal before sink (d470e2f :424-425); R3-review PASS",
+   "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU-CLIP:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "6/6 pass (GPU branch not observable in log)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "fake-test-shader-failure-reads-as-no-device",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:441; src/kernel.rs:213-216; tests/gpu_plan.rs:900-918,1325-1355",
+     "evidence": "Kernel::new Gpu(shader_validation) mapped to Unavailable(NoDevice); parity tests accept NoDevice and return green",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-render-gpu/src/plan_sink.rs:441; src/kernel.rs:213-216; tests/gpu_plan.rs:900-918,1325-1355"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "fake-test-device-loss-manual-latch",
+     "file_line": "crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:735",
+     "evidence": "simulate_device_loss sets signals.lost itself; test green without the device-lost callback wiring (:207-210)",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:735"
+    }
+   ],
+   "remediation": "Typed shader/pipeline error that fails tests (no NoDevice mapping); drop manual loss latch, wait for real callback",
+   "note": "host has RTX 3090 (adapter likely used; success output not stored); R3-review residency.rs:127,150 unchecked add (low)",
+   "idempotency_key": "STUDIO-R3:SMB-RENDER-GPU:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "14/14 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R2-review-a 4 CONFIRMED verified fixed: decoded_total manifest.rs:208-212, ZIP64 sentinel zip.rs:600-604, non-0x0001 extras refused :528-531, DESCRIPTOR refreshed; r2_* tests pass",
+   "idempotency_key": "STUDIO-R3:SMB-PACKAGE:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "12/12 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "export-tile-length-unchecked-panic",
+     "file_line": "crates/hsk-studio-interop-psd/src/export.rs:244-248 (TileBlob pub fields proposal.rs:91-99)",
+     "evidence": "encode_layer_pixels indexes tile.colour/alpha by cell offset without length check: truncated caller tile panics export",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-interop-psd/src/export.rs:244-248 (TileBlob pub fields proposal.rs:91-99)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "stale-merged-oracle-after-edit",
+     "file_line": "crates/hsk-studio-interop-psd/src/export.rs:84-214",
+     "evidence": "apply_edits never touches image_data or resource 1057: edited PSD keeps pre-edit composite flagged hasRealMergedData",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-interop-psd/src/export.rs:84-214"
+    }
+   ],
+   "remediation": "Check tile byte lengths before encode; on any applied edit clear 1057 hasRealMergedData or recomposite + loss",
+   "note": "R2-review-a 4 CONFIRMED verified fixed (pigment StudioBlendMode table, trailing byte, mask real fields, DESCRIPTOR)",
+   "idempotency_key": "STUDIO-R3:SMB-INTEROP-PSD:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "5/5 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: XXE refused, external links denied as typed loss, AI/PDF explicit blockers; no adversarial review coverage (not in 57ce0fa scope)",
+   "idempotency_key": "STUDIO-R3:SMB-INTEROP-VECTOR:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "decision": "blocked",
+   "verdict": "BLOCKED",
+   "status_change": "BLOCKED (blocked_on SMB-INTEROP-MEDIA-PULSE / Operator D9)",
+   "tests": "4/4 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "cap-duplicate-timecode-pending-d9",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:7-10,132-146,174-262",
+     "evidence": "timecode/DF arithmetic + ticks_to_frames_exact duplicate pulse (CX-CAP-001); delegation needs D9 edge (denied, Operator)",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-interop-media/src/time.rs:7-10,132-146,174-262"
+    }
+   ],
+   "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate time.rs to pulse",
+   "note": "verdict blocked (CX-STATUS-002 dependency): duplicate disclosed, fix needs the Operator-pending edge",
+   "idempotency_key": "STUDIO-R3:SMB-INTEROP-MEDIA:404ff3ae8cd7:BLOCKED",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "9/9 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "fine-step-silent-noop-precision-9",
+     "file_line": "crates/hsk-studio-controls/src/descriptor.rs:86-88 (MAX_PRECISION=9 :14; step_value :657-667)",
+     "evidence": "clean() rounds to 1e-9; precision 9 fine_step 1e-10 -> step returns the same value: silent no-op vs 'never silently no-ops'",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-controls/src/descriptor.rs:86-88 (MAX_PRECISION=9 :14; step_value :657-667)"
+    }
+   ],
+   "remediation": "Precision-aware clean() or cap MAX_PRECISION at 8; refuse a step with no effect; add precision-9 fine test",
+   "note": "candidate 62ea29a slice 2",
+   "idempotency_key": "STUDIO-R3:SMB-CONTROLS:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "8/8 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "successor-not-derived-from-snapshot",
+     "file_line": "crates/hsk-studio-session/src/session.rs:862-900",
+     "evidence": "propose_checked checks id/revision/slots only; untrusted provider successor may change other content unrevisioned",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-session/src/session.rs:862-900"
+    }
+   ],
+   "remediation": "Verify successor equals snapshot except at revision_updates addresses, or have the session apply the provider patch",
+   "note": "contradicts providers_are_..._not_trusted claim",
+   "idempotency_key": "STUDIO-R3:SMB-SESSION:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "4/4 default-feature pass; quickjs_contract.rs not built (cfg feature)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "quickjs-interrupt-disarmed-during-extract-classify",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:352-354,397-405 (handler :264-266)",
+     "evidence": "armed=false right after eval; extract.call and classify name [[Get]] run user getters with no deadline/fuel/cancel",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-motion-js/src/quickjs.rs:352-354,397-405 (handler :264-266)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "quickjs-forged-internalerror-poisons-provider",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:409-416; src/provider.rs:210",
+     "evidence": "user-thrown error named InternalError maps to EngineFailure::Internal -> sticky poison; forged RangeError -> Budget",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-motion-js/src/quickjs.rs:409-416; src/provider.rs:210"
+    }
+   ],
+   "remediation": "Keep interrupt armed through extract+classify; classify only engine-originated errors; run quickjs tests in entrypoint",
+   "note": "quickjs feature is off by default; its contract tests are not executed by the round entrypoint",
+   "idempotency_key": "STUDIO-R3:SMB-MOTION-JS:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "wide_bpc 3/3 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: BPC affine Y'=sY+(1-s), s=1/(1-Yb) and L*20 off-black 0.189 recomputed; no adversarial review coverage",
+   "idempotency_key": "STUDIO-R3:SMB-PRISM-ENG-1:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "wide_absolute 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: absolute colorimetric oracle = Lab->XYZ scaled by paper/dst media white -> sRGB in test helpers; no review coverage",
+   "idempotency_key": "STUDIO-R3:SMB-PRISM-ENG-2:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "wide_inputs 2/2, wide_profiles 3/3 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: gray gamma 563/256 and Lab oracles independent; residual: wide_profiles.rs:154 optional read of C: Adobe profiles (skips if absent)",
+   "idempotency_key": "STUDIO-R3:SMB-PRISM-ENG-3:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "wide_determinism 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: no SIMD/FMA build assertion + pinned sha256 constants (tests/wide_determinism.rs:102-104)",
+   "idempotency_key": "STUDIO-R3:SMB-PRISM-ENG-4:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "none (inconclusive; submission retained)",
+   "tests": "0 tests: tests/harfrust_spike.rs is cfg(feature=harfrust); entrypoint builds default features",
+   "failures": [],
+   "remediation": "Entrypoint feature matrix (steward): run harfrust_spike under --features harfrust; Operator D7 still pending",
+   "note": "inconclusive (CX-STATUS-003): status unchanged; R3-review static PASS is not runtime proof",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE-ENG-1:404ff3ae8cd7:INCONCLUSIVE",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "none (inconclusive; submission retained)",
+   "tests": "no doctest step in entrypoint (nextest runs no doctests)",
+   "failures": [],
+   "remediation": "Add a doctest step to the entrypoint, or the lead records static acceptance: 0 runnable doc fences in src",
+   "note": "inconclusive: 3 fences now ```text, 0 runnable doc blocks in src (validator grep); provenance 150/150 blob hashes match (independent rehash)",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE-DOCTEST:404ff3ae8cd7:INCONCLUSIVE",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "timeline_contract 5/5 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R2 fps_fraction duplicate removed; relative/URI handles rejected (timeline_contract.rs:218,280)",
+   "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-1:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "residual (R3-review CONFIRMED missing_capability, PASS rec): validate() does not refuse pass-through clip base; backends refuse before sink",
+   "idempotency_key": "STUDIO-R3:SMB-PIGMENT-ENG-1:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "step0 ok, canary 23/23, union 301/301 via entrypoint",
+   "failures": [],
+   "remediation": null,
+   "note": "spot: export mtime refresh rebuilt 25 workspace crates; HSK_* unset; per-test slow-timeout; gaps: no feature matrix, no doctest step, success output not stored; HBR test_entrypoint/canary_check still REPLACE_ME (governance)",
+   "idempotency_key": "STUDIO-R3:SMB-ROUND-ENTRYPOINT:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE-ENV",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "foundation_contract 2/2 pass from export, no HSK_* env",
+   "failures": [],
+   "remediation": null,
+   "note": "fixtures resolved via CARGO_MANIFEST_DIR defaults",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE-ENV:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-1",
+   "crate": "hsk-studio-accord",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "tick_subtraction_ordering_and_hash pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R2-review-a PASS",
+   "idempotency_key": "STUDIO-R3:SMB-ACCORD-ENG-1:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE-FONTS",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "provenance fixture_hashes pass; foundation_contract pass",
+   "failures": [],
+   "remediation": null,
+   "note": "vendored OFL fonts hash-pinned; no WP-KERNEL-012 path",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE-FONTS:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE-FIXTURES",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "fixture_hashes_match_committed_bytes pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R2-review-b OK",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE-FIXTURES:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "appearance_contract 4/4 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3-review PASS",
+   "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-2:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "8/8 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "canonical-json-exceeds-own-budget",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:372-382 vs :88,326",
+     "evidence": "f64 Display never uses exponent: valid 5e-324 coords serialize ~330 B/number > 160 B/element budget; own output refused",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-nib/src/owned_path.rs:372-382 vs :88,326"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "is-closed-contradicts-validate",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:174-185",
+     "evidence": "is_closed true for [MoveTo] and [M,L,Z,M], which validate(require_closed) rejects; doc says every subpath ends with Close",
+     "source": "R3-review CONFIRMED, re-verified by validator at 404ff3a",
+     "artifact_ref": "export 404ff3ae crates/hsk-studio-nib/src/owned_path.rs:174-185"
+    }
+   ],
+   "remediation": "Emit shortest round-trip exponent form (or budget >=330 B/number); is_closed treats MoveTo as opening a subpath; tests",
+   "note": "no production caller of is_closed yet",
+   "idempotency_key": "STUDIO-R3:SMB-NIB-ENG-1:404ff3ae8cd7:FAIL_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "layout_contract 4/4 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3-review rec404 PASS (layout_contract present at 404ff3a)",
+   "idempotency_key": "STUDIO-R3:SMB-FOLIO-ENG-3:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-2",
+   "crate": "hsk-studio-accord",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "timescale_contract 4/4 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3-review PASS",
+   "idempotency_key": "STUDIO-R3:SMB-ACCORD-ENG-2:404ff3ae8cd7:PASS_V1",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  },
+  {
+   "lane": "SMB-TYPE",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "MT-35536 foundation_contract 2/2 pass from export, no env vars; build exit 0",
+   "failures": [],
+   "remediation": null,
+   "note": "re-validated: PASS_V4 relevant inputs (crates/hsk-studio-type/**, Cargo.lock) changed 96ad053..404ff3a (CX-VAL-009)",
+   "idempotency_key": "STUDIO-R3:SMB-TYPE:404ff3ae8cd7:PASS_V5",
+   "recorded_at": "2026-10-11T03:11:21Z"
+  }
+ ],
+ "infrastructure": [
+  "Workflow collision: steward export-refresh rewrote the validator export studio-round/ to 404ff3a and ran its own canary there at 02:39-02:41Z while R3 was dispatched on 57ce0fa; steward should use studio-team-dev/sync-export only",
+  "Entrypoint gaps (no verdict impact beyond inconclusive lanes): no feature matrix (harfrust, quickjs tests never built), no doctest step, success output not stored (GPU NOT_PROVEN branch indistinguishable from parity PASS)",
+  "HBR test_environment_prerequisites.test_entrypoint/canary_check still REPLACE_ME (governance, lead-owned)",
+  "Gameplan confirms bind to the edit-tree HEAD; builder pushes moved it 3x during round start; GP-001 failed once on an unpushed builder commit",
+  "Validator compiled the workspace probe (single rustc file) during the union build; builders also held the shared build lock briefly ('Blocking waiting for file lock')",
+  "Could not message the R3 reviewer directly; candidate 404ff3a recorded here and in studio-round/RUNNING-R3.jsonl"
+ ],
+ "by": "wp_validator STUDIO-R3 (Opus, fresh context, not implementer)"
+}

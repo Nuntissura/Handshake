@@ -1,0 +1,411 @@
+{
+  "schema_id": "hsk.studio_open_decision_research@1",
+  "file_id": "STUDIO-EXPRESSION-DECISIONS-20261009",
+  "updated_at": "2026-10-09",
+  "status": "PROPOSED_FOR_ROOT_PUBLICATION_NOT_RUNTIME_VALIDATED",
+  "owner": "media_original",
+  "authority": "Research recommendation; root owns decision adoption/spec publication",
+  "current_spec": "v02.206; candidate v02.207 inspected without promoting SPEC_CURRENT",
+  "existing_owners": {
+    "language": "STU-MOT-083 / STU-MOT-142, MT-33940",
+    "identifiers": "STU-MOT-073a / STU-MOT-144, MT-33912",
+    "sandbox": "STU-MOT-079, MT-33937",
+    "evaluation": "STU-MOT-075/076/077/078 owned by MT-33933/33934/33935/33936 respectively; original IDs/scope preserved",
+    "kernel_reuse": "kernel/sandbox resource caps, denial/run/default-deny and PromotionGate authority; resource evaluator is not enforcement by itself"
+  },
+  "decisions": [
+    {
+      "id": "STUDIO-EXPR-DECISION-001",
+      "resolves": [
+        "STU-MOT-083",
+        "STU-MOT-142"
+      ],
+      "selection": "Versioned deterministic JavaScript expression profile with an ECMAScript-2018-shaped synchronous syntax surface; full existing 333-identifier capability target retained",
+      "rationale": "Original AE manual distinguishes modern JavaScript and legacy ExtendScript, preprocessing and host methods. This best preserves import semantics without a second native scripting language or broad app scripting privileges.",
+      "default_authoring": "Modern camelCase host API; ordinary numeric/string/boolean/null/array/object expressions, lexical declarations, conditional/loop statements, functions and synchronous closures within bounded evaluation",
+      "compatibility_profiles": [
+        "Modern expression source: explicit supported-syntax/API version and capability records",
+        "Legacy source: retain original text and engine provenance, parse to compatibility AST and diagnose unsupported legacy constructs before activation",
+        "Full existing host identifier target remains in scope; unsupported members stay unavailable with typed diagnostics until their behavior is implemented and proved"
+      ],
+      "admitted_host_families": [
+        "thisComp/thisLayer/thisProperty and stable property-path references",
+        "value/time/key sampling and interpolation",
+        "seeded random/wiggle/noise with explicit property seed identity",
+        "vector arithmetic compatibility operators",
+        "composition/layer transforms and approved text/path host methods as each receives semantic proof"
+      ],
+      "determinism_policy": [
+        "Evaluate from immutable document revision, exact evaluation tick, expression profile, resolved asset IDs and explicit seed; no machine clock/locale/process environment",
+        "Unseeded random derives its seed from the stable property path and exact current tick per STU-MOT-076; explicit seedRandom/timeless semantics preserve their declared signatures. No layer-index seed or traversal-order counter survives as a hidden input.",
+        "Math.random is unavailable by default: Studio randomness is only the declared seeded functions of STU-MOT-074. Import using Math.random remains disabled with an explicit diagnostic until an approved semantics mapping exists; do not silently replace the call.",
+        "Date uses the complete deterministic UTC profile STUDIO-EXPR-DATE-001 below; wall clock, machine timezone/locale and engine heuristic parsing are never inputs. Unsupported imported Date forms remain preserved and disabled with a precise compatibility diagnostic.",
+        "localeCompare default is explicitly pinned deterministic UTF-16 lexical comparison; locale-sensitive option requests outside the declared profile produce unsupported diagnostic instead of host-locale execution",
+        "Floating-point/nonfinite output rules are property-type-specific and versioned; invalid output enters explicit error state and underlying-value fallback with render receipt, never silent visual success"
+      ],
+      "denied_features": [
+        "filesystem/network/process/environment APIs",
+        "dynamic import/module loader",
+        "eval, Function and constructor-chain dynamic compilation",
+        "binary jsxbin and $.evalFile",
+        "async/await, Promises, timers, background jobs and shared memory",
+        "native extension/FFI and runtime plugin access"
+      ],
+      "preservation": "Denied features are compatibility gaps, not discarded source. Preserve original bytes/digest/profile in existing authority; disabled expression and import receipt identify exact feature/position and planned remedy. Do not label expression-preserved opaque data editable or executable.",
+      "non_ai_scope": "Expression evaluation and compatibility are deterministic non-AI product functions; model-authored mutations still traverse existing sandbox/validation/PromotionGate",
+      "argument_semantics": "Retain all 37 exact argument/default signatures from STU-MOT-075 / MT-33933; do not infer defaults from matching function names. Array operator compatibility is an AST lowering with preserved evaluation order, not a regular-expression/token replacement.",
+      "dependency_semantics": "Construct stable-property dependency graph, refuse cycles at expression commit with participating paths and evaluate topologically per STU-MOT-077 / MT-33935; dynamic dependencies require guarded staged resolution and validation before activation, not merely a depth-limit runtime error. All nested reads and retries still share aggregate fuel.",
+      "date_profile": {
+        "id": "STUDIO-EXPR-DATE-001",
+        "status": "Selected design contract for root publication; not implemented or runtime proved",
+        "owners": [
+          "STU-MOT-075 / MT-33933",
+          "STU-MOT-076 / MT-33934",
+          "STU-MOT-083 / MT-33940"
+        ],
+        "signature_check": "Candidate207 lines27429-27465 retains all37 signatures/defaults; none specifies Date arguments. This profile adds explicit Date semantics without modifying any recovered signature or shortening the333-identifier target.",
+        "persisted_clock": {
+          "epoch_ms": "Signed exact integer UTC milliseconds since1970-01-01T00:00:00.000Z, inclusive range[-8640000000000000,8640000000000000]; default0. Persist in existing document expression-profile authority; never derive from file creation/modification or current clock.",
+          "origin_tick": "Signed exact canonical Studio integer tick at254016000000 ticks per second; default0, persisted with epoch_ms using existing canonical field types. No new widened stored type.",
+          "timebase": "STU-CON-008 fixes canonical stored Studio ticks at254016000000 ticks per second: p=254016000000,q=1, immutable for canonical evaluation. No per-composition/display frame rate changes this rate. Foreign rational timebases are interchange inputs only, converted by a named, versioned importer adapter to canonical integer ticks before expression evaluation; importer normalization/rounding receipt follows STU-VID-011–013a, never guessed here.",
+          "evaluation_tick": "Exact effective expression sample tick after declared posterizeTime/time remapping; nested evaluation at another sample uses that sample tick. DisplayStartTime is not added: its existing time-format signatures remain unchanged.",
+          "formula": "N = epoch_ms*254016000000 + (evaluation_tick-origin_tick)*1000; utc_ms = trunc_toward_zero(N/254016000000), with mathematical checked integer intermediates. Check abs(N) <=8640000000000000*254016000000 before truncation; otherwise clock result is invalid Date/NaN. Canonical zero is+0. A proved sufficient checked intermediate width is internal arithmetic only, never a replacement/widening of stored schema fields; overflow never wraps, saturates or falls back to f64.",
+          "snapshot": "Date.now(), new Date() and Date() read this one immutable canonical sample instant. They never advance during a loop/retry, depend on traversal order or mutate persisted clock inputs. Missing legacy epoch/origin fields migrate to explicit0/0 with recorded mapping, not wall time. Any different persisted canonical tick rate is a schema-validation failure before activation; foreign adapters run before canonical evaluation."
+        },
+        "allowed_forms": [
+          "new Date() returns the immutable sample instant; Date.now() returns its utc_ms or NaN. Calling Date() without new and without arguments returns canonical ISO UTC string (or literal Invalid Date); calling Date with arguments without new is outside this profile and diagnosed rather than silently ignored.",
+          "new Date(number) treats an actual Number as epoch milliseconds: nonfinite or absolute value>8640000000000000 yields invalid Date; otherwise truncate toward zero and canonicalize zero. new Date(profileDate) clones its exact value including invalid state. No implicit object/string-to-number coercion.",
+          "new Date(string) and Date.parse(string) accept only exact ASCII YYYY-MM-DDTHH:mm:ss[.sss]Z or signed six-digit expanded-year equivalent; omitted fractional part is000, supplied fractional part is exactly3 digits. No whitespace/date-only/time-only/local/offset/timezone-name/locale/RFC heuristic forms. Negative expanded zero year is invalid. Year0000 is literal year0, never1900.",
+          "Date.UTC(year,month=0,day=1,hour=0,minute=0,second=0,millisecond=0), with1..7 actual Number arguments; new Date(year,month,day=1,hour=0,minute=0,second=0,millisecond=0), with2..7 actual Number arguments, uses the same UTC construction. This deliberate UTC mapping of the ordinarily local constructor is recorded in import diagnostics/provenance. Wrong type/arity is unsupported, not host coercion."
+        ],
+        "calendar_and_overflow": {
+          "calendar": "Proleptic Gregorian UTC,86400000 milliseconds per day, no leap-second representation. Leap years are divisible by4 except centuries not divisible by400; floor division and nonnegative modulo govern negative dates.",
+          "numeric_components": "Nonfinite component yields invalid Date/NaN. Truncate each finite component toward zero; numeric year0..99 maps to1900..1999 before month normalization. Normalize month with year'=year+floor(month/12), month'=month mod12; construct first day of that month then add(day-1)*86400000+hour*3600000+minute*60000+second*1000+millisecond. Overflow components intentionally carry in either direction. Final mathematical result outside inclusive TimeClip range yields invalid Date, never wrap or clamp. Checked arithmetic failure is an explicit evaluation diagnostic, not a heuristic result.",
+          "parsed_components": "String month01..12, valid calendar day for literal year/month, hour00..23, minute/second00..59, milliseconds000..999. No normalization of invalid string components,24:00 or leap seconds: return NaN/invalid Date. A string matching one admitted shape but invalid calendar/range returns NaN; other shapes raise EXPRESSION_UNSUPPORTED_FEATURE with exact source position. Parsing never falls through to engine Date.parse."
+        },
+        "methods": "Admit getTime/valueOf, UTC getters, toISOString and toJSON. UTC getters use this Gregorian integer model; invalid getters return NaN, invalid toISOString throws RangeError, invalid toJSON returns null. ISO serialization uses4-digit years0000..9999 and signed6-digit years otherwise, always .sssZ. Local getters/setters, getYear/setYear, locale methods, string conversions other than the explicit Date() rule and all mutation setters are unavailable in this initial version and produce exact unsupported diagnostics; their original source/target remains preserved for future explicit compatibility mapping. No engine-native Date or prototype route bypasses the profile.",
+        "import_and_scope": "Disclose deterministic clock and UTC-constructor mappings. Preserve unsupported expression original bytes/digest/profile and exact diagnostic; disable by error with underlying-value fallback and render receipt per MOT078, never silently bake, activate or drop it. Full Date/identifier import target remains unchanged; unavailable methods are recorded compatibility gaps, not reduced final scope.",
+        "negative_and_boundary_proof": [
+          "Canonical p=254016000000,q=1, epoch0/origin0: tick254016000 ->1ms, tick254015999 ->+0ms, tick-254016000 ->-1ms, tick-254015999 ->+0ms; epoch1,tick-127008000 ->+0ms proves truncation applies to total rational instant, not only delta. Foreign24000/1001 frames-per-second examples exercise an explicitly named importer adapter only: its frame1 converts to10594584000 canonical ticks and Date returns41ms, never installs24000/1001 as the canonical timebase.",
+          "Repeat canonical sample, reversed render order, changed OS clock/timezone/locale and nested/retried reads must match; changing persisted epoch is an explicit document revision input. Canonical tick-rate changes are refused; frame-rate display changes cannot alter Date at the same canonical tick.",
+          "Numeric +/-8640000000000000 admitted; each endpoint +/-1 beyond range invalid; +/-0.9 ->+0; NaN/Infinity invalid; near-endpoint rational outside range invalid before truncation.",
+          "Date.UTC(0,0)->1900-01-01; parsed0000 remainsyear0; Date.UTC(2000,1,29) valid,1900/2100 February29 numeric carry toMarch1 while corresponding invalid parsed dates returnNaN; month-1/day0/millisecond1000 normalize.",
+          "Date-only, timezone offset, locale date, RFC string, whitespace,24:00, leap second and implicit object coercion never reach an engine parser. Expanded-year endpoints serialize/parse exactly; negative zero expanded year rejected.",
+          "Unsupported local/locale/setter source and Date(args) survive import unchanged with exact diagnostic/error receipt. Identifier counts and successful source parsing do not establish semantic compatibility."
+        ]
+      }
+    },
+    {
+      "id": "STUDIO-EXPR-DECISION-002",
+      "selection": "Prefer QuickJS through rquickjs 0.14.0 as the concrete engine candidate for the versioned profile, in a bounded worker owned by the existing kernel sandbox; adoption pending compile/runtime/platform proof",
+      "reason": "Official wrapper exposes runtime-wide memory cap, maximum stack and an interrupt callback that raises an uncatchable exception. These match mandatory limits more directly than inspected EffectCraft Boa wiring.",
+      "required_engine_configuration": [
+        "Explicit nonzero memory and stack caps on every runtime before evaluating user source",
+        "Disable rquickjs allocator/rust-alloc features for this choice: documented set_memory_limit is a no-op with those allocators; custom allocator adoption requires independently proved quota enforcement",
+        "No module loader, quickjs-libc os/std modules or dynamic compilation available to user code",
+        "Interrupt handler checks cancellation/deadline and aggregate budget; every host callback also checks and charges budget, because engine callbacks do not bound host work",
+        "Each evaluation gets a clean realm/state; immutable compiled code cache can be shared only with byte and entry quotas, profile/engine/ABI hash identity, and explicit eviction",
+        "Request/result bytes and kernel-owned host snapshots are separately bounded; VM heap limit does not cap Rust allocations or whole-worker RSS",
+        "Restrict owned worker capabilities with existing sandbox default-deny and cap contracts; no assumption that observed resource-policy decisions forcibly stop execution"
+      ],
+      "proposed_initial_policy": {
+        "status": "Design defaults, not benchmark-derived performance claims; root may publish these limits then tune through versioned measured policy without reducing proof",
+        "source_bytes": 262144,
+        "runtime_js_heap_bytes": 33554432,
+        "runtime_stack_bytes": 262144,
+        "result_bytes": 1048576,
+        "dependency_depth": 64,
+        "host_reads_per_expression": 4096,
+        "instrumented_semantic_checkpoints_per_expression": 100000,
+        "interactive_safety_deadline_ms": 50,
+        "offline_safety_deadline_ms": 500,
+        "compiled_cache_total_bytes": 33554432,
+        "compiled_cache_max_entries": 1024,
+        "aggregate_contract": "All dimensions charge a shared bounded composition/frame job; scheduler admission also charges simultaneous runtime count and resident bytes under backend team's swarm contract; never create one unrestricted runtime per property"
+      },
+      "fuel_semantics": "AST/checkpoint instrumentation must debit one shared evaluation allowance across nested expressions, retries, loops, callbacks and compound render work. Interrupt/deadline is a safety backstop, not deterministic semantic fuel or a guaranteed exact timeout; long builtin calls/parser compilation still require worker-level enforcement. Overrun becomes EXPRESSION_BUDGET_EXCEEDED with dimension/limit/source trace; no partial output promotion.",
+      "risk": "QuickJS includes native C/FFI and target-toolchain dependencies. Rust-host integration is not pure-Rust engine implementation; inspect/pin transitive engine source and audit platform memory/stack/cancellation behavior before adoption.",
+      "rejected_options": [
+        {
+          "option": "Copy EffectCraft Boa runtime as production boundary",
+          "reason": "Inspected new() sets 10,000,000 loop iterations and recursion 400, but no inspected whole-heap quota or deadline; thread-local runtime is ManuallyDrop, cache caps count at 4096 not bytes, host misses replay evaluation. Useful semantics/reference, insufficient shared budget/isolation proof."
+        },
+        {
+          "option": "Boa as alternate Rust-native candidate",
+          "reason": "Not rejected permanently: official RuntimeLimits provides loop/stack/recursion control, but inspected public limit interface lacks evidenced whole-heap/deadline control. Select only if independently bounded worker/allocator/fuel contract is proved; do not casually fall back after a QuickJS failure."
+        },
+        {
+          "option": "Rhai or bespoke DSL as native default",
+          "reason": "Creates a separate JavaScript compatibility interpreter/translator and semantic mismatch for imported source; no current project implementation evidence justifies that extra language surface."
+        },
+        {
+          "option": "Full unrestricted JavaScript runtime",
+          "reason": "Ambient nondeterminism, dynamic code, async jobs and APIs conflict with current bounded frame sandbox. A language engine alone does not implement AE property/value semantics."
+        }
+      ]
+    },
+    {
+      "id": "STUDIO-EXPR-DECISION-003",
+      "resolves": [
+        "STU-MOT-073a",
+        "STU-MOT-144"
+      ],
+      "selection": "camelCase canonical host identifier spelling; accept declared snake_case aliases on import and evaluation",
+      "justification": "Modern Adobe reference uses camelCase while legacy aliases are present in Studio's normative table. Studio deliberately accepts both, even where the modern vendor engine does not.",
+      "normalization_rules": [
+        "Build one versioned alias table from each exact normative identifier pair, with canonical host member ID; no heuristic underscore deletion",
+        "Normalize only AST references proven bound to host global/member identifiers; never rename local bindings, arbitrary object keys, comments or string literals",
+        "Preserve original source alongside canonical generated source and a source map; normalized write is semantically checked before authority commit",
+        "Computed host property access resolves through the same alias table; unresolved dynamic keys fail at evaluation with stable source diagnostic",
+        "Imported layer/effect names are resolved to existing stable IDs and paths only when unambiguous; missing/duplicate name references remain explicit unresolved bindings, never bind first match silently",
+        "Canonical writes/pick-whip/snippets emit stable-ID paths and camelCase; operator-facing labels remain separately localizable"
+      ],
+      "failures": [
+        "EXPRESSION_PARSE_ERROR",
+        "EXPRESSION_UNSUPPORTED_FEATURE",
+        "EXPRESSION_ALIAS_UNRESOLVED",
+        "EXPRESSION_REFERENCE_MISSING",
+        "EXPRESSION_REFERENCE_AMBIGUOUS",
+        "EXPRESSION_DEPENDENCY_CYCLE",
+        "EXPRESSION_BUDGET_EXCEEDED",
+        "EXPRESSION_OUTPUT_TYPE_ERROR"
+      ],
+      "failure_policy": "Names above are proposed typed diagnostic tokens, not existing verified APIs. Keep expression text/error position and explicit disabled-by-error state; underlying property value remains available with error recorded in render receipts. Import cannot activate unsupported source or silently bake it; baking is an explicit operation with provenance. Never remove unsupported aliases from prior target scope."
+    }
+  ],
+  "source_findings": [
+    {
+      "id": "STUDIO-EXPR-SOURCE-001",
+      "evidence": "EffectCraft Cargo.toml uses boa_engine 0.22; runtime.rs Context::default registers __h/__wig/__noise/__rnd, loads prelude, sets loop iteration and recursion limits. script() applies lenient token/precedence rewrite and caches by source text.",
+      "consequence": "Reuse host semantic cases and deterministic helper design; replace implicit globals and count-only limits with bounded isolated production contract. Stack-limit recovery drops and recreates the runtime once mid-thread (runtime.rs:405-424); do not describe ManuallyDrop as universally unfreed or omit that recovery."
+    },
+    {
+      "id": "STUDIO-EXPR-SOURCE-002",
+      "evidence": "lib.rs evaluate_out uses dependency depth, MAX_PASSES and Run::Pending miss replay; runtime.rs converts comp/layer/uid to f64; detach caps array length by min(1<<16).",
+      "consequence": "Nested/replayed work must share fuel. IDs over 2^53 need exact string/opaque bindings. Oversize return must error, not truncate silently. Quotas must include detached Rust buffers."
+    },
+    {
+      "id": "STUDIO-EXPR-SOURCE-003",
+      "evidence": "rewrite.rs describes/implements a lenient token/group parser, copies unrecognized syntax verbatim and overloads array arithmetic; runtime native_random seeds with layer index/property uid/user seed/time/counter.",
+      "consequence": "Use a real parsed AST and binding-aware transformation/source maps; test evaluation-order/coercion and seed identity under layer reorder. This is a finding about inspected source paths, not a proved exploit."
+    },
+    {
+      "id": "STUDIO-EXPR-SOURCE-004",
+      "evidence": "WP012 resource_caps.rs SAFE_DEFAULT_RESOURCE_CAPS uses 30s wall/cpu, 4GiB memory, 256 FDs, 1GiB output; evaluator compares reported usage and returns Allow/Gate/Halt.",
+      "consequence": "Reuse types/denial/evidence seams, but generic job defaults are inappropriate as expression-frame limits. Existing policy evaluation cannot establish VM isolation or prompt cancellation."
+    }
+  ],
+  "meaningful_proof": [
+    {
+      "id": "STUDIO-EXPR-PROOF-001",
+      "test": "Independent original-app expression fixtures: literal/value/key sampling, ease, vector operator coercion, spaces/transforms, text/path methods at boundary times and mixed timebases",
+      "assert": "Property typed values and rendered outputs against independently captured reference; exact times/profile/engine/assets and numeric envelope recorded. Identifier/label count is never coverage proof."
+    },
+    {
+      "id": "STUDIO-EXPR-PROOF-002",
+      "test": "Legacy aliases, shadowed local value_at_time, strings containing to_comp, computed property keys, escaped Unicode identifiers and duplicate layer names",
+      "assert": "Same binding/behavior after canonical write; no unintended source substitution; stable source diagnostics for missing/ambiguous names."
+    },
+    {
+      "id": "STUDIO-EXPR-PROOF-003",
+      "test": "Infinite loop, recursion, many short loops, parser depth, regex adversarial input, huge arrays/strings, constructor-chain eval, promise attempts, blocking host callback and oversized result",
+      "assert": "Bounded CPU/RSS/deadline/response bytes through independent external worker observation; uncatchable interruption and no kernel authority mutation; test custom-allocator feature misconfiguration fails closed."
+    },
+    {
+      "id": "STUDIO-EXPR-PROOF-004",
+      "test": "Mutual property cycle, repeated host misses, shared dependency graph and simultaneous swarm evaluations",
+      "assert": "Aggregate quota across every dependency/retry; canonical typed cycle/budget result; starvation and isolation checks; teardown frees runtime/cache and leaves no cross-document state."
+    },
+    {
+      "id": "STUDIO-EXPR-PROOF-005",
+      "test": "Reverse/random frame traversal, repeat render, reordered layers, fresh worker/process, altered machine clock/locale and concurrent evaluation",
+      "assert": "Identical semantic values under pinned profile/seed/revision; permitted floating envelope explicit; failures are explicit error state and render receipt, never silent fallback PASS."
+    }
+  ],
+  "sources": [
+    {
+      "id": "EXPR-SOURCE-RUNTIME",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\expr\\src\\runtime.rs",
+      "sha256": "67a85dd9390bac7b11543513d143c2b6b445c8becbcb7d2ede641b6ddf657bea",
+      "line_anchors": "18-32,194-249,256-318,405-423",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-SOURCE-EVALUATOR",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\expr\\src\\lib.rs",
+      "sha256": "f7a6792d056db223946648625b13892ad60bcacbc5df57e774fe7cd97ae9275a",
+      "line_anchors": "43-46,104-155",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-SOURCE-REWRITE",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\expr\\src\\rewrite.rs",
+      "sha256": "b21528183623d0bafe41ee797ab135dffb87ef597a15711a908b5c312128969e",
+      "line_anchors": "1-115",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-SOURCE-PRELUDE",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\crates\\expr\\src\\prelude.js",
+      "sha256": "3f9ac5374d88227f0ee2f22da0c0a7b95edaf47dad3c233d1a82b3a0db7ef243",
+      "line_anchors": "975-1018",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-SOURCE-CARGO",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\gov_runtime\\tools\\studio-craft-source-cache\\effectcraft-2a460986ee7a4b32656a3d434849693904b486bc\\Cargo.toml",
+      "sha256": "c29f1bfa25df524ede6c9498f27edae75ab50e4ea7a83051f4794b2368046ff2",
+      "line_anchors": "60",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-WP012-CAPS",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-native-editors-v1\\src\\backend\\handshake_core\\src\\kernel\\sandbox\\resource_caps.rs",
+      "sha256": "a81230df68e007165f353bde1516e9220ea0ee7184730301482e02cca69c2113",
+      "line_anchors": "20-51,109-163",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "EXPR-CANDIDATE207",
+      "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\spec\\master-spec-v02.207\\spec-modules\\14-studio-creative-suite.md",
+      "sha256": "fd5bb332b1a23fb27763030f1c5e415f5c5bc314725e8a121a4aa40f677cf08c",
+      "line_anchors": "213(STU-CON-008),22548-22551,27385-27401,27429-27514,27542-27550,28801-28810",
+      "inspection": "Selected exact source bodies inspected; runtime not executed"
+    },
+    {
+      "id": "MT-33912",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33912.json",
+      "sha256": "364600ff1521287a606c53b902d5d0ace0b595088aacc3b41d3ccc5d5ff0f80f",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "Dual spelling is a real compatibility contract.** The identifier table ships both a legacy `snake_case` and a modern `camelCase` spelling for most members -- `point_of_interest` and `pointOfInterest`, `value_at_time` and `valueAtTime`, `to_comp` and `toComp`. Studio's language MUST accept both spellings and MUST normalise to one canonical spelling on write, so that imported expressions keep working and newly-authored ones are consistent. Which spelling is canonical is a named decision, recorded as [STU-MOT-144].",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33933",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33933.json",
+      "sha256": "e4b79c003e020d69297923f1247ef911ef17be1a7edc4e967348231dc2022367",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "**37 argument signatures are recovered and are normative for the functions they describe**, including their DEFAULT ARGUMENT VALUES, which are part of the contract and cannot be guessed. They are reproduced in full in the table above. Four examples of why they matter: `wiggle(freq, amp, octaves = 1, amp_mult = .5, t = time)` -- the octave count and amplitude multiplier defaults define the noise character; `temporalWiggle(width = .2, samples = 5, t = time)`; `loopOut(type = \"cycle\", numKeyframes = 0)` where 0 means the whole range; and `createPath(points = [[0,0], [100,0], [100,100], [0,100]], inTangents = [], outTangents = [], isClosed = true)` which defines the default path a procedural mask starts from. ### 4. Evaluation",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33934",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33934.json",
+      "sha256": "e765d2f6610e3a5fb1be846b560a42cd14f711b33127f5ace463349105da5773",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "Expression evaluation is deterministic and side-effect-free.** Given the same composition state and the same time, an expression MUST return the same value on every evaluation and on every backend. It may read the document; it may NOT write to it, may NOT perform I/O, may NOT observe wall-clock time, and may NOT observe evaluation order. Randomness is available only through the seeded functions of [STU-MOT-074], and an unseeded `random()` call MUST derive its seed deterministically from the property's stable path and the current time, so that a re-render matches.",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33935",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33935.json",
+      "sha256": "b1eeb8d9c4c487b045aefdedfb5fe99d56a944d7525507fe2673e27b955e4767",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "A dependency cycle is a validation error, detected and reported, never a hang.** Expressions form a dependency graph over properties. Studio computes that graph, evaluates in topological order, and refuses a cycle at the moment the expression is committed, naming the participating property paths.",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33936",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33936.json",
+      "sha256": "9f2814849509069ce87b994db0a66268205f11385c302fae9c5940fd1a6d7a87",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "**An expression error disables the expression and states why; it never renders a wrong frame silently.** On error, the property falls back to its underlying state ([STU-MOT-071]), the property is marked in an explicit error state, and the error carries the expression source position. A composition containing a disabled-by-error expression MUST report that fact in its render receipt, so a batch render cannot quietly ship broken output.",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33937",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33937.json",
+      "sha256": "762f576281488b0e18221ad61fd749960dca2c49d48db8e372c09aacffb9debd",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "Expressions are sandboxed.** Expression evaluation runs inside the kernel sandbox tier with no filesystem, network, process or environment access, a bounded evaluation budget per frame, and a determinate `EXPRESSION_BUDGET_EXCEEDED` result on overrun. A model-authored expression traverses sandbox -> validation -> `PromotionGate` like every other model-authored mutation ([STU-ARC-005]); an expression is code, and admitting model-authored code to a document without that lifecycle would be the single largest hole in Studio's safety posture. ### 5. Expression controls",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "MT-33940",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33940.json",
+      "sha256": "5ab58392fe6f04ba39aeb927d0d02c57654354c8fedbdaa2ef4f612382496e6e",
+      "json_anchors": [
+        "spec_anchor",
+        "scope.summary",
+        "acceptance_criteria"
+      ],
+      "scope": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+      "inspection": "Owning exact contract fields inspected"
+    },
+    {
+      "id": "EXPR-ADOBE",
+      "url": "https://helpx.adobe.com/after-effects/desktop/work-with-expressions/expression-basics/legacy-and-extend-script-engine.html",
+      "retrieved": "2026-10-09",
+      "finding": "Modern expression profile, legacy differences, vector operators and eval/library differences",
+      "hash": "No local byte capture; live primary documentation retrieval"
+    },
+    {
+      "id": "EXPR-BOA-LIMITS",
+      "url": "https://docs.rs/boa_engine/0.22.0/boa_engine/vm/struct.RuntimeLimits.html",
+      "retrieved": "2026-10-09",
+      "finding": "Loop, recursion and stack controls; no heap/deadline API evidenced here",
+      "hash": "No local byte capture; live primary documentation retrieval"
+    },
+    {
+      "id": "EXPR-RQUICKJS-LIMITS",
+      "url": "https://docs.rs/rquickjs/0.14.0/rquickjs/struct.Runtime.html",
+      "retrieved": "2026-10-09",
+      "finding": "Memory cap/custom allocator caveat, stack limit, uncatchable interrupt",
+      "hash": "No local byte capture; live primary documentation retrieval"
+    },
+    {
+      "id": "EXPR-QUICKJS",
+      "url": "https://bellard.org/quickjs/quickjs.html",
+      "retrieved": "2026-10-09",
+      "finding": "Runtime memory/stack cap and interrupt callback APIs",
+      "hash": "No local byte capture; live primary documentation retrieval"
+    },
+    {
+      "id": "EXPR-TC39-DATE",
+      "url": "https://tc39.es/ecma262/multipage/numbers-and-dates.html",
+      "retrieved": "2026-10-09",
+      "line_anchors": "3405-3413,3648-3654,21.4.2.1,21.4.3.2,21.4.3.4",
+      "finding": "Current primary specification consulted for Gregorian arithmetic, TimeClip, constructor/UTC and parsing boundaries; page identifies itself as ECMAScript2027, not the selected2018 syntax baseline. Profile-specific restrictions and clock mapping are selected design decisions.",
+      "hash": "No local byte capture; live primary documentation retrieval"
+    }
+  ],
+  "limits": [
+    "No engine instantiated or measured; resource policy values proposed, not proven",
+    "No native Adobe GUI/differential fixtures acquired or executed",
+    "No expression/security/product code or spec/MT authority edited",
+    "QuickJS/rquickjs platform/toolchain and license/dependency adoption require existing project gates; no packaging compatibility claim",
+    "Full target retained: initial unavailable features must not be represented as reduced final scope",
+    "Plugin schema and aggregate swarm implementation belong to backend team; this report defines expression-side requirements only",
+    "Historical ES2018 single-page source retrieval exceeded web content-size limit; current TC39 Date algebra inspected instead and version distinction retained. No runtime Date semantics or independent numerical fixture execution claimed.",
+    "Recovery: -Depth50 serialization typo and unguarded following write temporarily emptied only this owned report. Exact prior report was recovered from this chat tool-output bytes plus exact prior creation command; restored SHA256 matched51ff5357064d67fe231f04d630e0977f4a65aa84a841d6b9957ba3c66e2b1ab2. Following writes use terminating errors and parse/identity validation before write. No source evidence reconstructed."
+  ],
+  "candidate_identity": {
+    "wp012_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
+    "effectcraft_commit": "2a460986ee7a4b32656a3d434849693904b486bc",
+    "candidate_spec": "v02.207 copy; current remains v02.206"
+  }
+}

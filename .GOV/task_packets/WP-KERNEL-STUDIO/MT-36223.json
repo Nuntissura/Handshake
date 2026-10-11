@@ -1,0 +1,629 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "identity": {
+    "mt_id": "MT-36223",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "Adopt pinned hsk-studio-motion-js through native Handshake services",
+    "group": "HOST_ADOPTION",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 2,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [],
+    "read_context": [
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34/original_scope_refs",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34/qualified_ac_refs",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/qualified_ac_contributions",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance",
+      "src/backend/handshake_core/src/lib.rs:295",
+      "src/backend/handshake_core/src/api/mod.rs:35",
+      "src/backend/handshake_core/src/api/authority.rs:1322",
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "pillar_refs": [
+      "INT",
+      "SWARM",
+      "VIS",
+      "QUIET",
+      "MAN",
+      "STOP",
+      "PRIV",
+      "COMPART",
+      "COMPONENT"
+    ],
+    "runtime_lane_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance_contracts/runtime"
+    ],
+    "inspection_route_refs": [
+      "src/frontend/handshake_native/src/mcp/argus.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry/fr_forward.rs"
+    ],
+    "account_bound_resource_refs": [
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs"
+    ],
+    "consumed_capability_refs": [
+      "STUDIO-MODULE-MOTION_JS"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption",
+    "requirement_refs": [
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34/original_scope_refs"
+    ],
+    "acceptance_refs": [
+      "MT-36223/AC-HOST-001",
+      "MT-36223/AC-HOST-002",
+      "MT-36223/AC-HOST-003",
+      "MT-33912/AC-001",
+      "MT-35563/AC-001",
+      "MT-35563/AC-002",
+      "MT-35563/AC-003",
+      "MT-35563/AC-004",
+      "MT-35563/AC-005",
+      "MT-35564/AC-001",
+      "MT-35567/AC-001",
+      "MT-35573/AC-001",
+      "MT-35575/AC-001",
+      "MT-35594/AC-001",
+      "MT-35595/AC-001",
+      "MT-35596/AC-001",
+      "MT-35597/AC-001",
+      "MT-35598/AC-001",
+      "MT-35604/AC-001",
+      "MT-33940/ASSET-AC-001"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "MT-36223/AC-HOST-001",
+        "text": "Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption"
+      },
+      {
+        "id": "MT-36223/AC-HOST-002",
+        "text": "Every qualified source criterion and preserved scope in .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34 is independently read, executed through its mapped actual host consumer, and bound to an individual result; aggregate adapter success cannot discharge feature results."
+      },
+      {
+        "id": "MT-36223/AC-HOST-003",
+        "text": "Source remote revision and standalone proof independently observed before host writes; exact release/schema/API/ABI/toolchain/dependency locks admitted; real host negative, upgrade and rollback outcomes verified with retained authority."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34"
+    ],
+    "operator_decision_refs": [
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/scope"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Host authority and preserved cross-module feature acceptance require original-case reasoning",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "handshake_native::studio",
+    "build_unit_ref": "handshake_native",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35528",
+      "MT-35529",
+      "MT-35530",
+      "MT-35531",
+      "MT-35532",
+      "MT-35533",
+      "MT-35534",
+      "MT-35535",
+      "MT-35536",
+      "MT-35537",
+      "MT-35538",
+      "MT-35539",
+      "MT-35540",
+      "MT-35541",
+      "MT-35542",
+      "MT-35543",
+      "MT-35544",
+      "MT-35545",
+      "MT-35546",
+      "MT-35547",
+      "MT-35548",
+      "MT-35549",
+      "MT-35550",
+      "MT-35551",
+      "MT-35552",
+      "MT-35553",
+      "MT-35554",
+      "MT-35555",
+      "MT-35556",
+      "MT-35557",
+      "MT-35558",
+      "MT-35559",
+      "MT-35560",
+      "MT-35561",
+      "MT-35562",
+      "MT-35563",
+      "MT-35594",
+      "MT-35596",
+      "MT-35597",
+      "MT-35942",
+      "MT-35943",
+      "MT-35986",
+      "MT-36025",
+      "MT-36072",
+      "MT-36107",
+      "MT-36155",
+      "MT-36160",
+      "MT-36169",
+      "MT-36231",
+      "MT-36232",
+      "MT-36233",
+      "MT-36216",
+      "MT-36229"
+    ],
+    "start_precondition": "PENDING NONEXECUTION preparation. Activate assigned host worktree/branch, actual target/config/entrypoint, scope locks and immutable release pins first. Independent assets remote revision and source proof must pass before any host write.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+      "src/frontend/handshake_native/tests/test_studio_motion_js_host.rs"
+    ],
+    "forbidden_write_paths": [
+      "handshake-studio-assets/**",
+      ".GOV/**",
+      "WP-KERNEL-012/**"
+    ],
+    "shared_resource_locks": [],
+    "inputs": [
+      "Pinned JS runtime/source/toolchain/features and immutable Motion host ports",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34/qualified_ac_refs: read each original acceptance payload at source_ref and verify semantic_sha256 before constructing cases",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Read owning and consumed maintenance contracts; independently fetch selected immutable Nuntissura/assets revision under handshake-studio-assets. Reconcile every source_mt_ref passed submission and public schema/dependency/toolchain lock with remote contents; unresolved or incompatible pin stops before host edits."
+      },
+      {
+        "n": 2,
+        "step": "Resolve handshake_native::studio attachment and planned paths in activated host worktree. src/backend/handshake_core/src/lib.rs:295; src/backend/handshake_core/src/api/mod.rs:35; src/backend/handshake_core/src/api/authority.rs:1322 Shared mount/auth/MEX/FR ownership remains in dedicated host tasks; portable modules remain independent of native/Core/DB."
+      },
+      {
+        "n": 3,
+        "step": "Use Handshake-wide sandbox/extension lifecycle; enforce binding-aware AST/checkpoint limits, bounded VM heap/work/results and owner-thread retirement Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding."
+      },
+      {
+        "n": 4,
+        "step": "Construct per-criterion inputs from .GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34/qualified_ac_refs and original_scope_refs. Preserve exact IDs, source hashes, source feature outputs and loss/failure rules. Bind each output to mapped host consumer, current actor/resource/revision and source release; do not replace composite feature results with facade registration."
+      },
+      {
+        "n": 5,
+        "step": "Exercise Pinned JS runtime/source/toolchain/features and immutable Motion host ports through authenticated host; assert Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption. Revoke grant and race target revision/epoch before acceptance; denied action leaves canonical head/events unchanged, accepted action retains authoritative receipt through cancellation/retry."
+      },
+      {
+        "n": 6,
+        "step": "Add src/frontend/handshake_native/tests/test_studio_motion_js_host.rs as a planned owning test target; bind exact HBR test_entrypoint/config/filter at activation. Verify selected build closure and real host original criteria, failure/recovery, two agents plus operator, bounded stop/drain and privacy; real native visual proof where applicable, unsupported provider remains blocked."
+      },
+      {
+        "n": 7,
+        "step": "Update canonical UserManual and existing diagnostic/inspection descriptors with behavior and recovery. Rehearse incompatible upgrade denial and rollback to previous admitted pin after settling in-flight operations; preserve accepted authority and immutable provenance."
+      }
+    ],
+    "expected_outputs": [
+      "Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption",
+      "Planned adapter and owning test target: src/frontend/handshake_native/src/studio/adapters/motion_js.rs, src/frontend/handshake_native/tests/test_studio_motion_js_host.rs",
+      "Per-original-case host output/proof bound to immutable source revision and exact host candidate; no runtime result authored during preparation"
+    ],
+    "stop_conditions": [
+      "Unresolved activation/worktree/test entrypoint or immutable release/lock/schema/API/toolchain pin",
+      "Missing, unpassed or remotely unverified source prerequisite",
+      "Missing real provider/decoder/device or canonical production ingestion; retain named blocker, never no-op success",
+      "Change requires source module internals or unallocated/shared owner path; return to source owner or request narrow host assignment"
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts/handshake-test",
+      "owner_dir": "WP-KERNEL-STUDIO/MT-36223",
+      "env": {},
+      "native_test_env_additions": {},
+      "flags": null,
+      "reference_runner": null
+    },
+    "git_rules": [],
+    "module_change_stage": "host_adoption",
+    "source_adoption": {
+      "source_mt_refs": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35532",
+        "MT-35533",
+        "MT-35534",
+        "MT-35535",
+        "MT-35536",
+        "MT-35537",
+        "MT-35538",
+        "MT-35539",
+        "MT-35540",
+        "MT-35541",
+        "MT-35542",
+        "MT-35543",
+        "MT-35544",
+        "MT-35545",
+        "MT-35546",
+        "MT-35547",
+        "MT-35548",
+        "MT-35549",
+        "MT-35550",
+        "MT-35551",
+        "MT-35552",
+        "MT-35553",
+        "MT-35554",
+        "MT-35555",
+        "MT-35556",
+        "MT-35557",
+        "MT-35558",
+        "MT-35559",
+        "MT-35560",
+        "MT-35561",
+        "MT-35562",
+        "MT-35563",
+        "MT-35594",
+        "MT-35596",
+        "MT-35597",
+        "MT-35942",
+        "MT-35943",
+        "MT-35986",
+        "MT-36025",
+        "MT-36072",
+        "MT-36107",
+        "MT-36155",
+        "MT-36160",
+        "MT-36169"
+      ],
+      "canonical_repository_url": "https://github.com/Nuntissura/assets",
+      "source_subdirectory": "handshake-studio-assets",
+      "source_revision": "UNRESOLVED_IMMUTABLE_REMOTE_REVISION_BEFORE_ACTIVATION",
+      "release_artifact_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/34/maintenance/release"
+      ],
+      "dependency_lock_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance/standalone/dependency_closure_ref; immutable selected source and host lock pins unresolved",
+      "remote_verification_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34; independently re-read canonical assets commit/tree and source submissions at activation",
+      "standalone_proof_refs": [
+        "./MT-35528.json#/submissions",
+        "./MT-35529.json#/submissions",
+        "./MT-35530.json#/submissions",
+        "./MT-35531.json#/submissions",
+        "./MT-35532.json#/submissions",
+        "./MT-35533.json#/submissions",
+        "./MT-35534.json#/submissions",
+        "./MT-35535.json#/submissions",
+        "./MT-35536.json#/submissions",
+        "./MT-35537.json#/submissions",
+        "./MT-35538.json#/submissions",
+        "./MT-35539.json#/submissions",
+        "./MT-35540.json#/submissions",
+        "./MT-35541.json#/submissions",
+        "./MT-35542.json#/submissions",
+        "./MT-35543.json#/submissions",
+        "./MT-35544.json#/submissions",
+        "./MT-35545.json#/submissions",
+        "./MT-35546.json#/submissions",
+        "./MT-35547.json#/submissions",
+        "./MT-35548.json#/submissions",
+        "./MT-35549.json#/submissions",
+        "./MT-35550.json#/submissions",
+        "./MT-35551.json#/submissions",
+        "./MT-35552.json#/submissions",
+        "./MT-35553.json#/submissions",
+        "./MT-35554.json#/submissions",
+        "./MT-35555.json#/submissions",
+        "./MT-35556.json#/submissions",
+        "./MT-35557.json#/submissions",
+        "./MT-35558.json#/submissions",
+        "./MT-35559.json#/submissions",
+        "./MT-35560.json#/submissions",
+        "./MT-35561.json#/submissions",
+        "./MT-35562.json#/submissions",
+        "./MT-35563.json#/submissions",
+        "./MT-35594.json#/submissions",
+        "./MT-35596.json#/submissions",
+        "./MT-35597.json#/submissions",
+        "./MT-35942.json#/submissions",
+        "./MT-35943.json#/submissions",
+        "./MT-35986.json#/submissions",
+        "./MT-36025.json#/submissions",
+        "./MT-36072.json#/submissions",
+        "./MT-36107.json#/submissions",
+        "./MT-36155.json#/submissions",
+        "./MT-36160.json#/submissions",
+        "./MT-36169.json#/submissions"
+      ],
+      "embedding_adapter_ref": "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+      "compatibility_proof_refs": [
+        ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance/release/compatibility_contract_ref",
+        "MT-36223/HOST-COMPAT"
+      ],
+      "rollback_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance/evolution/rollback_ref"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-36223/SOURCE-REMOTE",
+        "kind": "independent_review",
+        "claim_refs": [
+          "MT-36223/AC-HOST-003"
+        ],
+        "command_or_method": "Independently read assets remote exact revision/tree, source source_mt_refs submissions/verdicts and maintenance release manifests; reconcile immutable source/public contract/dependency/toolchain pins before host writes",
+        "expected": "Every foundation and consumed source task passed; actual canonical revision contains claimed source; incompatible or missing pin denies activation",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual immutable remote commit/tree and release digest",
+          "Independent source verdict/candidate reconciliation"
+        ]
+      },
+      {
+        "check_id": "MT-36223/HOST-CASES",
+        "kind": "runtime",
+        "claim_refs": [
+          "MT-36223/AC-HOST-001",
+          "MT-36223/AC-HOST-002",
+          "MT-33912/AC-001",
+          "MT-35563/AC-001",
+          "MT-35563/AC-002",
+          "MT-35563/AC-003",
+          "MT-35563/AC-004",
+          "MT-35563/AC-005",
+          "MT-35564/AC-001",
+          "MT-35567/AC-001",
+          "MT-35573/AC-001",
+          "MT-35575/AC-001",
+          "MT-35594/AC-001",
+          "MT-35595/AC-001",
+          "MT-35596/AC-001",
+          "MT-35597/AC-001",
+          "MT-35598/AC-001",
+          "MT-35604/AC-001",
+          "MT-33940/ASSET-AC-001"
+        ],
+      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_motion_js_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Pinned JS runtime/source/toolchain/features and immutable Motion host ports. Method: Use Handshake-wide sandbox/extension lifecycle; enforce binding-aware AST/checkpoint limits, bounded VM heap/work/results and owner-thread retirement Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: isolated expression VM state, quotas and reproducible immutable time/seed result. Negative assertions: Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
+        "expected": "Constructor/prototype/accessor budget bypass denied; deterministic time/seed preserved; unavailable runtime/semantic proof blocks expression adoption",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact activated host candidate, HBR entrypoint/config, test case inputs and individually keyed original AC outputs",
+          "Canonical authority re-read after success, stale/revoked denial, cancellation and acknowledgement reconciliation",
+          "Actual source release and schema/profile/provider/actor/document/grant revision"
+        ]
+      },
+      {
+        "check_id": "MT-36223/HOST-COMPAT",
+        "kind": "runtime",
+        "claim_refs": [
+          "MT-36223/AC-HOST-003"
+        ],
+      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_motion_js_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_motion_js_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare isolated expression VM state, quotas and reproducible immutable time/seed result and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight isolated expression VM state, quotas and reproducible immutable time/seed result, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare isolated expression VM state, quotas and reproducible immutable time/seed result plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
+      "expected": "Prior/candidate compatible release preserves isolated expression VM state, quotas and reproducible immutable time/seed result; incompatible candidate is denied before authority mutation; rollback reopens/replays prior isolated expression VM state, quotas and reproducible immutable time/seed result with accepted authority and provenance intact.",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Previous and candidate release/lock provenance",
+          "Independent canonical before/after head/history/events and lifecycle drain result"
+        ]
+      },
+      {
+        "check_id": "MT-36223/PILLARS",
+        "kind": "independent_review",
+        "claim_refs": [
+          "MT-36223/AC-HOST-001",
+          "MT-36223/AC-HOST-002",
+          "MT-36223/AC-HOST-003",
+          "MT-33912/AC-001",
+          "MT-35563/AC-001",
+          "MT-35563/AC-002",
+          "MT-35563/AC-003",
+          "MT-35563/AC-004",
+          "MT-35563/AC-005",
+          "MT-35564/AC-001",
+          "MT-35567/AC-001",
+          "MT-35573/AC-001",
+          "MT-35575/AC-001",
+          "MT-35594/AC-001",
+          "MT-35595/AC-001",
+          "MT-35596/AC-001",
+          "MT-35597/AC-001",
+          "MT-35598/AC-001",
+          "MT-35604/AC-001",
+          "MT-33940/ASSET-AC-001"
+        ],
+      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_motion_js_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and isolated expression VM state, quotas and reproducible immutable time/seed result for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-motion-js through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
+        "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Current native screenshots/readback and stable action IDs where GUI applies",
+          "Two-client isolation/fairness and cancellation/privacy outcomes",
+          "Canonical UserManual descriptors and actual three-tier captures/ingestion when native"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_native/src/studio/adapters/motion_js.rs",
+      "src/frontend/handshake_native/tests/test_studio_motion_js_host.rs",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/34",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35528.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35529.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35530.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35531.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35532.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35533.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35534.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35535.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35537.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35538.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35539.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35540.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35541.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35542.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35543.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35544.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35545.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35547.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35548.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35549.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35550.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35551.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35552.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35553.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35554.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35555.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35556.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35557.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35558.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35559.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35560.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35561.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35562.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35563.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35594.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35596.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35597.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35942.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35943.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35986.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36025.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36072.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36107.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36155.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36160.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36169.json"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "handshake_native::studio: Adopt pinned hsk-studio-motion-js through native Handshake services"
+    ],
+    "expected_evidence": [
+      "Canonical UserManual behavior, inputs/outputs, error and recovery entries agree with actual host descriptors"
+    ],
+    "location": "src/backend/handshake_core/src/user_manual/registry.rs",
+    "reason": "No-context model can operate adopted behavior and recover through actual host routes",
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "host_adoption",
+    "risks": [
+      "Use Handshake-wide sandbox/extension lifecycle; enforce binding-aware AST/checkpoint limits, bounded VM heap/work/results and owner-thread retirement Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding. can be falsely accepted through portable fixture or generic facade result",
+      "Stale grant/revision, missing provider, incompatible pin or unknown acknowledgement can hide authority failure"
+    ],
+    "minimum_controls": [
+      "Independent remote source-first proof and every preserved original host criterion",
+      "Canonical authority reconciliation, fail-closed provider/pin denial and rollback after drain"
+    ]
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "PENDING",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-10-10T00:00:00Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36223.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-10-10T00:00:00Z"
+}

@@ -1,0 +1,2126 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "identity": {
+    "mt_id": "MT-35655",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "Raster compositor GPU execution and explicit device-unavailable boundary",
+    "group": "STUDIO_ASSET_COMPANION",
+    "version": 1,
+    "contract_revision": 2
+  },
+  "parent": {
+    "wp_contract_revision": null,
+    "wp_contract_digest": null,
+    "binding_status": "COORDINATOR_PARENT_BINDING_PENDING"
+  },
+  "gameplan_ref": ".GOV/docs_repo/tmp/studio-modular-authoring-gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "id": "STU-ARC-002",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:187",
+        "verbatim": "[STU-ARC-002] `handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports. The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation. Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes. No mandatory all-engine dependency facade is permitted.",
+        "heading": "## 14.2 Architecture: Kernel Binding and Engine Crates",
+        "section": "14.2",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 187,
+            "end_line": 188,
+            "body_sha256": "f898786aaf6605122a27ee80493d08a90a257385026a8499455db190c5aa7ded",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-CON-005",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22405",
+        "verbatim": "[STU-CON-005] UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Exact source/artifact/package bytes retain hashes for portable cross-host identity, integrity, transport, replay inputs and receipt/idempotency fingerprinting. Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes.",
+        "heading": "## 14.23 Canonical Studio Authority Contracts",
+        "section": "14.23",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 22405,
+            "end_line": 22406,
+            "body_sha256": "5af0ab7d3f9e7585cfe28bd1a50b34518eaca417072b0787e61657765a8f7daa",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical definition body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-004",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:525",
+        "verbatim": "**[STU-RAS-004]** Raster pixel data MUST be stored and composited as `StudioRasterTile` tiles (14.23), not",
+        "heading": "### 2. Cross-Cutting Raster Obligations",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 525,
+            "end_line": 531,
+            "body_sha256": "cc4a7432ce7bf3fc91dcc6064e17f720844c3ea519766d1907b427826337227a",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-008",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:611",
+        "verbatim": "**[STU-RAS-008]** Adjustment, live-filter, fill, and mask layers MUST be non-destructive and re-editable at",
+        "heading": "### 3. Raster Document, Layer Kinds, and Layer Numerics",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 611,
+            "end_line": 615,
+            "body_sha256": "41d43aec937bcaaac3fff0e9b54b55ded2f422ef8444538090478559dc49daa2",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-035",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1324",
+        "verbatim": "**[STU-RAS-035]** `StudioAdjustment` is the single canonical adjustment primitive; every adjustment kind",
+        "heading": "### 9. Adjustments",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 1324,
+            "end_line": 1328,
+            "body_sha256": "524c5f651f3d2cd9dd1ebeab1ae9c96a11ee47997faf0cd544b304d3a3b4e884",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-037",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1333",
+        "verbatim": "**[STU-RAS-037]** `StudioLiveFilter` is the single canonical live-filter primitive: a re-editable, maskable",
+        "heading": "### 9. Adjustments",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 1333,
+            "end_line": 1339,
+            "body_sha256": "8ca86efacc1b5fc381f874e854aecb9b6b331b69fda0733a9f3473391b198fb2",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-154",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1623",
+        "verbatim": "**[STU-RAS-154] CANONICAL BLEND-MODE ENUMERATION.** The set is closed and the discriminants are",
+        "heading": "### 12. Blend Modes",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 1623,
+            "end_line": 1661,
+            "body_sha256": "6fda9795735b8ef5c2b6de2cb31c50f21e84a45dc6f488fe759c0f8ab2c9cb58",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-RAS-155",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1662",
+        "verbatim": "**[STU-RAS-155] BLEND-MODE APPLICABILITY IS INSPECTABLE METADATA, NOT SILENT FAILURE.**",
+        "heading": "### 12. Blend Modes",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 1662,
+            "end_line": 1671,
+            "body_sha256": "9170c95644f92b4e3d2a63e5340f4c880464f11f22b639f8706b17926b738daf",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-001",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19164",
+        "verbatim": "[STU-FX-001] Studio has exactly ONE non-destructive effect model. A filter or effect applied to any `StudioLayer` is recorded as a `StudioLiveFilter` node inside that layer's `StudioEffectStack` (schema `hsk.studio.effect_stack@1`), never as a destructive pixel/geometry mutation of the layer's source data. The layer's source raster tiles, vector network, or text story are preserved unchanged; the effect result is composed at render time by the `RenderEngine`. This unifies the smart-filter stack (Photoshop), the live-filter layer system (Affinity), the appearance/live-effect stack (Illustrator), and the layer-effect panel (Figma/InDesign) into a single model with no per-suite variant.",
+        "heading": "### 14.9.CARRIED Clauses carried forward unchanged from v02.205",
+        "section": "14.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19164,
+            "end_line": 19165,
+            "body_sha256": "8eb4100f2919155b4aa958e814dcbf56e6dc075ff172e0921d9c709c1240bdb7",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-002",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19166",
+        "verbatim": "[STU-FX-002] A `StudioEffectStack` is an ordered list of `StudioLiveFilter` entries. Each entry carries: `filter_kind` (catalog key from the tables in this sub-section), typed parameter payload, an optional `StudioMask` reference (the entry's own effect mask), a `StudioBlendMode` + opacity for how the entry composes onto the pre-effect result, an `enabled` flag, and an `render_scope` (`layer` | `below` | `group`) selecting whether the effect reads only the layer's own render or the backdrop beneath it (backdrop-reading effects are marked in the catalog). Field-level definitions are canonical in 14.23.",
+        "heading": "### 14.9.CARRIED Clauses carried forward unchanged from v02.205",
+        "section": "14.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19166,
+            "end_line": 19167,
+            "body_sha256": "62f4d91506444a11537d36a0470a885378f944251572d6e9e6a176a44dbc005e",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-008",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19186",
+        "verbatim": "[STU-FX-008] Each stack entry composes onto the accumulated result using its `StudioBlendMode` + opacity, exactly as a layer blends, so a filter can be blended (e.g. a sharpen pass at reduced opacity, an overlay-blended high-pass) without a separate \"fade\" command. This deduplicates the post-filter fade/blend-options control into the standard blend surface (14.8 owns the `StudioBlendMode` set; 14.9 consumes it).",
+        "heading": "### 2. Effect Application, Masking, Blending, and Ordering",
+        "section": "14.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19186,
+            "end_line": 19187,
+            "body_sha256": "dd06e1cb38141cd6ff35a0cd7c1e64490e41c400ced97c7eb3748d3f7ea18377",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-011",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19192",
+        "verbatim": "[STU-FX-011] Effect evaluation is deterministic: given the same source data, parameters, mask, seed, and `StudioColorProfile`, the `RenderEngine` MUST produce byte-stable output for a given backend and promotion-equivalent output across backends (group 18, 14.24). Filters with a random component (noise, clouds, spatter, and the like) carry an explicit integer `seed` parameter so their output is reproducible.",
+        "heading": "### 2. Effect Application, Masking, Blending, and Ordering",
+        "section": "14.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19192,
+            "end_line": 19193,
+            "body_sha256": "b35a46dcf028d03337d4deec59f68b03c558be909d4a5ab12ea1a10f6f13c271",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-018",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19305",
+        "verbatim": "[STU-FX-018] GPU-required render effects MUST declare their GPU dependency in the `StudioLiveFilter` descriptor so a headless/quiet run (14.20) and a no-GPU environment surface a determinate `EFFECT_GPU_UNAVAILABLE` result rather than silently producing empty output.",
+        "heading": "### 7. Render & Generative-Pattern Family (GPU)",
+        "section": "14.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19305,
+            "end_line": 19320,
+            "body_sha256": "c0e9292b96ed9f708682931fd98a9f1adfcdedcc024988e437d940076ec5c357",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-036",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19636",
+        "verbatim": "[STU-FX-036] Every filter/effect evaluates through the the owning modular Studio asset crate `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in the owning modular Studio asset crate that produces promotion-equivalent output. GPU dependencies stay isolated in the owning modular Studio asset crate and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002]).",
+        "heading": "### 18. GPU Render Requirement & Cross-Backend Equivalence",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19636,
+            "end_line": 19637,
+            "body_sha256": "c76e80baacd0c1d892f72c66e7229e0dc6557e38bd82b4500f8098494319ce76",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-037",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19638",
+        "verbatim": "[STU-FX-037] Filter output MUST satisfy the deterministic cross-backend promotion-equivalence contract of 14.24: for a given effect kind, parameters, seed, and `StudioColorProfile`, output is byte-stable on a fixed backend and within the declared promotion-equivalence tolerance across backends (CPU fallback, Vulkan, Metal, DX12, WebGPU). An effect whose backends disagree beyond tolerance fails validation and cannot be promoted. The per-effect tolerances and the golden-image validation set are authored in 14.24; 14.9 requires that every catalog row is covered by that set.",
+        "heading": "### 18. GPU Render Requirement & Cross-Backend Equivalence",
+        "section": "14.4",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19638,
+            "end_line": 19639,
+            "body_sha256": "e1315d8448f5ca813f9a256eff3e8a7583706b8eb697976e478e883c4fbee3e2",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      },
+      {
+        "id": "STU-FX-148",
+        "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19001",
+        "verbatim": "**[STU-FX-148] GAP -- per-effect promotion-equivalence tolerances.** [STU-FX-037] requires a",
+        "heading": "## 14.9.9 Declared gaps",
+        "section": "14.9.9",
+        "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+        "verified_source_ranges": [
+          {
+            "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+            "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
+            "start_line": 19001,
+            "end_line": 19005,
+            "body_sha256": "c0a3982af7bfd7a8b3935fe3b57c5536f772f6ba87b2cc4b8a570e3d37e51004",
+            "hash_encoding": "UTF8 line text joined LF, no final LF",
+            "range_kind": "normative_clause"
+          }
+        ],
+        "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; full body is bound by verified_source_ranges"
+      }
+    ],
+    "read_context": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json"
+    ],
+    "pillar_refs": [
+      {
+        "rule_id": "HBR-PRIV-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/0",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/1",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any resource authorization or discovery boundary",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "cross_boundary_default_deny_negative_suite",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/2",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "same_project_and_cross_project_isolation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/3",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "mixed_scope_derivation_non_widening_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/4",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client (required_if the action runs for a delegated client). The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/5",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "concurrent_revocation_and_context_switch_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/6",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "remote_delegation_and_sync_scope_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-007",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-PRIV-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/7",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-PRIV-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-PRIV-008",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/8",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any product behavior",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_ledger_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/9",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model invocation path",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_session_trace",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/10",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP produces any artifact intended for authority state",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/11",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any collaborative state surface",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_reconnect_and_promotion",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/12",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_cross_lane_trace_comparison",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/13",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU assess actual product role/agent/FEMS boundary only; do not revive retired repo memory rituals.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/14",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable behavior",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_trace_projection_replay",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-007",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-008",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/15",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP creates or modifies any UUID generation site in product code",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-008",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-008",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-INT-009",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/16",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-INT-009",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-INT-009",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/17",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any shared state surface",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "concurrent_session_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/18",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "concurrency_primitive_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/19",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any operator-facing surface",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "parallel_operator_agent_ui_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/20",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "typed_routing_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/21",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-SWARM-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/22",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (kernel-owned governance state, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-SWARM-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-SWARM-006",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/23",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/24",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any captured frame produced for HBR-VIS-001",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "renderer_console_error_report",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/25",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches any feature visible at multiple viewports or states",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "capture_matrix",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/26",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches a non-UI behavior",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "trace_projection_inspection",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-VIS-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/27",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-VIS-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-VIS-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/28",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automated test or agent run",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "headless_run_with_focus_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/29",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every automation surface",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "automation_path_audit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/30",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "process_lifecycle_test_run",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-QUIET-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/31",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP requires foreground interaction that cannot be eliminated",
+        "assessment": "CONDITIONAL",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "foreground_exception_declaration_and_operator_warning",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-QUIET-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-QUIET-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/32",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION (required_if the product declares MANUAL_VERSION). Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "user_manual_diff_in_same_commit",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/33",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any change to UserManual content",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "no_context_model_operation_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/34",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any UserManual entry that describes a wired code surface",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "manual_self_consistency_test",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MAN-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/35",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands (required_if the feature has any), expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MAN-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MAN-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/36",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/37",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/38",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer considers stopping work on an MT, WP, or session",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-003",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/39",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters a dependency that blocks completion of the current work",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-004",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-STOP-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/40",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
+        "assessment": "APPLIES_ON_NAMED_TRIGGER",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-STOP-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-STOP-005",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPART-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/41",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP touches or creates more than one product module, or any MT is scaffolded for a product WP",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; The WP contract declares every touched and created module and a boundary_change disposition. Every MT binds exactly one owning module in execution.module_ref and its write scope derives from that module's declared roots. Until the compartment refactor lands crates, module refs are logical module paths; when crates exist they resolve to build units. Activation rejects dependency-direction violations and unsettled build-budget reviews.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "module_binding_and_boundary_change_declaration_with_write_scope_check",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPART-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/42",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "Any validation round of a product WP once build units exist",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A change confined to one module must not rebuild the whole product. Each validation round measures warm incremental rebuild time and the count of relinked test binaries for the candidate commit and records them against the project build budgets; a budget breach opens a boundary review before the next activation touching that module.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "per_round_rebuild_time_and_relinked_test_binary_measurement_against_budget",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPART-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPART-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPONENT-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/43",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP adds, replaces, or materially changes any UI component, control, widget, or reusable behavior",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; Before adding the component, find the mechanic under the widget at the lowest layer that owns it and consume, configure or extend that owner. The WP names the capabilities it consumes and any capability it becomes canonical owner of; one active owner per capability. No MT implements a capability owned by another active module; a parallel implementation is a build-rule fail.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "consumed_capability_refs_resolve_to_single_active_owner",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-001",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-COMPONENT-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/44",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "WP declares a new canonical mechanic or capability owner",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; STUDIO-MODULE-RENDER_GPU scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': True, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; A new canonical mechanic is allowed only when no existing owner exists and the mechanic has a Master Spec primitive id; activation refuses a new capability that lacks its spec primitive or duplicates an existing owner.",
+        "trigger_assessment_basis": {
+          "resource": true,
+          "owned_gui": true,
+          "collaborative_state": false,
+          "queue_or_inflight": true,
+          "interop_or_remote": true,
+          "uuid_generation": false,
+          "parked_ai": false
+        },
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "new_capability_ref_bound_to_spec_primitive_and_owner_search_result",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-COMPONENT-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-COMPONENT-002",
+        "proof_destination_base": "sole configured external CX-984 root resolved from verified HANDSHAKE_GOV_ROOT; owner runtime binding PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-001",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/45",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_created_or_materially_modified",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; The owned standalone source foundation creates the STUDIO-MODULE-RENDER_GPU public capability: handshake-studio-assets/crates/hsk-studio-render-gpu/src/device.rs: Bounded selected-backend upload/plan execution/readback with tile residency and byte leases; retire device generations safely, never label missing device PASS.. Select only its declared Cargo closure and natural test target.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-001",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-002",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/46",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; This capability exposes immutable input, revision/cancel and bounded failure/resource outcomes; its existing domain consumer cases exercise those outcomes. Shared Controls owns reusable GUI mechanics.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-002",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-003",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/47",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_released_or_consumed",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; The module will publish an immutable release of this exact capability with source/toolchain/dependency/artifact pins; actual pins and compatibility results remain absent until implementation/publication.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-003",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-004",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/48",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_embedded_in_a_host",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; Distinct later host_adoption owns the versioned adapter and actual authorized kernel consumer; foundation publishes host-neutral contract only. Existing host obligations remain retained and PENDING.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-004",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "HOST_ADOPTION_PROOF_PENDING"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-005",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/49",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_upgraded_or_moved",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; Publish allowlist is only the declared module source root; private imported fixtures/state/secrets and proof outputs remain excluded. Upgrade/drain/rollback must preserve the domain input/output contract.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-005",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-006",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/50",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_is_published_or_mirrored",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; Canonical assets GitHub subtree is source owner; publication independently compares base/source/target digests and preserves handpick/customized destinations. No mirror is performed in preparation.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-006",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      },
+      {
+        "rule_id": "HBR-MODULE-LIFECYCLE-007",
+        "registry_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/rules/51",
+        "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
+        "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
+        "assessment": "APPLIES",
+        "reason": "Companion contribution raster_plan_gpu consumes immutable static MT017 plan and actual device upload/readback/residency boundary. Required domain handling inherited from .GOV/task_packets/WP-KERNEL-STUDIO/MT-35546.json; Standalone source capability must land first in assets GitHub and have independent fresh remote/source proof before separate host_adoption consumes immutable release; no local or self-authored receipt is sufficient.",
+        "scope_evidence_refs": [
+          "MT-35655#/execution",
+          "MT-017#/fulfillment/asset_slices"
+        ],
+        "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
+        "proof_status": "PENDING_NOT_RUN",
+        "asset_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
+        "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/embedding/hbr/HBR-MODULE-LIFECYCLE-007",
+        "proof_destination_base": "Verified configured external CX-984 artifact root; bound before execution",
+        "phase_disposition": "STANDALONE_SOURCE_THEN_DISTINCT_HOST_ADOPTION"
+      }
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/17/maintenance"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome",
+    "requirement_refs": [
+      "STU-RAS-*",
+      "STU-FX-*",
+      "STU-ARC-002",
+      "STU-CON-005"
+    ],
+    "acceptance_refs": [
+      "AC-001",
+      "AC-002",
+      "AC-003"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome"
+      },
+      {
+        "id": "AC-002",
+        "text": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified"
+      },
+      {
+        "id": "AC-003",
+        "text": "Selected owner dependency closure and independent original/reference pixels; parent complete acceptance remains separate"
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:187",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22405",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:525",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:611",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1324",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1333",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1623",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:1662",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19164",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19166",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19186",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19192",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19305",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19636",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19638",
+      ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19001"
+    ],
+    "operator_decision_refs": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Actual backend arithmetic/device-generation and independent original/reference proof",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-MODULE-RENDER_GPU",
+    "build_unit_ref": "STUDIO-MODULE-RENDER_GPU",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35528",
+      "MT-35529",
+      "MT-35530",
+      "MT-35531",
+      "MT-35532",
+      "MT-35533",
+      "MT-35534",
+      "MT-35535",
+      "MT-35536",
+      "MT-35537",
+      "MT-35538",
+      "MT-35539",
+      "MT-35540",
+      "MT-35541",
+      "MT-35542",
+      "MT-35543",
+      "MT-35544",
+      "MT-35545",
+      "MT-35546",
+      "MT-35547",
+      "MT-35548",
+      "MT-35549",
+      "MT-35550",
+      "MT-35551",
+      "MT-35552",
+      "MT-35553",
+      "MT-35554",
+      "MT-35555",
+      "MT-35556",
+      "MT-35557",
+      "MT-35558",
+      "MT-35559",
+      "MT-35560",
+      "MT-35561",
+      "MT-35562",
+      "MT-35563",
+      "MT-001",
+      "MT-35619",
+      "MT-35620",
+      "MT-35621",
+      "MT-35622",
+      "MT-35623",
+      "MT-35624",
+      "MT-35625",
+      "MT-35626",
+      "MT-35627",
+      "MT-35650",
+      "MT-35651",
+      "MT-35652",
+      "MT-35653",
+      "MT-35654"
+    ],
+    "module_change_stage": "standalone_source",
+    "start_precondition": {
+      "dispatch_allowed": false,
+      "required_conditions": [
+        "SPEC207_PUBLICATION",
+        "NEW_IMPLEMENTATION_SESSION_AUTHORIZED",
+        "FOCUSED_RECIPE_OWNER_FEATURE_SELECTION_AND_TIMEOUT_APPROVED_BEFORE_CODING",
+        "INDEPENDENT_CONTRACT_REVIEW",
+        "STUDIO_ALL_36_FOUNDATIONS_PASSED",
+        "EXACT_WILDCARD_SOURCE_CLOSURE_RECONCILED",
+        "SCOPED_EXISTING_OWNER_SEARCH_AND_CAPABILITY_BINDING",
+        "VERIFIED_OWNER_SLUG_AND_ABSOLUTE_CONFIGURED_ARTIFACT_ROOT_BOUND",
+        "EXACT_BACKEND_FEATURE_PROVIDER_LOCK_ORIGINAL_ORACLE_BOUND"
+      ],
+      "foundation_members": [
+        "MT-35528",
+        "MT-35529",
+        "MT-35530",
+        "MT-35531",
+        "MT-35532",
+        "MT-35533",
+        "MT-35534",
+        "MT-35535",
+        "MT-35536",
+        "MT-35537",
+        "MT-35538",
+        "MT-35539",
+        "MT-35540",
+        "MT-35541",
+        "MT-35542",
+        "MT-35543",
+        "MT-35544",
+        "MT-35545",
+        "MT-35546",
+        "MT-35547",
+        "MT-35548",
+        "MT-35549",
+        "MT-35550",
+        "MT-35551",
+        "MT-35552",
+        "MT-35553",
+        "MT-35554",
+        "MT-35555",
+        "MT-35556",
+        "MT-35557",
+        "MT-35558",
+        "MT-35559",
+        "MT-35560",
+        "MT-35561",
+        "MT-35562",
+        "MT-35563"
+      ]
+    },
+    "allowed_write_paths": [
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "tests/**",
+      "Other Studio module roots/**"
+    ],
+    "inputs": [
+      {
+        "name": "raster_plan",
+        "type_and_units": "Immutable Composite static plan revision/output addresses, profile/sample/depth/ROI/stride and checked extent, opaque source handles/leases, cancellation epoch and explicit selected backend/device generation/residency budget"
+      },
+      {
+        "name": "selection",
+        "selected_package": "hsk-studio-render-gpu",
+        "default_features": false,
+        "features": "UNRESOLVED_EXPLICIT_BACKEND_FEATURES_BEFORE_DISPATCH",
+        "provider": "Inspected wgpu30 leaf candidate; exact lock/backend feature and real device oracle still prerequisite"
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "handshake-studio-assets/crates/hsk-studio-render-gpu/src/raster_plan_gpu.rs: Validate GPU capability/sample support before upload; admit bounded tile residency, translate static plan operations to private selected backend, submit and readback to versioned sink; device-loss invalidates all prior-generation handles. No device -> explicit unavailable, not skipped test or fallback PASS"
+      },
+      {
+        "n": 2,
+        "step": "Consume Immutable Composite static plan revision/output addresses, profile/sample/depth/ROI/stride and checked extent, opaque source handles/leases, cancellation epoch and explicit selected backend/device generation/residency budget; emit Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome through renderer public plan/sink port; no alternate authored graph or temporal policy"
+      },
+      {
+        "n": 3,
+        "step": "handshake-studio-assets/crates/hsk-studio-render-gpu/tests/raster_plan_gpu.rs: Independent analytic2x2/3x3 mask,alpha,blend sample matrices and original-produced reference; cross-backend agreement is supplementary and cannot prove both correct. Exact performat tolerance/provider feature/pin/original corpus is prerequisite before dispatch"
+      },
+      {
+        "n": 4,
+        "step": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified"
+      }
+    ],
+    "expected_outputs": [
+      "Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome",
+      "Shared Observe/manual inspection operation,error/retry descriptors from same renderer port"
+    ],
+    "stop_conditions": [
+      "Exact missing backend/provider/oracle binding blocks dispatch; full parity retained"
+    ],
+    "may_create_canonical_capability": false,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts",
+      "owner_dir": null,
+      "env": {},
+      "flags": null,
+      "reference_runner": null,
+      "base": "verified live governance root HANDSHAKE_GOV_ROOT; sole configured external CX-984 root",
+      "resolution_rule": "CX-984 configured external artifact root; never resolve relative to a managed asset checkout",
+      "resolved_absolute_root_proof_required_before_run": true,
+      "proof_status": "PENDING",
+      "owner_dir_template": "WP-KERNEL-STUDIO/MT-35655/{VERIFIED_OWNER_SLUG}/",
+      "owner_slug_binding": "Actual governed owner/session claim at runtime; unresolved template is NON_EXECUTABLE",
+      "resolved_absolute_owner_root": null,
+      "runtime_binding_required_before_run": true,
+      "mutable_suffixes": {
+        "cargo": "cargo-target/",
+        "cache": "cache/",
+        "logs": "logs/",
+        "coverage": "coverage/",
+        "TMP": "tmp/",
+        "TEMP": "tmp/"
+      },
+      "same_disk_build_rule": "At most one actual build per physical disk; independent owners have disjoint mutable targets/caches/TMP/TEMP/logs."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-017#/proof"
+    ],
+    "checks": [
+      {
+        "check_id": "MT-35655-1",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC-001",
+          "AC-003"
+        ],
+        "command_or_method": "cargo test --locked -p hsk-studio-render-gpu --no-default-features --test raster_plan_gpu raster_plan_gpu_known_reference -- --exact",
+        "expected": "Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome; Independent analytic2x2/3x3 mask,alpha,blend sample matrices and original-produced reference; cross-backend agreement is supplementary and cannot prove both correct. Exact performat tolerance/provider feature/pin/original corpus is prerequisite before dispatch",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact independently landed source tree/lock/toolchain/backend pins",
+          "Independent source and actual sink sample reread",
+          "Original/reference reconciliation, no unavailable/skip PASS"
+        ],
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
+        "method_recipe": {
+          "selected_package": "hsk-studio-render-gpu",
+          "selected_features": "EXPLICIT_SELECTED_BACKEND_PREREQUISITE",
+          "test_target": "raster_plan_gpu",
+          "exact_filter": "raster_plan_gpu_known_reference",
+          "runner_configuration_prerequisite": "Create natural target and checked-in feature/provider/timeout config during source implementation; use exact candidate and verified CX984 isolated owner root",
+          "independent_oracle": "Independent analytic2x2/3x3 mask,alpha,blend sample matrices and original-produced reference; cross-backend agreement is supplementary and cannot prove both correct. Exact performat tolerance/provider feature/pin/original corpus is prerequisite before dispatch",
+          "negative_path": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified",
+          "host_adoption_refs": [
+            "MT-36204",
+            "MT-36206",
+            "MT-36205"
+          ]
+        }
+      },
+      {
+        "check_id": "MT-35655-2",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC-002"
+        ],
+        "command_or_method": "cargo test --locked -p hsk-studio-render-gpu --no-default-features --test raster_plan_gpu raster_plan_gpu_negative_recovery -- --exact",
+        "expected": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact independently landed source tree/lock/toolchain/backend pins",
+          "Independent source and actual sink sample reread",
+          "Original/reference reconciliation, no unavailable/skip PASS"
+        ],
+        "materialization_status": "PLANNED_NOT_RUN_TARGET_CREATED_DURING_CODING",
+        "method_recipe": {
+          "selected_package": "hsk-studio-render-gpu",
+          "selected_features": "EXPLICIT_SELECTED_BACKEND_PREREQUISITE",
+          "test_target": "raster_plan_gpu",
+          "exact_filter": "raster_plan_gpu_negative_recovery",
+          "runner_configuration_prerequisite": "Create natural target and checked-in feature/provider/timeout config during source implementation; use exact candidate and verified CX984 isolated owner root",
+          "independent_oracle": "Independent analytic2x2/3x3 mask,alpha,blend sample matrices and original-produced reference; cross-backend agreement is supplementary and cannot prove both correct. Exact performat tolerance/provider feature/pin/original corpus is prerequisite before dispatch",
+          "negative_path": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified",
+          "host_adoption_refs": [
+            "MT-36204",
+            "MT-36206",
+            "MT-36205"
+          ]
+        }
+      },
+      {
+        "check_id": "MT-35655-COMPILE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC-003"
+        ],
+        "command_or_method": "cargo check --locked -p hsk-studio-render-gpu --no-default-features --tests",
+        "expected": "Compile isolated selected renderer owner closure; no kernel/storage/native or unrelated codec/audio dependency",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual exact selected source/dependency tree"
+        ],
+        "materialization_status": "PLANNED_NOT_RUN"
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/src/raster_plan_gpu.rs",
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/tests/raster_plan_gpu.rs",
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/Cargo.toml",
+      "handshake-studio-assets/Cargo.lock",
+      "handshake-studio-assets/rust-toolchain.toml"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "ASSESS_ACTUAL_DESCRIPTOR_CHANGE",
+    "target_entries": [
+      "STUDIO-MODULE-RENDER_GPU raster_plan_gpu public plan/sink and device/sample/error/recovery contract"
+    ],
+    "location": "Published shared renderer operation descriptors consumed by canonical UserManual",
+    "reason": "No-context model reads exact inputs/output/capability/error/retry without hidden host knowledge"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "STUDIO_ASSET_COMPANION",
+    "risks": [
+      "Unavailable device falsely PASS or stale generation leaks output",
+      "Partial/cancelled sink data loss"
+    ],
+    "minimum_controls": [
+      "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified",
+      "Independent analytic2x2/3x3 mask,alpha,blend sample matrices and original-produced reference; cross-backend agreement is supplementary and cannot prove both correct. Exact performat tolerance/provider feature/pin/original corpus is prerequisite before dispatch"
+    ]
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": "PENDING",
+    "blocked_on": "PREPARATION_ONLY_NEW_IMPLEMENTATION_SESSION_AND_EXACT_PROVIDER_ORACLE_BINDING",
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-10-09T22:53:09.116Z",
+    "contract_preparation_only": true,
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35655.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "2026-10-09T22:53:09.117Z",
+  "updated_at_utc": "2026-10-09T22:53:09.117Z",
+  "mt_id": "MT-35655",
+  "wp_id": "WP-KERNEL-STUDIO",
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Backend-qualified GPU readback/sink pixels with plan/profile/revision receipt or explicit unavailable/device-loss outcome",
+      "evidence_kind": "runtime_assertion",
+      "source": "MT-017 original slice MT-017-ASSET-RENDER_GPU"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Missing device/unsupported sample/device loss/residency eviction/cancel/stale plan drops output and releases every lease, fresh generation retry independently verified",
+      "evidence_kind": "runtime_assertion",
+      "source": "MT-017 original slice MT-017-ASSET-RENDER_GPU"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Selected owner dependency closure and independent original/reference pixels; parent complete acceptance remains separate",
+      "evidence_kind": "runtime_assertion",
+      "source": "MT-017 original slice MT-017-ASSET-RENDER_GPU"
+    }
+  ],
+  "lineage": {
+    "source_mt": "MT-017",
+    "source_slice_id": "MT-017-ASSET-RENDER_GPU",
+    "source_slice_pointer": "./MT-017.json#/fulfillment/asset_slices/6",
+    "source_checkpoint": "d8608d992d3653dc2aa356ae67c688c2f37bb505",
+    "source_git_blob_oid": "9cc316623afb729c08af7d33c180da0b37e774c4",
+    "original_acceptance_refs": [
+      "MT-017/AC-003",
+      "MT-017/AC-004"
+    ],
+    "original_full_scope_ref": "git:d8608d992d3653dc2aa356ae67c688c2f37bb505:.GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+    "contribution_boundary": "Only renderer execution slice. Parent original AC and distinct host acceptance preserved; companion cannot declare full parent/GPU/host parity.",
+    "distinct_host_adoption_refs": [
+      "MT-36204",
+      "MT-36206",
+      "MT-36205"
+    ]
+  }
+}

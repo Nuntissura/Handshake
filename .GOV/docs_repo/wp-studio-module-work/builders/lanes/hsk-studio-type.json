@@ -1,0 +1,216 @@
+{
+  "crate": "hsk-studio-type",
+  "lane": "SMB-TYPE-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
+  "commits": [
+    {
+      "sha": "c65e1a7da0fb4d50ba0302d84bf23456f1603581",
+      "subject": "Type: optional harfrust spike provider behind the provider boundary (SMB-TYPE-ENG-1)"
+    },
+    {
+      "sha": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b",
+      "subject": "Type: provenance hashes over committed LF blobs, with a check"
+    },
+    {
+      "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+      "subject": "Type spike: harfrust provider accepts any ISO 15924 script at validation"
+    }
+  ],
+  "capabilities_done": [
+    "feature harfrust (=0.14.0, std, optional) + TextEngine::shaped_runs_harfrust behind the provider boundary",
+    "call-boundary bounds: glyph cap, pre-charged op budget, font-copy and buffer admission reservations, cancellation before/after, output glyph budget, op-exhaustion -> PartialOutput",
+    "tests/harfrust_spike.rs: both providers vs reference 6579f9a9 + Devanagari/Hebrew coverage",
+    "SMB-TYPE-PROVENANCE-EOL: provenance over committed LF blobs + tests/provenance.rs"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-type --features harfrust --test harfrust_spike --no-fail-fast -- --nocapture",
+    "exit": 0,
+    "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+    "passed": 1,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Operator decision D7 (replace vendored provider or keep); if adopted: new COMPOSITION_VERSION, steward lock sync, independent references for gained scripts, font-copy caching per call",
+  "updated_at": "2026-10-11T02:27:54Z",
+  "notes": {
+    "correction": "The 94331b00 claim of 0 provenance drift was wrong: it hashed Windows CRLF working-tree bytes, not committed LF blobs (R2-review-b, commit 87c1cd9).",
+    "provenance_check_output": "vendored provenance: checked 150, drift 0; fixture provenance: checked 15, drift 0 (tests/provenance.rs at ef8beac9); independent blob check against origin/codex/handshake-studio-assets: checked 150 drift 0",
+    "test_breakdown": "unit 37, foundation_contract 2, provenance 2, harfrust_spike 0 (feature off), doc 0",
+    "mt_35536": "PASS_V4 on 96ad0530 (STUDIO-R1)",
+    "prior_lanes_ready": {
+      "SMB-TYPE-DOCTEST": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "SMB-TYPE-ENV": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "SMB-TYPE-FONTS": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+      "SMB-TYPE-FIXTURES": "31ea01e5f5f389d13174de3443067b5bb700396e",
+      "SMB-TYPE-PROVENANCE-EOL": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b"
+    },
+    "history": {
+      "verdicts": [
+        {
+          "round": "STUDIO-R1",
+          "verdict": "PASS_V4",
+          "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094",
+          "mt": "MT-35536",
+          "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1",
+          "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json",
+          "failures": [],
+          "recorded_at": "2026-10-11T01:31:21Z"
+        }
+      ],
+      "followup_lanes": [
+        {
+          "id": "SMB-TYPE-DOCTEST",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "src/provider/ttf/mod.rs:182,205,2080 doc fences -> text; module is crate-private (mod provider), so ttf_parser:: or crate paths cannot compile as doctests; line numbers unchanged; ttf provenance hash + change note refreshed",
+          "tests": "cargo test -p hsk-studio-type --no-fail-fast: Doc-tests 0 run / 0 failed (no remaining doc examples); unit 37/37; foundation_contract 2/2; exit0"
+        },
+        {
+          "id": "SMB-TYPE-ENV",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "tests/support/mod.rs research(): nearest CARGO_MANIFEST_DIR ancestor holding Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/research; HSK_TYPE_* stay optional overrides; reference sha 6579f9a9 and recipe bytes unchanged; example type-consumer shares support/mod.rs",
+          "tests": "run with no HSK_TYPE_* set: foundation_contract 2/2 (mixed_script_bidi_font_runs, font_axis_missing_cancel_stale), exit0; export path studio-round/src/... resolves the same root (path walk checked, not run there)",
+          "residual": "resolved by SMB-TYPE-FONTS (947b5e7c): fonts 0..2 + licenses vendored in tests/fixtures/fonts",
+          "survivor_branch": "shape.rs:93-95 unreachable with pinned fixtures: Common spans are all pinned default-ignorables; no fixture font (Inter static/variable, NotoSansArabic, NotoSansSC) has an ignorable glyph in GSUB input coverage under DFLT default features (Inter calt lookup 52 lists them only in backtrack/lookahead); engine never sets not_found_variation_selector; so no glyph survives removal. Defensive guard for caller fonts that substitute an ignorable; no test added (would need a synthetic font)"
+        },
+        {
+          "id": "provenance-drift-fix",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "rustybuzz source-provenance.json hashes for hb/shape.rs and hb/ot_shape_plan.rs were stale after e603db8; refreshed + common_control_remediation record; both vendored provenance files now 0 drift"
+        },
+        {
+          "id": "SMB-TYPE-FONTS",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+          "change": "tests/fixtures/fonts: Inter-Regular.ttf, NotoSansArabic-Regular.ttf, NotoSansSC-Regular.otf, OFL.txt, NotoSans-OFL.txt byte-identical to hash pins (529be850, bdff3e56, faa6c9df, 156202d7, 6a73f954); .gitattributes '* -text' (OFL.txt is CRLF, root text=auto eol=lf would rewrite); FONTS_PROVENANCE.json (source path, upstream, OFL-1.1 evidence, sha256); support font_root() = CARGO_MANIFEST_DIR/tests/fixtures/fonts + recipe file name, HSK_TYPE_FONT_ROOT optional",
+          "licenses": "all OFL-1.1: name ID 13/14 in each font, OS/2 fsType 0; upstream rsms/inter, notofonts/arabic, googlefonts/noto-cjk Sans/LICENSE; unmodified so Inter RFN not triggered; no blocker",
+          "recipe": "NOT edited: type-exact-oracle-recipe.json is pinned evidence outside the repo (sha 4b5e892e in MT research_basis); its absolute paths now serve only as file-name keys/provenance",
+          "tests": "Type crate full run --no-fail-fast: unit 37/37, foundation_contract 2/2, doc 0/0, exit0 (no HSK_TYPE_* env); committed blobs re-hashed equal for both license texts",
+          "remaining_external": "research root (recipe/preparation/variable font 3/goldens) and validator reference file stay under Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536 (Studio-owned, resolved by ancestor walk)"
+        },
+        {
+          "id": "SMB-TYPE-FIXTURES",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "31ea01e5f5f389d13174de3443067b5bb700396e",
+          "change": "tests/fixtures/evidence: recipe 4b5e892e, preparation b6e733fd, variable record 34f5c533, Inter variable font 3 29160a80 + Inter-variable-OFL.txt 5b9321a4, bidi goldens 90a42d9e + Unicode-data-license.txt e7a93b00, reference 6579f9a9; all byte-identical (committed blobs re-hashed). support: fixtures() = CARGO_MANIFEST_DIR/tests/fixtures; research() = fixtures/evidence; font_root() = fixtures/fonts; reference_file() = fixtures/evidence/...; HSK_TYPE_RESEARCH_ROOT/FONT_ROOT/REFERENCE_FILE optional overrides only; ancestor walk to Handshake_Artifacts removed. Provenance consolidated: tests/fixtures/FIXTURES_PROVENANCE.json (13 files); tests/fixtures/.gitattributes '* -text'",
+          "licenses": "font 3 OFL-1.1 (name ID 13/14, fsType 0, upstream rsms/inter, Google Fonts ofl); goldens carry one BidiCharacterTest line, Unicode-3.0 notice included; no blocker",
+          "handshake_artifacts_not_used": "proof by code path: tests/support, foundation_contract and examples/type-consumer contain no Handshake_Artifacts, ancestors(), drive-letter or wtc- path; every default resolves under CARGO_MANIFEST_DIR; run had 0 HSK_TYPE_* env vars. File-open tracing not available (not observed)",
+          "tests": "unit 37/37, foundation_contract 2/2, doc 0/0, exit 0"
+        }
+      ]
+    },
+    "default_feature_tests": {
+      "argv": "cargo test -p hsk-studio-type --no-fail-fast -- --nocapture",
+      "exit": 0,
+      "sha": "f6fc17c8737a74de0ca71a256b45e40cdd90b617",
+      "passed": 41,
+      "failed": 0,
+      "provenance_check_output": "vendored provenance: checked 150, drift 0; fixture provenance: checked 15, drift 0"
+    },
+    "spike_result": {
+      "parity": "11/11 pinned reference cases exact on HarfRust 0.14.0 (glyph ids, cluster ranges, advance/offset point bits): latin_liga_0/1, arabic_rtl_marks, cjk_han, variable_default/changed, mixed_ltr_isolate_and_trailing_space, latin_dlig_0/1, arabic_inter_coverage_fallback_index1, arabic_missing_inter_explicit_substitution; vendored also 11/11",
+      "coverage_gain": "devanagari_hindi 6 scalars -> 5 glyphs, hebrew_shalom_points 7 -> 7 glyphs shaped by HarfRust; vendored refuses UnsupportedProfile at request validation (profile gate validate.rs). No independent reference for these: glyph correctness UNVERIFIED. Thai not tested (no redistributable Thai font on disk; download not authorized)",
+      "metering": "see diagnostics/type-lane.md topic harfrust-spike",
+      "reference_producer": "upstream rustybuzz 0.20.1 (not HarfRust); earlier strategy claim retracted",
+      "default_build": "unchanged: feature off by default; validate() keeps Latn/Arab/Hani/Zyyy for the vendored provider",
+      "dep_request": "builders/dep-requests.jsonl line for harfrust =0.14.0 (std, optional, 18-package closure); steward lock/registry sync pending (Cargo.lock not staged)"
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-ENG-1",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": "Entrypoint feature matrix (steward): run harfrust_spike under --features harfrust; Operator D7 still pending",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-ENG-1:404ff3ae8cd7:INCONCLUSIVE",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-DOCTEST",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": "Add a doctest step to the entrypoint, or the lead records static acceptance: 0 runnable doc fences in src",
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-DOCTEST:404ff3ae8cd7:INCONCLUSIVE",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-ENV",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-ENV:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-FONTS",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-FONTS:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE-FIXTURES",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE-FIXTURES:404ff3ae8cd7:PASS_V1",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R3",
+        "lane": "SMB-TYPE",
+        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+        "decision": "passed",
+        "verdict": "PASS_V5",
+        "failures": [],
+        "remediation": null,
+        "round_ref": "validation/round-R3.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+        "idempotency_key": "STUDIO-R3:SMB-TYPE:404ff3ae8cd7:PASS_V5",
+        "recorded_at": "2026-10-11T03:11:21Z",
+        "by": "wp_validator STUDIO-R3"
+      }
+    ]
+  }
+}

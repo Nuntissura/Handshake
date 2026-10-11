@@ -1,0 +1,5293 @@
+{
+  "schema_id": "hsk.studio_whiteboard_gap_research@1",
+  "file_id": "STUDIO-WHITEBOARD-GAPS-129-130-131-RESEARCH-20261010",
+  "updated_at": "2026-10-10T04:24:56.132665+00:00",
+  "status": "RESEARCH_ONLY_PROPOSALS_NOT_APPLIED",
+  "authority": "NON_NORMATIVE_RESEARCH; Master Spec and approved contracts remain sole authority",
+  "lanes": {
+    "Handshake(Product)": "Studio preparation; implementation/runtime/GUI/parity acceptance NOT_RUN",
+    "RepoGovernance": "Authorized source research and proposed spec/contract amendments only"
+  },
+  "scope": {
+    "anchors": [
+      "STU-WB-129",
+      "STU-WB-130",
+      "STU-WB-131"
+    ],
+    "source_mts": [
+      "MT-33603",
+      "MT-33604",
+      "MT-33605"
+    ],
+    "host_mt": "MT-36195",
+    "only_written_file": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/whiteboard-gap-team/research.json",
+    "spec_current_version": "v02.208",
+    "spec_source": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
+    "spec_module_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
+    "no_scope_waiver": "No WB137/138 reference-only disposition discharges these feature blockers"
+  },
+  "current_clauses": {
+    "STU-WB-102": {
+      "line": 22027,
+      "text": "**[STU-WB-102] Board node kinds are `StudioLayer` kinds.** Every board object is a `StudioLayer` whose `kind` selects a board payload. Board nodes share the selection, transform, blend, opacity, lock, visibility, export and history surfaces of every other Studio layer; this sub-section states only what is ADDITIONAL per kind."
+    },
+    "STU-WB-103": {
+      "line": 22029,
+      "text": "**[STU-WB-103] Board node kind enumeration (normative, closed, twelve members).** `sticky`, `shape_with_text`, `connector`, `stamp`, `highlight`, `washi_tape`, `table`, `code_block`, `section`, `media_embed`, `link_unfurl`, `widget`. Freehand ink is not a separate kind: a marker or highlighter stroke is a `StudioVectorPath` with an ink profile, per [STU-WB-117]."
+    },
+    "STU-WB-104": {
+      "line": 22031,
+      "text": "**[STU-WB-104] Sticky note contract.** Additional fields: `text` (a text sublayer, so a sticky's typography is the ordinary `StudioTextStory` surface and not a board-private text model), `author_visible` (boolean), `author_name` (string), `is_wide_width` (boolean). A sticky auto-sizes to its text; `is_wide_width` selects the wide variant. `author_name` is a DISPLAY string captured at creation, distinct from the `KernelActor` on the creating event \u2014 the actor is authority, the display name is content and MUST be editable without rewriting history."
+    },
+    "STU-WB-105": {
+      "line": 22033,
+      "text": "**[STU-WB-105] Shape-with-text contract.** Additional fields: `shape_type` (an enumerated diagram-shape token), `text` (a text sublayer), `corner_radius` (number, optional), plus the fill, stroke and blend surfaces of an ordinary layer. It resizes around its text. `shape_type` is a closed enumeration Studio declares \u2014 the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived."
+    },
+    "STU-WB-106": {
+      "line": 22035,
+      "text": "**[STU-WB-106] Connector contract.** Additional fields: `connector_line_type` ([STU-WB-107]), `connector_start` and `connector_end` (endpoint records, [STU-WB-108]), `connector_start_stroke_cap` and `connector_end_stroke_cap` ([STU-WB-109]), `text` (an inline label as a text sublayer), `text_background` (a label backing sublayer), `corner_radius` (number, optional, applied at elbow bends), and `rotation`. A connector carries stroke and blend but no fill."
+    },
+    "STU-WB-107": {
+      "line": 22037,
+      "text": "**[STU-WB-107] Connector line-type enumeration (normative, closed, three members).** `STRAIGHT`, `ELBOWED`, `CURVED`. Default `ELBOWED`."
+    },
+    "STU-WB-108": {
+      "line": 22039,
+      "text": "**[STU-WB-108] Connector endpoint record (normative, three closed variants).** An endpoint is exactly one of:"
+    },
+    "STU-WB-109": {
+      "line": 22049,
+      "text": "**[STU-WB-109] Connector stroke-cap enumeration (normative, closed, twelve members).** `NONE`, `ARROW_EQUILATERAL`, `ARROW_LINES`, `TRIANGLE_FILLED`, `CIRCLE_FILLED`, `DIAMOND_FILLED`, `ERD_ONE`, `ERD_MANY`, `ERD_ONE_OR_MORE`, `ERD_ZERO_OR_ONE`, `ERD_ZERO_OR_MORE`, `ERD_EXACTLY_ONE`. The six entity-relationship caps are first-class members, not decorations: they are what makes the board usable for data modelling, and dropping them reduces the connector to an arrow."
+    },
+    "STU-WB-110": {
+      "line": 22051,
+      "text": "**[STU-WB-110] Stamp contract.** Additional fields: an author reference resolvable asynchronously to the placing account. A stamp is a droppable marker (dot, star, heart, plus-one and similar) whose attribution is queryable, which is what makes stamp-based voting tallyable ([STU-WB-121]). Stamp artwork is a CKC asset link per [STU-ASSET-005], not embedded bytes."
+    },
+    "STU-WB-111": {
+      "line": 22053,
+      "text": "**[STU-WB-111] Highlight contract.** A highlight is a vector-like board node carrying corner radius and the vector-network surface, used to mark a region of the board. It participates in the ordinary blend and opacity surfaces."
+    },
+    "STU-WB-112": {
+      "line": 22055,
+      "text": "**[STU-WB-112] Washi tape contract.** A decorative tape strip. It is a `StudioVectorPath`-backed node whose fill is a `StudioPattern` (14.8), and it carries the stickable behaviour of [STU-WB-118]. It has no board-private pattern model."
+    },
+    "STU-WB-113": {
+      "line": 22057,
+      "text": "**[STU-WB-113] Table contract.** Additional fields: `num_rows`, `num_columns` (both read-only derived), plus the fill and blend surfaces. Required commands: `cell_at(row, column)`, `insert_row(index)`, `insert_column(index)`, `remove_row(index)`, `remove_column(index)`, `move_row(from, to)`, `move_column(from, to)`, `resize_row(index, height)`, `resize_column(index, width)`. A cell is its own node carrying a fill and a text sublayer. This is the board table; it shares the `StudioLayer` table kind with the layout domain's table and MUST NOT be a second table model ([STU-DOC-004])."
+    },
+    "STU-WB-114": {
+      "line": 22059,
+      "text": "**[STU-WB-114] Code-block contract.** Additional fields: `code` (string) and `code_language` (a token). The language token set MUST be the codegen language enumeration of [STU-AUT-164] so a board code block and a codegen result speak the same vocabulary. Syntax colouring uses the colouring-scheme mechanism of [STU-WEB-045]; there is no board-private highlighter."
+    },
+    "STU-WB-115": {
+      "line": 22061,
+      "text": "**[STU-WB-115] Section contract.** Additional fields: `section_contents_hidden` (boolean \u2014 the collapse state), plus fill, stroke, corner-radius and per-corner radius, and `dev_status` from the two-member enumeration of [STU-DS-159]. A section is a named container: it groups board content, collapses, and is addressable as a navigation and voting target."
+    },
+    "STU-WB-116": {
+      "line": 22063,
+      "text": "**[STU-WB-116] Media-embed and link-unfurl contracts.** These are two kinds, not one:"
+    },
+    "STU-WB-117": {
+      "line": 22070,
+      "text": "**[STU-WB-117] Ink contract.** Marker and highlighter strokes are `StudioVectorPath` nodes carrying an ink profile: `{tool: marker | highlighter, width, opacity, blend_mode, pressure_curve?}`. Highlighter ink defaults to a multiply blend so overlaps read as ink rather than as paint. Ink is tuned for whiteboarding, not precision illustration, but it is the SAME vector primitive: a board stroke can be selected, edited and exported through the ordinary vector surface ([STU-DOC-004])."
+    },
+    "STU-WB-118": {
+      "line": 22072,
+      "text": "**[STU-WB-118] Stickable behaviour.** Stamp, highlight and washi-tape nodes carry a `stuck_to_node_id`: when set, the node moves with the node it is stuck to. This is what makes a vote stamp stay on the sticky it was placed on when the board is rearranged. A `stuck_to_node_id` that no longer resolves MUST unstick the node in place and report it."
+    },
+    "STU-WB-119": {
+      "line": 22074,
+      "text": "**[STU-WB-119] Widget contract.** A widget node carries `widget_id` (the plugin-declared widget identity), `widget_synced_state` (a read-only key-value map replicated to every viewer), `synced_state_overrides` and `synced_map_overrides` (per-instance overrides), plus commands `set_widget_synced_state` and `clone_widget`. Synced state travels over the CRDT collaboration substrate (14.17) \u2014 a widget MUST NOT open its own transport. Widgets are plugins on the `board_widget` extension point ([STU-AUT-157]) running under the kernel capability and consent gates ([STU-AUT-018]); there is no special-cased built-in widget."
+    },
+    "STU-WB-129": {
+      "line": 22111,
+      "text": "**[STU-WB-129] DECLARED GAP \u2014 shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it."
+    },
+    "STU-WB-130": {
+      "line": 22113,
+      "text": "**[STU-WB-130] DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late."
+    },
+    "STU-WB-131": {
+      "line": 22115,
+      "text": "**[STU-WB-131] DECLARED GAP \u2014 no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied."
+    },
+    "STU-WB-138": {
+      "line": 22145,
+      "text": "**[STU-WB-138] Open items and blocked dependencies.** This module declares three, and every one of them YIELDS a microtask whose FIRST acceptance criterion is resolving the named dependency:"
+    },
+    "STU-WB-139": {
+      "line": 22155,
+      "text": "**[STU-WB-139] Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens \u2014 all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and the `studio_declared` label of [STU-WB-105] where it touches the shape vocabulary. A microtask that says \"implement connectors\" without the twelve stroke caps and the three endpoint variants does not satisfy this clause."
+    },
+    "STU-DOC-001": {
+      "line": 257,
+      "text": "[STU-DOC-001] `StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning all Studio domains. One Folio document retains the containment hierarchy of `StudioLayer` nodes over `StudioArtboard`/`StudioPageSpread` containers and their typed composition-operation/port edges under [STU-CMP-092]; containment and render dependencies have distinct semantics within the same authored records, not separate mutable layer/graph documents; a layer's `kind` selects its domain payload (`raster`, `vector`, `text`, `group`, `adjustment`, `live_filter`, `mask`, `fill`, `component_instance`, `frame`, `placed_asset`). There is no per-source-app document silo: a raster edit, a vector edit, and a layout edit operate on layers in the same `StudioDocument` through the same selection, history, color, and export surfaces. `StudioDocument` MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is auto-generated, and it is the single type shared between the model's output surface, the engines' input surface, and the typed SurrealDB object field (`studio_documents.doc_json`)."
+    },
+    "STU-LAY-001": {
+      "line": 5370,
+      "text": "**[STU-LAY-001]** A layout `StudioDocument` MUST hold an ordered set of `StudioPageSpread` containers. A"
+    },
+    "STU-LAY-003": {
+      "line": 5450,
+      "text": "**[STU-LAY-003]** Pages MUST support mixed sizes and orientations within one document. A page carries"
+    },
+    "STU-LAY-107": {
+      "line": 5456,
+      "text": "**[STU-LAY-107] Page object contract.** The captured page object declares these fields; Studio MUST"
+    },
+    "STU-PRO-024a": {
+      "line": 20728,
+      "text": "[STU-PRO-024a] Studio MUST provide an in-editor inline preview panel that plays the prototype without leaving the editor and updates live with edits."
+    },
+    "STU-PRO-024b": {
+      "line": 20730,
+      "text": "[STU-PRO-024b] Studio MUST provide a full presentation view offering fit / fill / actual-size zoom, optional hotspot hinting on misclick, a flow sidebar, restart-flow control, and keyboard navigation across flow frames."
+    },
+    "STU-PRO-024c": {
+      "line": 20732,
+      "text": "[STU-PRO-024c] Presentation and preview are local; any shared-link or mobile-device viewer is an optional adapter over the local prototype, never required ([STU-OVR-002]). Touch-gesture triggers ([STU-PRO-005], [STU-PRO-006]) MUST map natively when a prototype runs on a touch surface."
+    },
+    "STU-PRO-042": {
+      "line": 20818,
+      "text": "[STU-PRO-042] Page transitions MUST support per-spread or all-spread presets (e.g. blinds, comb, dissolve, fade, push, wipe, zoom, page-turn) with direction and speed, honored in full-screen interactive PDF output."
+    },
+    "STU-PRO-132": {
+      "line": 20487,
+      "text": "**[STU-PRO-132] Presentation surfaces.** [STU-PRO-024] through [STU-PRO-024c] remain in force. Additionally: the presentation view's zoom modes are exactly `FIT`, `FILL`, `ACTUAL_SIZE` and `SCALE_DOWN_TO_FIT`; the device-frame catalog entry is `{device_id, display_name, screen_width, screen_height, device_pixel_ratio, chrome_asset_id}` where `chrome_asset_id` is a CKC placed-asset link per [STU-ASSET-005] and NOT an embedded image."
+    },
+    "STU-DS-160": {
+      "line": 19987,
+      "text": "**[STU-DS-160] Contextual panel binding.** Every design-system inspector panel named in this sub-section \u2014 the component editor, the variant-set editor, the component-property inspector, the instance inspector, the variable and collection and mode editor, the style registry, and the auto-layout / constraint / layout-grid controls \u2014 MUST declare its binding through the contextual property-panel contract ([STU-WEB-030] through [STU-WEB-044]) rather than through a hard-coded panel switch. Studio MUST NOT introduce a whole-UI persona or mode toggle to select which design-system panel is shown."
+    }
+  },
+  "current_contracts": [
+    {
+      "mt": "MT-33603",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33603.json",
+      "sha256": "d569249c6d0d2767917626958024e02f9c98bfc69ffed795b56dd9d1961bee86",
+      "identity": {
+        "mt_id": "MT-33603",
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "DECLARED GAP \u2014 shape-type vocabulary is Studio-declared",
+        "group": "STUDIO_ASSET_FEATURE",
+        "version": 2,
+        "contract_revision": 3
+      },
+      "spec_anchor": [
+        "STU-WB-129"
+      ],
+      "current_module": "STUDIO-MODULE-NIB",
+      "current_status": "PENDING",
+      "current_active_acceptance": [
+        {
+          "id": "ASSET-AC-001",
+          "criterion": "DECLARED GAP \u2014 shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+          "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
+        }
+      ],
+      "input_contract": [
+        {
+          "typed_input": "Actual WB105 minimum12 shape tokens rectangle,rounded rectangle,ellipse,diamond,triangle,parallelogram,hexagon,cylinder,cloud,document,predefined-process,terminator; studio_declared provenance, WB138 first dependency resolution via recovered capture union or recorded operator acceptance and amended clause before shape activation.",
+          "source_contract": "Exact specification_anchor_refs and legacy acceptance retained; required unknowns remain explicit gaps.",
+          "public_consumer": "Public exact shape-vocabulary/provenance resolution observation with first-dependency evidence or explicit activation blocker.",
+          "immutable_input_and_revision_required": true
+        }
+      ]
+    },
+    {
+      "mt": "MT-33604",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33604.json",
+      "sha256": "f95c5d9f112acd3dbe3d165bf6f24d2e864e909de2f2e38bd7bf05b6e4097027",
+      "identity": {
+        "mt_id": "MT-33604",
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here",
+        "group": "STUDIO_ASSET_FEATURE",
+        "version": 2,
+        "contract_revision": 3
+      },
+      "spec_anchor": [
+        "STU-WB-130"
+      ],
+      "current_module": "STUDIO-MODULE-NIB",
+      "current_status": "PENDING",
+      "current_active_acceptance": [
+        {
+          "id": "ASSET-AC-001",
+          "criterion": "DECLARED GAP \u2014 presentation and slide node kinds are out of scope here.** The source object model additionally declares slide, slide-row, slide-grid and interactive-slide-element node kinds. Those belong to a presentation domain, which section 14 does not have. They are NOT folded into whiteboard mode, because a slide deck is not a board: it has ordered pages, a transition model and a presenter mode that the board surface does not. Their disposition is an open scope question for the operator, recorded here so it is not discovered late.",
+          "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
+        }
+      ],
+      "input_contract": [
+        {
+          "typed_input": "Captured slide,slide-row,slide-grid,interactive-slide-element kind names; actual section14 absence of presentation domain and WB138 operator decision evidence created|folded_elsewhere|out_of_scope with canonical disposition reference.",
+          "source_contract": "Exact specification_anchor_refs and legacy acceptance retained; required unknowns remain explicit gaps.",
+          "public_consumer": "Public presentation-kind scope/disposition observation and explicit unresolved operator decision blocker for four source kinds.",
+          "immutable_input_and_revision_required": true
+        }
+      ]
+    },
+    {
+      "mt": "MT-33605",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33605.json",
+      "sha256": "6f3f218934208fe5761c764ddb0d7bc1993a08d40278896739021aab3dc7bc98",
+      "identity": {
+        "mt_id": "MT-33605",
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "DECLARED GAP \u2014 no second corroborating capture",
+        "group": "STUDIO_ASSET_FEATURE",
+        "version": 2,
+        "contract_revision": 3
+      },
+      "spec_anchor": [
+        "STU-WB-131"
+      ],
+      "current_module": "STUDIO-MODULE-NIB",
+      "current_status": "PENDING",
+      "current_active_acceptance": [
+        {
+          "id": "ASSET-AC-001",
+          "criterion": "DECLARED GAP \u2014 no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+          "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
+        }
+      ],
+      "input_contract": [
+        {
+          "typed_input": "Exact twelve WB103 board kinds and their field contracts, one-source-object-model provenance; WB138 dependency second corroborating capture or recorded operator acceptance of single-witness basis with reliability stated in UserManual; evidence/canonical revisions.",
+          "source_contract": "Exact specification_anchor_refs and legacy acceptance retained; required unknowns remain explicit gaps.",
+          "public_consumer": "Public board-kind field witness reconciliation/reliability observation and unresolved first dependency blocker.",
+          "immutable_input_and_revision_required": true
+        }
+      ]
+    },
+    {
+      "mt": "MT-33580",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33580.json",
+      "sha256": "d596313cda6a06382814b95e2d1759c41ec7dcf905c731a6f27917df7122058d",
+      "identity": {
+        "mt_id": "MT-33580",
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "Shape-with-text contract",
+        "group": "STUDIO_ASSET_FEATURE",
+        "version": 2,
+        "contract_revision": 3
+      },
+      "spec_anchor": [
+        "STU-WB-105"
+      ],
+      "current_module": "STUDIO-MODULE-NIB",
+      "current_status": "PENDING",
+      "current_active_acceptance": null,
+      "input_contract": [
+        {
+          "typed_input": "Shape-with-text StudioLayer with closed studio_declared shape_type, ordinary text sublayer/StudioTextStory, optional corner_radius and common fill/stroke/blend; minimum required members rectangle,rounded rectangle,ellipse,diamond,triangle,parallelogram,hexagon,cylinder,cloud,document,predefined-process,terminator; source/text/layout revision.",
+          "source_contract": "Exact specification_anchor_refs and legacy acceptance retained; required unknowns remain explicit gaps.",
+          "public_consumer": "Public studio_declared diagram-shape union/geometry and text-fit proposal with provenance, optional-radius and common appearance preservation.",
+          "immutable_input_and_revision_required": true
+        }
+      ]
+    },
+    {
+      "mt": "MT-36195",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36195.json",
+      "sha256": "8999dfbce429424c79ba550ce348ad8e169228391960c691c9791070b6ef774e",
+      "identity": {
+        "mt_id": "MT-36195",
+        "wp_id": "WP-KERNEL-STUDIO",
+        "title": "Adopt pinned hsk-studio-nib through native Handshake services",
+        "group": "HOST_ADOPTION",
+        "version": 1,
+        "contract_revision": 2
+      },
+      "spec_anchor": null,
+      "current_module": "handshake_native::studio",
+      "current_status": "PENDING",
+      "current_active_acceptance": null,
+      "input_contract": [
+        "Granted vector path/style/fill rule and parametric/numeric operation",
+        ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/grouped_host_tasks/6/qualified_ac_refs: read each original acceptance payload at source_ref and verify semantic_sha256 before constructing cases",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/host_modules/1/maintenance",
+        ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/6/maintenance"
+      ]
+    }
+  ],
+  "original_capture": {
+    "manifest_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports_manifest.json",
+    "manifest_generated_at": "2026-09-04T13:53:00+00:00",
+    "declared_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+    "bytes": 1271945,
+    "sha256": "e7d851b46bd71bc709e325f260b48c11dad48a559fe9a2c0e5fcc24a4d717fac",
+    "actual_original_bytes": "NOT_INSPECTED; absent at declared kernel payload path; external filename scan yielded no observation before bounded cancellation",
+    "provenance_sidecar": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.provenance.json",
+    "provenance_status": "Inspected reference-only pointers; not original field data",
+    "extractor": ".GOV/reference/studio_app_feature_research/_tools/greenroom/figma-typings-extract.py",
+    "extractor_provenance": "npm @figma/plugin-typings and @figma/widget-typings; no app launch",
+    "loss_evidence": "parse_members accepts only a member declaration line and ignores multiline union continuation lines; shapeType: thus loses following | literal rows. Types truncated400, aliases600; comments/default documentation stripped. Package version/hash absent from emitted metadata. Original bytes/version cannot be reconstructed as fact."
+  },
+  "primary_sources": [
+    {
+      "id": "FIGMA-PLUGIN-1.141.0",
+      "repository": "https://github.com/figma/plugin-typings",
+      "commit": "07157d96c58add71d234b13bfd55b53abdce76b8",
+      "commit_date": "2026-10-05T19:59:17Z",
+      "release_tag": "v1.141.0",
+      "npm_version": "1.141.0",
+      "npm_gitHead": "07157d96c58add71d234b13bfd55b53abdce76b8",
+      "path": "plugin-api.d.ts",
+      "git_blob_sha1": "5c7faaeb0466585114b453026fbf8b79938cdc1c",
+      "sha256": "7102bde6771033114711975b1184210fbd9164c4616ebbaf6f11a7c281858bea",
+      "url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts",
+      "docs": "https://developers.figma.com/docs/plugins/api/nodes/",
+      "provenance": "Official Figma plugin declarations; npm/docs same upstream, not independent second vendor witness"
+    },
+    {
+      "id": "FIGMA-REST-0.44.0",
+      "repository": "https://github.com/figma/rest-api-spec",
+      "commit": "1c15f007cc81b4409efb2f24fec89608e8a7548d",
+      "commit_date": "2026-10-07T22:15:52Z",
+      "package_version": "0.44.0",
+      "paths": {
+        "openapi/openapi.yaml": "59cc66175a7d4392398c1f44c053481bc61a3ad560a73ec377a2efe6b63c23df",
+        "dist/api_types.ts": "8adb38c399cf10b67f257ac7465303088abf55a3bfb1a66527860e09e0df3036"
+      },
+      "types_git_blob_sha1": "e72d112bca763bf26ed3bd72110e8380b58285fc",
+      "url": "https://github.com/figma/rest-api-spec/blob/1c15f007cc81b4409efb2f24fec89608e8a7548d/openapi/openapi.yaml",
+      "docs": "https://developers.figma.com/docs/rest-api/file-node-types/",
+      "provenance": "Official same-vendor REST representation; README says TypeScript generated from OpenAPI and spec beta. YAML+generated types one witness, not two. No evidence of independent authoring lineage or second vendor capture."
+    }
+  ],
+  "inspected_plugin_declarations_and_inheritance": {
+    "ConnectorEndpointPositionAndEndpointNodeId": {
+      "line_start": 6269,
+      "line_end": 6275,
+      "extends": [],
+      "declaration": "interface ConnectorEndpointPositionAndEndpointNodeId {\n  position: {\n    x: number\n    y: number\n  }\n  endpointNodeId: string\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6269"
+    },
+    "ConnectorEndpointEndpointNodeIdAndMagnet": {
+      "line_start": 6276,
+      "line_end": 6282,
+      "extends": [],
+      "declaration": "interface ConnectorEndpointEndpointNodeIdAndMagnet {\n  endpointNodeId: string\n  magnet: 'NONE' | 'AUTO' | 'TOP' | 'LEFT' | 'BOTTOM' | 'RIGHT' | 'CENTER'\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6276"
+    },
+    "ConnectorEndpointPosition": {
+      "line_start": 6263,
+      "line_end": 6268,
+      "extends": [],
+      "declaration": "interface ConnectorEndpointPosition {\n  position: {\n    x: number\n    y: number\n  }\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6263"
+    },
+    "ConnectorEndpoint": {
+      "line_start": 6283,
+      "line_end": 6289,
+      "extends": [],
+      "declaration": "type ConnectorEndpoint =\n  | ConnectorEndpointPosition\n  | ConnectorEndpointEndpointNodeIdAndMagnet\n  | ConnectorEndpointPositionAndEndpointNodeId",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6283"
+    },
+    "ConnectorStrokeCap": {
+      "line_start": 6290,
+      "line_end": 6305,
+      "extends": [],
+      "declaration": "type ConnectorStrokeCap =\n  | 'NONE'\n  | 'ARROW_EQUILATERAL'\n  | 'ARROW_LINES'\n  | 'TRIANGLE_FILLED'\n  | 'DIAMOND_FILLED'\n  | 'CIRCLE_FILLED'\n  | 'ERD_ZERO_OR_ONE'\n  | 'ERD_EXACTLY_ONE'\n  | 'ERD_ZERO_OR_MORE'\n  | 'ERD_ONE_OR_MORE'\n  | 'ERD_ONE'\n  | 'ERD_MANY'",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6290"
+    },
+    "DevStatus": {
+      "line_start": 5691,
+      "line_end": 5697,
+      "extends": [],
+      "declaration": "type DevStatus = {\n  type: 'READY_FOR_DEV' | 'COMPLETED'\n  description?: string\n} | null",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L5691"
+    },
+    "LinkUnfurlData": {
+      "line_start": 12177,
+      "line_end": 12202,
+      "extends": [],
+      "declaration": "interface LinkUnfurlData {\n  url: string\n  title: string | null\n  description: string | null\n  provider: string | null\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12177"
+    },
+    "EmbedData": {
+      "line_start": 12135,
+      "line_end": 12162,
+      "extends": [],
+      "declaration": "interface EmbedData {\n  srcUrl: string\n  canonicalUrl: string | null\n  title: string | null\n  description: string | null\n  provider: string | null\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12135"
+    },
+    "MediaData": {
+      "line_start": 12217,
+      "line_end": 12222,
+      "extends": [],
+      "declaration": "interface MediaData {\n  hash: string\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12217"
+    },
+    "SlideTransition": {
+      "line_start": 12368,
+      "line_end": 12421,
+      "extends": [],
+      "declaration": "interface SlideTransition {\n  readonly style:\n    | 'NONE'\n    | 'DISSOLVE'\n    | 'SLIDE_FROM_LEFT'\n    | 'SLIDE_FROM_RIGHT'\n    | 'SLIDE_FROM_BOTTOM'\n    | 'SLIDE_FROM_TOP'\n    | 'PUSH_FROM_LEFT'\n    | 'PUSH_FROM_RIGHT'\n    | 'PUSH_FROM_BOTTOM'\n    | 'PUSH_FROM_TOP'\n    | 'MOVE_FROM_LEFT'\n    | 'MOVE_FROM_RIGHT'\n    | 'MOVE_FROM_TOP'\n    | 'MOVE_FROM_BOTTOM'\n    | 'SLIDE_OUT_TO_LEFT'\n    | 'SLIDE_OUT_TO_RIGHT'\n    | 'SLIDE_OUT_TO_TOP'\n    | 'SLIDE_OUT_TO_BOTTOM'\n    | 'MOVE_OUT_TO_LEFT'\n    | 'MOVE_OUT_TO_RIGHT'\n    | 'MOVE_OUT_TO_TOP'\n    | 'MOVE_OUT_TO_BOTTOM'\n    | 'SMART_ANIMATE'\n  readonly duration: number\n  readonly curve:\n    'EASE_IN' | 'EASE_OUT' | 'EASE_IN_AND_OUT' | 'LINEAR' | 'GENTLE' | 'QUICK' | 'BOUNCY' | 'SLOW'\n  readonly timing: {\n    readonly type: 'ON_CLICK' | 'AFTER_DELAY'\n    readonly delay?: number\n  }\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12368"
+    },
+    "InteractiveSlideElementNode": {
+      "line_start": 12351,
+      "line_end": 12367,
+      "extends": [
+        "OpaqueNodeMixin"
+      ],
+      "declaration": "interface InteractiveSlideElementNode extends OpaqueNodeMixin {\n  readonly type: 'INTERACTIVE_SLIDE_ELEMENT'\n  readonly interactiveSlideElementType: 'POLL' | 'EMBED' | 'FACEPILE' | 'ALIGNMENT' | 'YOUTUBE'\n  clone(): InteractiveSlideElementNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12351"
+    },
+    "OpaqueNodeMixin": {
+      "line_start": 9433,
+      "line_end": 9435,
+      "extends": [
+        "BaseNodeMixin",
+        "SceneNodeMixin",
+        "ExportMixin",
+        "DimensionAndPositionMixin"
+      ],
+      "declaration": "interface OpaqueNodeMixin\n  extends BaseNodeMixin, SceneNodeMixin, ExportMixin, DimensionAndPositionMixin {}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9433"
+    },
+    "DimensionAndPositionMixin": {
+      "line_start": 7238,
+      "line_end": 7336,
+      "extends": [],
+      "declaration": "interface DimensionAndPositionMixin {\n  x: number\n  y: number\n  readonly width: number\n  readonly height: number\n  minWidth: number | null\n  maxWidth: number | null\n  minHeight: number | null\n  maxHeight: number | null\n  relativeTransform: Transform\n  readonly absoluteTransform: Transform\n  readonly absoluteBoundingBox: Rect | null\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7238"
+    },
+    "ExportMixin": {
+      "line_start": 8982,
+      "line_end": 9081,
+      "extends": [],
+      "declaration": "interface ExportMixin {\n  exportSettings: ReadonlyArray<ExportSettings>\n  exportAsync(settings?: ExportSettings): Promise<Uint8Array>\n  exportAsync(settings: ExportSettingsSVGString): Promise<string>\n  exportAsync(settings: ExportSettingsREST): Promise<Object>\n  exportAsync(\n    settings: ExportSettingsMP4 | ExportSettingsGIF | ExportSettingsWEBM,\n  ): Promise<Uint8Array>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8982"
+    },
+    "SceneNodeMixin": {
+      "line_start": 6584,
+      "line_end": 6749,
+      "extends": [
+        "ExplicitVariableModesMixin",
+        "MotionNodeMixin"
+      ],
+      "declaration": "interface SceneNodeMixin extends ExplicitVariableModesMixin, MotionNodeMixin {\n  visible: boolean\n  locked: boolean\n  readonly stuckNodes: SceneNode[]\n  readonly attachedConnectors: ConnectorNode[]\n  componentPropertyReferences:\n    | {\n        [nodeProperty in 'visible' | 'characters' | 'mainComponent']?: string\n      }\n    | null\n  readonly boundVariables?: {\n    readonly [field in VariableBindableNodeField]?: VariableAlias\n  } & {\n    readonly [field in VariableBindableTextField]?: VariableAlias[]\n  } & {\n    readonly fills?: VariableAlias[]\n    readonly strokes?: VariableAlias[]\n    readonly effects?: VariableAlias[]\n    readonly layoutGrids?: VariableAlias[]\n    readonly componentProperties?: {\n      readonly [propertyName: string]: VariableAlias\n    }\n    readonly textRangeFills?: VariableAlias[]\n  }\n  setBoundVariable(\n    field: VariableBindableNodeField | VariableBindableTextField,\n    variableId: string | null,\n  ): void\n  setBoundVariable(\n    field: VariableBindableNodeField | VariableBindableTextField,\n    variable: Variable | null,\n  ): void\n  readonly inferredVariables?: {\n    readonly [field in VariableBindableNodeField]?: VariableAlias[]\n  } & {\n    readonly fills?: VariableAlias[][]\n    readonly strokes?: VariableAlias[][]\n  }\n  resolvedVariableModes: {\n    [collectionId: string]: string\n  }\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6584"
+    },
+    "MotionNodeMixin": {
+      "line_start": 6750,
+      "line_end": 6909,
+      "extends": [],
+      "declaration": "interface MotionNodeMixin {\n  readonly animationStyles: AppliedAnimationStyle[]\n  readonly animations: Animations\n  readonly manualKeyframeTracks: ManualKeyframeTracks\n  readonly timelines: ReadonlyArray<Timeline>\n  applyAnimationStyle(styleId: string, animationStyleData?: AnimationStyleConfiguration): string\n  removeAnimationStyle(id: string): void\n  applyManualKeyframeTrack(field: KeyframeField, track: ManualKeyframeTrackInput): void\n  removeManualKeyframeTrack(field: KeyframeField): void\n  setTimelineDuration(id: string, duration: number): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6750"
+    },
+    "ExplicitVariableModesMixin": {
+      "line_start": 10528,
+      "line_end": 10562,
+      "extends": [],
+      "declaration": "interface ExplicitVariableModesMixin {\n  explicitVariableModes: {\n    [collectionId: string]: string\n  }\n  clearExplicitVariableModeForCollection(collectionId: string): void\n  clearExplicitVariableModeForCollection(collection: VariableCollection): void\n  setExplicitVariableModeForCollection(collectionId: string, modeId: string): void\n  setExplicitVariableModeForCollection(collection: VariableCollection, modeId: string): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L10528"
+    },
+    "BaseNodeMixin": {
+      "line_start": 6306,
+      "line_end": 6465,
+      "extends": [
+        "PluginDataMixin",
+        "DevResourcesMixin"
+      ],
+      "declaration": "interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {\n  readonly id: string\n  readonly parent: (BaseNode & ChildrenMixin) | null\n  name: string\n  readonly removed: boolean\n  toString(): string\n  remove(): void\n  setRelaunchData(data: { [command: string]: string }): void\n  getRelaunchData(): {\n    [command: string]: string\n  }\n  readonly isAsset: boolean\n  getCSSAsync(): Promise<{\n    [key: string]: string\n  }>\n  getTopLevelFrame(): FrameNode | undefined\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6306"
+    },
+    "DevResourcesMixin": {
+      "line_start": 6523,
+      "line_end": 6570,
+      "extends": [],
+      "declaration": "interface DevResourcesMixin {\n  getDevResourcesAsync(options?: { includeChildren?: boolean }): Promise<DevResourceWithNodeId[]>\n  addDevResourceAsync(url: string, name?: string): Promise<void>\n  editDevResourceAsync(\n    currentUrl: string,\n    newValue: {\n      name?: string\n      url?: string\n    },\n  ): Promise<void>\n  deleteDevResourceAsync(url: string): Promise<void>\n  setDevResourcePreviewAsync(url: string, preview: PlainTextElement): Promise<void>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6523"
+    },
+    "PluginDataMixin": {
+      "line_start": 6466,
+      "line_end": 6522,
+      "extends": [],
+      "declaration": "interface PluginDataMixin {\n  getPluginData(key: string): string\n  setPluginData(key: string, value: string): void\n  getPluginDataKeys(): string[]\n  getSharedPluginData(namespace: string, key: string): string\n  setSharedPluginData(namespace: string, key: string, value: string): void\n  getSharedPluginDataKeys(namespace: string): string[]\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6466"
+    },
+    "SlideGridNode": {
+      "line_start": 12338,
+      "line_end": 12350,
+      "extends": [
+        "OpaqueNodeMixin",
+        "ChildrenMixin"
+      ],
+      "declaration": "interface SlideGridNode extends OpaqueNodeMixin, ChildrenMixin {\n  readonly type: 'SLIDE_GRID'\n  clone(): SlideGridNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12338"
+    },
+    "ChildrenMixin": {
+      "line_start": 6972,
+      "line_end": 7224,
+      "extends": [
+        "NodeType[]>(\n    criteria: FindAllCriteria<T>",
+        "): Array<"
+      ],
+      "declaration": "interface ChildrenMixin {\n  readonly children: ReadonlyArray<SceneNode>\n  appendChild(child: SceneNode): void\n  insertChild(index: number, child: SceneNode): void\n  findChildren(callback?: (node: SceneNode) => boolean): SceneNode[]\n  findChild(callback: (node: SceneNode) => boolean): SceneNode | null\n  findAll(callback?: (node: SceneNode) => boolean): SceneNode[]\n  findOne(callback: (node: SceneNode) => boolean): SceneNode | null\n  findAllWithCriteria<T extends NodeType[]>(\n    criteria: FindAllCriteria<T>,\n  ): Array<\n    {\n      type: T[number]\n    } & SceneNode\n  >\n  findWidgetNodesByWidgetId(widgetId: string): Array<WidgetNode>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6972"
+    },
+    "SlideRowNode": {
+      "line_start": 12325,
+      "line_end": 12337,
+      "extends": [
+        "OpaqueNodeMixin",
+        "ChildrenMixin"
+      ],
+      "declaration": "interface SlideRowNode extends OpaqueNodeMixin, ChildrenMixin {\n  readonly type: 'SLIDE_ROW'\n  clone(): SlideRowNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12325"
+    },
+    "SlideNode": {
+      "line_start": 12300,
+      "line_end": 12324,
+      "extends": [
+        "BaseFrameMixin"
+      ],
+      "declaration": "interface SlideNode extends BaseFrameMixin {\n  readonly type: 'SLIDE'\n  clone(): SlideNode\n  getSlideTransition(): SlideTransition\n  setSlideTransition(transition: SlideTransition): void\n  isSkippedSlide: boolean\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12300"
+    },
+    "BaseFrameMixin": {
+      "line_start": 9372,
+      "line_end": 9430,
+      "extends": [
+        "BaseNodeMixin",
+        "SceneNodeMixin",
+        "ChildrenMixin",
+        "ContainerMixin",
+        "DeprecatedBackgroundMixin",
+        "GeometryMixin",
+        "ComplexStrokesMixin",
+        "CornerMixin",
+        "RectangleCornerMixin",
+        "BlendMixin",
+        "ConstraintMixin",
+        "LayoutMixin",
+        "ExportMixin",
+        "IndividualStrokesMixin",
+        "AutoLayoutMixin",
+        "GridLayoutMixin",
+        "AspectRatioLockMixin",
+        "AnnotationsMixin",
+        "DevStatusMixin"
+      ],
+      "declaration": "interface BaseFrameMixin\n  extends\n    BaseNodeMixin,\n    SceneNodeMixin,\n    ChildrenMixin,\n    ContainerMixin,\n    DeprecatedBackgroundMixin,\n    GeometryMixin,\n    ComplexStrokesMixin,\n    CornerMixin,\n    RectangleCornerMixin,\n    BlendMixin,\n    ConstraintMixin,\n    LayoutMixin,\n    ExportMixin,\n    IndividualStrokesMixin,\n    AutoLayoutMixin,\n    GridLayoutMixin,\n    AspectRatioLockMixin,\n    AnnotationsMixin,\n    DevStatusMixin {\n  readonly detachedInfo: DetachedInfo | null\n  layoutGrids: ReadonlyArray<LayoutGrid>\n  gridStyleId: string\n  setGridStyleIdAsync(styleId: string): Promise<void>\n  clipsContent: boolean\n  guides: ReadonlyArray<Guide>\n  inferredAutoLayout: InferredAutoLayoutResult | null\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9372"
+    },
+    "DevStatusMixin": {
+      "line_start": 6571,
+      "line_end": 6583,
+      "extends": [],
+      "declaration": "interface DevStatusMixin {\n  devStatus: DevStatus\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6571"
+    },
+    "AnnotationsMixin": {
+      "line_start": 9489,
+      "line_end": 9499,
+      "extends": [],
+      "declaration": "interface AnnotationsMixin {\n  annotations: ReadonlyArray<Annotation>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9489"
+    },
+    "AspectRatioLockMixin": {
+      "line_start": 7487,
+      "line_end": 7538,
+      "extends": [],
+      "declaration": "interface AspectRatioLockMixin {\n  readonly targetAspectRatio: Vector | null\n  lockAspectRatio(): void\n  unlockAspectRatio(): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7487"
+    },
+    "GridLayoutMixin": {
+      "line_start": 8206,
+      "line_end": 8463,
+      "extends": [],
+      "declaration": "interface GridLayoutMixin {\n  gridRowCount: number\n  gridColumnCount: number\n  gridRowGap: number\n  gridColumnGap: number\n  gridRowSizes: Array<GridTrackSize>\n  gridColumnSizes: Array<GridTrackSize>\n  appendChildAt(node: SceneNode, rowIndex: number, columnIndex: number): void\n  gridAutoTracks: 'NONE' | 'ROWS'\n  gridItemsPositioning: 'MANUAL' | 'ROW_AUTO_FLOW'\n  reorderRows(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>\n  reorderColumns(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8206"
+    },
+    "AutoLayoutMixin": {
+      "line_start": 7636,
+      "line_end": 8146,
+      "extends": [],
+      "declaration": "interface AutoLayoutMixin {\n  layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID'\n  paddingLeft: number\n  paddingRight: number\n  paddingTop: number\n  paddingBottom: number\n  horizontalPadding: number\n  verticalPadding: number\n  primaryAxisSizingMode: 'FIXED' | 'AUTO'\n  counterAxisSizingMode: 'FIXED' | 'AUTO'\n  strokesIncludedInLayout: boolean\n  layoutWrap: 'NO_WRAP' | 'WRAP'\n  primaryAxisAlignItems:\n    'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN' | 'SPACE_EVENLY' | 'SPACE_AROUND'\n  counterAxisAlignItems: 'MIN' | 'MAX' | 'CENTER' | 'BASELINE'\n  counterAxisAlignContent: 'AUTO' | 'SPACE_BETWEEN'\n  itemSpacing: number\n  counterAxisSpacing: number | null\n  itemReverseZIndex: boolean\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7636"
+    },
+    "IndividualStrokesMixin": {
+      "line_start": 8717,
+      "line_end": 8729,
+      "extends": [],
+      "declaration": "interface IndividualStrokesMixin {\n  strokeTopWeight: number\n  strokeBottomWeight: number\n  strokeLeftWeight: number\n  strokeRightWeight: number\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8717"
+    },
+    "LayoutMixin": {
+      "line_start": 7337,
+      "line_end": 7486,
+      "extends": [
+        "DimensionAndPositionMixin",
+        "AutoLayoutChildrenMixin",
+        "GridChildrenMixin"
+      ],
+      "declaration": "interface LayoutMixin\n  extends DimensionAndPositionMixin, AutoLayoutChildrenMixin, GridChildrenMixin {\n  readonly absoluteRenderBounds: Rect | null\n  constrainProportions: boolean\n  rotation: number\n  layoutSizingHorizontal: 'FIXED' | 'HUG' | 'FILL'\n  layoutSizingVertical: 'FIXED' | 'HUG' | 'FILL'\n  resize(width: number, height: number): void\n  resizeWithoutConstraints(width: number, height: number): void\n  rescale(scale: number): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7337"
+    },
+    "GridChildrenMixin": {
+      "line_start": 8527,
+      "line_end": 8631,
+      "extends": [],
+      "declaration": "interface GridChildrenMixin {\n  setGridChildPosition(rowIndex: number, columnIndex: number): void\n  readonly gridRowAnchorIndex: number\n  readonly gridColumnAnchorIndex: number\n  gridRowSpan: number\n  gridColumnSpan: number\n  gridChildHorizontalAlign: 'MIN' | 'CENTER' | 'MAX' | 'AUTO'\n  gridChildVerticalAlign: 'MIN' | 'CENTER' | 'MAX' | 'AUTO'\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8527"
+    },
+    "AutoLayoutChildrenMixin": {
+      "line_start": 8464,
+      "line_end": 8526,
+      "extends": [],
+      "declaration": "interface AutoLayoutChildrenMixin {\n  layoutAlign: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'INHERIT'\n  layoutGrow: number\n  layoutPositioning: 'AUTO' | 'ABSOLUTE'\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8464"
+    },
+    "ConstraintMixin": {
+      "line_start": 7225,
+      "line_end": 7237,
+      "extends": [],
+      "declaration": "interface ConstraintMixin {\n  constraints: Constraints\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7225"
+    },
+    "BlendMixin": {
+      "line_start": 7539,
+      "line_end": 7602,
+      "extends": [
+        "MinimalBlendMixin"
+      ],
+      "declaration": "interface BlendMixin extends MinimalBlendMixin {\n  isMask: boolean\n  maskType: MaskType\n  effects: ReadonlyArray<Effect>\n  effectStyleId: string\n  setEffectStyleIdAsync(styleId: string): Promise<void>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7539"
+    },
+    "MinimalBlendMixin": {
+      "line_start": 9436,
+      "line_end": 9445,
+      "extends": [],
+      "declaration": "interface MinimalBlendMixin {\n  opacity: number\n  blendMode: BlendMode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9436"
+    },
+    "RectangleCornerMixin": {
+      "line_start": 8961,
+      "line_end": 8981,
+      "extends": [],
+      "declaration": "interface RectangleCornerMixin {\n  topLeftRadius: number\n  topRightRadius: number\n  bottomLeftRadius: number\n  bottomRightRadius: number\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8961"
+    },
+    "CornerMixin": {
+      "line_start": 8938,
+      "line_end": 8960,
+      "extends": [],
+      "declaration": "interface CornerMixin {\n  cornerRadius: number | PluginAPI['mixed']\n  cornerSmoothing: number\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8938"
+    },
+    "ComplexStrokesMixin": {
+      "line_start": 8913,
+      "line_end": 8937,
+      "extends": [],
+      "declaration": "interface ComplexStrokesMixin {\n  variableWidthStrokeProperties: VariableWidthStrokeProperties | null\n  complexStrokeProperties: ComplexStrokeProperties\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8913"
+    },
+    "GeometryMixin": {
+      "line_start": 8886,
+      "line_end": 8912,
+      "extends": [
+        "MinimalStrokesMixin",
+        "MinimalFillsMixin"
+      ],
+      "declaration": "interface GeometryMixin extends MinimalStrokesMixin, MinimalFillsMixin {\n  strokeCap: StrokeCap | PluginAPI['mixed']\n  strokeMiterLimit: number\n  outlineStroke(): VectorNode | null\n  readonly fillGeometry: VectorPaths\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8886"
+    },
+    "MinimalFillsMixin": {
+      "line_start": 8730,
+      "line_end": 8766,
+      "extends": [],
+      "declaration": "interface MinimalFillsMixin {\n  fills: ReadonlyArray<Paint> | PluginAPI['mixed']\n  fillStyleId: string | PluginAPI['mixed']\n  setFillStyleIdAsync(styleId: string): Promise<void>\n  setFillsAsync(paints: ReadonlyArray<Paint>): Promise<void>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8730"
+    },
+    "MinimalStrokesMixin": {
+      "line_start": 8648,
+      "line_end": 8716,
+      "extends": [],
+      "declaration": "interface MinimalStrokesMixin {\n  strokes: ReadonlyArray<Paint>\n  strokeStyleId: string\n  setStrokeStyleIdAsync(styleId: string): Promise<void>\n  strokeWeight: number | PluginAPI['mixed']\n  strokeJoin: StrokeJoin | PluginAPI['mixed']\n  strokeAlign: 'CENTER' | 'INSIDE' | 'OUTSIDE'\n  dashPattern: ReadonlyArray<number>\n  readonly strokeGeometry: VectorPaths\n  setStrokesAsync(strokes: ReadonlyArray<Paint>): Promise<void>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L8648"
+    },
+    "DeprecatedBackgroundMixin": {
+      "line_start": 7612,
+      "line_end": 7635,
+      "extends": [],
+      "declaration": "interface DeprecatedBackgroundMixin {\n  backgrounds: ReadonlyArray<Paint>\n  backgroundStyleId: string\n}\ndeclare type StrokeCap =\n  | 'NONE'\n  | 'ROUND'\n  | 'SQUARE'\n  | 'ARROW_LINES'\n  | 'ARROW_EQUILATERAL'\n  | 'DIAMOND_FILLED'\n  | 'TRIANGLE_FILLED'\n  | 'CIRCLE_FILLED'\ndeclare type StrokeJoin = 'MITER' | 'BEVEL' | 'ROUND'\ndeclare type HandleMirroring = 'NONE' | 'ANGLE' | 'ANGLE_AND_LENGTH'",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7612"
+    },
+    "ContainerMixin": {
+      "line_start": 7603,
+      "line_end": 7611,
+      "extends": [],
+      "declaration": "interface ContainerMixin {\n  expanded: boolean\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L7603"
+    },
+    "WidgetNode": {
+      "line_start": 12057,
+      "line_end": 12134,
+      "extends": [
+        "OpaqueNodeMixin",
+        "StickableMixin"
+      ],
+      "declaration": "interface WidgetNode extends OpaqueNodeMixin, StickableMixin {\n  readonly type: 'WIDGET'\n  readonly widgetId: string\n  readonly widgetSyncedState: {\n    [key: string]: any\n  }\n  clone(): WidgetNode\n  cloneWidget(\n    syncedStateOverrides: {\n      [name: string]: any\n    },\n    syncedMapOverrides?: {\n      [mapName: string]: {\n        [key: string]: any\n      }\n    },\n  ): WidgetNode\n  setWidgetSyncedState(\n    syncedState: {\n      [name: string]: any\n    },\n    syncedMap?: {\n      [mapName: string]: {\n        [key: string]: any\n      }\n    },\n  ): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12057"
+    },
+    "StickableMixin": {
+      "line_start": 6959,
+      "line_end": 6971,
+      "extends": [],
+      "declaration": "interface StickableMixin {\n  stuckTo: SceneNode | null\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L6959"
+    },
+    "LinkUnfurlNode": {
+      "line_start": 12203,
+      "line_end": 12216,
+      "extends": [
+        "OpaqueNodeMixin"
+      ],
+      "declaration": "interface LinkUnfurlNode extends OpaqueNodeMixin {\n  readonly type: 'LINK_UNFURL'\n  readonly linkUnfurlData: LinkUnfurlData\n  clone(): LinkUnfurlNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12203"
+    },
+    "EmbedNode": {
+      "line_start": 12163,
+      "line_end": 12176,
+      "extends": [
+        "OpaqueNodeMixin"
+      ],
+      "declaration": "interface EmbedNode extends OpaqueNodeMixin {\n  readonly type: 'EMBED'\n  readonly embedData: EmbedData\n  clone(): EmbedNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12163"
+    },
+    "MediaNode": {
+      "line_start": 12223,
+      "line_end": 12255,
+      "extends": [
+        "OpaqueNodeMixin"
+      ],
+      "declaration": "interface MediaNode extends OpaqueNodeMixin {\n  readonly type: 'MEDIA'\n  readonly mediaData: MediaData\n  resize(width: number, height: number): void\n  resizeWithoutConstraints(width: number, height: number): void\n  clone(): MediaNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12223"
+    },
+    "SectionNode": {
+      "line_start": 12256,
+      "line_end": 12299,
+      "extends": [
+        "ChildrenMixin",
+        "MinimalFillsMixin",
+        "OpaqueNodeMixin",
+        "DevStatusMixin",
+        "AspectRatioLockMixin",
+        "MinimalStrokesMixin",
+        "CornerMixin",
+        "RectangleCornerMixin"
+      ],
+      "declaration": "interface SectionNode\n  extends\n    ChildrenMixin,\n    MinimalFillsMixin,\n    OpaqueNodeMixin,\n    DevStatusMixin,\n    AspectRatioLockMixin,\n    MinimalStrokesMixin,\n    CornerMixin,\n    RectangleCornerMixin {\n  readonly type: 'SECTION'\n  sectionContentsHidden: boolean\n  clone(): SectionNode\n  resizeWithoutConstraints(width: number, height: number): void\n  resize(width: number, height: number): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L12256"
+    },
+    "CodeBlockNode": {
+      "line_start": 11573,
+      "line_end": 11610,
+      "extends": [
+        "OpaqueNodeMixin",
+        "MinimalBlendMixin"
+      ],
+      "declaration": "interface CodeBlockNode extends OpaqueNodeMixin, MinimalBlendMixin {\n  readonly type: 'CODE_BLOCK'\n  code: string\n  codeLanguage:\n    | 'TYPESCRIPT'\n    | 'CPP'\n    | 'RUBY'\n    | 'CSS'\n    | 'JAVASCRIPT'\n    | 'HTML'\n    | 'JSON'\n    | 'GRAPHQL'\n    | 'PYTHON'\n    | 'GO'\n    | 'SQL'\n    | 'SWIFT'\n    | 'KOTLIN'\n    | 'RUST'\n    | 'BASH'\n    | 'PLAINTEXT'\n    | 'DART'\n  clone(): CodeBlockNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11573"
+    },
+    "TableCellNode": {
+      "line_start": 11442,
+      "line_end": 11467,
+      "extends": [
+        "MinimalFillsMixin"
+      ],
+      "declaration": "interface TableCellNode extends MinimalFillsMixin {\n  readonly type: 'TABLE_CELL'\n  readonly text: TextSublayerNode\n  readonly rowIndex: number\n  readonly columnIndex: number\n  readonly toString: string\n  readonly parent: TableNode\n  readonly height: number\n  readonly width: number\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11442"
+    },
+    "TableNode": {
+      "line_start": 11353,
+      "line_end": 11441,
+      "extends": [
+        "OpaqueNodeMixin",
+        "MinimalFillsMixin",
+        "MinimalBlendMixin"
+      ],
+      "declaration": "interface TableNode extends OpaqueNodeMixin, MinimalFillsMixin, MinimalBlendMixin {\n  readonly type: 'TABLE'\n  clone(): TableNode\n  readonly numRows: number\n  readonly numColumns: number\n  cellAt(rowIndex: number, columnIndex: number): TableCellNode\n  insertRow(rowIndex: number): void\n  insertColumn(columnIndex: number): void\n  removeRow(rowIndex: number): void\n  removeColumn(columnIndex: number): void\n  moveRow(fromIndex: number, toIndex: number): void\n  moveColumn(fromIndex: number, toIndex: number): void\n  resizeRow(rowIndex: number, height: number): void\n  resizeColumn(columnIndex: number, width: number): void\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11353"
+    },
+    "WashiTapeNode": {
+      "line_start": 11485,
+      "line_end": 11494,
+      "extends": [
+        "DefaultShapeMixin",
+        "StickableMixin",
+        "AspectRatioLockMixin"
+      ],
+      "declaration": "interface WashiTapeNode extends DefaultShapeMixin, StickableMixin, AspectRatioLockMixin {\n  readonly type: 'WASHI_TAPE'\n  clone(): WashiTapeNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11485"
+    },
+    "DefaultShapeMixin": {
+      "line_start": 9360,
+      "line_end": 9371,
+      "extends": [
+        "BaseNodeMixin",
+        "SceneNodeMixin",
+        "ReactionMixin",
+        "BlendMixin",
+        "GeometryMixin",
+        "LayoutMixin",
+        "ExportMixin"
+      ],
+      "declaration": "interface DefaultShapeMixin\n  extends\n    BaseNodeMixin,\n    SceneNodeMixin,\n    ReactionMixin,\n    BlendMixin,\n    GeometryMixin,\n    LayoutMixin,\n    ExportMixin {}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9360"
+    },
+    "ReactionMixin": {
+      "line_start": 9135,
+      "line_end": 9299,
+      "extends": [],
+      "declaration": "interface ReactionMixin {\n  reactions: ReadonlyArray<Reaction>\n  setReactionsAsync(reactions: Array<Reaction>): Promise<void>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9135"
+    },
+    "HighlightNode": {
+      "line_start": 11468,
+      "line_end": 11484,
+      "extends": [
+        "DefaultShapeMixin",
+        "ConstraintMixin",
+        "CornerMixin",
+        "VectorLikeMixin",
+        "StickableMixin",
+        "AspectRatioLockMixin"
+      ],
+      "declaration": "interface HighlightNode\n  extends\n    DefaultShapeMixin,\n    ConstraintMixin,\n    CornerMixin,\n    VectorLikeMixin,\n    StickableMixin,\n    AspectRatioLockMixin {\n  readonly type: 'HIGHLIGHT'\n  clone(): HighlightNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11468"
+    },
+    "VectorLikeMixin": {
+      "line_start": 9112,
+      "line_end": 9134,
+      "extends": [],
+      "declaration": "interface VectorLikeMixin {\n  vectorNetwork: VectorNetwork\n  setVectorNetworkAsync(vectorNetwork: VectorNetwork): Promise<void>\n  vectorPaths: VectorPaths\n  handleMirroring: HandleMirroring | PluginAPI['mixed']\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L9112"
+    },
+    "StampNode": {
+      "line_start": 11331,
+      "line_end": 11352,
+      "extends": [
+        "DefaultShapeMixin",
+        "ConstraintMixin",
+        "StickableMixin",
+        "AspectRatioLockMixin"
+      ],
+      "declaration": "interface StampNode\n  extends DefaultShapeMixin, ConstraintMixin, StickableMixin, AspectRatioLockMixin {\n  readonly type: 'STAMP'\n  clone(): StampNode\n  getAuthorAsync(): Promise<BaseUser | null>\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11331"
+    },
+    "ConnectorNode": {
+      "line_start": 11614,
+      "line_end": 11663,
+      "extends": [
+        "OpaqueNodeMixin",
+        "MinimalBlendMixin",
+        "MinimalStrokesMixin"
+      ],
+      "declaration": "interface ConnectorNode extends OpaqueNodeMixin, MinimalBlendMixin, MinimalStrokesMixin {\n  readonly type: 'CONNECTOR'\n  readonly text: TextSublayerNode\n  readonly textBackground: LabelSublayerNode\n  readonly cornerRadius?: number\n  connectorLineType: 'ELBOWED' | 'STRAIGHT' | 'CURVED'\n  connectorStart: ConnectorEndpoint\n  connectorEnd: ConnectorEndpoint\n  connectorStartStrokeCap: ConnectorStrokeCap\n  connectorEndStrokeCap: ConnectorStrokeCap\n  rotation: number\n  clone(): ConnectorNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11614"
+    },
+    "ShapeWithTextNode": {
+      "line_start": 11495,
+      "line_end": 11572,
+      "extends": [
+        "OpaqueNodeMixin",
+        "MinimalFillsMixin",
+        "MinimalBlendMixin",
+        "MinimalStrokesMixin"
+      ],
+      "declaration": "interface ShapeWithTextNode\n  extends OpaqueNodeMixin, MinimalFillsMixin, MinimalBlendMixin, MinimalStrokesMixin {\n  readonly type: 'SHAPE_WITH_TEXT'\n  shapeType:\n    | 'SQUARE'\n    | 'ELLIPSE'\n    | 'ROUNDED_RECTANGLE'\n    | 'DIAMOND'\n    | 'TRIANGLE_UP'\n    | 'TRIANGLE_DOWN'\n    | 'PARALLELOGRAM_RIGHT'\n    | 'PARALLELOGRAM_LEFT'\n    | 'ENG_DATABASE'\n    | 'ENG_QUEUE'\n    | 'ENG_FILE'\n    | 'ENG_FOLDER'\n    | 'TRAPEZOID'\n    | 'PREDEFINED_PROCESS'\n    | 'SHIELD'\n    | 'DOCUMENT_SINGLE'\n    | 'DOCUMENT_MULTIPLE'\n    | 'MANUAL_INPUT'\n    | 'HEXAGON'\n    | 'CHEVRON'\n    | 'PENTAGON'\n    | 'OCTAGON'\n    | 'STAR'\n    | 'PLUS'\n    | 'ARROW_LEFT'\n    | 'ARROW_RIGHT'\n    | 'SUMMING_JUNCTION'\n    | 'OR'\n    | 'SPEECH_BUBBLE'\n    | 'INTERNAL_STORAGE'\n  readonly text: TextSublayerNode\n  readonly cornerRadius?: number\n  rotation: number\n  resize(width: number, height: number): void\n  rescale(scale: number): void\n  clone(): ShapeWithTextNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11495"
+    },
+    "StickyNode": {
+      "line_start": 11305,
+      "line_end": 11330,
+      "extends": [
+        "OpaqueNodeMixin",
+        "MinimalFillsMixin",
+        "MinimalBlendMixin"
+      ],
+      "declaration": "interface StickyNode extends OpaqueNodeMixin, MinimalFillsMixin, MinimalBlendMixin {\n  readonly type: 'STICKY'\n  readonly text: TextSublayerNode\n  authorVisible: boolean\n  authorName: string\n  isWideWidth: boolean\n  clone(): StickyNode\n}",
+      "source_url": "https://github.com/figma/plugin-typings/blob/07157d96c58add71d234b13bfd55b53abdce76b8/plugin-api.d.ts#L11305"
+    }
+  },
+  "inspected_rest_schemas_and_inheritance": {
+    "ConnectorLineType": {
+      "type": "string",
+      "enum": [
+        "STRAIGHT",
+        "ELBOWED",
+        "CURVED"
+      ]
+    },
+    "ConnectorEndpoint": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "endpointNodeId": {
+              "type": "string"
+            },
+            "position": {
+              "$ref": "#/components/schemas/Vector"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "endpointNodeId": {
+              "type": "string"
+            },
+            "magnet": {
+              "type": "string",
+              "enum": [
+                "AUTO",
+                "TOP",
+                "BOTTOM",
+                "LEFT",
+                "RIGHT",
+                "CENTER"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Vector": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "ShapeType": {
+      "type": "string",
+      "enum": [
+        "SQUARE",
+        "ELLIPSE",
+        "ROUNDED_RECTANGLE",
+        "DIAMOND",
+        "TRIANGLE_UP",
+        "TRIANGLE_DOWN",
+        "PARALLELOGRAM_RIGHT",
+        "PARALLELOGRAM_LEFT",
+        "ENG_DATABASE",
+        "ENG_QUEUE",
+        "ENG_FILE",
+        "ENG_FOLDER",
+        "TRAPEZOID",
+        "PREDEFINED_PROCESS",
+        "SHIELD",
+        "DOCUMENT_SINGLE",
+        "DOCUMENT_MULTIPLE",
+        "MANUAL_INPUT",
+        "HEXAGON",
+        "CHEVRON",
+        "PENTAGON",
+        "OCTAGON",
+        "STAR",
+        "PLUS",
+        "ARROW_LEFT",
+        "ARROW_RIGHT",
+        "SUMMING_JUNCTION",
+        "OR",
+        "SPEECH_BUBBLE",
+        "INTERNAL_STORAGE"
+      ]
+    },
+    "WidgetNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "WIDGET"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasChildrenTrait"
+        }
+      ]
+    },
+    "HasChildrenTrait": {
+      "type": "object",
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/SubcanvasNode"
+          }
+        }
+      },
+      "required": [
+        "children"
+      ]
+    },
+    "SubcanvasNode": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/BooleanOperationNode"
+        },
+        {
+          "$ref": "#/components/schemas/ComponentNode"
+        },
+        {
+          "$ref": "#/components/schemas/ComponentSetNode"
+        },
+        {
+          "$ref": "#/components/schemas/ConnectorNode"
+        },
+        {
+          "$ref": "#/components/schemas/EllipseNode"
+        },
+        {
+          "$ref": "#/components/schemas/EmbedNode"
+        },
+        {
+          "$ref": "#/components/schemas/FrameNode"
+        },
+        {
+          "$ref": "#/components/schemas/GroupNode"
+        },
+        {
+          "$ref": "#/components/schemas/InstanceNode"
+        },
+        {
+          "$ref": "#/components/schemas/LineNode"
+        },
+        {
+          "$ref": "#/components/schemas/LinkUnfurlNode"
+        },
+        {
+          "$ref": "#/components/schemas/RectangleNode"
+        },
+        {
+          "$ref": "#/components/schemas/RegularPolygonNode"
+        },
+        {
+          "$ref": "#/components/schemas/SectionNode"
+        },
+        {
+          "$ref": "#/components/schemas/ShapeWithTextNode"
+        },
+        {
+          "$ref": "#/components/schemas/SliceNode"
+        },
+        {
+          "$ref": "#/components/schemas/StarNode"
+        },
+        {
+          "$ref": "#/components/schemas/StickyNode"
+        },
+        {
+          "$ref": "#/components/schemas/TableNode"
+        },
+        {
+          "$ref": "#/components/schemas/TableCellNode"
+        },
+        {
+          "$ref": "#/components/schemas/TextNode"
+        },
+        {
+          "$ref": "#/components/schemas/TextPathNode"
+        },
+        {
+          "$ref": "#/components/schemas/TransformGroupNode"
+        },
+        {
+          "$ref": "#/components/schemas/VectorNode"
+        },
+        {
+          "$ref": "#/components/schemas/WashiTapeNode"
+        },
+        {
+          "$ref": "#/components/schemas/WidgetNode"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type",
+        "mapping": {
+          "BOOLEAN_OPERATION": "#/components/schemas/BooleanOperationNode",
+          "COMPONENT": "#/components/schemas/ComponentNode",
+          "COMPONENT_SET": "#/components/schemas/ComponentSetNode",
+          "CONNECTOR": "#/components/schemas/ConnectorNode",
+          "ELLIPSE": "#/components/schemas/EllipseNode",
+          "EMBED": "#/components/schemas/EmbedNode",
+          "FRAME": "#/components/schemas/FrameNode",
+          "GROUP": "#/components/schemas/GroupNode",
+          "INSTANCE": "#/components/schemas/InstanceNode",
+          "LINE": "#/components/schemas/LineNode",
+          "LINK_UNFURL": "#/components/schemas/LinkUnfurlNode",
+          "RECTANGLE": "#/components/schemas/RectangleNode",
+          "REGULAR_POLYGON": "#/components/schemas/RegularPolygonNode",
+          "SECTION": "#/components/schemas/SectionNode",
+          "SHAPE_WITH_TEXT": "#/components/schemas/ShapeWithTextNode",
+          "SLICE": "#/components/schemas/SliceNode",
+          "STAR": "#/components/schemas/StarNode",
+          "STICKY": "#/components/schemas/StickyNode",
+          "TABLE": "#/components/schemas/TableNode",
+          "TABLE_CELL": "#/components/schemas/TableCellNode",
+          "TEXT": "#/components/schemas/TextNode",
+          "TEXT_PATH": "#/components/schemas/TextPathNode",
+          "TRANSFORM_GROUP": "#/components/schemas/TransformGroupNode",
+          "VECTOR": "#/components/schemas/VectorNode",
+          "WASHI_TAPE": "#/components/schemas/WashiTapeNode",
+          "WIDGET": "#/components/schemas/WidgetNode"
+        }
+      }
+    },
+    "WashiTapeNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "WASHI_TAPE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        }
+      ]
+    },
+    "DefaultShapeTraits": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasGeometryTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasMaskTrait"
+        },
+        {
+          "$ref": "#/components/schemas/TransitionSourceTrait"
+        },
+        {
+          "$ref": "#/components/schemas/VariableWidthStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/ComplexStrokesTrait"
+        }
+      ]
+    },
+    "ComplexStrokesTrait": {
+      "type": "object",
+      "properties": {}
+    },
+    "VariableWidthStrokesTrait": {
+      "type": "object",
+      "properties": {}
+    },
+    "TransitionSourceTrait": {
+      "type": "object",
+      "properties": {
+        "transitionNodeID": {
+          "type": "string"
+        },
+        "transitionDuration": {
+          "type": "number"
+        },
+        "transitionEasing": {
+          "$ref": "#/components/schemas/EasingType"
+        },
+        "interactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Interaction"
+          }
+        }
+      }
+    },
+    "Interaction": {
+      "type": "object",
+      "properties": {
+        "trigger": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Trigger"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Action"
+          }
+        }
+      },
+      "required": [
+        "trigger"
+      ]
+    },
+    "Action": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "BACK",
+                "CLOSE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/OpenURLAction"
+        },
+        {
+          "$ref": "#/components/schemas/UpdateMediaRuntimeAction"
+        },
+        {
+          "$ref": "#/components/schemas/SetVariableAction"
+        },
+        {
+          "$ref": "#/components/schemas/SetVariableModeAction"
+        },
+        {
+          "$ref": "#/components/schemas/ConditionalAction"
+        },
+        {
+          "$ref": "#/components/schemas/NodeAction"
+        }
+      ]
+    },
+    "NodeAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "NODE"
+          ]
+        },
+        "destinationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "navigation": {
+          "$ref": "#/components/schemas/Navigation"
+        },
+        "transition": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Transition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preserveScrollPosition": {
+          "type": "boolean"
+        },
+        "overlayRelativePosition": {
+          "$ref": "#/components/schemas/Vector"
+        },
+        "resetVideoPosition": {
+          "type": "boolean"
+        },
+        "resetScrollPosition": {
+          "type": "boolean"
+        },
+        "resetInteractiveComponents": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "destinationId",
+        "navigation",
+        "transition"
+      ]
+    },
+    "Transition": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/SimpleTransition"
+        },
+        {
+          "$ref": "#/components/schemas/DirectionalTransition"
+        }
+      ]
+    },
+    "DirectionalTransition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "MOVE_IN",
+            "MOVE_OUT",
+            "PUSH",
+            "SLIDE_IN",
+            "SLIDE_OUT"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "LEFT",
+            "RIGHT",
+            "TOP",
+            "BOTTOM"
+          ]
+        },
+        "duration": {
+          "type": "number"
+        },
+        "easing": {
+          "$ref": "#/components/schemas/Easing"
+        },
+        "matchLayers": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "direction",
+        "duration",
+        "easing"
+      ]
+    },
+    "Easing": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/components/schemas/EasingType"
+        },
+        "easingFunctionCubicBezier": {
+          "type": "object",
+          "properties": {
+            "x1": {
+              "type": "number"
+            },
+            "y1": {
+              "type": "number"
+            },
+            "x2": {
+              "type": "number"
+            },
+            "y2": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ]
+        },
+        "easingFunctionSpring": {
+          "type": "object",
+          "properties": {
+            "mass": {
+              "type": "number"
+            },
+            "stiffness": {
+              "type": "number"
+            },
+            "damping": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "mass",
+            "stiffness",
+            "damping"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "EasingType": {
+      "type": "string",
+      "enum": [
+        "EASE_IN",
+        "EASE_OUT",
+        "EASE_IN_AND_OUT",
+        "LINEAR",
+        "EASE_IN_BACK",
+        "EASE_OUT_BACK",
+        "EASE_IN_AND_OUT_BACK",
+        "CUSTOM_CUBIC_BEZIER",
+        "GENTLE",
+        "QUICK",
+        "BOUNCY",
+        "SLOW",
+        "CUSTOM_SPRING"
+      ]
+    },
+    "SimpleTransition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "DISSOLVE",
+            "SMART_ANIMATE",
+            "SCROLL_ANIMATE"
+          ]
+        },
+        "duration": {
+          "type": "number"
+        },
+        "easing": {
+          "$ref": "#/components/schemas/Easing"
+        }
+      },
+      "required": [
+        "type",
+        "duration",
+        "easing"
+      ]
+    },
+    "Navigation": {
+      "type": "string",
+      "enum": [
+        "NAVIGATE",
+        "SWAP",
+        "OVERLAY",
+        "SCROLL_TO",
+        "CHANGE_TO"
+      ]
+    },
+    "ConditionalAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "CONDITIONAL"
+          ]
+        },
+        "conditionalBlocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ConditionalBlock"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "conditionalBlocks"
+      ]
+    },
+    "ConditionalBlock": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "$ref": "#/components/schemas/VariableData"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Action"
+          }
+        }
+      },
+      "required": [
+        "actions"
+      ]
+    },
+    "VariableData": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/components/schemas/VariableDataType"
+        },
+        "resolvedType": {
+          "$ref": "#/components/schemas/VariableResolvedDataType"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/components/schemas/RGB"
+            },
+            {
+              "$ref": "#/components/schemas/RGBA"
+            },
+            {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            {
+              "$ref": "#/components/schemas/Expression"
+            }
+          ]
+        }
+      }
+    },
+    "Expression": {
+      "type": "object",
+      "properties": {
+        "expressionFunction": {
+          "$ref": "#/components/schemas/ExpressionFunction"
+        },
+        "expressionArguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/VariableData"
+          }
+        }
+      },
+      "required": [
+        "expressionFunction",
+        "expressionArguments"
+      ]
+    },
+    "ExpressionFunction": {
+      "type": "string",
+      "enum": [
+        "ADDITION",
+        "SUBTRACTION",
+        "MULTIPLICATION",
+        "DIVISION",
+        "EQUALS",
+        "NOT_EQUAL",
+        "LESS_THAN",
+        "LESS_THAN_OR_EQUAL",
+        "GREATER_THAN",
+        "GREATER_THAN_OR_EQUAL",
+        "AND",
+        "OR",
+        "VAR_MODE_LOOKUP",
+        "NEGATE",
+        "NOT"
+      ]
+    },
+    "VariableAlias": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "VARIABLE_ALIAS"
+          ]
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ]
+    },
+    "RGBA": {
+      "type": "object",
+      "properties": {
+        "r": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "g": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "b": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "r",
+        "g",
+        "b",
+        "a"
+      ]
+    },
+    "RGB": {
+      "type": "object",
+      "properties": {
+        "r": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "g": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "b": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "r",
+        "g",
+        "b"
+      ]
+    },
+    "VariableResolvedDataType": {
+      "type": "string",
+      "enum": [
+        "BOOLEAN",
+        "FLOAT",
+        "STRING",
+        "COLOR"
+      ]
+    },
+    "VariableDataType": {
+      "type": "string",
+      "enum": [
+        "BOOLEAN",
+        "FLOAT",
+        "STRING",
+        "COLOR",
+        "VARIABLE_ALIAS",
+        "EXPRESSION"
+      ]
+    },
+    "SetVariableModeAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "SET_VARIABLE_MODE"
+          ]
+        },
+        "variableCollectionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variableModeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "variableId",
+        "variableMode"
+      ]
+    },
+    "SetVariableAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "SET_VARIABLE"
+          ]
+        },
+        "variableId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variableValue": {
+          "$ref": "#/components/schemas/VariableData"
+        }
+      },
+      "required": [
+        "type",
+        "variableId"
+      ]
+    },
+    "UpdateMediaRuntimeAction": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "UPDATE_MEDIA_RUNTIME"
+              ]
+            },
+            "destinationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mediaAction": {
+              "type": "string",
+              "enum": [
+                "PLAY",
+                "PAUSE",
+                "TOGGLE_PLAY_PAUSE",
+                "MUTE",
+                "UNMUTE",
+                "TOGGLE_MUTE_UNMUTE"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "destinationId",
+            "mediaAction"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "UPDATE_MEDIA_RUNTIME"
+              ]
+            },
+            "destinationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mediaAction": {
+              "type": "string",
+              "enum": [
+                "SKIP_FORWARD",
+                "SKIP_BACKWARD"
+              ]
+            },
+            "amountToSkip": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "mediaAction",
+            "amountToSkip"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "UPDATE_MEDIA_RUNTIME"
+              ]
+            },
+            "destinationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mediaAction": {
+              "type": "string",
+              "enum": [
+                "SKIP_TO"
+              ]
+            },
+            "newTimestamp": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "mediaAction",
+            "newTimestamp"
+          ]
+        }
+      ]
+    },
+    "OpenURLAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "URL"
+          ]
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "url"
+      ]
+    },
+    "Trigger": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ON_CLICK",
+                "ON_HOVER",
+                "ON_PRESS",
+                "ON_DRAG"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/AfterTimeoutTrigger"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "MOUSE_ENTER",
+                "MOUSE_LEAVE",
+                "MOUSE_UP",
+                "MOUSE_DOWN"
+              ]
+            },
+            "delay": {
+              "type": "number"
+            },
+            "deprecatedVersion": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "delay"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/OnKeyDownTrigger"
+        },
+        {
+          "$ref": "#/components/schemas/OnMediaHitTrigger"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ON_MEDIA_END"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "OnMediaHitTrigger": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ON_MEDIA_HIT"
+          ]
+        },
+        "mediaHitTime": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "mediaHitTime"
+      ]
+    },
+    "OnKeyDownTrigger": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ON_KEY_DOWN"
+          ]
+        },
+        "device": {
+          "type": "string",
+          "enum": [
+            "KEYBOARD",
+            "XBOX_ONE",
+            "PS4",
+            "SWITCH_PRO",
+            "UNKNOWN_CONTROLLER"
+          ]
+        },
+        "keyCodes": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "device",
+        "keyCodes"
+      ]
+    },
+    "AfterTimeoutTrigger": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "AFTER_TIMEOUT"
+          ]
+        },
+        "timeout": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "timeout"
+      ]
+    },
+    "HasMaskTrait": {
+      "type": "object",
+      "properties": {
+        "isMask": {
+          "type": "boolean",
+          "default": false
+        },
+        "maskType": {
+          "type": "string",
+          "enum": [
+            "ALPHA",
+            "VECTOR",
+            "LUMINANCE"
+          ]
+        },
+        "isMaskOutline": {
+          "type": "boolean",
+          "default": false,
+          "deprecated": true
+        }
+      }
+    },
+    "HasEffectsTrait": {
+      "type": "object",
+      "properties": {
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Effect"
+          }
+        }
+      },
+      "required": [
+        "effects"
+      ]
+    },
+    "Effect": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/DropShadowEffect"
+        },
+        {
+          "$ref": "#/components/schemas/InnerShadowEffect"
+        },
+        {
+          "$ref": "#/components/schemas/BlurEffect"
+        },
+        {
+          "$ref": "#/components/schemas/TextureEffect"
+        },
+        {
+          "$ref": "#/components/schemas/NoiseEffect"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type",
+        "mapping": {
+          "DROP_SHADOW": "#/components/schemas/DropShadowEffect",
+          "INNER_SHADOW": "#/components/schemas/InnerShadowEffect",
+          "LAYER_BLUR": "#/components/schemas/BlurEffect",
+          "BACKGROUND_BLUR": "#/components/schemas/BlurEffect",
+          "TEXTURE": "#/components/schemas/TextureEffect",
+          "NOISE": "#/components/schemas/NoiseEffect"
+        }
+      }
+    },
+    "NoiseEffect": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/MonotoneNoiseEffect"
+        },
+        {
+          "$ref": "#/components/schemas/MultitoneNoiseEffect"
+        },
+        {
+          "$ref": "#/components/schemas/DuotoneNoiseEffect"
+        }
+      ]
+    },
+    "DuotoneNoiseEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "noiseType": {
+              "type": "string",
+              "enum": [
+                "DUOTONE"
+              ]
+            },
+            "secondaryColor": {
+              "$ref": "#/components/schemas/RGBA"
+            }
+          },
+          "required": [
+            "noiseType",
+            "secondaryColor"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BaseNoiseEffect"
+        }
+      ]
+    },
+    "BaseNoiseEffect": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "NOISE"
+          ]
+        },
+        "color": {
+          "$ref": "#/components/schemas/RGBA"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "blendMode": {
+          "$ref": "#/components/schemas/BlendMode"
+        },
+        "noiseSize": {
+          "type": "number"
+        },
+        "density": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "color",
+        "visible",
+        "noiseSize",
+        "density",
+        "blendMode"
+      ]
+    },
+    "BlendMode": {
+      "type": "string",
+      "enum": [
+        "PASS_THROUGH",
+        "NORMAL",
+        "DARKEN",
+        "MULTIPLY",
+        "LINEAR_BURN",
+        "COLOR_BURN",
+        "LIGHTEN",
+        "SCREEN",
+        "LINEAR_DODGE",
+        "COLOR_DODGE",
+        "OVERLAY",
+        "SOFT_LIGHT",
+        "HARD_LIGHT",
+        "DIFFERENCE",
+        "EXCLUSION",
+        "HUE",
+        "SATURATION",
+        "COLOR",
+        "LUMINOSITY"
+      ]
+    },
+    "MultitoneNoiseEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "noiseType": {
+              "type": "string",
+              "enum": [
+                "MULTITONE"
+              ]
+            },
+            "opacity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "noiseType",
+            "opacity"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BaseNoiseEffect"
+        }
+      ]
+    },
+    "MonotoneNoiseEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "noiseType": {
+              "type": "string",
+              "enum": [
+                "MONOTONE"
+              ]
+            }
+          },
+          "required": [
+            "noiseType"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BaseNoiseEffect"
+        }
+      ]
+    },
+    "TextureEffect": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "TEXTURE"
+          ]
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "noiseSize": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number"
+        },
+        "clipToShape": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "visible",
+        "noiseSize",
+        "radius",
+        "clipToShape"
+      ]
+    },
+    "BlurEffect": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/NormalBlurEffect"
+        },
+        {
+          "$ref": "#/components/schemas/ProgressiveBlurEffect"
+        }
+      ]
+    },
+    "ProgressiveBlurEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "blurType": {
+              "type": "string",
+              "enum": [
+                "PROGRESSIVE"
+              ]
+            },
+            "startRadius": {
+              "type": "number"
+            },
+            "startOffset": {
+              "$ref": "#/components/schemas/Vector"
+            },
+            "endOffset": {
+              "$ref": "#/components/schemas/Vector"
+            }
+          },
+          "required": [
+            "blurType",
+            "startRadius",
+            "startOffset",
+            "endOffset"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BaseBlurEffect"
+        }
+      ]
+    },
+    "BaseBlurEffect": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "LAYER_BLUR",
+            "BACKGROUND_BLUR"
+          ]
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0
+        },
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "radius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            }
+          }
+        }
+      },
+      "required": [
+        "type",
+        "visible",
+        "radius"
+      ]
+    },
+    "NormalBlurEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "blurType": {
+              "type": "string",
+              "enum": [
+                "NORMAL"
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/BaseBlurEffect"
+        }
+      ]
+    },
+    "InnerShadowEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "INNER_SHADOW"
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/BaseShadowEffect"
+        }
+      ]
+    },
+    "BaseShadowEffect": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/components/schemas/RGBA"
+        },
+        "blendMode": {
+          "$ref": "#/components/schemas/BlendMode"
+        },
+        "offset": {
+          "$ref": "#/components/schemas/Vector"
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spread": {
+          "type": "number",
+          "default": 0
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "radius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "spread": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "color": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "offsetX": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "offsetY": {
+              "$ref": "#/components/schemas/VariableAlias"
+            }
+          }
+        }
+      },
+      "required": [
+        "color",
+        "blendMode",
+        "offset",
+        "radius",
+        "visible"
+      ]
+    },
+    "DropShadowEffect": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "DROP_SHADOW"
+              ]
+            },
+            "showShadowBehindNode": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "type",
+            "showShadowBehindNode"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BaseShadowEffect"
+        }
+      ]
+    },
+    "HasExportSettingsTrait": {
+      "type": "object",
+      "properties": {
+        "exportSettings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ExportSetting"
+          }
+        }
+      }
+    },
+    "ExportSetting": {
+      "type": "object",
+      "properties": {
+        "suffix": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "JPG",
+            "PNG",
+            "SVG",
+            "PDF"
+          ]
+        },
+        "constraint": {
+          "$ref": "#/components/schemas/Constraint"
+        }
+      },
+      "required": [
+        "suffix",
+        "format",
+        "constraint"
+      ]
+    },
+    "Constraint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "SCALE",
+            "WIDTH",
+            "HEIGHT"
+          ]
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ]
+    },
+    "HasGeometryTrait": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/MinimalFillsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalStrokesTrait"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fillOverrideTable": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PaintOverride"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "fillGeometry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Path"
+              }
+            },
+            "strokeGeometry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Path"
+              }
+            },
+            "strokeCap": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "ROUND",
+                "SQUARE",
+                "LINE_ARROW",
+                "TRIANGLE_ARROW",
+                "DIAMOND_FILLED",
+                "CIRCLE_FILLED",
+                "TRIANGLE_FILLED",
+                "WASHI_TAPE_1",
+                "WASHI_TAPE_2",
+                "WASHI_TAPE_3",
+                "WASHI_TAPE_4",
+                "WASHI_TAPE_5",
+                "WASHI_TAPE_6"
+              ],
+              "default": "NONE"
+            },
+            "strokeMiterAngle": {
+              "type": "number",
+              "default": 28.96
+            }
+          }
+        }
+      ]
+    },
+    "Path": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "windingRule": {
+          "type": "string",
+          "enum": [
+            "NONZERO",
+            "EVENODD"
+          ]
+        },
+        "overrideID": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "path",
+        "windingRule"
+      ]
+    },
+    "PaintOverride": {
+      "type": "object",
+      "properties": {
+        "fills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Paint"
+          }
+        },
+        "inheritFillStyleId": {
+          "type": "string"
+        }
+      }
+    },
+    "Paint": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/SolidPaint"
+        },
+        {
+          "$ref": "#/components/schemas/GradientPaint"
+        },
+        {
+          "$ref": "#/components/schemas/ImagePaint"
+        },
+        {
+          "$ref": "#/components/schemas/PatternPaint"
+        }
+      ]
+    },
+    "PatternPaint": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "PATTERN"
+              ]
+            },
+            "sourceNodeId": {
+              "type": "string"
+            },
+            "tileType": {
+              "type": "string",
+              "enum": [
+                "RECTANGULAR",
+                "HORIZONTAL_HEXAGONAL",
+                "VERTICAL_HEXAGONAL"
+              ]
+            },
+            "scalingFactor": {
+              "type": "number"
+            },
+            "spacing": {
+              "$ref": "#/components/schemas/Vector"
+            },
+            "horizontalAlignment": {
+              "type": "string",
+              "enum": [
+                "START",
+                "CENTER",
+                "END"
+              ]
+            },
+            "verticalAlignment": {
+              "type": "string",
+              "enum": [
+                "START",
+                "CENTER",
+                "END"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "sourceNodeId",
+            "tileType",
+            "scalingFactor",
+            "spacing",
+            "horizontalAlignment",
+            "verticalAlignment"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BasePaint"
+        }
+      ]
+    },
+    "BasePaint": {
+      "type": "object",
+      "properties": {
+        "visible": {
+          "type": "boolean",
+          "default": true
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1
+        },
+        "blendMode": {
+          "$ref": "#/components/schemas/BlendMode"
+        }
+      },
+      "required": [
+        "blendMode"
+      ]
+    },
+    "ImagePaint": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "IMAGE"
+              ]
+            },
+            "scaleMode": {
+              "type": "string",
+              "enum": [
+                "FILL",
+                "FIT",
+                "TILE",
+                "STRETCH"
+              ]
+            },
+            "imageRef": {
+              "type": "string"
+            },
+            "imageTransform": {
+              "$ref": "#/components/schemas/Transform"
+            },
+            "scalingFactor": {
+              "type": "number"
+            },
+            "filters": {
+              "$ref": "#/components/schemas/ImageFilters"
+            },
+            "rotation": {
+              "type": "number",
+              "default": 0
+            },
+            "gifRef": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "scaleMode",
+            "imageRef"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BasePaint"
+        }
+      ]
+    },
+    "ImageFilters": {
+      "type": "object",
+      "properties": {
+        "exposure": {
+          "type": "number",
+          "default": 0
+        },
+        "contrast": {
+          "type": "number",
+          "default": 0
+        },
+        "saturation": {
+          "type": "number",
+          "default": 0
+        },
+        "temperature": {
+          "type": "number",
+          "default": 0
+        },
+        "tint": {
+          "type": "number",
+          "default": 0
+        },
+        "highlights": {
+          "type": "number",
+          "default": 0
+        },
+        "shadows": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "Transform": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3
+      },
+      "maxItems": 2,
+      "minItems": 2
+    },
+    "GradientPaint": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "GRADIENT_LINEAR",
+                "GRADIENT_RADIAL",
+                "GRADIENT_ANGULAR",
+                "GRADIENT_DIAMOND"
+              ]
+            },
+            "gradientHandlePositions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Vector"
+              }
+            },
+            "gradientStops": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ColorStop"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "gradientHandlePositions",
+            "gradientStops"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BasePaint"
+        }
+      ]
+    },
+    "ColorStop": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "number"
+        },
+        "color": {
+          "$ref": "#/components/schemas/RGBA"
+        },
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "color": {
+              "$ref": "#/components/schemas/VariableAlias"
+            }
+          }
+        }
+      },
+      "required": [
+        "position",
+        "color"
+      ]
+    },
+    "SolidPaint": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "SOLID"
+              ]
+            },
+            "color": {
+              "$ref": "#/components/schemas/RGBA"
+            },
+            "boundVariables": {
+              "type": "object",
+              "properties": {
+                "color": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "color"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/BasePaint"
+        }
+      ]
+    },
+    "MinimalStrokesTrait": {
+      "type": "object",
+      "properties": {
+        "strokes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Paint"
+          }
+        },
+        "strokeWeight": {
+          "type": "number",
+          "default": 1
+        },
+        "strokeAlign": {
+          "type": "string",
+          "enum": [
+            "INSIDE",
+            "OUTSIDE",
+            "CENTER"
+          ]
+        },
+        "strokeJoin": {
+          "type": "string",
+          "enum": [
+            "MITER",
+            "BEVEL",
+            "ROUND"
+          ],
+          "default": "MITER"
+        },
+        "strokeDashes": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "MinimalFillsTrait": {
+      "type": "object",
+      "properties": {
+        "fills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Paint"
+          }
+        },
+        "styles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "fills"
+      ]
+    },
+    "HasLayoutTrait": {
+      "type": "object",
+      "properties": {
+        "absoluteBoundingBox": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Rectangle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "absoluteRenderBounds": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Rectangle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preserveRatio": {
+          "type": "boolean",
+          "default": false
+        },
+        "constraints": {
+          "$ref": "#/components/schemas/LayoutConstraint"
+        },
+        "relativeTransform": {
+          "$ref": "#/components/schemas/Transform"
+        },
+        "size": {
+          "$ref": "#/components/schemas/Vector"
+        },
+        "layoutAlign": {
+          "type": "string",
+          "enum": [
+            "INHERIT",
+            "STRETCH",
+            "MIN",
+            "CENTER",
+            "MAX"
+          ]
+        },
+        "layoutGrow": {
+          "type": "number",
+          "enum": [
+            0,
+            1
+          ],
+          "default": 0
+        },
+        "layoutPositioning": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "ABSOLUTE"
+          ],
+          "default": "AUTO"
+        },
+        "minWidth": {
+          "type": "number",
+          "default": 0
+        },
+        "maxWidth": {
+          "type": "number",
+          "default": 0
+        },
+        "minHeight": {
+          "type": "number",
+          "default": 0
+        },
+        "maxHeight": {
+          "type": "number",
+          "default": 0
+        },
+        "layoutSizingHorizontal": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "HUG",
+            "FILL"
+          ]
+        },
+        "layoutSizingVertical": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "HUG",
+            "FILL"
+          ]
+        },
+        "gridRowCount": {
+          "type": "number"
+        },
+        "gridColumnCount": {
+          "type": "number"
+        },
+        "gridRowGap": {
+          "type": "number",
+          "default": 0
+        },
+        "gridColumnGap": {
+          "type": "number",
+          "default": 0
+        },
+        "gridColumnsSizing": {
+          "type": "string"
+        },
+        "gridRowsSizing": {
+          "type": "string"
+        },
+        "gridChildHorizontalAlign": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "MIN",
+            "CENTER",
+            "MAX"
+          ]
+        },
+        "gridChildVerticalAlign": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "MIN",
+            "CENTER",
+            "MAX"
+          ]
+        },
+        "gridRowSpan": {
+          "type": "number",
+          "default": 1
+        },
+        "gridColumnSpan": {
+          "type": "number",
+          "default": 1
+        },
+        "gridRowAnchorIndex": {
+          "type": "number",
+          "default": 0
+        },
+        "gridColumnAnchorIndex": {
+          "type": "number",
+          "default": 0
+        }
+      },
+      "required": [
+        "absoluteBoundingBox",
+        "absoluteRenderBounds"
+      ]
+    },
+    "LayoutConstraint": {
+      "type": "object",
+      "properties": {
+        "vertical": {
+          "type": "string",
+          "enum": [
+            "TOP",
+            "BOTTOM",
+            "CENTER",
+            "TOP_BOTTOM",
+            "SCALE"
+          ]
+        },
+        "horizontal": {
+          "type": "string",
+          "enum": [
+            "LEFT",
+            "RIGHT",
+            "CENTER",
+            "LEFT_RIGHT",
+            "SCALE"
+          ]
+        }
+      },
+      "required": [
+        "vertical",
+        "horizontal"
+      ]
+    },
+    "Rectangle": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ]
+    },
+    "HasBlendModeAndOpacityTrait": {
+      "type": "object",
+      "properties": {
+        "blendMode": {
+          "$ref": "#/components/schemas/BlendMode"
+        },
+        "opacity": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "blendMode"
+      ]
+    },
+    "IsLayerTrait": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean",
+          "default": true
+        },
+        "locked": {
+          "type": "boolean",
+          "default": false
+        },
+        "isFixed": {
+          "type": "boolean",
+          "deprecated": true,
+          "default": false
+        },
+        "scrollBehavior": {
+          "type": "string",
+          "enum": [
+            "SCROLLS",
+            "FIXED",
+            "STICKY_SCROLLS"
+          ],
+          "default": "SCROLLS"
+        },
+        "rotation": {
+          "type": "number",
+          "default": 0
+        },
+        "componentPropertyReferences": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "pluginData": {},
+        "sharedPluginData": {},
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "y": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            },
+            "individualStrokeWeights": {
+              "type": "object",
+              "properties": {
+                "top": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "bottom": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "left": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "right": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            },
+            "characters": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "itemSpacing": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "paddingLeft": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "paddingRight": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "paddingTop": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "paddingBottom": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "visible": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "topLeftRadius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "topRightRadius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "bottomLeftRadius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "bottomRightRadius": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "minWidth": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "maxWidth": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "minHeight": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "maxHeight": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "counterAxisSpacing": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "opacity": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "fontFamily": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "fontSize": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "fontStyle": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "fontWeight": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "letterSpacing": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "lineHeight": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "paragraphSpacing": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "paragraphIndent": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "fills": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "strokes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "componentProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "textRangeFills": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "layoutGrids": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/VariableAlias"
+              }
+            },
+            "rectangleCornerRadii": {
+              "type": "object",
+              "properties": {
+                "RECTANGLE_TOP_LEFT_CORNER_RADIUS": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "RECTANGLE_TOP_RIGHT_CORNER_RADIUS": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "RECTANGLE_BOTTOM_LEFT_CORNER_RADIUS": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "RECTANGLE_BOTTOM_RIGHT_CORNER_RADIUS": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            }
+          }
+        },
+        "explicitVariableModes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "scrollBehavior"
+      ]
+    },
+    "VectorNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "VECTOR"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/CornerRadiusShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "AnnotationsTrait": {
+      "type": "object",
+      "properties": {}
+    },
+    "CornerRadiusShapeTraits": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/CornerTrait"
+        }
+      ]
+    },
+    "CornerTrait": {
+      "type": "object",
+      "properties": {
+        "cornerRadius": {
+          "type": "number",
+          "default": 0
+        },
+        "cornerSmoothing": {
+          "type": "number"
+        },
+        "rectangleCornerRadii": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "TransformGroupNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "TRANSFORM_GROUP"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        },
+        {
+          "$ref": "#/components/schemas/TransformModifiersTrait"
+        }
+      ]
+    },
+    "TransformModifiersTrait": {
+      "type": "object",
+      "properties": {}
+    },
+    "FrameTraits": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasChildrenTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasFramePropertiesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/CornerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasGeometryTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasMaskTrait"
+        },
+        {
+          "$ref": "#/components/schemas/TransitionSourceTrait"
+        },
+        {
+          "$ref": "#/components/schemas/IndividualStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/VariableWidthStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/ComplexStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/DevStatusTrait"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "DevStatusTrait": {
+      "type": "object",
+      "properties": {
+        "devStatus": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "READY_FOR_DEV",
+                "COMPLETED"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      }
+    },
+    "IndividualStrokesTrait": {
+      "type": "object",
+      "properties": {
+        "individualStrokeWeights": {
+          "$ref": "#/components/schemas/StrokeWeights"
+        }
+      }
+    },
+    "StrokeWeights": {
+      "type": "object",
+      "properties": {
+        "top": {
+          "type": "number"
+        },
+        "right": {
+          "type": "number"
+        },
+        "bottom": {
+          "type": "number"
+        },
+        "left": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "top",
+        "right",
+        "bottom",
+        "left"
+      ]
+    },
+    "HasFramePropertiesTrait": {
+      "type": "object",
+      "properties": {
+        "clipsContent": {
+          "type": "boolean"
+        },
+        "background": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Paint"
+          },
+          "deprecated": true
+        },
+        "backgroundColor": {
+          "$ref": "#/components/schemas/RGBA",
+          "deprecated": true
+        },
+        "layoutGrids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/LayoutGrid"
+          }
+        },
+        "overflowDirection": {
+          "type": "string",
+          "enum": [
+            "HORIZONTAL_SCROLLING",
+            "VERTICAL_SCROLLING",
+            "HORIZONTAL_AND_VERTICAL_SCROLLING",
+            "NONE"
+          ],
+          "default": "NONE"
+        },
+        "layoutMode": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "HORIZONTAL",
+            "VERTICAL",
+            "GRID"
+          ],
+          "default": "NONE"
+        },
+        "primaryAxisSizingMode": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "AUTO"
+          ],
+          "default": "AUTO"
+        },
+        "counterAxisSizingMode": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "AUTO"
+          ],
+          "default": "AUTO"
+        },
+        "primaryAxisAlignItems": {
+          "type": "string",
+          "enum": [
+            "MIN",
+            "CENTER",
+            "MAX",
+            "SPACE_BETWEEN"
+          ],
+          "default": "MIN"
+        },
+        "counterAxisAlignItems": {
+          "type": "string",
+          "enum": [
+            "MIN",
+            "CENTER",
+            "MAX",
+            "BASELINE"
+          ],
+          "default": "MIN"
+        },
+        "paddingLeft": {
+          "type": "number",
+          "default": 0
+        },
+        "paddingRight": {
+          "type": "number",
+          "default": 0
+        },
+        "paddingTop": {
+          "type": "number",
+          "default": 0
+        },
+        "paddingBottom": {
+          "type": "number",
+          "default": 0
+        },
+        "itemSpacing": {
+          "type": "number",
+          "default": 0
+        },
+        "itemReverseZIndex": {
+          "type": "boolean",
+          "default": false
+        },
+        "strokesIncludedInLayout": {
+          "type": "boolean",
+          "default": false
+        },
+        "layoutWrap": {
+          "type": "string",
+          "enum": [
+            "NO_WRAP",
+            "WRAP"
+          ]
+        },
+        "counterAxisSpacing": {
+          "type": "number"
+        },
+        "counterAxisAlignContent": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "SPACE_BETWEEN"
+          ],
+          "default": "AUTO"
+        }
+      },
+      "required": [
+        "clipsContent"
+      ]
+    },
+    "LayoutGrid": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": [
+            "COLUMNS",
+            "ROWS",
+            "GRID"
+          ]
+        },
+        "sectionSize": {
+          "type": "number"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "color": {
+          "$ref": "#/components/schemas/RGBA"
+        },
+        "alignment": {
+          "type": "string",
+          "enum": [
+            "MIN",
+            "MAX",
+            "STRETCH",
+            "CENTER"
+          ]
+        },
+        "gutterSize": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "count": {
+          "type": "number"
+        },
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "gutterSize": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "numSections": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "sectionSize": {
+              "$ref": "#/components/schemas/VariableAlias"
+            },
+            "offset": {
+              "$ref": "#/components/schemas/VariableAlias"
+            }
+          }
+        }
+      },
+      "required": [
+        "pattern",
+        "sectionSize",
+        "visible",
+        "color",
+        "alignment",
+        "gutterSize",
+        "offset",
+        "count"
+      ]
+    },
+    "TextPathNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "TEXT_PATH"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/TextPathPropertiesTrait"
+        }
+      ]
+    },
+    "TextPathPropertiesTrait": {
+      "type": "object",
+      "properties": {
+        "characters": {
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/components/schemas/TextPathTypeStyle"
+        },
+        "characterStyleOverrides": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "layoutVersion": {
+          "type": "number"
+        },
+        "styleOverrideTable": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/TextPathTypeStyle"
+          }
+        }
+      },
+      "required": [
+        "characters",
+        "style",
+        "characterStyleOverrides",
+        "styleOverrideTable",
+        "textPathStartData"
+      ]
+    },
+    "TextPathTypeStyle": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "isOverrideOverTextStyle": {
+              "type": "boolean"
+            },
+            "boundVariables": {
+              "type": "object",
+              "properties": {
+                "fontFamily": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontSize": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontStyle": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontWeight": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "letterSpacing": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/BaseTypeStyle"
+        }
+      ]
+    },
+    "BaseTypeStyle": {
+      "type": "object",
+      "properties": {
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontPostScriptName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fontStyle": {
+          "type": "string"
+        },
+        "italic": {
+          "type": "boolean",
+          "default": false
+        },
+        "fontWeight": {
+          "type": "number"
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "textCase": {
+          "type": "string",
+          "enum": [
+            "ORIGINAL",
+            "UPPER",
+            "LOWER",
+            "TITLE",
+            "SMALL_CAPS",
+            "SMALL_CAPS_FORCED"
+          ]
+        },
+        "textAlignHorizontal": {
+          "type": "string",
+          "enum": [
+            "LEFT",
+            "RIGHT",
+            "CENTER",
+            "JUSTIFIED"
+          ]
+        },
+        "textAlignVertical": {
+          "type": "string",
+          "enum": [
+            "TOP",
+            "CENTER",
+            "BOTTOM"
+          ]
+        },
+        "letterSpacing": {
+          "type": "number"
+        },
+        "fills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Paint"
+          }
+        },
+        "hyperlink": {
+          "$ref": "#/components/schemas/Hyperlink"
+        },
+        "opentypeFlags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "semanticWeight": {
+          "type": "string",
+          "enum": [
+            "BOLD",
+            "NORMAL"
+          ]
+        },
+        "semanticItalic": {
+          "type": "string",
+          "enum": [
+            "ITALIC",
+            "NORMAL"
+          ]
+        }
+      }
+    },
+    "Hyperlink": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "URL",
+            "NODE"
+          ]
+        },
+        "url": {
+          "type": "string"
+        },
+        "nodeID": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "TextNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "TEXT"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/TypePropertiesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "TypePropertiesTrait": {
+      "type": "object",
+      "properties": {
+        "characters": {
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/components/schemas/TypeStyle"
+        },
+        "characterStyleOverrides": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "layoutVersion": {
+          "type": "number"
+        },
+        "styleOverrideTable": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/TypeStyle"
+          }
+        },
+        "lineTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ORDERED",
+              "UNORDERED"
+            ]
+          }
+        },
+        "lineIndentations": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "characters",
+        "style",
+        "characterStyleOverrides",
+        "styleOverrideTable",
+        "lineTypes",
+        "lineIndentations"
+      ]
+    },
+    "TypeStyle": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "paragraphSpacing": {
+              "type": "number",
+              "default": 0
+            },
+            "paragraphIndent": {
+              "type": "number",
+              "default": 0
+            },
+            "listSpacing": {
+              "type": "number",
+              "default": 0
+            },
+            "textDecoration": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "STRIKETHROUGH",
+                "UNDERLINE"
+              ],
+              "default": "NONE"
+            },
+            "textAutoResize": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "WIDTH_AND_HEIGHT",
+                "HEIGHT",
+                "TRUNCATE"
+              ],
+              "default": "NONE"
+            },
+            "textTruncation": {
+              "type": "string",
+              "enum": [
+                "DISABLED",
+                "ENDING"
+              ],
+              "default": "DISABLED"
+            },
+            "maxLines": {
+              "type": "number"
+            },
+            "lineHeightPx": {
+              "type": "number"
+            },
+            "lineHeightPercent": {
+              "type": "number",
+              "default": 100
+            },
+            "lineHeightPercentFontSize": {
+              "type": "number"
+            },
+            "lineHeightUnit": {
+              "type": "string",
+              "enum": [
+                "PIXELS",
+                "FONT_SIZE_%",
+                "INTRINSIC_%"
+              ]
+            },
+            "isOverrideOverTextStyle": {
+              "type": "boolean"
+            },
+            "boundVariables": {
+              "type": "object",
+              "properties": {
+                "fontFamily": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontSize": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontStyle": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "fontWeight": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "letterSpacing": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "lineHeight": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "paragraphSpacing": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                },
+                "paragraphIndent": {
+                  "$ref": "#/components/schemas/VariableAlias"
+                }
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/BaseTypeStyle"
+        }
+      ]
+    },
+    "TableCellNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "TABLE_CELL"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalFillsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasTextSublayerTrait"
+        }
+      ]
+    },
+    "HasTextSublayerTrait": {
+      "type": "object",
+      "properties": {
+        "characters": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "characters"
+      ]
+    },
+    "TableNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "TABLE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasChildrenTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        }
+      ]
+    },
+    "StickyNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "STICKY"
+              ]
+            },
+            "authorVisible": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalFillsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasMaskTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasTextSublayerTrait"
+        }
+      ]
+    },
+    "StarNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "STAR"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/CornerRadiusShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "SliceNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "SLICE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        }
+      ]
+    },
+    "ShapeWithTextNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "SHAPE_WITH_TEXT"
+              ]
+            },
+            "shapeType": {
+              "$ref": "#/components/schemas/ShapeType"
+            }
+          },
+          "required": [
+            "type",
+            "shapeType"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalFillsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasMaskTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasTextSublayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/CornerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalStrokesTrait"
+        }
+      ]
+    },
+    "SectionNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "SECTION"
+              ]
+            },
+            "sectionContentsHidden": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "type",
+            "sectionContentsHidden"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasGeometryTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasChildrenTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/DevStatusTrait"
+        }
+      ]
+    },
+    "RegularPolygonNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "REGULAR_POLYGON"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/CornerRadiusShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "RectangleNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "RECTANGLE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/RectangularShapeTraits"
+        }
+      ]
+    },
+    "RectangularShapeTraits": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/CornerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/IndividualStrokesTrait"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "LinkUnfurlNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "LINK_UNFURL"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        }
+      ]
+    },
+    "LineNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "LINE"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "InstanceNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "INSTANCE"
+              ]
+            },
+            "componentId": {
+              "type": "string"
+            },
+            "isExposedInstance": {
+              "type": "boolean",
+              "default": false
+            },
+            "exposedInstances": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "componentProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/ComponentProperty"
+              }
+            },
+            "overrides": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Overrides"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "componentId",
+            "overrides"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        }
+      ]
+    },
+    "Overrides": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "overriddenFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "overriddenFields"
+      ]
+    },
+    "ComponentProperty": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/components/schemas/ComponentPropertyType"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "preferredValues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/InstanceSwapPreferredValue"
+          }
+        },
+        "boundVariables": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "#/components/schemas/VariableAlias"
+            }
+          }
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ]
+    },
+    "InstanceSwapPreferredValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "COMPONENT",
+            "COMPONENT_SET"
+          ]
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "key"
+      ]
+    },
+    "ComponentPropertyType": {
+      "type": "string",
+      "enum": [
+        "BOOLEAN",
+        "INSTANCE_SWAP",
+        "TEXT",
+        "VARIANT"
+      ]
+    },
+    "GroupNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "GROUP"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        }
+      ]
+    },
+    "FrameNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "FRAME"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        }
+      ]
+    },
+    "EmbedNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "EMBED"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        }
+      ]
+    },
+    "EllipseNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ELLIPSE"
+              ]
+            },
+            "arcData": {
+              "$ref": "#/components/schemas/ArcData"
+            }
+          },
+          "required": [
+            "type",
+            "arcData"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/DefaultShapeTraits"
+        },
+        {
+          "$ref": "#/components/schemas/AnnotationsTrait"
+        }
+      ]
+    },
+    "ArcData": {
+      "type": "object",
+      "properties": {
+        "startingAngle": {
+          "type": "number",
+          "default": 0
+        },
+        "endingAngle": {
+          "type": "number",
+          "default": 0
+        },
+        "innerRadius": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "startingAngle",
+        "endingAngle",
+        "innerRadius"
+      ]
+    },
+    "ConnectorNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "CONNECTOR"
+              ]
+            },
+            "connectorStart": {
+              "$ref": "#/components/schemas/ConnectorEndpoint"
+            },
+            "connectorEnd": {
+              "$ref": "#/components/schemas/ConnectorEndpoint"
+            },
+            "connectorStartStrokeCap": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "LINE_ARROW",
+                "TRIANGLE_ARROW",
+                "DIAMOND_FILLED",
+                "CIRCLE_FILLED",
+                "TRIANGLE_FILLED"
+              ],
+              "default": "NONE"
+            },
+            "connectorEndStrokeCap": {
+              "type": "string",
+              "enum": [
+                "NONE",
+                "LINE_ARROW",
+                "TRIANGLE_ARROW",
+                "DIAMOND_FILLED",
+                "CIRCLE_FILLED",
+                "TRIANGLE_FILLED"
+              ],
+              "default": "NONE"
+            },
+            "connectorLineType": {
+              "$ref": "#/components/schemas/ConnectorLineType"
+            },
+            "textBackground": {
+              "$ref": "#/components/schemas/ConnectorTextBackground"
+            }
+          },
+          "required": [
+            "type",
+            "connectorStart",
+            "connectorEnd",
+            "connectorStartStrokeCap",
+            "connectorEndStrokeCap",
+            "connectorLineType"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasTextSublayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalStrokesTrait"
+        }
+      ]
+    },
+    "ConnectorTextBackground": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/CornerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/MinimalFillsTrait"
+        }
+      ]
+    },
+    "ComponentSetNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "COMPONENT_SET"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        },
+        {
+          "$ref": "#/components/schemas/ComponentPropertiesTrait"
+        }
+      ]
+    },
+    "ComponentPropertiesTrait": {
+      "type": "object",
+      "properties": {
+        "componentPropertyDefinitions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/ComponentPropertyDefinition"
+          }
+        }
+      }
+    },
+    "ComponentPropertyDefinition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/components/schemas/ComponentPropertyType"
+        },
+        "defaultValue": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "variantOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preferredValues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/InstanceSwapPreferredValue"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "defaultValue"
+      ]
+    },
+    "ComponentNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "COMPONENT"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/FrameTraits"
+        },
+        {
+          "$ref": "#/components/schemas/ComponentPropertiesTrait"
+        }
+      ]
+    },
+    "BooleanOperationNode": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "BOOLEAN_OPERATION"
+              ]
+            },
+            "booleanOperation": {
+              "type": "string",
+              "enum": [
+                "UNION",
+                "INTERSECT",
+                "SUBTRACT",
+                "EXCLUDE"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "booleanOperation"
+          ]
+        },
+        {
+          "$ref": "#/components/schemas/IsLayerTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasBlendModeAndOpacityTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasChildrenTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasLayoutTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasGeometryTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasExportSettingsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasEffectsTrait"
+        },
+        {
+          "$ref": "#/components/schemas/HasMaskTrait"
+        },
+        {
+          "$ref": "#/components/schemas/TransitionSourceTrait"
+        }
+      ]
+    }
+  },
+  "board_field_comparison": [
+    {
+      "studio_kind": "sticky",
+      "plugin_kind": "StickyNode",
+      "clause": "STU-WB-104",
+      "comparison": "text TextSublayerNode; authorVisible boolean; authorName string; isWideWidth boolean. REST characters via HasTextSublayerTrait and optional authorVisible default false; no authorName/isWideWidth. Native author authority distinction is Studio-authored.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/StickyNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "shape_with_text",
+      "plugin_kind": "ShapeWithTextNode",
+      "clause": "STU-WB-105",
+      "comparison": "shapeType required30union, readonly text, readonly optional cornerRadius number, rotation number. REST shapeType same30; cornerRadius optional and characters replace sublayer; no proof of native automatic sizing.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/ShapeWithTextNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "connector",
+      "plugin_kind": "ConnectorNode",
+      "clause": "STU-WB-106",
+      "comparison": "Plugin readonly text/textBackground, optional readonly cornerRadius; three connectorLineType literals; three endpoint variants; twelve caps. REST six cap tokens NONE,LINE_ARROW,TRIANGLE_ARROW,DIAMOND_FILLED,CIRCLE_FILLED,TRIANGLE_FILLED; not exact plugin caps; two weak endpoint object forms with optional members. REST default caps NONE and line ELBOWED. Plugin magnet includes NONE beyond Studio minimum six. Native broken endpoint retention is Studio-authored.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/ConnectorNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "stamp",
+      "plugin_kind": "StampNode",
+      "clause": "STU-WB-110",
+      "comparison": "getAuthorAsync Promise<BaseUser|null>; nullable attribution preserved; DefaultShape/Constraint/Stickable/AspectRatio inheritance. REST absent. CKC artwork and event actor authority native.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/StampNode",
+      "rest_status": "ABSENT",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "highlight",
+      "plugin_kind": "HighlightNode",
+      "clause": "STU-WB-111",
+      "comparison": "DefaultShape/Constraint/Corner/VectorLike/Stickable/AspectRatio inheritance: cornerRadius number|mixed, vectorNetwork, vectorPaths and handleMirroring; readonly targetAspectRatio Vector|null. REST absent.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/HighlightNode",
+      "rest_status": "ABSENT",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "washi_tape",
+      "plugin_kind": "WashiTapeNode",
+      "clause": "STU-WB-112",
+      "comparison": "DefaultShape/Stickable/AspectRatio inheritance. stuckTo SceneNode|null. REST DefaultShapeTraits does not corroborate stickability or native StudioPattern binding.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/WashiTapeNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "table",
+      "plugin_kind": "TableNode",
+      "clause": "STU-WB-113",
+      "comparison": "readonly numRows,numColumns number; cellAt returns TableCellNode; eight insert/remove/move/resize commands plus cell lookup. Cells readonly text,rowIndex,columnIndex,parent,height,width. REST TABLE children and TABLE_CELL characters/fill, no counts or mutation methods; shared layout table owner native.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/TableNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "code_block",
+      "plugin_kind": "CodeBlockNode",
+      "clause": "STU-WB-114",
+      "comparison": "code string; codeLanguage literal union TYPESCRIPT,CPP,RUBY,CSS,JAVASCRIPT,HTML,JSON,GRAPHQL,PYTHON,GO,SQL,SWIFT,KOTLIN,RUST,BASH,PLAINTEXT,DART. REST absent. Native alignment to codegen language union is authored mapping, not same vendor union proven.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/CodeBlockNode",
+      "rest_status": "ABSENT",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "section",
+      "plugin_kind": "SectionNode",
+      "clause": "STU-WB-115",
+      "comparison": "sectionContentsHidden boolean; Children/MinimalFills/Opaque/DevStatus/AspectRatio/MinimalStrokes/Corner/RectangleCorner. devStatus {type READY_FOR_DEV|COMPLETED, description?:string}|null. REST hidden default false; status optional object type NONE|READY_FOR_DEV|COMPLETED. Current Studio DS159 two-member vocabulary must stay a native mapping; same counts insufficient.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/SectionNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "media_embed",
+      "plugin_kind": "MediaNode",
+      "clause": "STU-WB-116",
+      "comparison": "readonly mediaData {hash:string}; resize/resizeWithoutConstraints. REST MEDIA absent; EMBED is distinct and has no embedData in REST. Native CKC link requirement authored, not plugin media bytes.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/MediaNode",
+      "rest_status": "ABSENT",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "link_unfurl",
+      "plugin_kind": "LinkUnfurlNode",
+      "clause": "STU-WB-116",
+      "comparison": "readonly linkUnfurlData {url:string,title:string|null,description:string|null,provider:string|null}. No thumbnail field declared; native thumbnail CKC handling and offline plain link are authored extensions. REST only LINK_UNFURL type/layer/export traits, no payload.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/LinkUnfurlNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    },
+    {
+      "studio_kind": "widget",
+      "plugin_kind": "WidgetNode",
+      "clause": "STU-WB-119",
+      "comparison": "readonly widgetId string, readonly widgetSyncedState {[key:string]:any}; overrides are cloneWidget method parameters, not properties; optional syncedMap overrides. setWidgetSyncedState method. Stickable stuckTo SceneNode|null. REST WIDGET layer/export/children only, no synced payload. Studio CRDT/plugin governance native.",
+      "plugin_definition_ref": "#/inspected_plugin_declarations_and_inheritance/WidgetNode",
+      "rest_status": "PARTIAL_API_VIEW",
+      "original_capture_equivalence": "NOT_PROVEN; original bytes unavailable"
+    }
+  ],
+  "recovered_shape_union": [
+    "SQUARE",
+    "ELLIPSE",
+    "ROUNDED_RECTANGLE",
+    "DIAMOND",
+    "TRIANGLE_UP",
+    "TRIANGLE_DOWN",
+    "PARALLELOGRAM_RIGHT",
+    "PARALLELOGRAM_LEFT",
+    "ENG_DATABASE",
+    "ENG_QUEUE",
+    "ENG_FILE",
+    "ENG_FOLDER",
+    "TRAPEZOID",
+    "PREDEFINED_PROCESS",
+    "SHIELD",
+    "DOCUMENT_SINGLE",
+    "DOCUMENT_MULTIPLE",
+    "MANUAL_INPUT",
+    "HEXAGON",
+    "CHEVRON",
+    "PENTAGON",
+    "OCTAGON",
+    "STAR",
+    "PLUS",
+    "ARROW_LEFT",
+    "ARROW_RIGHT",
+    "SUMMING_JUNCTION",
+    "OR",
+    "SPEECH_BUBBLE",
+    "INTERNAL_STORAGE"
+  ],
+  "original_studio_shape_descriptions": [
+    "rectangle",
+    "rounded rectangle",
+    "ellipse",
+    "diamond",
+    "triangle",
+    "parallelogram",
+    "hexagon",
+    "cylinder",
+    "cloud",
+    "document",
+    "predefined-process",
+    "terminator"
+  ],
+  "shape_mapping_limits": {
+    "rectangle": "No RECTANGLE literal; SQUARE exists, no assumed equivalence",
+    "triangle": "TRIANGLE_UP and TRIANGLE_DOWN remain distinct",
+    "parallelogram": "PARALLELOGRAM_RIGHT and PARALLELOGRAM_LEFT distinct",
+    "cylinder": "ENG_DATABASE documented Cylinder; ENG_QUEUE Horizontal cylinder distinct",
+    "document": "DOCUMENT_SINGLE and DOCUMENT_MULTIPLE distinct; ENG_FILE documented File",
+    "cloud": "ABSENT; no vendor-derived alias",
+    "terminator": "ABSENT; no vendor-derived alias",
+    "exact_tokens": "Native shape_type field mapping is separate from imported shapeType literals; no silent case/space/alias normalization"
+  },
+  "decisions": [
+    {
+      "anchor": "STU-WB-129",
+      "owning_mt": "MT-33603",
+      "affected_shape_authoring_mt": "MT-33580",
+      "host": "MT-36195",
+      "recommended": "Select WB138 recovery branch using fresh pinned official30literal declaration capture; exact canonical amendment precedes activation. Original12declaration stays in preserved history. Existing NIB geometry owner; no module/panel/document addition.",
+      "human_requirement": "No explicit acceptance of twelve-only alternative inferred. Root approved canonical publication remains necessary; retaining cloud/terminator as active native extensions instead of replacing set requires explicit scoped choice.",
+      "spec_patch_proposal": {
+        "STU-WB-105_tail": "shape_type is the closed thirty-literal imported vocabulary : `SQUARE`, `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`, `ENG_DATABASE`, `ENG_QUEUE`, `ENG_FILE`, `ENG_FOLDER`, `TRAPEZOID`, `PREDEFINED_PROCESS`, `SHIELD`, `DOCUMENT_SINGLE`, `DOCUMENT_MULTIPLE`, `MANUAL_INPUT`, `HEXAGON`, `CHEVRON`, `PENTAGON`, `OCTAGON`, `STAR`, `PLUS`, `ARROW_LEFT`, `ARROW_RIGHT`, `SUMMING_JUNCTION`, `OR`, `SPEECH_BUBBLE`, `INTERNAL_STORAGE`, recovered from official plugin-api.d.ts at commit 07157d96c58add71d234b13bfd55b53abdce76b8. The source revision/blob/digest MUST accompany the vocabulary. Native Studio field names and labels MUST remain distinct from imported tokens; guessed aliases and silent normalization are forbidden. Original twelve Studio-declared descriptions remain preserved as history; cloud and terminator have no literal in this recovered union and MUST NOT be represented as source-derived.",
+        "STU-WB-129": "**[STU-WB-129] RESOLVED CAPTURE GAP \u2014 explicit shape-type vocabulary.** The earlier capture did not recover the multiline shapeType union. A pinned official declaration capture now supplies the exact thirty literals in [STU-WB-105]. Record its revision, blob/digest and extraction boundary; preserve the original twelve-description declaration as history. This resolves only the vocabulary dependency and does not establish independent corroboration under [STU-WB-131].",
+        "STU-WB-138_first_row": "Preserve both recovery/actual operator-acceptance alternatives and record recovery selected only after canonical amended clause publication.",
+        "STU-WB-139_shape_obligation": "Replace mandatory studio_declared label with full exact WB105 union and capture/native mapping provenance; preserve historical unresolved declaration context."
+      },
+      "contract_patch_proposal": [
+        "MT33603 inputs/active acceptance bind exact30union/source hashes/amended clause and retain original12/history; no boolean resolved from authored report alone",
+        "MT33580 shape-authoring input/acceptance carries complete amended union and explicit unsupported/import token behavior",
+        "MT36195 consume immutable source release/lock through exact existing adapter; source publication/independent reread before host adoption"
+      ]
+    },
+    {
+      "anchor": "STU-WB-130",
+      "owning_mt": "MT-33604",
+      "host": "MT-36195 currently NIB adoption; must reassess exact existing owners after decision",
+      "human_requirement": "REQUIRED actual choice: fold_existing_domains | new_presentation_domain | out_of_scope. Research authorization/signature is not scope acceptance.",
+      "recommended": "fold_existing_domains: Folio/Layout ordered slide containers/content, Pulse transitions/playback/skip/presentation, Components interactive roles, Interop-Fig exact imported tokens/mapping/loss; existing Controls/navigation/contextual inspector. Current WB130 absence claim must be clarified against existing layout/prototype presentation contracts. No new top-level document or GUI panel implied.",
+      "alternatives": {
+        "new_presentation_domain": "Only if human chooses extra behavior outside existing owners; requires explicit domain/owner contract while preserving single document/shell",
+        "out_of_scope": "Preserve four source-kind provenance and preservation/loss; explicitly exclude editable slide/presenter authoring; reconcile broader Slides parity scope"
+      },
+      "source_fields_ref": "#/inspected_plugin_declarations_and_inheritance/SlideNode plus SlideRowNode,SlideGridNode,InteractiveSlideElementNode,SlideTransition and full inheritance closure",
+      "slide_specific_limits": "Grid clone declared but documented runtime exception; getSlideGrid deprecated getCanvasGrid; current source confirms kinds/fields but original capture field equivalence NOT_PROVEN. Defaults/duration/delay bounds not declared; absent delay never implies zero. Interactive POLL|EMBED|FACEPILE|ALIGNMENT|YOUTUBE are vendor literals, not new native names.",
+      "spec_patch_proposal": {
+        "STU-WB-130_if_human_fold": "**[STU-WB-130] Presentation-kind disposition \u2014 folded into existing Studio domains.** The Operator explicitly accepts folding captured SlideNode, SlideRowNode, SlideGridNode and InteractiveSlideElementNode into existing layout, design-system and prototyping contracts. They MUST NOT become whiteboard node kinds or a separate document silo. Folio/Layout own content and ordered container references; Pulse owns transitions, skipped-slide playback and local presentation; Components owns interactive roles; Interop-Fig preserves source literals, inheritance provenance and mapping/loss records. Existing document/navigation, selection/history and contextual controls apply. Complete kind-specific fields, transition literals, nullable/optional semantics and source-version mappings MUST be specified at owning anchors before authoring activates. Preserve the original scope question as history; actual recorded Operator choice discharges only that question.",
+        "STU-WB-138_scope_row": "Record explicit Operator selected disposition; for fold, bind allfour kinds and complete field/transition semantics to existing owners; no silent whiteboard absorption or duplicate document/navigation."
+      },
+      "contract_patch_proposal": [
+        "Preserve MT33604 ID/history and first human-choice acceptance; reassess current NIB attribution rather than secretly giving NIB layout/prototype writes",
+        "Bind chosen behavior into existing owner feature MTs at their exact authority anchors; source/host pairs remain distinct",
+        "Preserve typed unsupported/provider/loss behavior for external interactive kinds; no cloud runtime assumption"
+      ]
+    },
+    {
+      "anchor": "STU-WB-131",
+      "owning_mt": "MT-33605",
+      "host": "MT-36195",
+      "recommended": "Use actual bounded human acceptance of single Figma-object-model basis, supported by current pinned declaration recapture and explicit field/mapping reliability manual. REST partial same-vendor view cannot discharge all12fields criterion. No additional broad research campaign or fabricated second witness.",
+      "human_requirement": "REQUIRED actual acceptance of single-witness basis plus same-change UserManual reliability statement; or supply genuinely corroborating second capture covering all12fields. No general session authorization acceptance.",
+      "acceptance_text_for_root_to_present": "Accept the twelve Studio board kinds and additional field contracts on a single Figma plugin-object-model basis. A newer pinned official declaration confirms the current published contracts but is the same upstream; original capture bytes/version are not verified here. REST corroboration is partial, not independent all-field corroboration. Native CKC bindings, CRDT transport, actor authority, auto-sizing/broken-reference behavior, thumbnail handling, widget override storage and vocabulary mappings are Studio-authored contracts, not vendor facts. State these limits in operator/model UserManual and retain revisioned provenance/conflict/loss handling.",
+      "spec_patch_proposal": {
+        "STU-WB-131_if_human_accepts": "**[STU-WB-131] ACCEPTED SINGLE-WITNESS BASIS \u2014 whiteboard object model.** The Operator explicitly accepts the twelve board-kind contracts on the single Figma object-model basis. Current pinned official declarations confirm published kind/field surfaces; documentation/npm copies and generated REST types MUST NOT be counted as independent vendor witnesses. Original capture version/byte equivalence and full second-capture corroboration are not established by this research. The UserManual MUST state this reliability limit, distinguish native Studio mappings/extensions and disclose unavailable, conflicting or unverified source fields. Preserve original dependency/history and source revision/digests; later evidence requires explicit reconciliation, never silent field replacement.",
+        "STU-WB-138_witness_row": "Preserve second-capture/actual acceptance alternatives; selected single-witness branch resolves only after recorded human acceptance AND actual UserManual statement. Partial REST coverage alone leaves dependency unresolved."
+      },
+      "contract_patch_proposal": [
+        "MT33605 first acceptance actual decision or full12field independent capture; carry per-field reliability, conflicts/missing coverage and distinct witness identity",
+        "MT36195 owns actual integrated UserManual statement and native storage/auth/CRDT/Argus proof; source observation cannot mark host/manual done",
+        "Other board feature MTs consume same immutable evidence/mapping contract without duplicate witness counters or new owner"
+      ]
+    }
+  ],
+  "proof_limits": {
+    "source_research": "Pinned source declarations inspected; field-level comparison retained",
+    "independent_second_capture": "NOT_PROVEN",
+    "original_capture_field_equality": "NOT_PROVEN",
+    "implementation_readiness": "NOT_ASSERTED",
+    "runtime_build_test_gui_parity": "NOT_RUN",
+    "canonical_source_repository": "https://github.com/Nuntissura/assets subtree handshake-studio-assets; current source checkout binding unresolved; no source or host writes authorized by report"
+  },
+  "contract_change_rule": "Root sole spec editor; owner teams update active contracts only after accepted selection; retain IDs, preserved_original payload/history, pins and independent verdict obligations; no MT status changes in research",
+  "source_documentation_observations": {
+    "shape_creation": "createShapeWithText docs:208x208,parent currentPage; shapeType/cornerRadius default not stated; resize dimensions >=0.01. Native auto-resize around text remains Studio requirement.",
+    "slide_ordering": "createSlide(row?,col?) defaults last child of last row; createSlideRow(row?) defaults end of grid. getSlideGrid returns Array<Array<SlideNode>>, deprecated in favor getCanvasGrid. No duration/delay numeric bounds or absent-delay-equals-zero rule declared.",
+    "slide_grid_clone": "SlideGridNode clone declaration is documented to throw runtime exception, not an operational clone guarantee."
+  }
+}

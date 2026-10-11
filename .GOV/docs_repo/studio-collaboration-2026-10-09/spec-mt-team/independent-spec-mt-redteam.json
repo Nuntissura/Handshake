@@ -1,0 +1,263 @@
+{
+  "schema_id": "hsk.studio_independent_preparation_review@1",
+  "file_id": "STUDIO-SPEC-MT-REDTEAM-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_REVIEW_COMPLETE_EXECUTION_AND_PUBLICATION_RECONCILIATION_REQUIRED",
+  "reviewer": "spec-mt-team owner; independent of two proposal authors",
+  "proof_level": "SOURCE_INSPECTION_ONLY_NOT_RUNTIME_ACCEPTANCE",
+  "findings": [
+    {
+      "id": "SPEC-MT-RT-001",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json#proposed_architecture.standalone_to_embedded; build-policy-and-next-session.json#next_session_sequence",
+      "observed": "Sequence proposes foundation subset then focused feature slice before all proposed module foundations.",
+      "required_disposition": "Replace stale sequencing with all-module foundation prefix. Every domain foundation needs real typed provider/API, dependency policy, cancellation/admission contract, diagnostics/manual/control exposure and compilable selective target. Empty crate declarations cannot satisfy the prefix; feature acceptance remains separate."
+    },
+    {
+      "id": "SPEC-MT-RT-002",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json#spec_amendments[2]; .GOV/docs_repo/studio-collaboration-2026-10-09/session.json#operator_approvals_2026_10_09",
+      "observed": "Proposal still records Lightroom catalog exception OPEN, although later operator approved read-only file-byte parsing.",
+      "required_disposition": "Apply narrow exception to all conflicting active clauses and importer contracts; decoder accepts bounded file bytes and emits proposed values. No SQL library/engine, queries, connectivity, writable catalog, fixture database, alternate cache or second authority. Decoder implementation and editable conversion remain unproven."
+    },
+    {
+      "id": "SPEC-MT-RT-003",
+      "severity": "HIGH",
+      "evidence": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/leases.rs:97-110,139-183",
+      "observed": "Inspected registry uses shared/exclusive holders and synchronous bounded retries; can_grant admits new readers whenever no exclusive holder exists. No queued-writer state appears in this inspected condition.",
+      "required_disposition": "Do not equate existing widget leases with bounded Studio admission or starvation-free document scheduling. Specify pre-allocation byte/job limits, per-principal quotas, admission rejection, fairness, expiry and cancellation at each allocating/decode/render boundary. Distinguish resource conflict correctness from pressure control; no wholesale lock-free promise. Existing implementation is source evidence only, not a proved runtime defect."
+    },
+    {
+      "id": "SPEC-MT-RT-004",
+      "severity": "HIGH",
+      "evidence": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/screenshot.rs:30-52",
+      "observed": "ScreenshotResult contains PNG, width, height and capture time; it carries no document revision, rendering generation, frame, profile or proxy binding.",
+      "required_disposition": "Require capture receipt to join exact document revision, render generation, temporal coordinate, profiles, proxy/original identity, actor/grants and viewport. Static PNG or wall-clock freshness cannot certify a Studio edit. Consume the canonical Argus surface and add explicit host integration MT proof rather than duplicating screenshot authority."
+    },
+    {
+      "id": "SPEC-MT-RT-005",
+      "severity": "HIGH",
+      "evidence": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:136-142,179-189",
+      "observed": "Monorepo always-tested-together, single studio-engine and prototype-only pre-kernel obligations directly conflict with asset-first development direction.",
+      "required_disposition": "Patch each active obligation at its stable ID and every normative derived owner/path. Preserve shared kernel authority, sandbox/promotion and later embedding proof; do not append an override paragraph while original commands and owners stay active."
+    },
+    {
+      "id": "SPEC-MT-RT-006",
+      "severity": "HIGH",
+      "evidence": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:22446-22506",
+      "observed": "StudioSequence schema is hsk.studio.sequence@1; frame_rate ticks_per_frame is u64; sequence clock is 254016000000 ticks/second. Inspected clause does not mandate i128.",
+      "required_disposition": "Preserve schema and declared field types. Checked arithmetic and explicit conversion/range failures are required; do not replace stored clock with rational seconds or invent widened serialized integer types. Separate time representation from display/drop-frame semantics."
+    },
+    {
+      "id": "SPEC-MT-RT-007",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json#proposed_architecture.nodes; build-policy-and-next-session.json#product_layout.supporting_owner_dispositions",
+      "observed": "Initial proposal lists 28 node owners; PDF and web owners are separately proposed and unresolved. Kernel bindings are integration-only.",
+      "required_disposition": "Resolve complete owner registry including preserved PDF/prepress/accessibility/web/audio-post/import scope before enumerating all-foundation completion. Keep module count derived from canonical registry, never the planning shorthand 30ish. Bind integration-only foundations to pure ports without mandatory kernel compile."
+    },
+    {
+      "id": "SPEC-MT-RT-008",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json#proposed_architecture.forbidden_dependency_edges; .GOV/codex/Handshake_Codex_v1.4.md:45,79",
+      "observed": "A standalone adapter boundary is proposed; there is no inspected implemented Studio workspace proving its selective build closure.",
+      "required_disposition": "Reject implicit dependency creep through dev-dependencies, test packages, build scripts, workspace/default features or facade reexports. Inspect Cargo graph for actual package/feature/target selections after implementation. Separate core/native/Surreal host adapter target and later production proof; portable provider doubles cannot substitute for authority integration."
+    },
+    {
+      "id": "SPEC-MT-RT-009",
+      "severity": "HIGH",
+      "evidence": ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json#operator_approvals_2026_10_09[3]; .GOV/codex/Handshake_Codex_v1.4.md:75-87",
+      "observed": "Assets subtree mirroring is authorized; governance remains in kernel. Mirror protocol, commit mapping and conflict strategy are not proven by this authorization.",
+      "required_disposition": "Select one canonical product source, mirror only its explicit product subtree and bind source commit/tree/subtree digest to destination commit. Detect destination changes and reject divergent overwrite; preserve handpick content. Mirror no .GOV, no machine paths, no build outputs; specify recovery and bidirectional-change policy before publish."
+    },
+    {
+      "id": "SPEC-MT-RT-010",
+      "severity": "HIGH",
+      "evidence": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#test_environment_prerequisites; .GOV/codex/Handshake_Codex_v1.4.md#CX-VAL-007",
+      "observed": "HBR test entrypoint, canary and implementer check retain REPLACE_ME placeholders.",
+      "required_disposition": "Keep affected activation blocked until version-controlled exact asset runner/config/package/feature/target proof paths exist. Candidate command templates are proposals, never verified executables or proof. Shared acceptance input may be reused only with exact coverage and unchanged inputs; host production pillars cannot be marked NOT_APPLICABLE just because embedding is deferred."
+    }
+  ],
+  "additional_findings": [
+    {
+      "id": "SPEC-MT-RT-011",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-roundtrip-check.py:273-312,316-378",
+      "observed": "Tool scans anchors in whole JSON, accepts parsable non-MT records, reports coverage PASS without exact task identity/acceptance equality, returns zero even coverage FAIL.",
+      "required_disposition": "Do not use this checker as exact extraction proof. Resolve generator/migration explicitly; compare sorted stable MT ID and derivation-unit keys, preserved original scope and AC payloads, spec anchor/schema bindings and all additions/dispositions. Validator must independently reread canonical originals and candidate, reject duplicate IDs/unreadable files/unknown no-yield changes, and propagate failure exit. Existing claimed derivation_property must be corrected until stronger proof exists."
+    },
+    {
+      "id": "SPEC-MT-RT-012",
+      "severity": "HIGH",
+      "evidence": "asset-first-mt-refactor-plan.json#/per_mt_bindings; .GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json:34-71",
+      "observed": "Initial candidate routes MT001 to Accord and identifies 122 prior contracts with multiple module candidates. Historical MT001 covers kernel module and engine workspace together.",
+      "required_disposition": "Workspace coordination must have its own declared module/root; assigning root manifest operations to schema Accord is invalid. Preserve every original AC and requirement; use linked single-owner foundation/feature/embedding fulfillment contracts for compound tasks. Candidate anchor-family selection is navigation only and requires actual source-owner lookup, not automatic ownership approval."
+    },
+    {
+      "id": "SPEC-MT-RT-013",
+      "severity": "HIGH",
+      "evidence": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:22378,22386,32901; asset-first-mt-refactor-plan.json#/hbr_evaluation",
+      "observed": "Current clauses hardcode old diagnostic deferrals and six HBR pillars; current registry contains45rules across9pillars. Proposed MT plan intentionally leaves all assessments pending.",
+      "required_disposition": "Replace inherited diagnostic deferrals with evidence-bound tier posture per module/behavior and explicit later consumers. Include PRIV/COMPART/COMPONENT with existing six HBR pillars and assess PW/PAR product obligations separately. Pending assessment is honest preparation, but is not completed HBR applicability or activation. Tier1 WIRED cannot be asserted from a sink declaration."
+    },
+    {
+      "id": "SPEC-MT-RT-014",
+      "severity": "HIGH",
+      "evidence": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/native-document-and-interop.json#/container; #/rules",
+      "observed": "Container proposal includes portable blobs, opaque originals and preview entries alongside archive bounds and resource resolver rules.",
+      "required_disposition": "Snapshot transport must not become a second mutable CAS/catalog/history; blob publication and preview authority delegate to existing providers. Specify rights/grant filtering at each resource, redaction exclusion of embedded originals and recovery artifacts, bounded streamed admission before expansion, import source identity separate from new authorized live revision. Cancellation after partial materialization must reclaim reservations and never publish incomplete authority."
+    },
+    {
+      "id": "SPEC-MT-RT-015",
+      "severity": "HIGH",
+      "evidence": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json:18-23; asset-first-mt-refactor-plan.json#/baseline_evidence",
+      "observed": "Historical contracts point to packet.json; specialist filesystem scan reports no packet.json. Reference plan keeps every command/test selector unresolved.",
+      "required_disposition": "Official packet hydration is still required before execution. Source-report preservation does not replace an approved packet contract, declared product root, executable checked-in proof runner/config, canary or per-module acceptance selectors. Root may publish approved spec/contract preparation without claiming implementation readiness."
+    }
+  ],
+  "pending": [
+    "Root clause/owner/migration publishing decisions and active contract hydration",
+    "Resolve per-MT canonical owners, full HBR applicability and exact proof targets",
+    "Implement and independently prove asset foundations/features/embedding in later authorized session"
+  ],
+  "source_provenance": [
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "e29d113f213533c25ab7679cd6b051cf975befa672acb66b9369ba49cb5c084e",
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "4d046fd51f5280fe48f299e3290ce9167bbbe57e73dc7b71f08d57ac9a4f3675",
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/build-policy-and-next-session.json"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "21214cea78002ca76f2b97caf6ce75b511cc6451c5a263b8d690cdc6b91674b7",
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/native-document-and-interop.json"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "bf15fda0235f08df78a3132ff6c89e79fac4c9fa15d2ed674cbcc08554ceaed4",
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/leases.rs"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "d230ed59e7f809d63dafe1953cef0b9f00fba2f572e7f5ca8d97d031a025ffe1",
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/src/mcp/screenshot.rs"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "192a7ebeedcfccb5b848e958ce3492fbada98faf97b2c33c156a2b22d7f81aaf",
+      "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-roundtrip-check.py"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "efb88f4272162dd7201901d2646229f5ea54739c3ab96c74b898c7e8e862c53f",
+      "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "a69c03fa5fc436c8eb5f7afed05bae07a138bf0cb03920bae28829386c58c283",
+      "path": ".GOV/reference/studio_app_feature_research/_tools/greenroom/mt-fold-into-packet.py"
+    },
+    {
+      "proof_level": "INSPECTED_SOURCE_ONLY",
+      "sha256": "3e4aac9a5231baf9b68d77327d183101930aac2c310275a2ac0a03abe09bf2d1",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json"
+    }
+  ],
+  "formal_review": {
+    "NEGATIVE_PATH_CHECKS": {
+      "observations": [
+        "Roundtrip unreadable JSON exception continues silently; main returns0 regardless coverage verdict",
+        "Fold collision branch skips existing derived contract instead of updating it",
+        "Lease grant permits new shared holder while no exclusive holder; timeout does not establish queued-writer fairness"
+      ],
+      "kind": "SOURCE_FAILURE_PATH_INSPECTION_NO_RUNTIME"
+    },
+    "INDEPENDENT_CHECKS_RUN": [
+      "Read actual LeaseRegistry and ScreenshotResult sources; compare against proposed Studio semantics",
+      "Read roundtrip/fold/deriver implementation rather than report claims",
+      "Parse candidate plan:5484uniqueIDs;28referencefoundations;123multiowner candidates after correction",
+      "Direct read preserved spec VAL002/005/006 MAN118 SHL007 and source SHA256"
+    ],
+    "BOUNDARY_PROBES": {
+      "observations": [
+        "MT001 original kernel/module paths versus proposed standalone ownership require linked fulfillment",
+        "Argus screenshot serialized producer lacks fields required by exact Studio visual outcome contract",
+        "Roundtrip tool forward/backward referenced-anchor sets do not check ID/unit/acceptance payload equivalence"
+      ],
+      "kind": "SOURCE_CONTRACT_COMPARISON_NO_RUNTIME"
+    },
+    "conclusions": {
+      "spec_alignment": "PATCH_PROPOSALS_REVIEWED_RESIDUAL_OWNER_AND_HYDRATION_BLOCKERS",
+      "final_decision": "NOT_EXECUTABLE_NO_RUNTIME_OR_PARITY_PASS",
+      "tests": "NOT_RUN_EXPLICITLY_OUT_OF_SCOPE",
+      "code_quality": "SOURCE_HAZARDS_REPORTED_NO_PRODUCT_PATCH",
+      "environment": "VERIFIED_KERNEL_BRANCH_ONLY_NO_PRODUCT_RUNTIME"
+    },
+    "DIFF_ATTACK_SURFACES": [
+      "Canonical repository/mirror direction",
+      "Compound MT scope -> single module write ownership",
+      "Historical AC -> asset/local/embedding fulfillment",
+      "Container data -> grants/promotion/authority",
+      "Admission resources -> cancellation/release/fairness",
+      "Spec derivation -> exact ID/unit/AC equality"
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If spec-roundtrip-check.py whole-JSON anchor scan remains the acceptance producer, unrelated anchor prose can conceal omitted task units without exact ID/AC comparison.",
+      "If ScreenshotResult is used without a revision/render binding, an unchanged PNG may be cited for another edit/frame/profile; Studio outcome provenance would break.",
+      "If original MT001 kernel acceptance is removed during workspace remapping, asset compile can close a contract without implementing its preserved embedding obligation."
+    ],
+    "risk_tier": "HIGH_DESIGN_BOUNDARY_SOURCE_ONLY",
+    "INDEPENDENT_FINDINGS": "See findings and additional_findings; unresolved design/activation items are not acceptance",
+    "RESIDUAL_UNCERTAINTY": [
+      "No Studio packages or proof runner implemented",
+      "No exact deterministic re-extraction proof executed",
+      "All45HBR trigger assessments unresolved per candidate MT",
+      "No native proprietary editable conversion or Adobe GUI runtime inspected",
+      "No asset mirror synchronization implemented/proven"
+    ]
+  },
+  "independent_full_preservation_observation": {
+    "method": "Fresh canonical Get-FileHash SHA256 per contract plus explicit UTF8 JSON reads; scope and AC serialized with ConvertTo-Json -Depth60 -Compress on both operands; sorted ID sets Compare-Object",
+    "limitation": "Proves preservation in owned source report only; does not prove future migration or runtime acceptance",
+    "canonical_target": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-*.json resolved through evidence source paths and _MT_INDEX.json",
+    "observed": {
+      "acceptance_rows": 21145,
+      "original_acceptance_mismatches": 0,
+      "index_plan_id_differences": 0,
+      "index_evidence_id_differences": 0,
+      "source_byte_sha256_mismatches": 0,
+      "contracts": 5484,
+      "original_scope_mismatches": 0
+    },
+    "expected": "5484 same stable IDs; source bytes,scope and acceptance payload equality"
+  },
+  "final_review_refs": [
+    "master-spec-amendment-map.json",
+    "asset-first-mt-refactor-plan.json",
+    "third-party-proposal-challenge.json"
+  ],
+  "correction": {
+    "disposition": "RETRACTED",
+    "evidence": "Raw Studio206 hash matches d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b; scopedgitstatus/diff empty; explicitUTF8 clauses intact",
+    "cause": "Specialist decoding anomaly; no source mutation evidenced",
+    "claim": "Potential original spec encoding mutation"
+  }
+}

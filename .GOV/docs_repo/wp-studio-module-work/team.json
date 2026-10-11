@@ -1,0 +1,611 @@
+{
+ "schema": "hsk.studio_module_team@1",
+ "updated_at": "2026-10-11T03:24:59Z",
+ "lead": "kernel builder session (main)",
+ "members": [
+  {
+   "name": "steward",
+   "agent_id": "a3049ae7f23d77c0d",
+   "model": "opus",
+   "role": "workspace steward",
+   "owns": [
+    "handshake-studio-assets/Cargo.toml",
+    "Cargo.lock",
+    "crates/<27 new>/** (scaffold only)"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "retired (refresh rule 520k); replaced by steward-2",
+   "resumed": "2026-10-11T01:02Z"
+  },
+  {
+   "name": "type-lane",
+   "agent_id": "a5d99d479b1b53d39",
+   "model": "opus",
+   "role": "Type builder+diagnostician MT-35536",
+   "owns": [
+    "crates/hsk-studio-type/**",
+    "MT-35536.json"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "retired (refresh rule 600k); type lanes READY; harfrust spike done",
+   "resumed": "2026-10-11T01:02Z"
+  },
+  {
+   "name": "spec-reader-a",
+   "agent_id": "ac64bc810e796a434",
+   "model": "sonnet",
+   "role": "briefs visual/doc crates",
+   "owns": [
+    "builders/briefs/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "builders/briefs/* (14) + INDEX-A.json"
+  },
+  {
+   "name": "spec-reader-b",
+   "agent_id": "a30ed06680f0727a3",
+   "model": "sonnet",
+   "role": "briefs temporal/infra crates",
+   "owns": [
+    "builders/briefs/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "builders/briefs/* (13) + INDEX-B.json"
+  },
+  {
+   "name": "research-formats",
+   "agent_id": "a68a1027e221ed84d",
+   "model": "sonnet",
+   "role": "PSD + native format research",
+   "owns": [
+    "research/formats-psd-native.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/formats-psd-native.md"
+  },
+  {
+   "name": "research-color",
+   "agent_id": "a8631b81dc6f7bf7f",
+   "model": "sonnet",
+   "role": "color/codecs/RAW research",
+   "owns": [
+    "research/color-codecs-raw.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/color-codecs-raw.md"
+  },
+  {
+   "name": "research-craft",
+   "agent_id": "a41149408c57ae505",
+   "model": "sonnet",
+   "role": "Craft case study",
+   "owns": [
+    "research/craft-case-study.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/craft-case-study.md"
+  },
+  {
+   "name": "research-adobe",
+   "agent_id": "abe7921a273295e21",
+   "model": "sonnet",
+   "role": "Adobe behaviour concepts",
+   "owns": [
+    "research/adobe-behavior.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/adobe-behavior.md"
+  },
+  {
+   "name": "api-digest",
+   "agent_id": "ab88145126bafed98",
+   "model": "haiku",
+   "role": "existing crate API digest",
+   "owns": [
+    "research/existing-api-digest.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "done",
+   "output": "research/existing-api-digest.md"
+  },
+  {
+   "name": "workflow",
+   "agent_id": "a1eb72a601ed3f3ac",
+   "model": "opus",
+   "role": "adversarial workflow agent",
+   "owns": [
+    "workflow/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "idle (tick 1 reviewed; v3 adopted)",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "workflow/workflow-review-001.md, workflow/workflow.json"
+  },
+  {
+   "name": "engine-color",
+   "agent_id": "aea9d407e6b28c4da",
+   "model": "sonnet",
+   "role": "color engine teardown (specs, open engines, black-box plan; no decompilation)",
+   "owns": [
+    "research/engine-color.md"
+   ],
+   "launched": "2026-10-11T01:10Z",
+   "status": "done",
+   "output": "research/engine-color.md"
+  },
+  {
+   "name": "engine-video",
+   "agent_id": "afae4f4bb132948a6",
+   "model": "sonnet",
+   "role": "video codec engine teardown (specs, open engines, black-box plan; no decompilation)",
+   "owns": [
+    "research/engine-video.md"
+   ],
+   "launched": "2026-10-11T01:10Z",
+   "status": "done",
+   "output": "research/engine-video.md"
+  },
+  {
+   "name": "validator-r1",
+   "agent_id": "aff714484465615ab",
+   "model": "opus",
+   "role": "independent validator round R1 (MT-35536)",
+   "owns": [
+    "validation/round-R1.json",
+    "MT-35536 verdict"
+   ],
+   "launched": "2026-10-11T02:10Z",
+   "status": "done (PASS_V4 MT-35536)"
+  },
+  {
+   "name": "builder-package",
+   "agent_id": "a38b75fa2cb8465ee",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-package/**",
+    "builders/lanes/hsk-studio-package.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule 561k); package READY 64ece87"
+  },
+  {
+   "name": "builder-interop-psd",
+   "agent_id": "a7ba56eec6d84ec16",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule 790k); interop-psd READY 67c1723; folio-eng-2 READY a51f7fa"
+  },
+  {
+   "name": "builder-composite",
+   "agent_id": "a9ed876efcc89897c",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "builders/lanes/hsk-studio-composite.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule); composite READY 26f835e"
+  },
+  {
+   "name": "builder-render-cpu",
+   "agent_id": "a3888d1e1102968c6",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-render-cpu.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule); render-cpu READY 2d06a3a; nib READY df2c896"
+  },
+  {
+   "name": "builder-pulse",
+   "agent_id": "aaded69b1f79df260",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-pulse/**",
+    "builders/lanes/hsk-studio-pulse.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule, 630k tokens); pulse READY b12a524; interop-media READY 8be9cee"
+  },
+  {
+   "name": "builder-score",
+   "agent_id": "abe9866a854c08406",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-score/**",
+    "builders/lanes/hsk-studio-score.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "retired (refresh rule; >500k tokens); score lane READY 4f549cc"
+  },
+  {
+   "name": "builder-motion",
+   "agent_id": "ab571fea2de3a4627",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-motion/**",
+    "builders/lanes/hsk-studio-motion.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "retired (refresh rule 575k); motion + motion-js READY"
+  },
+  {
+   "name": "builder-reel",
+   "agent_id": "a4f88dbace82e8e3d",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "retired (refresh rule 809k); reel READY fa365cd"
+  },
+  {
+   "name": "builder-develop",
+   "agent_id": "a061d36103dfc1403",
+   "model": "sonnet",
+   "role": "builder wave 1b",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T02:40Z",
+   "status": "retired (refresh rule 646k); develop READY 12e3043"
+  },
+  {
+   "name": "builder-folio-eng-1",
+   "agent_id": "aa93ad24ec4ae55ca",
+   "model": "sonnet",
+   "role": "Folio timeline document types (SMB-FOLIO-ENG-1)",
+   "owns": [
+    "crates/hsk-studio-folio/** (additive)",
+    "builders/lanes/hsk-studio-folio-eng-1.json"
+   ],
+   "launched": "2026-10-11T02:50Z",
+   "status": "retired (refresh rule); prism ENG-1..4 READY"
+  },
+  {
+   "name": "architect-render-ir",
+   "agent_id": "ae224deb48bd9f0ef",
+   "model": "opus",
+   "role": "render-plan IR + backend port decision (SMB-PIGMENT-ENG-1)",
+   "owns": [
+    "diagnostics/render-plan-ir.md",
+    "crates/hsk-studio-pigment/** (additive)"
+   ],
+   "launched": "2026-10-11T02:55Z",
+   "status": "done (4c3ac91)"
+  },
+  {
+   "name": "builder-render-gpu",
+   "agent_id": "a7dfba9a91090b31a",
+   "model": "sonnet",
+   "role": "builder wave 2",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T04:00Z",
+   "status": "retired (refresh rule 541k); render-gpu READY 0551b8d"
+  },
+  {
+   "name": "validator-r2",
+   "agent_id": "a241895c758c5a469",
+   "model": "opus",
+   "role": "independent union round R2",
+   "owns": [
+    "validation/round-R2.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
+   "status": "done (R2 not opened: stale lock infra)"
+  },
+  {
+   "name": "reviewer-r2-a",
+   "agent_id": "ae22be7f2c336df8e",
+   "model": "opus",
+   "role": "adversarial review R2 group A",
+   "owns": [
+    "validation/R2-review-a.json"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
+   "status": "done"
+  },
+  {
+   "name": "reviewer-r2-b",
+   "agent_id": "a0fb68d4afc72e196",
+   "model": "opus",
+   "role": "adversarial review R2 group B",
+   "owns": [
+    "validation/R2-review-b.json"
+   ],
+   "launched": "2026-10-11T01:53:20Z",
+   "status": "done"
+  },
+  {
+   "name": "builder-session",
+   "agent_id": "a15179c750db6823e",
+   "model": "sonnet",
+   "role": "builder session",
+   "owns": [
+    "crates/hsk-studio-session/**",
+    "builders/lanes/hsk-studio-session.json"
+   ],
+   "launched": "2026-10-11T02:08:13Z",
+   "status": "retired (refresh rule 572k); session READY 6d0616f"
+  },
+  {
+   "name": "fix-folio-fps",
+   "agent_id": "a571cb74ac7a1a8ea",
+   "model": "sonnet",
+   "role": "remediation folio fps dup",
+   "launched": "2026-10-11T02:13:54Z",
+   "status": "done d2f4a5b"
+  },
+  {
+   "name": "fix-score",
+   "agent_id": "a74bbf655d7711639",
+   "model": "sonnet",
+   "role": "remediation score (review B)",
+   "launched": "2026-10-11T02:13:54Z",
+   "status": "done b5e9e19"
+  },
+  {
+   "name": "builder-accord-eng-2",
+   "agent_id": "a52571b2273932349",
+   "model": "sonnet",
+   "role": "accord timescale owner",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "done (migrations; D9 blocked by permission denial)"
+  },
+  {
+   "name": "builder-controls",
+   "agent_id": "abb5da73c855d6649",
+   "model": "sonnet",
+   "role": "controls slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "retired (refresh rule 481k); controls 62ea29a + harness c47e256 READY"
+  },
+  {
+   "name": "builder-interop-vector",
+   "agent_id": "ac756412f109473d5",
+   "model": "sonnet",
+   "role": "interop-vector slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "done (slices 1-2; f0cdb55)"
+  },
+  {
+   "name": "builder-press",
+   "agent_id": "aacf8b02a8fb66445",
+   "model": "sonnet",
+   "role": "press slice 1",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "done (slices 1-2; 1df11b2)"
+  },
+  {
+   "name": "builder-folio-eng-3",
+   "agent_id": "a726a92f68abc536d",
+   "model": "sonnet",
+   "role": "Folio frames/threads/pages",
+   "launched": "2026-10-11T02:16:22Z",
+   "status": "done (folio frames 5d737e3, layout migrate 64dd62d)"
+  },
+  {
+   "name": "builder-components",
+   "agent_id": "a23cbc1b5d94d070b",
+   "model": "sonnet",
+   "role": "components slice 1",
+   "launched": "2026-10-11T02:18:19Z",
+   "status": "done (slices 1-2; f8b5328)"
+  },
+  {
+   "name": "builder-render-cpu-clip",
+   "agent_id": "a064b349c934ae100",
+   "model": "sonnet",
+   "role": "render-cpu clip-to-base",
+   "launched": "2026-10-11T02:22:36Z",
+   "status": "done (render-cpu clip 9819e52, composite align 5814f8d)"
+  },
+  {
+   "name": "builder-kernel-bindings",
+   "agent_id": "a71088490ca126e45",
+   "model": "sonnet",
+   "role": "kernel-bindings slice 1",
+   "launched": "2026-10-11T02:28:30Z",
+   "status": "done a7d631c"
+  },
+  {
+   "name": "builder-web",
+   "agent_id": "a67ffe418c3fb0c3f",
+   "model": "sonnet",
+   "role": "web slice 1",
+   "launched": "2026-10-11T02:28:30Z",
+   "status": "done (slices 1-2; 7cd898d)"
+  },
+  {
+   "name": "validator-r3",
+   "agent_id": "ae5bf656a19e27993",
+   "model": "opus",
+   "role": "union round R3 on sync 57ce0fa",
+   "launched": "2026-10-11T02:38:16Z",
+   "status": "done (R3: 21 PASS_V1 + MT-35536 PASS_V5, 12 FAIL_V1); asked to record PASS_V5 in MT JSON"
+  },
+  {
+   "name": "reviewer-r3",
+   "agent_id": "a65d2e62131f7e337",
+   "model": "opus",
+   "role": "adversarial review R3 (code since 87c1cd9)",
+   "launched": "2026-10-11T02:38:16Z",
+   "status": "done (18/26 FAIL at 57ce0fa; findings routed)"
+  },
+  {
+   "name": "builder-psd-wide",
+   "agent_id": "ae2a1b12b6cd510d2",
+   "model": "sonnet",
+   "role": "interop-psd wide color",
+   "launched": "2026-10-11T02:39:54Z",
+   "status": "done 213b30a"
+  },
+  {
+   "name": "builder-develop-wide",
+   "agent_id": "a110ca7f580981356",
+   "model": "sonnet",
+   "role": "develop WideEngine + speed",
+   "launched": "2026-10-11T02:39:54Z",
+   "status": "done d40d553"
+  },
+  {
+   "name": "builder-interop-lrcat",
+   "agent_id": "ac1ccc0dfdf6d4842",
+   "model": "sonnet",
+   "role": "interop-lrcat slice 1",
+   "launched": "2026-10-11T02:46:55Z",
+   "status": "done bab2221"
+  },
+  {
+   "name": "builder-interop-layout",
+   "agent_id": "a0fe389bf53c4e4de",
+   "model": "sonnet",
+   "role": "interop-layout slice 1",
+   "launched": "2026-10-11T02:46:55Z",
+   "status": "done (slices 1-2; 5e058ae)"
+  },
+  {
+   "name": "builder-reel-av1",
+   "agent_id": "aef09eeda397823cf",
+   "model": "sonnet",
+   "role": "reel AV1 (SMB-REEL-ENG-3)",
+   "launched": "2026-10-11T02:52:29Z",
+   "status": "done (dcc1b37 R3 + AV1 trusted-only)"
+  },
+  {
+   "name": "builder-package-stream",
+   "agent_id": "a77942876329c005e",
+   "model": "sonnet",
+   "role": "package streaming save",
+   "launched": "2026-10-11T02:53:18Z",
+   "status": "done 0dfac5e"
+  },
+  {
+   "name": "builder-folio-eng-4",
+   "agent_id": "a9032138507becdfd",
+   "model": "sonnet",
+   "role": "Folio design types",
+   "launched": "2026-10-11T02:56:47Z",
+   "status": "done 0e6142c"
+  },
+  {
+   "name": "builder-prism-eng5",
+   "agent_id": "aaaa6a0a423732b8a",
+   "model": "sonnet",
+   "role": "prism ICC oracle fixtures",
+   "launched": "2026-10-11T02:56:47Z",
+   "status": "done baeecf3"
+  },
+  {
+   "name": "builder-motion-js-worker",
+   "agent_id": "ab809128fa15c006c",
+   "model": "sonnet",
+   "role": "motion-js worker isolation",
+   "launched": "2026-10-11T02:56:47Z",
+   "status": "done a53c52d"
+  },
+  {
+   "name": "fix-r3-render-chain",
+   "agent_id": "acacadf8d8b8f6a4d",
+   "model": "sonnet",
+   "role": "R3 remediation pigment/composite/render-cpu",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "done (276e2a3, 99a03e6, 9468d33)"
+  },
+  {
+   "name": "fix-r3-render-gpu",
+   "agent_id": "ae91387a904677e8d",
+   "model": "opus",
+   "role": "R3 remediation render-gpu (test integrity)",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "done b7d90dc"
+  },
+  {
+   "name": "fix-r3-nib-controls-score",
+   "agent_id": "aa8eeb575a36c7618",
+   "model": "sonnet",
+   "role": "R3 remediation nib/controls/score",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "done (07abf54, 605796f, 346b947)"
+  },
+  {
+   "name": "fix-r3-session-components-media",
+   "agent_id": "ac40942730c7aebf9",
+   "model": "sonnet",
+   "role": "R3 remediation session/components/interop-media",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "done (63c1f5d, 943a0d2, 0111960, 4a6bb19)"
+  },
+  {
+   "name": "steward-2",
+   "agent_id": "af94e3ebb4218d2bb",
+   "model": "opus",
+   "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
+   "launched": "2026-10-11T03:13:35Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-components-migrate",
+   "agent_id": "a7c41628830faeb85",
+   "model": "sonnet",
+   "role": "components -> folio records",
+   "launched": "2026-10-11T03:24:59Z",
+   "status": "done 992cca1"
+  },
+  {
+   "name": "builder-vector-migrate",
+   "agent_id": "a1b1b1ae09e21bbcc",
+   "model": "sonnet",
+   "role": "interop-vector -> folio paint",
+   "launched": "2026-10-11T03:24:59Z",
+   "status": "done 30c3e64"
+  },
+  {
+   "name": "builder-reel-native-av1",
+   "agent_id": "ac954267fe8867d4d",
+   "model": "sonnet",
+   "role": "reel-native AV1 worker isolation",
+   "launched": "2026-10-11T03:30:47Z",
+   "status": "done e95163a"
+  },
+  {
+   "name": "builder-prism-eng6",
+   "agent_id": "a74f8f4045005046c",
+   "model": "opus",
+   "role": "prism defects diagnose+fix + matrix fusion",
+   "launched": "2026-10-11T04:04:25Z",
+   "status": "running"
+  }
+ ]
+}

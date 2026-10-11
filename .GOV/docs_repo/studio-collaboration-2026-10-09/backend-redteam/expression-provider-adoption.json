@@ -1,0 +1,318 @@
+{
+  "schema_id": "hsk.expression_provider_adoption@1",
+  "file_id": "STUDIO-EXPRESSION-PROVIDER-ADOPTION-20261009",
+  "updated_at": "2026-10-09",
+  "status": "SOURCE_REVIEW_COMPLETE_INDEPENDENT_CORRECTIONS_APPLIED_RUNTIME_NOT_PROVEN",
+  "authority": "REFERENCE_ONLY_ROOT_AUTHORS_SPEC_MT_AND_PUBLICATION",
+  "scope": {
+    "Handshake (Product)": "Pinned expression provider and Effect semantic-seam source audit only",
+    "Repo Governance": "Owned backend-redteam reports only",
+    "execution_build_runtime_GUI_Git_WP012_state": "NONE"
+  },
+  "input": {
+    "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/open-expression-decisions.json",
+    "sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c"
+  },
+  "selected_candidate": {
+    "wrapper": "rquickjs/rquickjs-core/rquickjs-sys0.14.0",
+    "bundled_engine": "QuickJS-NG0.16.2; bundled source is canonical for audit, not moving Bellard documentation",
+    "adoption": "CONDITIONAL_CANDIDATE_NOT_IMPLEMENTED_OR_RUNTIME_PROVEN",
+    "boundary": "Root-proposed hsk-studio-motion-js is an optional FFI provider of neutral Motion expression contracts. Neutral Motion and its consumers do not inherit C/runtime/toolchain dependencies or backend authority.",
+    "rust_preference": "Keep own Rust domain semantics, alias/source-map AST lowering, dependency graph, deterministic Date/random/time profile, resource accounting, typed diagnostics and immutable evaluation ports. A mature JS runtime is an optional syntax/execution implementation; building a second JS translator/interpreter without semantic evidence increases compatibility work. Pure-Rust Boa remains a candidate if equivalent enforceable quota, deadline, reclamation and compatibility contracts are independently proven."
+  },
+  "required_controls": [
+    {
+      "id": "EXPR-PROVIDER-01",
+      "contract": "Pin all wrapper/core/sys versions, packaged checksums and bundled QuickJS-NG source identity, feature graph, target/compiler flags and any patches. Engine/profile/ABI/schema/host-semantics identities bind compiled artifacts and replay receipts; moving docs do not replace exact source."
+    },
+    {
+      "id": "EXPR-PROVIDER-02",
+      "contract": "Use explicit nonzero JS heap and stack limits before user parsing/compilation/evaluation, with accepted-value readback and fail-closed configuration. A wrapper setting that maps an oversized stack value to0/unlimited is rejected by provider configuration; supported target stack behavior must be proven separately."
+    },
+    {
+      "id": "EXPR-PROVIDER-03",
+      "contract": "Do not publish categorical custom-allocator memory-limit behavior from contradictory docs. Default candidate excludes allocator/rust-alloc until the exact allocator path is independently tested. VM-accounted heap is distinct from allocator arena/Rust snapshots, compiled cache, result conversion and worker RSS; all remain aggregate-admitted and charged until actual reclamation."
+    },
+    {
+      "id": "EXPR-PROVIDER-04",
+      "contract": "Interrupt is cooperative engine polling, not exact deterministic fuel or guaranteed wall deadline. One semantic allowance covers nested reads/retries/AST checkpoints, callbacks and frame/composition work. Parsing, long C builtins and foreign Rust callbacks need independent worker deadline/termination containment; bounded host callbacks check cancellation and charge before work. No callback deadline assertion substitutes for external bounded failure proof."
+    },
+    {
+      "id": "EXPR-PROVIDER-05",
+      "contract": "No user dynamic compilation through eval, Function, constructor chains, prototypes, accessors, proxies or host callback objects. Base/custom context construction alone does not prove this: base objects include Function and Eval intrinsic enables shared compiler state. Choose and prove a trusted compile/evaluation realm or explicit parser/runtime restriction preserving required syntax; global-name deletion alone is insufficient. No user-supplied serialized bytecode."
+    },
+    {
+      "id": "EXPR-PROVIDER-06",
+      "contract": "Admitted deterministic language profile is enforced on AST and reachable intrinsics, not merely described. Deny async/promise/jobs/modules/loader/native libc APIs/ambient Date/random/locale and unsupported syntax before activation; versioned host Date/random/property functions and both declared aliases retain exact normative signatures. Preserve unsupported original bytes with source-position diagnostics and disabled/error receipt, never silently activate or bake."
+    },
+    {
+      "id": "EXPR-PROVIDER-07",
+      "contract": "Each evaluation has a clean realm and explicit immutable revision/sample/seed/profile inputs. Runtime/context/JS values never cross incompatible runtimes or worker ownership. Shared compiled-cache bytes and count are capped; live contexts retained by cached values remain charged. Runtime/contexts/closures/values and native finalizers retire on correct owner with bounded reclamation before capacity release."
+    },
+    {
+      "id": "EXPR-PROVIDER-08",
+      "contract": "Concurrency is separate runtimes behind bounded worker admission, not concurrent access to one unsafe VM. Send/Sync wrapper features are facade locking guarantees with required stack-top/thread transitions, not realtime safety or foreign-pointer portability. Prefer synchronous single-owner worker profile; no async jobs/futures or background free queue in the initial deterministic expression profile."
+    },
+    {
+      "id": "EXPR-PROVIDER-09",
+      "contract": "Host property reads use explicit revision-bound opaque resources and shared dependency/operation allowance. AST rewriting preserves evaluation order/local bindings/computed member semantics and source maps; dynamic reads stage and validate graph before activation. Effect's loop cap, reusable thread-local runtime, host-miss replay and text rewrite are references requiring adaptation, not production isolation/replay proof."
+    },
+    {
+      "id": "EXPR-PROVIDER-10",
+      "contract": "Result conversion cannot execute unbounded user getters/proxies/coercion or allocate unchecked output. Restrict output value shapes/property types, bound conversion nodes/depth/bytes and charge every host copy; failure never promotes partial output. Timeouts and interruption invalidate incomplete evaluation and produce typed dimension/source trace plus explicit underlying-value fallback/error render receipt."
+    },
+    {
+      "id": "EXPR-PROVIDER-11",
+      "contract": "Actual supported Windows/macOS x64/ARM targets require pinned compile/link/package and runtime proofs. Source bindings or build branches establish intention only; no host matrix PASS from presence. Unsupported toolchain/target/stack/isolation returns explicit unavailable, never an unbounded fallback or silently different engine/profile."
+    },
+    {
+      "id": "EXPR-PROVIDER-12",
+      "contract": "Provider foundation exposes executable minimal compile/evaluate/cancel/reclaim/diagnostic operations before domain features; root updates approved module/barrier/dependency and exact MT ownership without altering prior lineage. Asset-local proof is separate from actual Handshake sandbox/authorization/PromotionGate/manual/Argus integration. No provider creates a catalog/scheduler/database or writes authority."
+    },
+    {
+      "contract": "The production JavaScript AST/parser/lowering/checkpoint-instrumentation owner is NOT_ESTABLISHED by rquickjs or Effect source. Name and implement that owner as an executable prerequisite; ordinary engine interrupt polls are not semantic AST fuel. Instrument every admitted control-flow and function/callback entry, preserve evaluation order and source maps, and charge nested reads, retries and result conversion to the same immutable job allowance. Activation fails when a syntax path lacks proved instrumentation.",
+      "id": "EXPR-PROVIDER-13",
+      "independent_correction": "EX-COR01"
+    },
+    {
+      "contract": "Cached executable identity MUST include canonical source digest, parser/AST-lowering/checkpoint/source-map versions, deterministic profile and host API semantics, exact wrapper plus bundled C/build-feature/patch/target/endianness identity. Only trusted compiler-produced artifacts may enter unsafe bytecode decode; matching engine format version/checksum alone is insufficient. Cache mismatch recompiles preserved source or fails unavailable, never adopts supplied executable bytes.",
+      "id": "EXPR-PROVIDER-14",
+      "independent_correction": "EX-COR02"
+    }
+  ],
+  "ports": {
+    "status": "PROPOSED_NEUTRAL_CONTRACT_NOT_EXISTING_RUNTIME",
+    "inputs": [
+      "Versioned expression profile and canonical source/source map",
+      "Immutable document/property revision snapshot and canonical sample tick/seed",
+      "Revocable bounded host read interface and shared evaluation allowance",
+      "Deadline/cancellation/worker epoch and admitted byte/slot leases"
+    ],
+    "outputs": [
+      "Typed property value or exact parse/unsupported/cycle/budget/type error",
+      "Dependency/read footprint and profile/provider/build identity",
+      "Charged resource/completeness receipt and explicit error/fallback status",
+      "Bounded diagnostic/manual/recovery descriptors through shared owners"
+    ],
+    "forbidden": [
+      "rquickjs or JSValue types in neutral Motion public API",
+      "C/toolchain transitive dependency in neutral Motion",
+      "Raw DB/filesystem/network/host AppState authority in provider",
+      "Provider-local job scheduler or direct accepted document write"
+    ]
+  },
+  "rejected": [
+    "Copy Effect Boa runtime as enforceable sandbox",
+    "Treat native Rust wrapper as pure-Rust engine",
+    "Interpret uncatchable interrupt as hard timeout or semantic fuel",
+    "Treat global eval/Function deletion as constructor denial",
+    "Treat per-VM heap quota as worker/aggregate RSS limit",
+    "Unproven custom allocator behavior from moving docs",
+    "Unrestricted ES runtime as deterministic AE compatibility",
+    "Implement own JS interpreter/translator without source-level semantic and resource evidence",
+    "Silently switch to Boa after provider failure without separately accepted contracts"
+  ],
+  "future_independent_proofs": [
+    "Exact target matrix compile/link/package and externally observed CPU/RSS/lifetime under malicious source; no vendor execution in this audit",
+    "Parser/deep AST/large string/array/regex/long builtin and blocking host callback interruption; process deadline containment and bounded reclaim",
+    "Constructor/prototype/getOwnPropertyDescriptor/getPrototypeOf/proxy/getter/hostfunction dynamic compilation bypass cases",
+    "Allocator feature misconfiguration,0/oversized stack,aggregate runtime/cache/snapshot/result pressure and concurrent admission",
+    "Date/random/alias/37-signature/333-identifier and vector lowering conformance; unsupported target remains preserved",
+    "Fresh versus reused worker, reverse frame order, concurrent evaluation, cross-document private state and teardown",
+    "Exact current host grant/revision/dependency/cycle checks and actual Handshake integration/manual/Argus acceptance"
+  ],
+  "inputs": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/expression-provider-platform-drill.json",
+      "sha256": "9c914a9c5fcf9bd057c136da1f7e8ea51bfb385210f41d1dd9720b7c5d01b558"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/expression-provider-runtime-drill.json",
+      "sha256": "5c546f754397a825fd65959fc252c2c9b5b82b6cea9a1bf6675dab3c63530cfc"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/expression-provider-adversarial.json",
+      "sha256": "a3a8336ae4611c22aa8a550c6a141d936f22893ce0e76e6aa48d661beacb3082"
+    }
+  ],
+  "independent_review": {
+    "runtime": "NOT_RUN_NOT_PROVEN",
+    "reviewed_sha256": "5a08523a42dbc3c34caf2e22995325a0725833e551dcc199c6cde5b925a28c83",
+    "status": "Independent actual final bounded reread confirms EXPR-PROVIDER13/14 corrections verbatim; no contract corrections remain. Runtime/platform/compatibility unproven. Final change after reviewed hash is report binding metadata only.",
+    "report": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam/expression-provider-adversarial.json",
+    "report_sha256": "a3a8336ae4611c22aa8a550c6a141d936f22893ce0e76e6aa48d661beacb3082"
+  },
+  "runtime_compile_platform_adoption": "NOT_RUN_NOT_PROVEN",
+  "pins": [
+    {
+      "crate": "rquickjs",
+      "version": "0.14.0",
+      "checksum": "a0a22bf72f515cc4189dd7c63d016f6de92a11eee98ddf7dd64794198f6eb34e",
+      "source": "https://static.crates.io/crates/rquickjs/rquickjs-0.14.0.crate",
+      "metadata": "https://crates.io/api/v1/crates/rquickjs/0.14.0",
+      "verified": "Fetched exact registry version and matched archive SHA256"
+    },
+    {
+      "crate": "rquickjs-core",
+      "version": "0.14.0",
+      "checksum": "6657979a24d543e5fc66f32cef2f47ca82ce8eb55cec5f7d59a12b7b570bbf24",
+      "source": "https://static.crates.io/crates/rquickjs-core/rquickjs-core-0.14.0.crate",
+      "verified": "Matched registry checksum"
+    },
+    {
+      "crate": "rquickjs-sys",
+      "version": "0.14.0",
+      "checksum": "cee271d0eeba64f0915b846cb7ae02e16faf3dfdffdca91731101d9d30fe3423",
+      "source": "https://static.crates.io/crates/rquickjs-sys/rquickjs-sys-0.14.0.crate",
+      "vcs": "d7ef5eeae702fea24c03643064de454f1c1dd4b0 path_in_vcs=sys",
+      "bundled_engine": "QuickJS-NG0.16.2 per quickjs/quickjs.h:84,1450-1453; engine source bytes pinned by crate and file hashes. Wrapper VCS SHA is not independently established as upstream QuickJS-NG submodule commit.",
+      "verified": "Matched registry checksum"
+    },
+    {
+      "crate": "boa_engine",
+      "version": "0.22.0",
+      "checksum": "5d6aaf7fdc4299df68adb67e1a5440a51d34630a1f5271b9698fd74bc97b60d9",
+      "source": "https://static.crates.io/crates/boa_engine/boa_engine-0.22.0.crate",
+      "metadata": "https://crates.io/api/v1/crates/boa_engine/0.22.0",
+      "verified": "Matched registry checksum and exact EffectCraft Cargo.lock534-537"
+    }
+  ],
+  "platform_matrix": [
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "binding": "src/bindings/x86_64-pc-windows-msvc.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus cc-selected compatible MSVC C compiler/SDK; sys build sets CFLAGS /DWIN32_LEAN_AND_MEAN /std:c11 /experimental:c11atomics",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "aarch64-pc-windows-msvc",
+      "binding": "src/bindings/aarch64-pc-windows-msvc.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust ARM64 target plus compatible ARM64 C compiler/SDK and link environment; identical MSVC flag branch",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "binding": "src/bindings/x86_64-apple-darwin.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus cc-selected compatible macOS C compiler/SDK/link environment",
+      "proof": "NOT_BUILT_NOT_RUN"
+    },
+    {
+      "target": "aarch64-apple-darwin",
+      "binding": "src/bindings/aarch64-apple-darwin.rs",
+      "source_status": "Bundled binding exists",
+      "build_requirement": "Rust target plus compatible Apple ARM64 C compiler/SDK/link environment; cross-target success requires actual proof",
+      "proof": "NOT_BUILT_NOT_RUN"
+    }
+  ],
+  "build_feature_contract": {
+    "wrapper": "rquickjs Cargo.toml13-16 MSRV1.87 edition2021; default58 std; core dependency140-142 semver0.14.0, not an exact equals pin. Adopted workspace lock/registry checksums must pin the full graph.",
+    "native_build": "sys build.rs121-145 copies bundled headers and compiles libregexp.c/libunicode.c/quickjs.c/dtoa.c via cc; compile libquickjs.a at272. Shipping Rust bindings does not remove native compilation.",
+    "bindings": "sys src/lib.rs16-19 includes target-specific bundled file without bindgen. build.rs293-329 warns when absent but later include needs a file. bindgen feature uses bindgen0.72/libclang at378-405; host==target may reuse bundle351-363. update-bindings regenerates and can write source binding files408+. Not enabled/executed in this audit.",
+    "minimal_proposal": "Optional provider dependency default-features=false with std only; do not select full/full-async, loader/dyn-load, chrono or futures for this synchronous denied-ambient profile. Keep allocator/rust-alloc absent initially pending separate accounting audit; do not repeat wrapper custom-allocator no-op documentation as established C behavior.",
+    "feature_risk": "rquickjs full78-90 enables loader/dyn-load/chrono, full-async additionally futures. Cargo feature unification can enable these indirectly; packaging proof needs resolved feature graph, not just one Cargo line.",
+    "WASI_distinction": "build.rs228-243 can select/download WASI SDK24 via curl/tar if targeting WASI without explicit SDK/no-SDK configuration; this is not the desktop build path. No WASI download or build script ran.",
+    "language_intrinsics": "Context::base/custom/full at core context/base.rs61-95 allow restricted intrinsic selection. Feature minimization alone does not remove eval/Function/constructor paths, Date, randomness or standard language builtins from a full context; actual exposed realm must be proved."
+  },
+  "source_identity": {
+    "cache": "../gov_runtime/tools/studio-expression-source-cache",
+    "wrapper_vcs": "d7ef5eeae702fea24c03643064de454f1c1dd4b0 from package .cargo_vcs_info.json; crate archives are actual inspected bytes",
+    "engine": "Bundled QuickJS-NG source reports0.16.2 in quickjs.h1450-1453; not Bellard live2026-06-04 or an assumed independent NG git commit",
+    "engine_identity_limit": "Version macros and package hashes establish bundled bytes; separate QuickJS-NG upstream commit identity was not established and is not invented.",
+    "archives": [
+      {
+        "crate": "rquickjs",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs/rquickjs-0.14.0.crate",
+        "sha256": "a0a22bf72f515cc4189dd7c63d016f6de92a11eee98ddf7dd64794198f6eb34e"
+      },
+      {
+        "crate": "rquickjs-core",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs-core/rquickjs-core-0.14.0.crate",
+        "sha256": "6657979a24d543e5fc66f32cef2f47ca82ce8eb55cec5f7d59a12b7b570bbf24"
+      },
+      {
+        "crate": "rquickjs-sys",
+        "version": "0.14.0",
+        "url": "https://static.crates.io/crates/rquickjs-sys/rquickjs-sys-0.14.0.crate",
+        "sha256": "cee271d0eeba64f0915b846cb7ae02e16faf3dfdffdca91731101d9d30fe3423"
+      }
+    ]
+  },
+  "independent_parent_checks": {
+    "source_hash_rows": 57,
+    "direct_reads": [
+      "Effect runtime/config/cache/recovery",
+      "Effect compoundassignment source",
+      "rquickjs base/custom/fullcontext",
+      "runtime stacksetter doc/source",
+      "bundled engine version macros",
+      "C malloc precheck/usable accounting",
+      "C interrupt uncatchablepoll",
+      "sys Cbuildscript"
+    ],
+    "mismatches": 0,
+    "proof": "SOURCE_ONLY_NO_EXECUTION"
+  },
+  "concrete_gaps": [
+    "Production parser/AST/lowering/instrumentation owner NOT_ESTABLISHED",
+    "Trusted compile versus denied dynamicconstructor machinery requires independently proven architecture",
+    "Worker isolation/enforced C/hostcall stop and actual target packaging unproven",
+    "Boa alternative exact Clock/loop/recursion seams exist; inspected interface does not establish wholeheap/deadline; broader absence not claimed",
+    "Effect compoundassignment evaluates targettwice; float IDs and layerindexseed need compatibility adaptation"
+  ],
+  "proposed_MT_mapping": "Refine existing MOT083/142 and MT33940 provider/feature/pin/closure contract, MOT079/MT33937 platform/worker enforcement, MOT075/076 and MT33933/33934 AST-order/profile/deterministic clock, MOT077/078 existing dependency/error acceptance. Preserve333 target/37 signatures and exact existing IDs; source-only research is not an authority edit.",
+  "final_root_normative_review": {
+    "other_device_WP012": "NO_RECORD_OR_POINTER_EDITS",
+    "inputs": [
+      {
+        "clauses": [
+          "STU-CON-009–014",
+          "STU-MOT-255–259",
+          "STU-ARC-006/007",
+          "STU-AUT-020",
+          "STU-MOT-076"
+        ],
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
+        "sha256": "99aa278d35973496ce4bc42c2bb7fbf7191eb5650b899837644b897ae169b0d3"
+      },
+      {
+        "clauses": "HSK-PLG-001–020",
+        "path": ".GOV/spec/master-spec-v02.207/spec-modules/05-security-and-observability.md",
+        "sha256": "fc57e3ce81c9783201581805877609575888cfbe37a9af22aca573c54c85a41b"
+      }
+    ],
+    "findings": [
+      {
+        "quote": "Every planned platform and Studio foundation MUST expose its executable minimum before domain features begin",
+        "finding": "Unqualified platform-foundation plus actual-production proof wording can gate all pure asset domain development on the unfinished shared host lifecycle, contrary to explicit operator phase scope and STU-ARC-006.",
+        "severity": "HIGH",
+        "correction": "Require executable portable platform/provider adapter minima with bounded supported/unsupported consumer paths in the asset foundation barrier. Real shared host install/consent/activate/revoke/lifecycle and production authorization/sandbox/state/Argus/UserManual proof are hard predecessors for actual plugin activation and corresponding host embedding, not unrelated pure asset feature development. HSK-PLG-001 missing lifecycle remains real and is not waived.",
+        "id": "FINAL-NORM-001",
+        "target": "HSK-PLG-020"
+      },
+      {
+        "quote": "Use clean realms across trust boundaries",
+        "finding": "This names account/resource isolation but does not explicitly prevent same-document repeated evaluations from carrying mutated prototypes/global/closure/host state across ticks. MOT076 separately forbids evaluation-order dependence, so explicit provider control is required.",
+        "severity": "HIGH",
+        "correction": "Require fresh evaluation state for each independent sample/evaluation or independently proven complete reset isolating all mutable globals/prototypes/closures/host memoization. Immutable trusted compiled artifacts may be reused; retries share allowance and exact immutable inputs. Same-document/same-account reversed frame order and fresh-versus-reused worker must conform, not merely cross-account tests.",
+        "id": "FINAL-NORM-002",
+        "target": "STU-MOT-258"
+      },
+      {
+        "quote": "Mirror only after acceptance",
+        "finding": "Acceptance is ambiguous beside CON014 selection/proposal/rejection events which expressly do not claim document promotion. A consumer can require PromotionDecision Accepted and omit proposal/rejection audit events, or emit undurable view telemetry as accepted business authority.",
+        "severity": "MEDIUM",
+        "correction": "Define the boundary by event class: accepted document mutations mirror only after canonical promotion/event transaction; proposal/rejection/view audit business events mirror only after their own canonical typed record/event is durably accepted, without implying document promotion. Transient uncommitted previews remain distinct bounded diagnostics; same durable mirror-intent/retry/collision controls apply to all required business rows.",
+        "id": "FINAL-NORM-003",
+        "target": "STU-CON-013/014"
+      }
+    ],
+    "supported": "All six original openchallenge corrections are represented in CON011/013/014. Exact22 business rows preserve wire identities and existing dot-family vocabulary; planned Studio recorder category explicitly remains unimplemented. MOT258 names MotionJS parser/AST/checkpoint ownership, trusted cache identity, constructor/prototype hostile proof, single-owner reclamation and conversion budgets; source-only/runtime distinctions remain explicit.",
+    "status": "SCOPED_NORMATIVE_REVIEW_TARGETED_CORRECTIONS_REQUIRED_NO_RUNTIME_VERDICT",
+    "runtime": "NOT_RUN_NOT_PROVEN"
+  }
+}

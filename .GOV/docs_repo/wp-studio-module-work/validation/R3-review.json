@@ -1,0 +1,976 @@
+{
+ "round": "STUDIO-R3",
+ "reviewer": "independent adversarial reviewer (Opus), read-only; per-crate reading delegated to sub-agents, every CONFIRMED item re-checked by the reviewer against committed blobs",
+ "reviewed_commit": "57ce0fa39424dd9934506829338b96641fcf9ba2",
+ "also_reviewed_commit": "404ff3a (diff 57ce0fa..404ff3a for in-scope lanes)",
+ "base_commit": "87c1cd9570a52f422f6ba3bd1e75f42997682ee0",
+ "method": "git show/diff of committed blobs only (never the dirty edit tree); scope = READY_FOR_VALIDATION lanes with commits ancestor of 57ce0fa, code changed since 87c1cd9; per-finding 'commit' says where it applies; 'recommendation' is for 57ce0fa, 'recommendation_404ff3a' for a re-freeze on 404ff3a. No cargo runs (round export has no ROUND_IDENTITY to bind it to a commit).",
+ "lanes": [
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "commit_scope": "4e533d5 (unchanged 57ce0fa..404ff3a)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:381-389 (doc :44-56)",
+     "evidence": "validate() checks the clipped layer (canonical fields, has_base via any() over earlier unclipped layers, own mode not GroupOnly) but never the BASE's mode. A group [PassThrough non-isolated group base, clip_to_base Normal layer] validates and is admitted for an opted-in backend, yet the BaseAlpha rule composites G 'with the BASE layer's mode', undefined for PassThrough. render-cpu plan_sink.rs:424-425 (and render-gpu at 404ff3a) refuse clip_base_pass_through only at execute, after admit. Reviewer re-checked.",
+     "remediation": "Add a ClipBasePassThrough PlanError in validate so admit refuses uniformly; drop per-backend copies"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:309-314",
+     "evidence": "R2 PLAUSIBLE not remediated: Solid validate checks only alpha in [0,1]; finite rgb like [2,0,0,1] passes validate/admit and is refused later by blend_math OutOfDomain, possibly after sink calls.",
+     "remediation": "Refuse Solid rgb outside [0,1] in validate, or add an explicit HDR operator class"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:459-467",
+     "evidence": "R2 PLAUSIBLE not remediated: TilePlanes::matches compares declared hashes/size/format/space only; no shared stride*height length check or byte hashing, so each backend re-verifies (or not).",
+     "remediation": "Add shared TilePlanes::verify (stride/length bounds + sha256 of bytes) called by every backend"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:631-633",
+     "evidence": "R2 PLAUSIBLE not remediated: admit always validates with PlanLimits::default(); callers/backends cannot tighten plan limits through shared admission.",
+     "remediation": "Carry PlanLimits in ExecuteRequest or as an admit parameter"
+    }
+   ],
+   "recommendation": "PASS",
+   "checked": "4e533d5 clip route: ClipFields canonical check, ClipWithoutBase, ClipPassThrough on clipped layer, opt-in refusal before ledger, intrinsic Approximate; folio discriminants 1..=35 match pigment enum (Behind/Clear=24/25 tool-only). No unsafe/todo/.GOV/abs paths.",
+   "recommendation_404ff3a": "PASS"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "commit_scope": "118f8f8, 26f835e",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:311-324; src/lower_render_plan.rs:246-256,273-278",
+     "evidence": "Claim 'hidden base drops the run' not honoured in evaluate. The hidden base sets have_base and is skipped, but a visible clipped child under it that is Unavailable (e.g. appearance_block 'clipped_with_mask_unsupported', evaluate_static.rs:203) still sets blocked='input_unavailable' on the parent. Lowering skips the clipped child (base_visible Some(false)) but then refuses because the reachable parent's status is Unavailable. Same doc with an available clipped child lowers to an empty root. Typed over-refusal, not wrong pixels. Reviewer re-checked.",
+     "remediation": "In evaluate, skip status/extent of clipped inputs whose base is hidden or empty, mirroring the lowering base rule"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-composite/src/lower_plan.rs:99-111; src/evaluate_static.rs:174-191",
+     "evidence": "StepAppearance::exactness/record_appearance hand-code pigment Operator::intrinsic classes (fill_opacity, group_pass_through_opacity, clip_to_base Approximate) as literal keys; a pigment reclassification would make the evaluation ledger drift from RenderLowering.exactness.",
+     "remediation": "Derive classes and keys from pigment Operator::intrinsic()/key() instead of literals"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:391-393",
+     "evidence": "At 57ce0fa a default Folio group (PassThrough) as clip base lowers OK and passes pigment validate, then render-cpu refuses clip_base_pass_through at execute. Remediated at 404ff3a by 5814f8d.",
+     "remediation": "None at 404ff3a; also add the rule in pigment validate (see pigment finding)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:409-411,422-431",
+     "evidence": "A non-neutral pass-through root (opacity<1) stays non-isolated with a PassThrough wrapper -> PassThroughOpacity (Approximate; render-cpu Unsupported). Over the transparent root backdrop isolated==non-isolated, so an isolated group + Normal wrapper would be exact and renderable. Photoshop rule UNVERIFIED.",
+     "remediation": "For a non-neutral root, emit an isolated inner group plus a Normal wrapper; update the test"
+    }
+   ],
+   "recommendation": "FAIL",
+   "checked": "118f8f8: no local blend formula/mode table remains (re-exports only, banned-string src test). No unsafe/todo/src unwrap/.GOV/abs paths/tick-fps code. Extents, tile rects and a 32x32 mask recomputed by hand.",
+   "recommendation_404ff3a": "FAIL"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "commit_scope": "5814f8d (in 404ff3a only; not in 57ce0fa)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:326-338; src/lower_render_plan.rs:257,276",
+     "evidence": "5814f8d's new comment says 'A hidden or empty base (or clipped layer) is dropped, not refused', but only the pass-through check uses `rendered`; the Unavailable-status match still runs for a visible clipped child under a hidden/empty base, so the parent stays input_unavailable and lowering refuses. Reviewer re-checked at 404ff3a.",
+     "remediation": "Skip clipped inputs under a hidden or empty base before the status match in evaluate"
+    }
+   ],
+   "recommendation": "NOT_IN_57ce0fa",
+   "checked": "5814f8d pass-through base -> typed Unavailable clip_base_pass_through + ledger Unsupported, matches render-cpu starts_run && pass_through; hidden pass-through base -> empty root.",
+   "recommendation_404ff3a": "FAIL"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "commit_scope": "1e3cfaf, ff57d4a, f105552, 2d06a3a",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:432 (fold :517; group call :771-773)",
+     "evidence": "Pass-through layers are refused only when l.opacity<1; fill_opacity is never applied on the non-isolated path. Pigment validate adds FillOpacity for mode PassThrough (!=Normal) and this backend rates it Approximate, so a pass-through layer with fill_opacity=0 is admitted at min Approximate and renders at full strength while the receipt claims fill_opacity was honoured.",
+     "remediation": "Refuse pass-through when opacity*fill_opacity<1 (or map to PassThroughOpacity); add a test"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1159-1164,1202,1214",
+     "evidence": "abort is set only after the delivery loop. If TileSink::accept panics (or a worker panics so its chunk never arrives), workers with index >= delivered+window loop in wait_timeout forever and thread::scope never returns: the parallel path hangs where the serial path propagates the panic. Reviewer re-checked loop and abort placement.",
+     "remediation": "Set abort+notify_all from an unwind guard; catch_unwind in workers and send Message::Failed"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs:98",
+     "evidence": "Per-pixel coverage runs winding queries over the whole path (up to 256 samples x 65536 elements per pixel of a 4096^2 chunk); cancel/deadline are polled only between chunks, so one hostile vector chunk can overrun the deadline by hours. Work is not charged at prepare.",
+     "remediation": "Bound elements*samples*pixels at prepare or poll cancel/deadline per row"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "Port migration complete: local sample_math.rs deleted, no local blend enum/formulas (pigment blend_math only); VectorFill payload is nib OwnedPath; forbid(unsafe); no .GOV/abs paths. Normal/Multiply/Screen/fill and coverage values recomputed by hand. Parallel output deterministic and serial-equal absent panics."
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "commit_scope": "d470e2f (57ce0fa); 9819e52 (404ff3a only)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:733; hsk-studio-pigment/src/render_plan.rs:49-56",
+     "evidence": "composite_clipped follows pigment's documented rule literally (source alpha x base alpha, then alpha held at base alpha). That bleeds base colour under an opaque clipped layer: base alpha .5 red + opaque blue -> (1/3,0,2/3) (test cpu_plan.rs:1730-1738), where source-atop gives pure blue. Pigment-owned rule, labelled Approximate/UNVERIFIED.",
+     "remediation": "Pigment owner: verify against a Photoshop oracle and consider source-atop; render-cpu follows"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "Run semantics match pigment doc (base mask in G, base mode/opacity/fill on G, alpha held, extent excludes clipped layers); pass-through base typed refusal before the sink; expectations recomputed. 9819e52 nested pass-through test is differential vs the hand-checked flat render."
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "commit_scope": "59ef3b1, df2c896",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:89 (writer :372-382)",
+     "evidence": "write_element formats coordinates with f64 Display, which never uses exponent form: 5e-324 prints as ~326 chars, but max_input_bytes budgets 160 B/element + 256. [MoveTo(5e-324,5e-324)] with max_elements=1 validates, serializes to ~696 B > 416, and from_canonical_json refuses it (BudgetExceeded): the claimed strict round-trip fails for valid paths. Reviewer re-checked writer and budget.",
+     "remediation": "Emit shortest round-trip exponent form, or budget >= 330 B per number"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:174-185",
+     "evidence": "is_closed() returns true for [MoveTo(p)] and [M,L,Z,M] (a lone/trailing MoveTo leaves drawn=false), contradicting its doc ('every subpath ends with Close') and validate(require_closed), which rejects both. No production caller yet.",
+     "remediation": "Treat MoveTo as opening a subpath, matching validate's state machine; add tests"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:319",
+     "evidence": "to_canonical_json/content_sha256 are infallible on unvalidated paths: NaN/inf coordinates emit invalid JSON tokens and a stable hash. render-cpu validates first, so that caller is safe today.",
+     "remediation": "Return Result, or validate inside content_sha256"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stale_doc",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-nib/src/owned_path.rs:323",
+     "evidence": "Documented as a 'strict inverse' but the reader accepts non-canonical numbers (+1, 1e0, 1.50, -0), whitespace and key reordering; identity stays safe only because hashes re-serialize.",
+     "remediation": "Reword as tolerant reader, or reject when the re-serialized text differs"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "No serde/unsafe/.GOV/abs paths (lib lacks forbid(unsafe_code) but has no unsafe). Validation state machine, from_anchors handle math, kurbo round-trip, parser bounds, dup/unknown-key refusal, -0 normalisation checked; MIXED_JSON sha256 is an independent literal."
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "commit_scope": "a813cf3, 989d91d, 7e7579f (57ce0fa); 0551b8d (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:225-232,473; src/kernel.wgsl:51-65",
+     "evidence": "A leaf-root plan (Tile/Solid root) runs the blend kernel as Normal at opacity 1 over transparent black: output = (a_s*c)/a_s, and s.a<=0 returns early. exactness() reports Tile/Solid as Exact ('f32 bits survive'), so min_exactness=Exact requests are admitted, but (a*c)/a is not bit-exact in f32 and alpha-0 colour is dropped. Fixed at 404ff3a (source colour taken when a_b==0). Reviewer re-checked.",
+     "remediation": "Copy the source directly for a leaf root / a_b==0, or report the leaf-root composite as Fitted"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "fake_test",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:273 (404ff3a :441); src/kernel.rs:101-104; tests/gpu_plan.rs:611-629",
+     "evidence": "GpuBackend::new maps every non-Unavailable acquire error, including Kernel::new Gpu(\"shader_validation\"), to Unavailable(NoDevice). The parity test's no-device branch accepts NoDevice and returns green with only a NOT_PROVEN print, so a WGSL compile regression on a GPU machine passes every test (more exposed at 404ff3a where WGSL is assembled from strings). Reviewer re-checked.",
+     "remediation": "Give shader/pipeline failure its own typed error that fails tests; REQUIRE_GPU env makes NOT_PROVEN fail"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "fake_test",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:841-852",
+     "evidence": "simulate_device_loss destroys the device and then sets signals.lost itself, so the 'real device-loss proof' passes via this manual latch; removing the set_device_lost_callback wiring (device.rs:208-210) leaves the test green. Claim overstated. Reviewer re-checked.",
+     "remediation": "Drop the manual latch; poll (bounded) until the callback fires, or execute unlatched and expect DeviceLost"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "panic",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-gpu/src/residency.rs:127,150",
+     "evidence": "Public Residency::reserve computes self.used + bytes unchecked. Residency::new(u64::MAX); reserve 2^63; unpin; reserve 2^63 passes the bytes<=budget and reachable checks, then used+bytes overflows (debug panic, release wrap corrupting accounting). Not reachable from GpuBackend's bounded scratch; low impact.",
+     "remediation": "Use checked_add / compare bytes > budget - used in the eviction loop and accounting"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:38-45,186,208",
+     "evidence": "Ledger candidate 0551b8d claims 12 modes from pigment MODES, masks, groups, clip-to-base, parity 2.4e-7. At 57ce0fa only normal/multiply/screen exist (hand-written WGSL), masks and nested groups are refused, supports_clip_to_base is false. These claims hold only at 404ff3a.",
+     "remediation": "Point ledger note/candidate at the frozen sha, or re-freeze on 404ff3a"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-gpu/src/kernel.wgsl:27-37,51-65",
+     "evidence": "Blend and source-over math hand-copied into WGSL. diagnostics/render-plan-ir.md sanctions render-gpu WGSL tested against blend_math; the parity oracle is pigment composite_over, independent of the WGSL.",
+     "remediation": "Have pigment own/export WGSL snippets, or record an explicit CX-CAP-001 exception"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-render-gpu/src/kernel.rs:22-52",
+     "evidence": "0551b8d generates only the mode list/switch from pigment MODES; all per-mode formula bodies are hand-written WGSL strings ('copied operation-for-operation from blend_math'). The drift test (gpu_plan.rs:394-401) checks membership only; formula fidelity rests on parity tests.",
+     "remediation": "Move WGSL formula bodies into pigment beside blend_math, or document the exception + per-mode parity"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:382,744",
+     "evidence": "sink.accept runs while the backend mutex is held; a TileSink that calls back into the same GpuBackend (resident_bytes, device_info, identity) deadlocks (std Mutex not reentrant).",
+     "remediation": "Document no-reentrancy on the port, or buffer chunks and call the sink outside the lock"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stale_doc",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-render-gpu/src/device.rs:16",
+     "evidence": "block_on_bounded checks its timeout only between polls; wgpu-native request_adapter/device complete inside the first poll, so a hung driver blocks there and 'request timeout -> adapter_timeout' is effectively unreachable.",
+     "remediation": "Acquire on a worker thread with recv_timeout, or drop the timeout claim"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "forbid(unsafe), no wgpu types in public API, on_uncaptured_error + error scopes, copy/map alignment, chunk bounded by storage binding size, admission before device work, no .GOV/abs paths/todo/unwrap. CPU parity oracle is pigment composite_over (independent of WGSL)."
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "commit_scope": "7da88fc, 1f56170, d333e6c, 64ece87",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "panic",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-package/src/manifest.rs:79",
+     "evidence": "PreviewInfo::byte_len (public) multiplies u64(w)*u64(h)*bpp unchecked. Default limits (16384) cannot overflow, but a caller setting max_preview_dimension >= 2^31 gets 2^64 for Rgba8: debug panic, release wrap to 0, where a 0-byte entry would satisfy decoded==byte_len.",
+     "remediation": "Use checked_mul in byte_len and treat overflow as invalid in valid()"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-package/src/read.rs:292-314",
+     "evidence": "ShuffleZstd buffers the whole decoded frame and then allocates the unshuffled buffer of the same size: peak ~2x raw_len (~1 GiB for one 512 MiB entry), while the aggregate decoded bound counts raw_len once. Decode itself stays capped while streaming.",
+     "remediation": "Unshuffle in place / per plane, or count 2x raw_len for shuffle entries in the aggregate bound"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "R2 remediation verified: aggregate decoded bound (manifest.rs:208-212, real 9x512MiB swarm test), ZIP64 locator only with a sentinel (zip.rs:603-613), non-ZIP64 extras refused in CD+local with crafted records, case-fold file-vs-dir (zip.rs:141), consumer document_id via serde_json, DESCRIPTOR refreshed; Windows durability residual disclosed. shuffle([1..9],4)=[1,5,2,6,3,7,4,8,9] recomputed."
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "commit_scope": "371ac82, a7640e7, 6a162da (57ce0fa); c3bcecd (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-session/src/session.rs:862-900",
+     "evidence": "propose_checked ('checks everything about its proposal') verifies document_id, observed revision==current, successor revision==current+1 and revision-update slots, but never that the successor derives from self.snapshot. A registered provider that prepares from an edited copy (same id/rev, another layer renamed) gets that unrevisioned change published, and the inverse does not undo it. Reviewer re-checked.",
+     "remediation": "Check successor == snapshot except at revision_updates addresses, or let the session prepare the provider's Patch"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-session/src/session.rs:719",
+     "evidence": "Committed receipts are never evicted (only resolve_pending removes entries); with a CommitPort a key is required, so after max_receipts (1024) keyed edits every submit returns receipts_full/key_required. Documented as intentional but caps a session at 1024 edits; untested.",
+     "remediation": "Evict committed receipts whose expected revision is below current"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-session/src/session.rs:977-988",
+     "evidence": "A Diverged pending entry stays pending forever; every later submit returns reconciliation_required and there is no API to discard/adopt it (DESCRIPTOR says 'needs a human'). Lookup::Absent is final even if a delayed commit lands later.",
+     "remediation": "Add an explicit operator resolve/discard API and a resync-from-authority path; test both"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-session/src/session.rs:368-409",
+     "evidence": "seed_revisions copies chronicle's private table of addressable properties (chronicle lib.rs:303-336); a new chronicle property makes session return revision_unavailable silently.",
+     "remediation": "Have chronicle export initial revision-vector seeding and call it from session"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-session/tests/session_contract.rs:1296-1301",
+     "evidence": "c3bcecd tests are genuine (authority double enforces key/binding/epoch/revision; independent folio re-read), but the drain test only measures elapsed time, the deadline-skip branch fires only at deadline 0, and ReceiptMismatch/Diverged/ReceiptsFull/ProposalInconsistent/forged-base paths are untested.",
+     "remediation": "Add tests for receipt-mismatch/diverged, receipts_full, forged-base provider and deadline-0 drain"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "Keyed replay with fresh grant recheck, idempotency_conflict on same key/different payload, lost-ack adopted exactly once, RAII permit/job release, injected clock (Instant only in default MonotonicClock), atomic save delegated to package::save_atomic; no zip/manifest re-parsing; forbid(unsafe); no .GOV/abs paths."
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "commit_scope": "a1d0fbd, 2ea0c1e (57ce0fa); 62ea29a (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-controls/src/descriptor.rs:55-57,78-80,227",
+     "evidence": "clean() rounds to a 1e-9 grid, but precision 9 is legal (MAX_PRECISION=9) and fine_step = 1e-10. step_value(0.5,+1,Fine): clean(0.5000000001)=round(500000000.1)/1e9 = 0.5 -> Ok(0.5) and store.set returns Ok(None): a silent no-op, contradicting the 'never clamps or silently no-ops' doc. Reviewer recomputed.",
+     "remediation": "Make the clean grid precision-aware, cap precision at 8, or reject a step with no effect"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stale_doc",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-controls/src/egui_adapter.rs:79-86,113-119",
+     "evidence": "Slice 1 maps Shift=coarse, Alt=fine (labelled UNVERIFIED), differing from STU-FX-149; fixed by 62ea29a (coarse=shift, fine=command).",
+     "remediation": "None at 404ff3a (fixed)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-controls/src/store.rs:207-209",
+     "evidence": "GesturePhase::End with an Err outcome returns via '?' before self.active.remove(id); the gesture stays open and later set() calls on that control are refused until an Abort arrives. The public Interaction API allows Err.",
+     "remediation": "Close or abort the gesture before returning the End error"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-controls/src/descriptor.rs:670",
+     "evidence": "Integer step uses saturating_add(+-1); at i64::MAX with no hard_max the value is unchanged and validate returns Ok: silent no-op at the domain edge.",
+     "remediation": "Reject when saturating_add does not change the value"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "Headless egui test is real (Context::run); only egui (no eframe); forbid(unsafe); duplicate-id and undo-staleness refusals present; steps/scrub values recomputed (0.51/0.6/0.499; 0.5+30*0.01=0.8). No .GOV/abs paths."
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "commit_scope": "9e7d420, 409e19e, 1d886fc, ae4137d, 063b590, cd2ff81",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:352-354,397-405 (handler :264-266)",
+     "evidence": "armed is set false right after eval, before classify(). classify reads the exception's 'name' via a JS [[Get]] and message/stack, so a user getter runs while the interrupt handler returns false: `var e=new Error('x');Object.defineProperty(e,'name',{get:function(){for(;;){}}});throw e;` loops forever with no deadline/fuel/cancel (quickjs feature only). Reviewer re-checked.",
+     "remediation": "Keep the interrupt armed through classify, or read own data properties without invoking getters"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:409-416; src/provider.rs:210",
+     "evidence": "Any thrown error whose name is 'InternalError' maps to EngineFailure::Internal and provider.rs:210 calls the sticky poison(); afterwards every evaluate() returns Unsupported. `var e=new Error('x');e.name='InternalError';throw e;` lets one hostile expression disable the provider; a forged 'Maximum call stack' RangeError yields Budget(Stack). Reviewer re-checked.",
+     "remediation": "Classify only engine-originated errors; map user-thrown errors to Thrown Other"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-motion-js/src/provider.rs:389",
+     "evidence": "R2 PLAUSIBLE not remediated: after engine.run returns only cancel is re-checked; no provider-level deadline check. QuickJS is covered indirectly via host.charge/checkpoint after each run.",
+     "remediation": "Check clock.now_ns() > deadline_ns after run, before convert_output"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "forbidden",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-motion-js/src/lib.rs:24",
+     "evidence": "R2 PLAUSIBLE not remediated: `pub use scripted::ScriptedEngine;` is unconditional in the production API; the test double has a reachable 'panic' command (scripted.rs:142).",
+     "remediation": "Gate ScriptedEngine behind a test-support feature"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "Memory limit with readback, stack limit and interrupt handler installed before the context; eval/Function denial via real defineProperty (Eval intrinsic kept, recorded NOT_PROVEN); no module loader; forbid(unsafe_code) covers quickjs; probe files removed (scratch_probe.rs in 063b590). quickjs off by default. Lead's async-abort finding stands: worker-process lane required."
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "commit_scope": "69b63c1 (57ce0fa); 423cb0f, 556237d (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-components/src/lib.rs:20",
+     "evidence": "57ce0fa holds only 69b63c1 ('tests next'): no tests/ directory, no swap_component/switch_variant/rematch_overrides. The lane's 5 tests, mutants and STU-DS-119 swap exist only in 423cb0f/556237d; none of the crate's logic has proof at 57ce0fa.",
+     "remediation": "Freeze on 404ff3a or mark these claims as outside 57ce0fa"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:684-689",
+     "evidence": "Override type is checked only against a definition literal (node.fields); a field driven by a property reference or variable binding takes any type. Label 'visible' (property ref to Boolean showIcon) accepts override String('x') and resolves as Source::Override String, while a wrong-typed instance property is refused (:757). Reviewer re-checked.",
+     "remediation": "Type-check overrides against the property def type / bound variable resolved_type too"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:482-500,534",
+     "evidence": "validate_set never checks member component_id uniqueness; add_set's taken() only checks already-registered ids. Members [SCMP-a{size:s}, SCMP-a{size:l}] register; component() returns the first while variant selection can pick the second under the same id, so record keys (id,'') name two definitions.",
+     "remediation": "Reject duplicate member ids (and member id == set id) in validate_set"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-components/src/prototype.rs:141-147,170-172",
+     "evidence": "Actions after the first are warned as never executing (action_after_navigation) but still add reachability edges: OnClick [Navigate B, Navigate C] from A reports reachable [A,B,C] although C is unreachable. The test's dead action is Back, so it misses this. Reviewer re-checked.",
+     "remediation": "Add reachability edges only for action_index 0"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:635,737,901",
+     "evidence": "switch_variant on a plain (non-set) instance: select_member returns early without checking Variant props, so the call returns Ok((next,[])) and resolve_instance(next) then refuses with UnsupportedProperty: success that yields an unresolvable instance.",
+     "remediation": "Refuse when select_member yields no set, or resolve next before returning Ok"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:886",
+     "evidence": "swap_component keeps old component_properties and rematched override values without re-validating against the target; swapping a set member to a plain component returns Ok but fails resolve (UnsupportedProperty/TypeMismatch).",
+     "remediation": "Drop/report unmatched props and type-check kept overrides; resolve before Ok"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:912",
+     "evidence": "Write-footprint keys are (definition node_id, field), not scoped to the instance; two instances of one component editing the same node/field share a key, so one makes the other's proposal stale.",
+     "remediation": "Key writes by (instance_id, node_id/field)"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "Alias cycle -> AliasCycle; depth budget; constraint math (Max 110, Center 60, Scale 20/40, nested stretch 160x70) recomputed; no recursion vector; NaN/inf refused; strings capped 64 KiB; forbid(unsafe); no .GOV/abs paths. 556237d example not reviewed in depth."
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-2",
+   "crate": "hsk-studio-accord",
+   "commit_scope": "fa0e4b9",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-accord/src/timescale.rs:54-58,171-174",
+     "evidence": "scale() refuses when mul or value*mul exceeds i128 even if the result fits: rescale(0) from rational(1,u64::MAX) to rational(u64::MAX,1) returns TickOverflow instead of 0. Documented (lines 10-12); only absurd timescales reach it.",
+     "remediation": "Optional: fast-path value==0 / divide before multiply; or keep as documented"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "Recomputed: 1@10MHz = 127008/5 ticks (Floor 25401, Ceil/Nearest 25402, inexact); 8192 Hz tie -1 -> Nearest -31007812, Floor -31007813; rescale -1001 90k->48k = -534; from_fps 30000/1001 and 24000/1001 give table tpf; Timescale 0 -> OutOfRange; i64::MIN never negated; no unsafe/paths; 4 new tests real."
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "commit_scope": "28d8ed4, b12a524, 6823c34 (+ d2f4a5b fps move)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pulse/src/timeline_edit.rs:711-713",
+     "evidence": "ExtractClip on a link group closes each member track by that member's span, but other sync-locked tracks shift by the primary's span (lead = plan[0].1). J-cut V[0,3F) + A[0,5F) with later content at 10F: V content moves -3F, A content -5F, tracks lose sync. Whether Folio allows unequal linked spans not checked.",
+     "remediation": "Close all member and sync tracks by one span, or refuse unequal member spans"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pulse/src/rational.rs:128-134; src/time.rs:19-30,65-76",
+     "evidence": "rational_seconds_from_ticks still reduces with a local gcd over TICKS_PER_SECOND and time.rs divides by tpf / per-sample locally; 6823c34 delegated only ticks_from_rational_seconds. Pulse is an allowed owner, so low severity.",
+     "remediation": "Route through accord Timescale units_from_ticks, or note why the inverse stays local"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-pulse/src/display.rs:148",
+     "evidence": "Carried from R2: feet+frames displays 111/112 still return TimecodeUnsupported (declared gap).",
+     "remediation": "Implement 16mm/35mm frames-per-foot with a cited source, or keep it declared"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "R2: checked_sub/add wrappers removed (accord Ticks used); folio fps_fraction removed and pulse fps_fraction delegates to accord. from_fps, ticks_per_sample, ticks_from_rational_seconds, snap_to_frame delegate with same rounding. Test ticks recomputed (3F/4F/6F at 25 fps). Planner errors typed; no unsafe/.GOV/paths."
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "commit_scope": "b2379a5, d339544, 4f549cc, b5e9e19",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-score/src/bounce.rs:114,208,264",
+     "evidence": "bounce takes channel count and labels from request.layout (the INPUT layout) for the output side although accepts(in,out) allows different layouts. Pan mono->stereo: only output ch0 is sunk/digested, R is silently dropped, labels()==[input label]. stereo_to_mono: published_channel(1) is None -> ChannelMismatch after the first block, breaking 'all refusals before first block'. Reviewer re-checked lines.",
+     "remediation": "Use the output layout for kept/sink/digest/receipt, or refuse input!=output layout up front"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-score/src/bounce.rs:201",
+     "evidence": "chain_identity is hashed after rendering; RampedGain identity contains current, which equals target after the bounce, so a 0->1 ramp bounce and a flat 1.0 bounce share chain_identity but differ in digest; the 'clean state' doc (:99) does not hold for RampedGain.",
+     "remediation": "Capture identity before reset/first block; fix the 'clean state' doc"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-score/src/layout.rs:71-90; src/resample.rs:176-191",
+     "evidence": "ticks_per_sample / sample_to_ticks / ticks_to_sample re-implement accord Timescale exact_ticks_per_unit / ticks_from_units / units_from_ticks; requested_frames/map_start duplicate Timescale::rescale. Predates this round but new bounce.rs:128,168-169 consumes it (CX-CAP-001: tick conversion only accord/pulse).",
+     "remediation": "Migrate score sample<->tick and rate rescale to accord Timescale"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-score/src/block.rs:49",
+     "evidence": "Carried from R2: InputBlock::validate/run_block do not check that the rate divides TICKS_PER_SECOND; Engine::process at 47999 Hz publishes and only start_ticks()/end_ticks() fail. bounce/resample now check it.",
+     "remediation": "Call ticks_per_sample in run_block admission"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-score/src/dsp.rs:549; src/eq.rs:251; src/dsp.rs:82",
+     "evidence": "Carried from R2: on discard HardLimiter/Equalizer reset to initial state instead of using the new commit hook; Gain::new only finite-checks, so f32::MAX gain publishes +inf and bounce digests it.",
+     "remediation": "Snapshot/restore via commit; bound gain or refuse non-finite output"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "R2 remediated: ramp cancel keeps pre-block state (before set before poll; Processor::commit), resampler publishes exactly u128 div_ceil count (44100@44.1k->48k = 48000, tail 1). Pad/drop (19,20) recomputed; SHA-256 constants and digests reproduced with an independent hashlib oracle; no copied rubato code; no unsafe/.GOV/paths."
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "3bfc100, b6ab5e2, 039fbee, 75a4d89, b96a33e, 34ec20a (57ce0fa); fa365cd (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "stale_doc",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-reel/src/lib.rs:44",
+     "evidence": "DESCRIPTOR not_implemented still lists \"relink\" although 34ec20a exports relink/sampled_identity/full_digest. Corrected at 404ff3a.",
+     "remediation": "Drop relink from not_implemented and list slice-3 identity"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "panic",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:886",
+     "evidence": "EBML lacing: `let used: u64 = sizes.iter().sum();` is unchecked. 32 frames with first size 2^56-1 and 30 delta vints of +2^55 keep each size <= 2^60 (the per-delta checked_add passes) but the sum exceeds 2^64 in a 249-byte header: panic under overflow-checks (dev/test), wrap in release. Reviewer re-checked.",
+     "remediation": "Sum with try_fold + checked_add; return Corrupt lace-sizes-exceed-block on overflow"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "panic",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:1045,1049",
+     "evidence": "finish_durations computes samples[j].pts - pts and e - pts unchecked. pts -32768 (cluster tc 0, rel -32768) followed by a cluster with tc i64::MAX (accepted) or an Info Duration near 2^63 overflows i64: debug panic, release wrap, before any tick conversion. Reviewer re-checked.",
+     "remediation": "Use checked_sub and fall back to None"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "404ff3a",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:303,744,771-772,896-901",
+     "evidence": "Local ns-to-unit math (media_timescale = 1e9/scale, default_ns/scale_ns); TimestampScale not dividing 1e9 is refused although accord Timescale::rational/rescale would be exact. The tick conversion itself goes through accord.",
+     "remediation": "Derive the timescale and durations via accord Timescale::rational/rescale"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-reel/src/isobmff/pcm.rs:267-272,286-291,322-323",
+     "evidence": "New PCM code converts frames<->ticks locally from an accord-supplied tps (frames*tps, rel/tps, is_multiple_of) instead of Timescale::ticks_from_units/units_from_ticks; b96a33e claims local arithmetic was removed.",
+     "remediation": "Route frame/tick conversion through accord Timescale(rate)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-reel/src/isobmff.rs:1087; isobmff/fragments.rs:318,342",
+     "evidence": "Fragmented file whose moov has a compact PCM table: moof samples are appended to track.samples from dts 0, but finish_track takes only the pcm::apply_window path, so fragment audio silently disappears from decode/layout.",
+     "remediation": "Reject (Unsupported) or merge fragment samples when a compact PCM track also receives trun samples"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-reel/src/isobmff/pcm.rs:175",
+     "evidence": "try_compact needs fixed_size to be a multiple of the block; legacy QuickTime v0/v1 PCM (UNVERIFIED: stsz sample_size=1 per frame) falls back to per-sample expansion and long files hit the 4M budget again (typed error, not silent).",
+     "remediation": "Handle the stsz==1 PCM convention via bytes-per-frame from stsd"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-reel/src/isobmff.rs:1542",
+     "evidence": "R2 binding item partly remediated: a prebuilt index is bound to its source only by len == index.source_len; a different same-length file with a valid grant replays wrong offsets. IndexCache keys on content_id+revision+len.",
+     "remediation": "Bind the index to grant content_id/revision or a sampled identity"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "All 7 R2 CONFIRMED items remediated at 57ce0fa with independent-literal tests r2_1..r2_7 (wav saturating_sub, y4m ASCII tag, moov checked_add, containing-sample edit start, compact PCM runs, accord timescale/fps, sound v2 parsed / v>2 Unsupported); grant verified before probe. in24/sowt decode and trun offsets recomputed. No unsafe/todo/.GOV/paths. 57ce0fa PASS conditional on the DESCRIPTOR fix (already in 404ff3a)."
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "commit_scope": "8be9cee + 9575239 (accord delegation, lane BLOCKED)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:132-146,174-241",
+     "evidence": "nominal(), timecode_to_frames and frames_to_timecode re-implement pulse src/time.rs nominal:87, frames_to_timecode:166, timecode_to_frames:195, parse_timecode:245. Disclosed in the module NOTE (L7-10) as pending the D9 pulse edge, but it is a CX-CAP-001 duplicate at the candidate.",
+     "remediation": "Resolve D9 and delegate timecode math to pulse; keep the lane BLOCKED until then"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:248; used at src/edl.rs:570",
+     "evidence": "ticks_to_frames_exact does local tick/tpf division with is_multiple_of, duplicating pulse time.rs:19 ticks_to_frames_exact and accord Timescale::units_from_ticks; not covered by the NOTE (not label arithmetic). Used by export.",
+     "remediation": "Delegate to accord Timescale units_from_ticks (exact)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:18-29",
+     "evidence": "Local gcd/reduce remains after 9575239, used to reduce speed span/duration (edl.rs:235); rational reduction may belong to accord Timescale::rational / pulse rational.rs / folio Speed.",
+     "remediation": "Use the owner's reduced-rational constructor"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-media/src/folio_map.rs:68,143-148",
+     "evidence": "sanitize maps every non [A-Za-z0-9._-] char to '_': distinct reels R#1 and R$1 both become offline-reel-R_1 with digest R_1, so Folio clips become indistinguishable; loss notes say reel_name_sanitized, not merged.",
+     "remediation": "Make placeholders injective (escape or hash the original name) or emit a collision loss"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:177,230",
+     "evidence": "Import accepts 3-digit hours (e.g. 100:00:00:00) but frames_to_timecode refuses hours>99, so an imported proposal can fail export with TimecodeOverflow (typed, but asymmetric round trip).",
+     "remediation": "Cap hours at 99 on import, or allow them on export"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "9575239 delegation verified: rational_to_ticks -> accord Timescale NearestHalfUp; frame_rate_from_fraction/fps_fraction -> accord FrameRate. EDL hand checks: 01:00:00:00@25 = 90000 frames; 00:01:00;02@29.97DF = 1800 frames; 00:01:00;00/;01 -> DroppedTimecode. Typed errors on bad lines; no pulse dep in crate Cargo.toml; no unsafe/.GOV/paths."
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "commit_scope": "d2f4a5b",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-folio/src/timeline.rs:233-242",
+     "evidence": "R2 handle() finding mostly remediated (separators, drive prefixes, '~', '.', '..' refused), but scheme-style handles such as 'file:x' or 'media:a.mov' (first char alphabetic, second not ':') still pass as artifact_manifest_id/object_id.",
+     "remediation": "Restrict handles to an opaque-id charset without ':' or refuse URI schemes; add a negative case"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "SequenceFrameRate::fps_fraction removed (cap duplicate remediated); remaining local gcd is used only for Speed reduction validation (not tick/fps conversion). derived_duration uses u128 checked math; magnitude nonzero by Speed::valid. Tests cover C:\\, /abs, D:/ handles. No unsafe/.GOV reads."
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "commit_scope": "a51f7fa",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-folio/src/appearance.rs:24-33,135-146",
+     "evidence": "Folio hard-codes pigment mode facts (PassThrough=1 group-only, Behind/Clear 24/25 tool-only, last=35). Values match pigment blend_math.rs:76-110,186-188 today, but no test ties them to pigment's table (pigment may depend on folio, so a pigment-side test is possible).",
+     "remediation": "Add a pigment test asserting folio BLEND_* constants equal pigment MODES applicability"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "Percent bounds finite 0..=100; discriminant 1..=35; tool-only and pass-through-on-leaf refused; isolation consistent with mode; mask tiles bounded by payload budget (+128/tile), unique keys, coverage formats only. Tests use independent literals (50.5% -> 0.505). Absent appearance not encoded (old docs byte-identical)."
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "commit_scope": "ae75f55 (57ce0fa); 39788cb, 5d737e3 (404ff3a only)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-folio/src/layout.rs; src/story.rs (no tests at 57ce0fa)",
+     "evidence": "At 57ce0fa folio tests are appearance_contract, foundation_contract and timeline_contract only; layout.rs (491 lines) and story.rs (290 lines) have no test coverage. The lane's '28 folio tests' and layout_contract (round trip, thread cycles, broken chains, dangling refs, text story) arrive in 39788cb, after the candidate.",
+     "remediation": "Re-freeze on 404ff3a (39788cb) or move these claims out of the 57ce0fa round"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "PASS",
+   "checked": "Code reviewed at 57ce0fa: pages/margins/bleed pt-only and positive inner area; frame inset/columns/gutter bounded; reciprocal, acyclic (on-path walk, cancellable), one-story-per-chain threads with walked==frames check; story ranges tile with char-boundary checks; budget charges checked_add. 404ff3a layout_contract test list skimmed (not deeply verified)."
+  },
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "commit_scope": "259ea44 (87c1cd9 slice 1 was the R2 point)",
+   "findings": [],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "Recomputed: 'aaaa bbbb cccc dddd' @6pt/60pt -> lines 0..10 (w54,hang6) and 10..19 (w54), baselines 10/22; KP 'aa bb cc dd ee fffff': line1 66pt shrink 6 -> r=-1, badness 100, demerits 12100; 'aa bb cc' r=2 badness 800>200 rejected; first-fit 48/30/30. Overfull tolerance change (r < -1-EPS) and removal of width-based overfull are consistent (shrunk lines are legitimately wider than the slot). Input finiteness/limits checked; no .GOV/paths."
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "commit_scope": "c65e1a7, f6fc17c",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-type/src/provider/harfrust.rs:~120-175",
+     "evidence": "Bounds are enforced at the call boundary only (pre-charged units/bytes); harfrust::shape itself runs without cancellation or a panic guard, so a hostile font that drives harfrust into a long loop or panic is not interruptible. Spike only (feature off by default, D7 pending).",
+     "remediation": "Before promotion: run harfrust in a catch_unwind/worker boundary and document the uninterruptible window"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "harfrust is optional (feature off by default, dep:harfrust), default provider path is a pure refactor (select_font extracted unchanged); any_script only on the spike path and only for well-formed ISO 15924 casing, unknown scripts map to UnsupportedProfile. New Noto Devanagari/Hebrew fixtures carry OFL-1.1 provenance and verified hashes."
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "commit_scope": "ef8beac",
+   "findings": [],
+   "recommendation": "PASS",
+   "recommendation_404ff3a": "PASS",
+   "checked": "R2 provenance findings remediated, independently recomputed from committed blobs at 57ce0fa and 404ff3a: rustybuzz 74/74, unicode-bidi 9/9, ttf-parser 67/67 derivative sha256 match (0 drift). tests/provenance.rs rehashes the actual files (CRLF->LF) and asserts 150 entries + fixture hashes/bytes."
+  },
+  {
+   "lane": "SMB-STEWARD-SYNC (workspace)",
+   "crate": "workspace",
+   "commit_scope": "9e867f5, d842b6b, ce4362e, 57ce0fa; 404ff3a",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "forbidden",
+     "commit": "57ce0fa",
+     "file_line": "handshake-studio-assets/Cargo.toml:158-159 (added by steward sync 9e867f5)",
+     "evidence": "At 57ce0fa the root allowed list for hsk-studio-interop-media includes hsk-studio-pulse, but builders/WORKSPACE_RULES.md path-deps says 'interop-media -> pulse (D9) is NOT allowed (Operator decision pending)'. The crate does not use the edge at 57ce0fa. Removed again in 404ff3a.",
+     "remediation": "Keep the edge out of the allowed list until the Operator decides D9 (as at 404ff3a)"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "PASS",
+   "checked": "All crate path deps at 57ce0fa and 404ff3a are inside root allowed lists (scripted check of every member Cargo.toml incl. dev/target sections). harfrust (type) and rquickjs (motion-js) are optional, off by default. run-round.sh step 0 (lock + registry drift exit 75) and probe semver build-metadata change reviewed: no rewrites, no C: paths."
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "commit_scope": "c008daf, 2e3fd50, 1cd586c, 01bfeb3, a8dd8e8, 12e3043 (unchanged 57ce0fa..404ff3a)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "panic",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-develop/src/dng.rs:744 (fed by :573-587, :684-696)",
+     "evidence": "BlackLevelDeltaH/V (new in 01bfeb3) accept DOUBLE values checked only for finiteness and length, then summed into the site black. DeltaH=[-1e300,0,1e300,0] on a 4-wide RGGB frame saturates one R site to i64::MIN (channel black) and another to i64::MAX; `site_black - channel` at :744 overflows: panic in debug/test, wrap in release. Reachable from public decode_container + cfa_plane. Reviewer re-checked the subtraction.",
+     "remediation": "Reject effective black outside [0, white_level] at decode; use checked_sub in cfa_plane"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-develop/tests/real_dng/fetch-corpus.sh:9 vs tests/real_dng.rs:91",
+     "evidence": "Script default DEST=$HERE/../../../../../Handshake_Artifacts resolves to wt-studio-assets/Handshake_Artifacts (inside the git worktree), while the ignored test default CARGO_MANIFEST_DIR/../../../../Handshake_Artifacts resolves to the sibling 'Handshake Worktrees/Handshake_Artifacts'. After an approved fetch the test cannot find the corpus and the download lands in the repo. Nothing downloads at build/test time. Reviewer recomputed both paths.",
+     "remediation": "Use one shared default (4 '..' in the script) so both resolve to the sibling artifact root"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-develop/src/dng.rs:438-449",
+     "evidence": "Pre-allocation guard checks only that blocks lie inside the file; for compression 7 the stream length is not related to w*h, so a ~300-byte DNG declaring 16384x16384 with one tiny LJPEG strip allocates vec![0u16;2^28] (512 MiB) before ljpeg::decode refuses, contrary to the comment at :438. Bounded by MAX_DNG_PIXELS.",
+     "remediation": "Before allocating, require w*h <= 8*sum(LJPEG block byte counts) (same bound as ljpeg.rs:281)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "panic",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-develop/src/pipeline.rs:639-647",
+     "evidence": "develop_with uses the output of the public ProfileConverter::convert trait without a length check: more pixels than given index past the tile (out-of-bounds panic), fewer leave pixels uncovered silently. PrismConverter preserves length; third-party impls may not.",
+     "remediation": "Refuse with a typed error when converted.len() != working.len()"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-develop/src/ljpeg.rs:141-158",
+     "evidence": "restart() refuses T.81-legal 0xFF fill bytes before an RSTn (InvalidContainer) and never checks the RST index sequence (D0..D7 mod 8), so out-of-order intervals decode silently. Typed refusal, no panic. Predictor KATs come from a round-trip encoder that repeats the decoder formulas (symmetric errors would pass); hand KATs for P1/P4-7 were verified by the reviewer.",
+     "remediation": "Skip 0xFF fill before RSTn, check n == expected mod 8; add hand-encoded KATs for P2-P7"
+    }
+   ],
+   "r2_remediation": "CONFIRMED R2 items remediated: tile arithmetic (MAX_BLOCK_DIM, checked lengths, real hostile-tile test), fake warm-neutral test replaced (FM row-sum = D50, hand-derived AB diag(2,1,1.25)), Limits validated in with_limits, BlackLevelDeltaH/V applied (hand-derived 191/210/198) but see the new overflow. PLAUSIBLE: IFD0 scoping, Limits name, CM Y=1, CCT note fixed; opcode lists reported + strict gate; prealloc fixed except LJPEG.",
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "LJPEG KAT 0x28C508 -> [100,102,99]; predictors P4-7 (Ra100 Rb120 Rc110 -> 110/105/115/110), EXTEND, SSSS=16 hand-checked. Output-profile conversion goes through Prism AdmittedPrism. No unsafe, .GOV reads, abs paths or copied decoders."
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "commit_scope": "d07ffb4, 1c80aef, 67c1723 (unchanged 57ce0fa..404ff3a)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "panic",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-interop-psd/src/export.rs:244-248",
+     "evidence": "TileBlob fields are pub and ExportOptions.tiles is caller data; apply_edits only compares bytes, then encode_layer_pixels indexes tile.colour[(at*3+k)*4..] and tile.alpha[at*4..] directly. tiles[0].colour.truncate(4) makes the bytes differ, encoding runs and indexing goes out of bounds: panic in public export_psd/apply_edits. Reviewer re-checked the indexing.",
+     "remediation": "Check colour == 256*256*12 and alpha == 256*256*4 bytes per tile (and digest) before encoding"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "bug",
+     "commit": "57ce0fa,404ff3a",
+     "file_line": "crates/hsk-studio-interop-psd/src/export.rs:84-214 (test precision_color_export.rs:397,425-426)",
+     "evidence": "apply_edits never touches image_data or resource 1057 (no reference in export.rs). After visibility/opacity/blend/pixel edits the pre-edit merged composite is written back with hasRealMergedData=1 and no loss entry; merged_oracle_rgba8 on the output then serves a stale composite as a real oracle, against the DESCRIPTOR 'oracle' claim. The test asserts unchanged resources/image_data.",
+     "remediation": "On any applied edit set 1057 hasRealMergedData=0 (or recomposite) and emit a merged_composite_stale loss"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:609-637",
+     "evidence": "IccConverter::convert_rgb (public trait) result length is unchecked; zip truncation leaves pixels at 0 colour / 0 alpha with no loss code when an impl returns fewer values.",
+     "remediation": "Typed error when converted.len() != encoded.len()"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:602,625-626; src/export.rs:254-258",
+     "evidence": "32-bit samples enter tiles without a finiteness check (NaN alpha treated as transparent, NaN/Inf colour reaches rgb_f32le unreported); Photoshop32768 alpha >32768 is clamped to 1.0 with no loss code and re-exported as 0x8000. Tests assert an empty loss report.",
+     "remediation": "Refuse non-finite floats or record a loss; add alpha_clamped loss on import and export"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-psd/src/export.rs:244-250; src/proposal.rs:606",
+     "evidence": "Import skips cells whose alpha is all 0; on pixel export a cell without a tile is written as transparent black, so original colour under alpha 0 in untouched cells is zeroed without a loss entry.",
+     "remediation": "Keep original samples for cells with no tile, or emit a loss code"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "commit": "57ce0fa",
+     "file_line": "crates/hsk-studio-interop-psd/src/convert.rs:13,50,107",
+     "evidence": "PrismConverter uses the legacy hsk_studio_prism::Prism route while develop uses AdmittedPrism with 'no legacy unbudgeted fallback'; UNVERIFIED whether STU-CON-044 admission covers import conversion. Two Prism consumers, two policies. Also: only mul/scrn/pass keys are checked against the spec, so swapping div/idiv in PSD_BLEND_KEYS would not fail a test.",
+     "remediation": "Route through AdmittedPrism or record a lead decision; add a literal 28-row blend-key table test"
+    }
+   ],
+   "r2_remediation": "CONFIRMED R2 items remediated: local BlendMode enum deleted (PSD_BLEND_KEYS onto pigment StudioBlendMode, name() removed; src grep test), 1-byte tail preserved (PsdDocument.tail + writer + loss code, real round-trip), mask real fields parsed with parameters (test decodes -3 at 2x2), DESCRIPTOR current (JSON test). PLAUSIBLE: RLE cap, merged Unknown, root order, leaf pass fixed; tiles_for partial; luni over-limit still silent.",
+   "recommendation": "FAIL",
+   "recommendation_404ff3a": "FAIL",
+   "checked": "28 keys checked against the PSD spec (div->dodge, idiv->burn, smud->excl, fsub/fdiv); 16-bit 0x8000 -> 0.50001 or 1.0, 0xFFFF -> 1.0 or 1.99997; 8-bit 128 -> 50.2% -> 128; mask offsets 18/20. No unsafe, .GOV reads, abs paths or local blend math."
+  }
+ ],
+ "cross_lane_findings": [
+  {
+   "severity": "PLAUSIBLE",
+   "kind": "forbidden",
+   "commit": "57ce0fa,404ff3a",
+   "file_line": "crates/hsk-studio-prism/tests/wide_profiles.rs:154 (prism lane not in this round's RFV scope)",
+   "evidence": "Prism test references an absolute machine path 'C:/Program Files (x86)/Common Files/Adobe/Color'; develop/interop-psd route through prism.",
+   "remediation": "Gate behind an env var or remove; never read machine-local C: paths in tests"
+  },
+  {
+   "severity": "PLAUSIBLE",
+   "kind": "cap_duplicate",
+   "commit": "57ce0fa,404ff3a",
+   "file_line": "pigment render_plan.rs validate vs render-cpu plan_sink.rs:424 / render-gpu plan_sink.rs:377 / composite evaluate_static.rs",
+   "evidence": "clip_base_pass_through is decided separately by composite, render-cpu and render-gpu (404ff3a) instead of once in pigment admission.",
+   "remediation": "Own the rule in pigment validate; consumers react to the typed PlanError"
+  }
+ ]
+}

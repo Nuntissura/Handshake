@@ -33,7 +33,7 @@
   },
   "repo_targets": {
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
-    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.15.0",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.16.0",
     "microtask_template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
     "work_packet_template": ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE_V2.json",
     "refinement_template": ".GOV/templates/REFINEMENT_CONTRACT_TEMPLATE_V2.json",
@@ -567,6 +567,72 @@
       "template_id": "BUILD-RULES pack 30 hedge replacement",
       "kind": "build_rule",
       "note": "'where/when applicable' -> explicit required_if; no obligation added or removed (HBR 1.15.0)"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-001",
+      "template_id": "BR-MODULE-LIFECYCLE-001",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-002",
+      "template_id": "BR-MODULE-LIFECYCLE-002",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-003",
+      "template_id": "BR-MODULE-LIFECYCLE-003",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-004",
+      "template_id": "BR-MODULE-LIFECYCLE-004",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-005",
+      "template_id": "BR-MODULE-LIFECYCLE-005",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-006",
+      "template_id": "BR-MODULE-LIFECYCLE-006",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "HBR-MODULE-LIFECYCLE-007",
+      "template_id": "BR-MODULE-LIFECYCLE-007",
+      "kind": "build_rule",
+      "note": "Selective pack38 module-owned maintenance and source/host lifecycle adaptation; existing Handshake-specific obligations retained"
+    },
+    {
+      "repo_id": "CX-MODULE-LIFECYCLE-001",
+      "template_id": "CODEX-MODULE-LIFECYCLE-001",
+      "kind": "codex",
+      "note": "Mandatory module maintenance, task-specific authoring, existing pin/adoption workflow; source-first sequence additionally owned by CX-MODULE-LIFECYCLE-002"
+    },
+    {
+      "repo_id": "CX-VERIFY-001",
+      "template_id": "CODEX-VERIFY-001",
+      "kind": "codex",
+      "note": "Minimum sufficient bound proof, reuse and closure; no added check suite or authority to reduce required product verdicts"
+    },
+    {
+      "repo_id": "CX-VERIFY-002",
+      "template_id": "CODEX-VERIFY-002",
+      "kind": "codex",
+      "note": "Minimum sufficient bound proof, reuse and closure; no added check suite or authority to reduce required product verdicts"
+    },
+    {
+      "repo_id": "CX-VERIFY-003",
+      "template_id": "CODEX-VERIFY-011",
+      "kind": "codex",
+      "note": "Minimum sufficient bound proof, reuse and closure; no added check suite or authority to reduce required product verdicts"
     }
   ],
   "skipped_as_duplicate": [
@@ -599,8 +665,56 @@
     "KERNEL DIVERGES: receipts stay legacy wp_receipt@1 (WP_RECEIPTS_TEMPLATE, unchanged); implementer status lives in MT submissions[].final_status and lifecycle.status, not receipt.semantic.final_status",
     "KERNEL DIVERGES: MT phase blocked (label BLOCKED) with blocked_on_mt_ref and lifecycle.blocked_on replaces template phase blocked_on_dependency",
     "KERNEL DIVERGES: HBR has no remediation or core-effect rule; BR-REMEDIATE-001 maps to CX-EXEC-012, BR-CORE-EFFECT-001 has no HBR equivalent",
-    "WP-KERNEL-012 stays pinned (CX-GOV-PIN-001); pack 28-31 shapes (CX-GP-002, CX-AUTH-005, CX-PROOF-005, CX-EXEC-015, CX-VAL-010, CX-STATUS-002/003, V2 verdict vocabulary, HBR 1.15.0) apply to WPs activated after this change"
+    "WP-KERNEL-012 stays pinned (CX-GOV-PIN-001); pack 28-31 shapes (CX-GP-002, CX-AUTH-005, CX-PROOF-005, CX-EXEC-015, CX-VAL-010, CX-STATUS-002/003, V2 verdict vocabulary, HBR 1.15.0) apply to WPs activated after this change",
+    "Selective pack38 lifecycle alignment adds typed module maintenance/source adoption refs to V2 only. Module manifests reuse their existing owner/catalog; references and canonical remote/source/host proof are resolved manually through existing role contracts. Stock schemas/check engine not imported. WP-KERNEL-012 remains pinned; unrelated intervening stock changes unassessed."
   ],
   "governance_pin_semantics": "in-flight WPs judged under their pinned commit; template changes apply from the next WP",
-  "generated_at_utc": "2026-09-25T00:00:00.000Z"
+  "generated_at_utc": "2026-10-09T22:16:36.949825Z",
+  "supplemental_alignments": [
+    {
+      "stock_pack_version": 38,
+      "scope": "module lifecycle and proof economy only; prior pack31 mappings retained, intervening unrelated stock changes unassessed",
+      "verified_manifest_sha256": "93d8d6a6a7ac9e4b66dfb1268c6f5da73ccd10db329047f40f558514d09e1cf2",
+      "adaptation_handoff_sha256": "5896ed94c3baadf68a6874e39c65cdde508ea8fe7b7841869c7a5a64132fa345",
+      "source_provenance": [
+        {
+          "path": "templates/authority/BUILD-RULES.template.md",
+          "sha256": "39f8c560ea5ecc409cfa9b922740a4767e86e1ec8f04491a2185f01de15d9279"
+        },
+        {
+          "path": "templates/authority/CODEX.template.md",
+          "sha256": "5d88c240b99780252d442802e73bf84ac872c682ea18b3bfba80bb1c98cdb3e5"
+        },
+        {
+          "path": "templates/repository/MODULE.template.md",
+          "sha256": "c52296ca5c3f6432fcd4a66d3376be8ed68ee5ef87f742a24833ffe277208fb6"
+        },
+        {
+          "path": "templates/work-system/WORK-PACKET.template.md",
+          "sha256": "91d2d783c14faeb00b5d0fc71d3c45b90c2e022aad975b52ad1d5b31e8034224"
+        },
+        {
+          "path": "templates/work-system/MICROTASK.template.md",
+          "sha256": "b3370483c2371067bcbb8b7fff59057e0362286cf5831dfd5564ab14f504b964"
+        }
+      ],
+      "adopted_contract_fields": {
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "context_capsule.module_maintenance_refs",
+          "execution.module_change_stage",
+          "execution.source_adoption"
+        ],
+        "refinement": [
+          "resolved_context.module_lifecycle_refs",
+          "refinement.reality_check.module_lifecycle_gaps"
+        ]
+      },
+      "module_maintenance_entry_shape_ref": ".GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE_V2.json#architecture_binding._module_maintenance_entry_shape",
+      "enforcement": "Existing manual transitional role/contract admission; no imported schema validator, new scripts, suite or mechanical enforcement claim",
+      "inflight_policy": "WP-KERNEL-012 untouched; future authoring and explicitly authorized Studio preparation reassessment only"
+    }
+  ]
 }

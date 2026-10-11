@@ -1,0 +1,196 @@
+---
+file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
+file_kind: lane_diagnostic
+updated_at: 2026-10-11T02:27:54Z
+wp: WP-KERNEL-STUDIO
+mt: MT-35536
+crate: hsk-studio-type
+---
+
+# Type lane diagnostic (MT-35536, approved fix round 4)
+
+<topic id="root-cause" status="active" mt="MT-35536" summary="FAIL_V3 refusal stage isolated to provider plan entry gate">
+
+## Root cause
+
+Cause: Resolved Common reaches provider plan gate admitting only Latn/Arab/Hani; ShapePlan::new refuses UnsupportedProfile.
+
+Entry chain for original `mixed_ltr_isolate_and_trailing_space` piece 2..5 (U+2067 RLI, declared `Zyyy`, `und`, font 0 Inter-Regular), candidate 55c10969:
+
+| Stage | Evidence (file:line at 55c10969) | Result |
+|---|---|---|
+| font coverage | `engine.rs:336` `fonts::covers` | pass (V3 counts show refusal later) |
+| resolver | `engine.rs:586-623` `resolved_script` | returns `Zyyy` (all chars pinned default-ignorable) |
+| script map | `engine.rs:350` `b"Zyyy" => rb::script::COMMON` | COMMON |
+| plan entry | `engine.rs:377` -> `provider/rustybuzz/hb/ot_shape_plan.rs:57-63` | **refuses UnsupportedProfile** (only LATIN/ARABIC/HAN) |
+| shape entry (next) | `provider/rustybuzz/hb/shape.rs:58-64` `shape_with_plan` | would refuse same profile |
+| alternate entry | `provider/rustybuzz/hb/shape.rs:18-26` `shape` | same gate (no caller in crate) |
+
+Downstream chain verified compatible with COMMON (no further gate):
+- `ot_shaper.rs:156` categorize -> `DEFAULT_SHAPER` (same shaper as Latin).
+- `tag.rs:241-296` COMMON -> `zyyy`; `ot_layout.rs:156-160` select_script falls back to `DFLT`.
+- Inter-Regular (sha 529be850...) GPOS `DFLT` has `kern`, no legacy `kern` table (fontTools 4.62.1 read) -> kerning gate `ot_shape.rs:265-266` not hit.
+- Inter cmap lacks U+2067/U+2069 -> `.notdef` (`ot_shape_normalize.rs:238`); `init_unicode_props` `buffer.rs:234-236` flags ignorable; `hide_default_ignorables` `ot_shape.rs:972-990` captures source groups then deletes with REMOVE flag.
+- `capture_source_groups` `buffer.rs:1136-1165` keeps cluster 2 with `surviving_glyphs=0` -> engine `NonrenderingControl` coverage `engine.rs:540-547`; reference expects run `Zyyy/und`, 0 glyphs, coverage 2..5 `nonrendering_control`.
+
+distinct_from:
+- V1 `buffer.rs:1812` terminal `foreach_group` group_end at count (fixed 4c3a234f).
+- V2 `engine.rs:587-611` Zyyy resolved to None before shaping (fixed 55c10969: resolver returns Zyyy -> COMMON).
+- V3 (this): the 55c10969 COMMON value is refused one layer deeper, at both provider entry guards; V3 finding left "exact current refusal stage not isolated".
+
+</topic>
+
+<topic id="fix" status="active" mt="MT-35536" summary="Approved changed approach implementation">
+
+## Fix (approved changed approach, one round)
+
+- `ot_shape_plan.rs`: plan gate admits `COMMON` (default shaper only).
+- `shape.rs`: both entries (`shape`, `shape_with_plan`) admit `COMMON` only via `admit_common`: non-empty buffer whose every scalar is a pinned default-ignorable (`hb::unicode::CharExt::is_default_ignorable`), else `UnsupportedProfile`.
+- `shape_with_plan` post-condition: a COMMON buffer must end with zero surviving glyphs, else `UnsupportedProfile` (glyph-bearing Common keeps typed refusal).
+- Unchanged: resolver, engine, fixtures, reference, admission/work/cancel bounds, REMOVE_DEFAULT_IGNORABLES flag gate.
+
+Result: see topic `round-result`.
+
+</topic>
+
+<topic id="strategy" status="active" mt="MT-35536" summary="Provider strategy assessment; recommendation only, not implemented">
+
+## Strategy: is the vendored rustybuzz subset the root-cause lane?
+
+- Evidence: V1/V2/V3 all failed in the bounded adaptation layer added to the fork (helper bounds, resolver, Latn/Arab/Hani entry gates), not in upstream shaping logic. Each new script/profile means lifting gates in a 61.8k LOC private fork and re-proving it.
+- Upstream: rustybuzz is archived; its README says to switch to HarfRust (github.com/harfbuzz/rustybuzz). crates.io: rustybuzz 0.20.1 (2024-11-12, matches HarfBuzz 10.1.0).
+- HarfRust 0.14.0 (crates.io 2026-10-04): tracks HarfBuzz 14.5.1, mostly passes the HarfBuzz test/fuzz suites, `#![forbid(unsafe_code)]`, `no_std` via `default=["std"]`, parses fonts with read-fonts 0.45 (pinned source in Handshake_Artifacts/.../research/harfrust-0.14.0). It ships all complex shapers (arabic, indic, khmer, myanmar, USE, hangul, hebrew, thai). CORRECTED 2026-10-11: the MT's independent reference oracle was produced with upstream rustybuzz 0.20.1, not HarfRust (studio-assets-validator/type-reference-producer/Cargo.toml + src/main.rs); the earlier claim here was unverified and wrong.
+- Field stacks: parley_engine 0.12 = harfrust + skrifa + icu_segmenter/icu_properties/icu_normalizer; cosmic-text 0.19 = harfrust + skrifa + swash + unicode-bidi + unicode-linebreak.
+- Why the fork exists (MT research_basis, type-bounded-route-comparison.json): per-loop work metering, charged allocation, cancellation. HarfRust's shaper-font model uses Arc/Once and unmetered allocation. Per-allocation accounting inside HarfRust is not available (UNVERIFIED beyond that file).
+- Bidi: unicode-bidi 0.3.18 (Unicode 16, already used as source) is fine. ICU4X icu_properties `bidi` feature gives a `BidiClassAdapter` for `unicode_bidi::BidiDataSource` if one Unicode data owner is wanted.
+- Segmentation: icu_segmenter 2.3.0 (UAX#14/#29, Unicode-org maintained, 2026-08) preferred over unicode-linebreak 0.1.5 (last release 2023-07).
+- swash 0.2.10: its shaper is not a HarfBuzz port. Use skrifa (fontations) directly for outlines/hinting/metrics, with swash/zeno only for rasterization if needed.
+
+Recommendation:
+1. Close MT-35536 on the current fork (in-flight pin; this round already approved). Do not switch provider mid-validation.
+2. Open a separate MT/decision: replace the vendored rustybuzz + ttf-parser with pinned crates.io `harfrust =0.14.0` + `read-fonts`/`skrifa` as a separately selected provider leaf behind the existing Type engine contract. Enforce bounds at the boundary: input/glyph/run caps before the call, cancellation between runs, output allocation charged after the call, and optionally an isolated worker for hard limits. The cost is coarser in-shaper work metering, which needs explicit Operator acceptance against STU-ARC bounds.
+3. Gain: the Type lane stops owning HarfBuzz parity (archived upstream, gate-by-gate script expansion). (Retracted: the oracle is not HarfRust output; see topic `harfrust-spike` for measured parity.)
+
+Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/harfrust ; crates.io API (harfrust, rustybuzz, read-fonts, skrifa, swash, unicode-bidi, unicode-linebreak, icu_segmenter, parley_engine, cosmic-text) ; https://doc.servo.org/icu_properties/bidi/struct.BidiClassAdapter.html
+
+</topic>
+
+<topic id="round-result" status="active" mt="MT-35536" summary="Fix round 4 implementation evidence; validator verdict pending">
+
+## Round result (implementation evidence, not a verdict)
+
+- Commit `e603db86031feb860039f59658273d8fe17d2b30` (tree `1de50152...`), pushed to `codex/handshake-studio-assets`; 2 files, +36/-3.
+- check `--tests`: exit 0 (pre-existing dead-code warnings only). clippy `--tests`: exit 0, no findings on changed lines.
+- Predecessor first: `mixed_script_bidi_font_runs --exact`: 1 passed (4.88 s), unchanged fixture and reference (sha 6579f9a9...).
+- Bundle `--no-fail-fast`: Type `font_axis_missing_cancel_stale` 1 passed; Observe `foundation_contract` 19 passed.
+- Tree note: shared edit tree (plus uncommitted steward root-manifest metadata), not an export of the pushed SHA. The independent round must re-run on an export.
+- Not run: workspace-probe closure extension (rustc tool; no manifest change in this diff); independent consumer/allocation acceptance.
+- MT-35536 lifecycle: READY_FOR_VALIDATION, blocked_on null; validator_verdict still FAIL_V3 until the independent round.
+
+</topic>
+
+<topic id="followup-r1" status="active" mt="MT-35536" summary="Post-PASS_V4 follow-up lanes SMB-TYPE-DOCTEST and SMB-TYPE-ENV">
+
+## Follow-up lanes after PASS_V4 (commit 94331b00)
+
+- SMB-TYPE-DOCTEST: the 3 ttf doc examples sit in the crate-private `provider` module, so no path can compile as a doctest. They are fenced as `text` with line numbers unchanged. Doc-tests now run 0, fail 0.
+- SMB-TYPE-ENV: `research()` walks up from `CARGO_MANIFEST_DIR` to the pinned evidence root. The worktree and `studio-round/src/...` exports both resolve it without `HSK_TYPE_*`. Reference and recipe hashes are unchanged.
+- Residual: fonts 0..2 still load from absolute paths in the hash-pinned recipe (the `wtc-native-editors-v1` worktree).
+- Survivor guard `shape.rs:93-95` cannot be reached with the pinned fixtures; a reachable case needs a font whose GSUB input coverage includes an ignorable glyph. No test was added.
+- Provenance drift left by e603db8 (`hb/shape.rs`, `hb/ot_shape_plan.rs`) is fixed. Both vendored provenance files now show 0 drift.
+- Run once (`--no-fail-fast`, no `HSK_TYPE_*` env): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="fonts-vendored" status="active" mt="MT-35536" summary="SMB-TYPE-FONTS: OFL test fonts vendored into the Type crate">
+
+## SMB-TYPE-FONTS (commit 947b5e7c)
+
+- Vendored fonts 0..2 and their licenses into `crates/hsk-studio-type/tests/fixtures/fonts/`, byte-identical to the hash pins, so reference 6579f9a9 stays valid. The `FONTS_PROVENANCE.json` there records source, upstream, license evidence and sha256.
+- Licenses: all three fonts are OFL-1.1, per name ID 13/14, fsType 0 and upstream (rsms/inter, notofonts/arabic, googlefonts/noto-cjk). The files are unmodified, so there is no blocker.
+- `.gitattributes '* -text'` keeps exact bytes. Inter's `OFL.txt` is CRLF and the root `text=auto eol=lf` would otherwise rewrite it and break its hash.
+- The recipe JSON is unchanged because it is pinned evidence (sha 4b5e892e). Fonts are now resolved by its file names under `CARGO_MANIFEST_DIR`, so the `wtc-native-editors-v1` worktree is no longer read.
+- Run once (`--no-fail-fast`, no env vars): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="fixtures-standalone" status="active" mt="MT-35536" summary="SMB-TYPE-FIXTURES: Type tests run from the Studio repo alone">
+
+## SMB-TYPE-FIXTURES (commit 31ea01e5)
+
+- Copied all remaining evidence into `crates/hsk-studio-type/tests/fixtures/evidence/`, byte-identical: recipe 4b5e892e, preparation, variable record, Inter variable font 3 with its OFL text, bidi goldens with the Unicode-3.0 notice, and reference 6579f9a9.
+- Tests resolve evidence, fonts and reference from `CARGO_MANIFEST_DIR`. `HSK_TYPE_*` variables are optional overrides only, and no default path points at `Handshake_Artifacts` (verified by reading the code paths; file opens were not traced).
+- `FIXTURES_PROVENANCE.json` replaces `FONTS_PROVENANCE.json` and covers 13 files. One `tests/fixtures/.gitattributes` with `* -text` keeps every fixture byte-exact.
+- Licenses: font 3 is OFL-1.1, per its name table and upstream rsms/inter. No blocker.
+- Run once (`--no-fail-fast`, 0 `HSK_TYPE_*` variables): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="provenance-eol-correction" status="active" mt="MT-35536" summary="Correction: earlier 0-drift provenance claim was wrong">
+
+## Provenance correction (commit ef8beac9)
+
+- My 94331b00 claim of "0 drift" was wrong. I hashed the Windows working-tree bytes, and many of those files had CRLF line endings, while the committed git blobs are LF. Measured: 25/74 rustybuzz hashes and 9/9 unicode-bidi hashes did not match the committed bytes. They matched the CRLF working tree. This included my own ot_shape_plan.rs/shape.rs refresh. The independent review R2-review-b (87c1cd9) found this.
+- My earlier statement that the edited files had no CR bytes also came from an unreliable check.
+- Root cause fix:
+  - All 150 derivative hashes were recomputed from committed blobs (`git show HEAD:<path>`). Each provenance file now records its `hash_basis` and an `eol_hash_correction` entry.
+  - The 38 CRLF/mixed working-tree copies were normalized to their committed LF bytes. `git hash-object` now equals the index blob for all 196 crate files.
+  - `tests/provenance.rs` checks the vendored hashes after normalizing CRLF to LF, and the `-text` fixtures as exact bytes.
+- Check output: `vendored provenance: checked 150, drift 0`; `fixture provenance: checked 15, drift 0`. An independent check against the blobs on `origin/codex/handshake-studio-assets` also found 150 checked, 0 drift. Full default run: 41 passed, exit 0.
+
+</topic>
+
+<topic id="harfrust-spike" status="active" mt="MT-35536" summary="SMB-TYPE-ENG-1: HarfRust 0.14.0 behind the provider boundary; parity, coverage, metering (input to D7)">
+
+## HarfRust spike (commits c65e1a7d, f6fc17c8; feature `harfrust`, default build unchanged)
+
+Implementation: `TextEngine::shaped_runs_harfrust` keeps the same Request/Ports contract, the same font selection (`select_font`, extracted unchanged), axes and bidi. Each run is shaped by `harfrust =0.14.0` (std, read-fonts 0.45). The spike provider accepts any well-formed ISO 15924 script at validation; the vendored provider keeps Latn/Arab/Hani/Zyyy. Dependency closure: 18 packages, all pure Rust and permissively licensed (MIT/Apache/Zlib/Unicode-3.0). `harfrust` and `read-fonts` use `#![forbid(unsafe_code)]`; bytemuck, smallvec, once_cell, yoke, stable_deref_trait and font-types contain internal `unsafe`.
+
+### Parity against reference 6579f9a9
+
+Compared: glyph ids, cluster ranges, and advance/offset point bits.
+
+| Case | Vendored | HarfRust |
+|---|---|---|
+| latin_liga_0/1, latin_dlig_0/1 | exact | exact |
+| arabic_rtl_marks, arabic fallback, arabic explicit substitution | exact | exact |
+| cjk_han | exact | exact |
+| variable_default/changed (opsz,wght) | exact | exact |
+| mixed_ltr_isolate_and_trailing_space (RLI/PDI controls) | exact | exact |
+
+Result: 11/11 exact for both providers, with no differences to explain. Correction: the reference was produced by upstream rustybuzz 0.20.1, not by HarfRust. So HarfRust (HarfBuzz 14.5.1) agrees with rustybuzz (HarfBuzz 10.1.0) on these fixtures. The official bidi golden was not run through HarfRust; bidi is shared code.
+
+### Coverage gained
+
+- Devanagari "हिन्दी": 6 scalars shaped to 5 glyphs (conjunct formed).
+- Hebrew with niqqud: 7 scalars shaped to 7 glyphs.
+- The vendored provider refuses both with UnsupportedProfile at request validation.
+- No independent reference exists for these two, so their glyph correctness is UNVERIFIED.
+- Thai was not tested: no redistributable Thai font is on disk, and downloading one was not authorized.
+- HarfRust ships Indic, Khmer, Myanmar, USE, Hangul, Hebrew and Thai shapers.
+
+### Metering semantics (the D7 question)
+
+| Aspect | Vendored (in-shaper) | HarfRust (call boundary) |
+|---|---|---|
+| Work | exact `ctx.step` per loop and lookup | pre-charged `max(len*4096, 65536)` (HarfRust's own op ceiling) + 1 unit per copied font byte |
+| Cancellation | polled inside shaping loops | before and after the call only; latency is one span's full shaping |
+| Allocation | every ChargedVec reserved before allocating | font-copy reservation + 80 B/scalar estimate; layout cache, plan and buffer growth (up to `max(len*256, 65536)` glyphs) not observable |
+| Font bytes | borrowed caller lease | must be owned (read-fonts Blob is Arc or 'static): full copy per span (could be cached per call) |
+| Exhaustion | typed refusal at the exact step | `allocation_successful()==false` maps to PartialOutput |
+| Glyph budget | checked during shaping | checked after the output exists |
+
+Measured cost (work units / operation peak bytes, vendored vs HarfRust):
+- latin_liga: 296k / 10.44 MB vs 764k / 11.12 MB.
+- cjk_han: 327k / 10.41 MB vs 8.45M / 18.74 MB (the 8.3 MB Noto Sans SC copy dominates).
+- mixed: 1.73M / 10.48 MB vs 11.76M / 18.80 MB.
+
+### Open items before any adoption (D7)
+
+- `COMPOSITION_VERSION` still names rustybuzz-0.20.1, so HarfRust output would carry the wrong composition identity.
+- Feature availability on the HarfRust path is font-level FeatureList presence; the vendored path uses its script/language-selected map.
+- HarfRust exposes no pre-deletion source groups, so they are derived from surviving clusters. Controls merged into neighbouring clusters lose their separate NonrenderingControl coverage. Only standalone-control spans were exercised.
+- The steward lock/registry sync for the dep request is pending.
+- The gained scripts need independent references.
+
+</topic>

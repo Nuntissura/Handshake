@@ -1,0 +1,27 @@
+{
+  "schema_id": "hsk.studio_preparation_team_session@1",
+  "file_id": "STUDIO-SPEC-MT-TEAM-20261009",
+  "updated_at": "2026-10-09",
+  "status": "REPORTS_COMPLETE_ROOT_RECONCILIATION_PENDING",
+  "owner": "spec-mt-team",
+  "root_thread_id": "01a12168-a212-7991-8b69-454deae05b60",
+  "authority": "Preparation only; root retains publishing authority",
+  "owned_directory": ".GOV/docs_repo/studio-collaboration-2026-10-09/spec-mt-team",
+  "source_spec": ".GOV/spec/master-spec-v02.206/indexed-spec-manifest.json",
+  "gameplan_before_dispatch": "PASS 19/19; role kernel_builder",
+  "lanes": {
+    "spec_map": "master-spec-amendment-map.json; spec-source-evidence.json",
+    "mt_plan": "asset-first-mt-refactor-plan.json; mt-source-evidence.json",
+    "team_owner": "independent-spec-mt-redteam.json; session.json"
+  },
+  "restart": "Read root session, this record and owned reports. Resume incomplete source review; compare exact clauses/contracts with reports. Never execute builds/tests/upstream scripts or change product/spec/MT/root state.",
+  "proof_limit": "Source review only; no runtime, feature parity, acceptance or readiness verdict",
+  "outputs": [
+    "master-spec-amendment-map.json",
+    "asset-first-mt-refactor-plan.json",
+    "independent-spec-mt-redteam.json",
+    "spec-source-evidence.json",
+    "mt-source-evidence.json",
+    "third-party-proposal-challenge.json"
+  ]
+}

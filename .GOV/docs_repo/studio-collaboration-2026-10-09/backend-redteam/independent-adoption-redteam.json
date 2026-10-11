@@ -1,0 +1,771 @@
+{
+  "schema_id": "hsk.studio_independent_adoption_redteam@1",
+  "file_id": "STUDIO-ADOPTION-REDTEAM-20261009",
+  "updated_at": "2026-10-09",
+  "owner": "backend-redteam/adoption",
+  "authority": "REFERENCE_ONLY; root retains spec, MT, publication and activation authority",
+  "risk_tier": "HIGH",
+  "verdict": "DESIGN_REQUIRES_RECONCILIATION_NOT_RUNTIME_VERDICT",
+  "scope": {
+    "handshake_product": "Read-only adversarial source and contract review of proposed modular adoption, package/version/mirror/native container and interoperability boundaries",
+    "repo_governance": "This owned report only",
+    "preservation": "All prior 5484 MT IDs, original scope and unresolved work must survive amendment. All non-AI professional domains, Adobe/Affinity native formats, PDF/prepress/CJK/RTL/accessibility/web/prototyping/audio-post remain in scope.",
+    "forbidden_actions_performed": false,
+    "tests": "NOT_RUN",
+    "builds": "NOT_RUN",
+    "native_gui": "NOT_INSPECTED; native control unavailable",
+    "parity": "NOT_PROVEN"
+  },
+  "review_basis": {
+    "skill": "C:/Users/Ilja Smets/.codex/skills/adversarial-code-review/SKILL.md",
+    "spec_current": "v02.206 as independently read from .GOV/spec/SPEC_CURRENT.md",
+    "product_baseline": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4 independently confirmed by git -C ../wtc-native-editors-v1 rev-parse HEAD; selected working source files opened and SHA256-bound",
+    "permissions": "Preparation only. Operator lrcat approval is a read-only file-byte decoder exception, not SQL execution/query/write/second database permission.",
+    "claim_limits": "Complete pinned archives available. This review directly opens selected substantive PhotoCraft, VectorCraft, LightCraft, PdfCraft, SoundCraft and Handshake implementations. DesignCraft/FilmCraft/EffectCraft detail is secondary specialist evidence, not an independent exhaustive source audit here. No claim that every source file in eight repositories was read."
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Existing studio-engine skeleton MT versus proposed 28-crate DAG and all-foundations-first operator requirement",
+    "Cargo package count versus actual transitive provider closure and GUI/GPU version identity",
+    "Upstream document/session/catalog writers versus exclusive live SurrealDB/EventLedger authority",
+    "Native snapshot authority, hostile archive import, grant provenance and retained-original sanitization",
+    "PDF byte-object editing versus converted Studio graph ownership; web code editor versus preview/DOM/publish ownership",
+    "Asset subtree mirror/version drift versus one canonical product code owner"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "id": "ADOPT-CHECK-001",
+      "kind": "source-contract comparison",
+      "observed": "MT-001 scope and proof remain studio-engine skeleton, trait presence and cargo build; engineering.json stages implement a first domain before additional domains. Neither defines executable foundations for every proposed module."
+    },
+    {
+      "id": "ADOPT-CHECK-002",
+      "kind": "writer versus native-package requirement",
+      "observed": "Opened PhotoCraft save_zip and ZipWriter implementation, not only native-format report. Vec output and u16/u32 bounds fail proposed large ZIP64 streaming envelope."
+    },
+    {
+      "id": "ADOPT-CHECK-003",
+      "kind": "decoder versus authority writer",
+      "observed": "Opened LightCraft lrcat main/WAL reader, generic page decoder, catalog Store and import commit endpoint. Read-only input does not mean read-only importer authority."
+    },
+    {
+      "id": "ADOPT-CHECK-004",
+      "kind": "producer versus fidelity status",
+      "observed": "Opened VectorCraft AI decompressor and layered_ai failure returns. Some fallback returns retain prior warnings without recording private-data failure."
+    },
+    {
+      "id": "ADOPT-CHECK-005",
+      "kind": "negative allegation control",
+      "observed": "Opened PdfCraft save_bytes/full-save writer route. full_save_required is actually checked and forces write_full. No unverified redaction defect recorded."
+    },
+    {
+      "id": "ADOPT-CHECK-006",
+      "kind": "dependency/version and implementation distinction",
+      "observed": "Opened Handshake native manifest, PhotoCraft engine manifest, PdfCraft engine manifest, SoundCraft DSP offline renderer and VST3 instance buffers. Manifest names alone do not establish isolated compile or realtime implementation."
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "ADOPT-F001",
+      "severity": "BLOCKING_DESIGN",
+      "title": "Executable all-module foundations are missing from current sequence",
+      "observation": "engineering.json:1472-1473 sequences first engine/harness proof then other domains; MT-001:37-70 accepts skeleton/trait/build-only proof. Operator requests every crate/module foundation before feature implementation.",
+      "counterexample": "Raster features begin while Score, PDF or web contracts remain empty shells; later media units expose incompatible revision/time/color/resource contracts and force cross-crate rewrite.",
+      "fix": "Root must reconcile sequence and MT ownership without retiring original scope. Gate feature MTs behind the complete executable foundation set including approved supporting PDF/web owners. Foundation means a narrow real implementation with a real consumer and failure path; not trait-only scaffolding, full parity, or every later feature completed.",
+      "spec_anchors": [
+        "STU-ARC-001",
+        "STU-ARC-002",
+        "STU-ARC-006",
+        "CX-UNIT-001",
+        "KB-PROOF-003"
+      ],
+      "future_mt_checks": [
+        "Every finalized module has one owning MT/module_ref and executable minimal operation",
+        "Every feature MT depends on the complete foundation gate",
+        "Independent check rejects no-op handlers, canned successful output, unimplemented providers and zero-test proof",
+        "Existing 5484 IDs/scope remain mapped; source-only adapter gaps remain explicit"
+      ],
+      "evidence_refs": [
+        "ADOPT-E002",
+        "ADOPT-E003"
+      ]
+    },
+    {
+      "id": "ADOPT-F002",
+      "severity": "HIGH",
+      "title": "28 crate names do not yet prove compilation compartments",
+      "observation": "Engineering nodes are declarations. Composite and render_cpu both directly depend on Pigment/Nib/Type/Prism; interop_media imports Pulse/Motion/Score. PdfCraft engine unconditionally imports its PDF domains including OCR/JS/XFA/signing. PhotoCraft engine imports IO/native format/plugins/codecs.",
+      "counterexample": "A raster-only harness or SVG adapter imports an upstream engine facade and silently acquires native decode, plugin, PDF interpreter or all temporal algorithms. Rebuild duration and linked binaries remain broad despite package labels.",
+      "fix": "Do not adopt upstream engine facades wholesale. Bind immutable inputs/proposals through neutral ports, select providers explicitly, define forward-only DAG and actual permitted dependency closure per target. Split heavy provider where owner/build boundary warrants it; do not create tiny sibling crates solely to inflate count.",
+      "spec_anchors": [
+        "STU-ARC-002",
+        "HBR-COMPART-001",
+        "HBR-COMPART-002",
+        "CX-CAP-001"
+      ],
+      "future_mt_checks": [
+        "Locked cargo metadata/tree feature closure for every minimal target; forbid core/native/DB/GUI/GPU/codecs in declared pure leaves",
+        "Compare individually selected providers with combined selections and no-default-features",
+        "Measure cold/warm rebuild and changed-leaf fanout at stable source path",
+        "No promised speedup until exact measurements exist"
+      ],
+      "evidence_refs": [
+        "ADOPT-E001",
+        "ADOPT-E010",
+        "ADOPT-E017"
+      ]
+    },
+    {
+      "id": "ADOPT-F003",
+      "severity": "HIGH",
+      "title": "GUI/GPU versions are an explicit integration fork decision",
+      "observation": "Handshake native Cargo.toml:111-112 uses egui/eframe 0.33 and :337 wgpu 27.0.1; PhotoCraft Cargo.toml:48-49 uses egui/eframe 0.36. Cargo docs state incompatible dependency versions have distinct type identities.",
+      "counterexample": "Controls expose upstream egui 0.36 Ui/TextureId while host expects 0.33, or render providers leak foreign wgpu handles. Two versions compile separately but embedding/API passage fails or duplicate device budgets appear.",
+      "fix": "One selected Controls GUI family for host integration; adapt algorithms separately. Keep toolkit/device API types inside provider roots. An approved GUI upgrade is distinct scoped integration work, never incidental crate adoption.",
+      "spec_anchors": [
+        "STU-ARC-002",
+        "STU-SHL-009",
+        "HBR-COMPART-001"
+      ],
+      "future_mt_checks": [
+        "Inspect public API type dependencies and duplicate versions",
+        "Actual native embedding/control/texture lifecycle proof at chosen pins",
+        "Independent device-loss/recreate proof without stale handles or unbounded resource retention"
+      ],
+      "evidence_refs": [
+        "ADOPT-E009",
+        "ADOPT-E022",
+        "ADOPT-E023"
+      ]
+    },
+    {
+      "id": "ADOPT-F004",
+      "severity": "BLOCKING_ADOPTION",
+      "title": "Upstream session/catalog commits cannot become Studio live authority",
+      "observation": "PhotoCraft Session::edit clones and installs its own document/history/revision (lib.rs:458-487). LightCraft lrcat import calls its own s.commit Batch (lightroom_catalog.rs:848); catalog Store owns catalog.snap/catalog.log. These are substantial implementations but independent authorities.",
+      "counterexample": "Studio routes live edits into adopted Session then mirrors EventLedger asynchronously; mirror failure leaves an accepted edit in a private history absent canonical authority. Catalog import creates collections/rating state outside CKC.",
+      "fix": "Reuse leaf algorithms and decoder records; replace upstream commit/publication/storage with owned per-document proposal/commit actor and canonical host ports. Immutable transient computation snapshots are allowed; persistent private catalogs/CAS/logs are rejected. Acknowledge committed edit only after existing authority transaction succeeds and recovery can rediscover it.",
+      "spec_anchors": [
+        "CX-503R",
+        "STU-ARC-003",
+        "STU-ARC-005",
+        "STU-ASSET-004",
+        "STU-AUT-003",
+        "STU-AUT-153"
+      ],
+      "future_mt_checks": [
+        "Fault canonical commit before/after durable write and retry same command ID; no lost committed edit or double promotion",
+        "Disjoint object revisions admit proposals; overlapping stale dependency returns typed conflict rather than overwrites",
+        "Catalog import publishes CKC links through granted resource ports",
+        "No coarse shared document Mutex/RwLock, unbounded task/channel queue or universal lock-free/CAS-merge promise"
+      ],
+      "evidence_refs": [
+        "ADOPT-E008",
+        "ADOPT-E014",
+        "ADOPT-E016"
+      ]
+    },
+    {
+      "id": "ADOPT-F005",
+      "severity": "HIGH",
+      "title": "Native ZIP64 packaging requires a different writer boundary",
+      "observation": "PhotoCraft format/zip.rs:36-58 has Vec output, u16 count and u32 size/offset with explicit ZIP64 rejection. store.rs:542-574 prepares/compresses fresh objects before final archive assembly.",
+      "counterexample": "A packed production document with multi-gigabyte video or more than 65535 blobs fails before save; concurrent saves retain several archives and compressed caches in memory. Calling the writer streaming in its comment does not make it sink streaming.",
+      "fix": "Package owns bounded streaming ZIP64 transport over granted ArtifactService byte sources and sinks, not another mutable CAS. Budget compressed/uncompressed/index bytes and concurrent save slots. Validate complete temporary package before replace/publication, retain last good snapshot, no garbage collection of live assets from package writer.",
+      "spec_anchors": [
+        "STU-IO-001",
+        "STU-ASSET-004",
+        "STU-ASSET-009",
+        "STU-ASSET-012"
+      ],
+      "future_mt_checks": [
+        "Actual linked/packed large media with peak-byte measurements",
+        "More than 65535 entries and offsets crossing 4 GiB",
+        "Interrupted/locked/disk-full save leaves last-good reopenable and no falsely advanced revision",
+        "Cancellation returns released byte/worker/device reservations"
+      ],
+      "evidence_refs": [
+        "ADOPT-E006",
+        "ADOPT-E007"
+      ]
+    },
+    {
+      "id": "ADOPT-F006",
+      "severity": "HIGH",
+      "title": "Preserved opaque originals conflict with sanitized exports unless export policy is explicit",
+      "observation": "Native proposal preserves source records/import bytes and recovery metadata. PdfCraft writer.rs:175-179 correctly forces full save when required; Studio packaging must preserve that invariant rather than reintroduce originals in blobs/imports/preview.",
+      "counterexample": "PDF output contains no old redacted revision, but portable package bundles the unredacted original, thumbnail or history under imports/blobs. Destination grant metadata copied from source is mistaken for transferable permission.",
+      "fix": "Separate preservation snapshot from sanitized delivery policy; graph reachable-set filtering must include source/opaque/thumbnail/history records and authorization at import/export. Serialized grants carry provenance only; recipient obtains current ResourceBroker permission.",
+      "spec_anchors": [
+        "HBR-PRIV-001",
+        "STU-ASSET-009",
+        "STU-ASSET-013",
+        "STU-IO-014"
+      ],
+      "future_mt_checks": [
+        "Raw bytes plus decompressed entries searched independently for excluded secrets/originals",
+        "Revocation before reading, before render, during export and before delivery",
+        "Forged package grants cannot disclose bytes or existence metadata",
+        "Do not record a PdfCraft incremental-redaction defect: inspected source enforces full-save"
+      ],
+      "evidence_refs": [
+        "ADOPT-E018",
+        "ADOPT-E019"
+      ]
+    },
+    {
+      "id": "ADOPT-F007",
+      "severity": "HIGH",
+      "title": "Native AI fallback can silently downgrade editability",
+      "observation": "VectorCraft layered_ai native.rs:819-823 returns visible PDF with unchanged warnings on private decompression failure or absent layer marker; :830-833 reports build failure. decode_private itself is bounded and handles zlib/Zstd; this is not merely a PDF-only parser.",
+      "counterexample": "A native AI document paints correctly but loses native object/layer/effect information; caller classifies parser success as editable_verified and exports flattened content as equivalent.",
+      "fix": "Convert every fallback to typed per-object/property loss and import mode; preserve original and explicit requested export envelope. Independent vendor-produced fixtures and edited semantic/render roundtrip are required. Self-render comparison cannot establish external fidelity.",
+      "spec_anchors": [
+        "STU-IO-004",
+        "STU-IO-014",
+        "STU-AUT-003"
+      ],
+      "future_mt_checks": [
+        "Damaged private stream plus valid PDF yields explicit partial/opaque result",
+        "Private hidden/offboard text/spot/live-effect edits survive or report exact losses",
+        "Original file hashes retained under grants",
+        "No native format marked fully supported from parse/preview/synthetic fixture alone"
+      ],
+      "evidence_refs": [
+        "ADOPT-E011",
+        "ADOPT-E012"
+      ]
+    },
+    {
+      "id": "ADOPT-F008",
+      "severity": "HIGH",
+      "title": "Approved lrcat byte parsing must not expose a general database/query surface",
+      "observation": "LightCraft lightroom_sqlite.rs:87-166 opens main/WAL byte images, enumerates live_tables and reads arbitrary rootpage table records. catalog.rs:347-369 directly reads paths plus sibling WAL and later commits catalog operations.",
+      "counterexample": "Generic Database/read_table becomes a reusable SQLite compatibility layer; plugin requests arbitrary pages/tables or importer retains durable private catalog. Optional WAL broadens selected input without explicit grant.",
+      "fix": "Internal format decoder only, opaque bounded file-byte source handles for main and specifically granted WAL, fixed lrcat semantic extraction, typed proposal to CKC/Surreal/EventLedger. No SQL engine/query interface/writable catalog/second database. Account for main/WAL byte and row/materialization budgets; stable input fingerprint beyond loose path lookup.",
+      "spec_anchors": [
+        "CX-503R",
+        "STU-OVR-003",
+        "STU-ASSET-004",
+        "STU-ASSET-005"
+      ],
+      "future_mt_checks": [
+        "Static public API/dependency check rejects generic SQL/query/store consumer",
+        "Malformed page/cycle/overflow/WAL partial commit fail closed",
+        "Missing/ungranted WAL does not read ambient sibling path",
+        "Fingerprint input mutation and retry without partial canonical catalog writes",
+        "No source catalog byte modified"
+      ],
+      "evidence_refs": [
+        "ADOPT-E013",
+        "ADOPT-E014",
+        "ADOPT-E015",
+        "ADOPT-E025"
+      ]
+    },
+    {
+      "id": "ADOPT-F009",
+      "severity": "HIGH",
+      "title": "PDF and web expansion need single semantic ownership rather than second authorities",
+      "observation": "Proposed PDF owner is unresolved; PDF vector import is separate from PdfCraft COS editor/full-save/form/signature/a11y semantics. Proposed web owner is unresolved despite STU-WEB-131 requiring typed deterministic commands and existing native code-editor machinery.",
+      "counterexample": "PDF object editor and Folio independently mutate text/page state, producing a valid PDF with stale shared graph. Web preview runs a new server, bypasses governed resolver, or visual edits and code edits diverge.",
+      "fix": "Root selects exact approved module ownership. PDF provider owns one loss-aware object-to-graph projection/proposal contract including signatures and full-save disposition; Folio retains shared semantic document identity. Web consumes existing editor/preview mechanics through neutral contracts; same command/promotion/resource rules, no duplicate server/queue/database. Do not import all PdfCraft engine domains to get page rendering.",
+      "spec_anchors": [
+        "STU-DOC-001",
+        "STU-AUT-003",
+        "STU-WEB-003",
+        "STU-WEB-131",
+        "CX-CAP-001"
+      ],
+      "future_mt_checks": [
+        "PDF edit/render/save and Studio shared graph re-read agree at exact revision",
+        "Signed/read-only/unknown objects return explicit capability state",
+        "Web code-to-DOM and visual-to-code edits share revision, fail stale conflict, resolve assets by grant",
+        "PDF/web minimal executable foundations participate in all-foundations gate"
+      ],
+      "evidence_refs": [
+        "ADOPT-E004",
+        "ADOPT-E017",
+        "ADOPT-E018"
+      ]
+    },
+    {
+      "id": "ADOPT-F010",
+      "severity": "HIGH",
+      "title": "Score must separate pure DSP, offline processing and native plugin/device providers",
+      "observation": "SoundCraft offline.rs:502-520 allocates full output and scratch then invokes Plugin::process blockwise. VST3 plugin.rs owns foreign Instance, bus buffers and bounded pending queues; it is not a pure portable schema/DSP crate.",
+      "counterexample": "Whole-buffer offline render is used for live callback or selected Score foundation pulls native plugin host/device/UI dependencies into pure audio math. A hung plugin blocks cancellation or private audio reaches another principal.",
+      "fix": "Pure Score semantics with separate declared optional native host/device providers; bounded preallocated realtime handoff, offline byte/job budget via existing runtime ports. Native plugin lifetime/capabilities remain host-owned and isolated; never infer realtime allocation safety from Plugin trait documentation alone.",
+      "spec_anchors": [
+        "HBR-COMPART-001",
+        "HBR-SWARM-001",
+        "STU-AUT-018",
+        "HBR-PRIV-001"
+      ],
+      "future_mt_checks": [
+        "Actual callback allocation/blocking/deadline instrumentation",
+        "Overflow defined as explicit underrun/drop/defer with counters; no committed edits discarded",
+        "Plugin timeout/crash and device loss recover without another actor's failure",
+        "Pure DSP target lacks codec/CPAL/VST3/GUI dependency closure"
+      ],
+      "evidence_refs": [
+        "ADOPT-E020",
+        "ADOPT-E021"
+      ]
+    },
+    {
+      "id": "ADOPT-F011",
+      "severity": "HIGH",
+      "title": "Asset subtree mirror needs reproducible identity and one writable owner",
+      "observation": "Operator approves assets default codex/handpick with future handshake-studio-assets subtree; governance remains kernel. Engineering still uses studio-assets proposed product root, so export/source subtree locator must be finalized by root, not invented here.",
+      "counterexample": "Mirror overwrite destroys prior handpick content; whole Handshake snapshot leaks governance/internal assets; both repositories accept product edits and a later mirror silently reverses code or lockfile version.",
+      "fix": "One canonical Studio product owner; assets receives deterministic selected subtree projection with provenance (source commit/tree/path, destination prefix, file hashes, manifest/lock/toolchain/schema versions). Preserve prior contents, use reviewed path-conflict disposition and verify re-export/reimport identity. Kernel docs/contracts never mirror into assets. No blind merge or topology mutation in this review.",
+      "spec_anchors": [
+        "CX-GOV-001",
+        "CX-UNIT-001",
+        "GLOBAL-PORTABILITY-004"
+      ],
+      "future_mt_checks": [
+        "Fresh assets default branch and existing path census before authorized write",
+        "Scoped tree projection and independent destination hashes; untouched handpick files preserved",
+        "No .GOV, credentials, runtime state, source-cache/build artifacts or ambient absolute-path dependency",
+        "Intentional upstream source patch provenance/licenses recorded at exact pins"
+      ],
+      "evidence_refs": [
+        "ADOPT-E025"
+      ]
+    },
+    {
+      "id": "ADOPT-F012",
+      "severity": "HIGH",
+      "title": "Per-module telemetry/manual declarations need executable consumers",
+      "observation": "Observe/Controls/KernelBindings are proposed ports. jobs.rs:21-64 shows existing create_job writes canonical job storage and records FR separately with ignored result; this specific function alone is not proof of transactional Studio event/commit integration.",
+      "counterexample": "Module marks WIRED after injecting a no-op sink; commands render/save successfully without Argus revision observation, current manual descriptor, internal diagnostics or Palmistry recovery linkage.",
+      "fix": "Keep existing JobRuntime/ResourceBroker/EventLedger/Argus/UserManual/Palmistry owners. Each module publishes allowlisted typed operation descriptors and observable success/failure/cancel results; integration adapter consumes them through actual owners. Standalone proof cannot claim host WIRED. No content bytes in default mechanism telemetry.",
+      "spec_anchors": [
+        "HBR-INT-009",
+        "HBR-MAN-004",
+        "STU-MDL-002",
+        "STU-IO-014"
+      ],
+      "future_mt_checks": [
+        "Named real descriptor/sink consumers invoked, revision and actor correlated",
+        "Argus re-observes changed control/render/export under fresh grants",
+        "UserManual generated/bound to same command and recovery descriptors",
+        "Fault diagnostics emit allowlisted mechanism data; host absence explicit deferred integration, never runtime PASS"
+      ],
+      "evidence_refs": [
+        "ADOPT-E024",
+        "ADOPT-E026"
+      ]
+    }
+  ],
+  "foundation_minimum_capabilities": {
+    "status": "PROPOSED_ACCEPTANCE_CONTENT_FOR_ROOT_RECONCILIATION_NOT_IMPLEMENTED",
+    "gate": "All finalized modules, including approved PDF/web expansion and integration foundations, must have executable narrow capabilities before feature implementation. A blocked real dependency is recorded explicitly and cannot be replaced with a hollow successful stub.",
+    "cross_cutting": "Every row includes invalid-input/cancel/result semantics, actor/revision/resource contracts, Observe descriptors, UserManual recovery/operation entry and Argus/model-facing inspection route where applicable. Foundation evidence is distinct from parity proof.",
+    "accord": "Parse and validate stable IDs, units, revisions and one capability envelope; reject invalid/nonfinite/unknown required fields.",
+    "observe": "Execute correlation-preserving allowlisted success/error/cancel sink path with a real consumer; prove content redaction.",
+    "folio": "Construct/read immutable mixed graph; validate references/cycles/object identities and snapshot isolation.",
+    "chronicle": "Validate/apply real typed patch to immutable base; generate inverse/conflict and retain original on failure.",
+    "prism": "Execute one documented color transform with profile/version receipt and reject unsupported profile; retain non-identity oracle obligation.",
+    "pigment": "Execute masked tile mutation with deterministic damaged region and immutable preimage.",
+    "nib": "Execute fallible path operation preserving fill/style semantics; reject degenerate/nonfinite input without loss.",
+    "type": "Shape actual mixed-script/bidi text with explicit font resolver and stable glyph-run receipt; CJK/RTL scope retained.",
+    "layout": "Compose real frames with line layout/overset diagnostics using shared type/nib contracts.",
+    "develop": "Execute bounded source/develop recipe on known pixel input; source immutable, missing RAW decoder explicit.",
+    "components": "Apply real instance property/constraint/variable resolution in same Folio graph without separate document authority.",
+    "pulse": "Execute tick-based trim/ripple of real sequence references with checked boundary/timebase behavior.",
+    "score": "Process preallocated known audio block with channels/sample positions/latency receipt; offline/native host separate.",
+    "reel": "Decode/encode one real bounded media segment through selected provider with proxy/original receipt; no full-buffer video load.",
+    "motion": "Evaluate keyframe/expression-policy operation at exact ticks with deterministic result/rejection.",
+    "composite": "Build/evaluate real mixed-domain render plan against immutable revision using selected provider contracts.",
+    "render_cpu": "Render real plan to pixels with revision/color receipt and bounded sink, compare independent known reference.",
+    "render_gpu": "Execute real bounded GPU plan/readback at supported backend; explicit unavailable/device-loss result, never skipped PASS.",
+    "package": "Save/reopen actual mixed graph/bytes through bounded granted resolver with checksums and hostile input rejection.",
+    "interop_psd": "Decode actual source structure into proposals and report every unmapped field; encode/edit/reopen minimal supported case.",
+    "interop_vector": "Import actual SVG/AI/PDF selected adapter and emit explicit fallback/loss; independent editable envelope proof later.",
+    "interop_fig": "Execute actual supported decoder slice with object mapping/loss; absent proprietary decoder blocks capability, not fake success.",
+    "interop_layout": "Execute actual IDML semantic decode/encode with loss and shared layout; INDD absent decoder remains separate explicit gap.",
+    "interop_media": "Execute actual timeline/develop/audio interchange mapping at exact time/resource identity with losses; PRPROJ/AEP/SESX gaps explicit.",
+    "controls": "One real configured shared control edits typed value and exposes same descriptor to model/manual/accessibility; no per-domain mechanic clone.",
+    "session": "Actual document-scoped admission/proposal/cancel/retry via injected canonical job/resource/commit ports with bounded work and stale handling.",
+    "harness": "Real headless consumer of all selected foundation interfaces plus controlled reusable UI asset route; no mandatory all-engine facade.",
+    "kernel_bindings": "Real narrow existing host owner adapter and negative grant/promotion/diagnostic path; unstable host dependency explicit blocked foundation.",
+    "supporting_pdf_owner_pending_root": "Real bounded object read/edit/proposal/full-save and signed-state path; one shared graph projection and no all-PDF facade dependency.",
+    "supporting_web_owner_pending_root": "Real code/DOM/shared-command edit/preview contract consuming existing editor/resolver; no alternate app/server/queue authority."
+  },
+  "COUNTERFACTUAL_CHECKS": [
+    "If PhotoCraft Session::edit installed its cloned document before the fallible closure returned, a failed operation would corrupt the accepted preimage; preserve prepare-before-promotion semantics but replace private authority.",
+    "If PdfCraft writer.rs:178 full_save_required were removed, a redaction-marked document could append edits over retained prior bytes; current source correctly retains that branch.",
+    "If VectorCraft native.rs:820 fallback were treated as full editable success, damaged native data would silently become PDF artwork; importer status must observe that exact branch.",
+    "If Package bypassed recipient ResourceBroker resolution because imported grant metadata looked valid, thumbnails/source attachments could cross principal boundaries."
+  ],
+  "BOUNDARY_PROBES": [
+    "Read-only source comparison: native snapshot ZIP64 proposal versus actual PhotoCraft Vec/u16/u32 producer",
+    "Read-only source comparison: lrcat byte decoder versus LightCraft catalog writer; decoder reuse cannot adopt commit/store authority",
+    "Read-only source comparison: upstream GUI crate version types versus Handshake host versions",
+    "Read-only source comparison: typed all-module foundation request versus existing skeleton/first-domain sequence"
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    "Inspected explicit ZIP64/count/size rejection branches; not executed",
+    "Inspected AI private decompression/no-layer-marker failure fallback; not executed",
+    "Inspected PDF full-save-required route; not executed",
+    "Inspected lrcat main/WAL changed-input rejection and parser page/header guards; not executed"
+  ],
+  "selected_tradeoffs": [
+    "Selected: pure independently selectable domain leaves plus one canonical host adapter; rejected: single Studio engine or imported upstream facades as mandatory mega closure.",
+    "Selected: algorithms/byte decoders adapted to shared graph proposals; rejected: upstream durable session/history/catalog/CAS as second authority.",
+    "Selected: immutable snapshots and owned document commit/proposal actors with bounded byte/slot/device budgets; rejected: coarse shared mutable document lock, unbounded spawn/channel, universal lock-free/wait-free/CAS merge claim.",
+    "Selected: explicit partial/opaque/unsupported/native compatibility rows and independent fixture proof; rejected: parser success, self-render or interchange bridge labeled full native parity.",
+    "Selected: deterministic one-way product subtree projection preserving assets content; rejected: whole Handshake mirror, blind merge or two writable canonical code owners.",
+    "Selected: all executable module foundations first; rejected: all-empty skeletons first or first-domain feature work while remaining foundations are undefined."
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "Exact finalized crate count, PDF/web ownership, capability roots and build budgets remain root decisions; 28 proposals alone are not canonical.",
+    "No compiler metadata, feature graph execution, measured rebuild, native GUI or independent Adobe oracle available in this review.",
+    "Proprietary current/historical native decoders and edited roundtrip corpus remain unproven; preserve required PSD/PSB/PSDC/AI/INDD/IDML/FIG/PRPROJ/AEP/AEPX/LRCAT/SESX/Affinity scope.",
+    "No destination assets branch/tree mutation or canonical publication verified here.",
+    "Fault/deadlock/starvation/memory/GPU recovery/privacy and real realtime device/plugin acceptance remain future independent runtime proof.",
+    "Initial probes used several nonexistent guessed storage/AI/jobs/runtime/audio filenames; corrected by enumeration and actual source opens. Failed paths are not evidence; root informed and shared gameplan GP026 covers path verification. No upstream code executed."
+  ],
+  "evidence": [
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+      "sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+      "lines": [
+        709,
+        750
+      ],
+      "observed": "Proposed composite/render dependency declarations",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E001"
+    },
+    {
+      "path": ".GOV/reference/studio_app_feature_research/repass-2026-10-09/engineering.json",
+      "sha256": "db989e99ed60bc8a32b03fed2820ada431000bb33111fa07acb160280df63724",
+      "lines": [
+        1471,
+        1476
+      ],
+      "observed": "Existing first-domain sequence",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E002"
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-001.json",
+      "sha256": "3e4aac9a5231baf9b68d77327d183101930aac2c310275a2ac0a03abe09bf2d1",
+      "lines": [
+        37,
+        70
+      ],
+      "observed": "Skeleton acceptance and proof",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E003"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        179,
+        189
+      ],
+      "observed": "Current Studio architecture",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E004"
+    },
+    {
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "lines": [
+        30625,
+        30625
+      ],
+      "observed": "No parallel asset library",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E005"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/zip.rs",
+      "sha256": "0a2e4545502ba747e3529a7817333acb45593ec84bc36613ef28b816ca80a93f",
+      "lines": [
+        36,
+        58
+      ],
+      "observed": "Actual archive output and limits",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E006"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/format/src/store.rs",
+      "sha256": "2deef580e53127807cf504796c65c22d6b422d76764fc172adab13d90f31e6a8",
+      "lines": [
+        542,
+        574
+      ],
+      "observed": "Actual native save object compression and assembly",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E007"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/src/lib.rs",
+      "sha256": "33843f031c2562cf3680b5464dfe089248b6f31be3d3cf796f2adad3f7d48ee6",
+      "lines": [
+        458,
+        487
+      ],
+      "observed": "Actual edit mutation/history boundary",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E008"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/Cargo.toml",
+      "sha256": "1bc9a1ee4d5fdbed3e1db437a9c970431153630fdb0620505bb1782ae7621862",
+      "lines": [
+        48,
+        49
+      ],
+      "observed": "GUI dependency family",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E009"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/engine/Cargo.toml",
+      "sha256": "ba8bb18fda47ab27810ad47580dfdd2564bc775f22fa8c4723c8f4d8dba84a73",
+      "lines": [
+        14,
+        41
+      ],
+      "observed": "Facade dependency closure",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E010"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/vectorcraft-825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/eps/src/import/native.rs",
+      "sha256": "614bc7a95ed14488f8fdddfa28125863d3748071fdeb5d9e28eb40f9a3986bf4",
+      "lines": [
+        819,
+        833
+      ],
+      "observed": "Silent private decode/no-marker fallback and reported build failure",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E011"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/vectorcraft-825d4fdb8b527c597855d273fb4bcc1971855b6a/crates/eps/src/import/ai/mod.rs",
+      "sha256": "1a5ce0f2e8cbad1f4ec1d466654556b111477a4bc71cd9d84ed6a13f2448f2c3",
+      "lines": [
+        101,
+        153
+      ],
+      "observed": "Bounded Zstd/zlib decoder",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E012"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+      "sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "lines": [
+        347,
+        369
+      ],
+      "observed": "Actual main/WAL reads and changed-input rejection",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E013"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+      "sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "lines": [
+        848,
+        848
+      ],
+      "observed": "Private catalog commit endpoint",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E014"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs",
+      "sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+      "lines": [
+        87,
+        166
+      ],
+      "observed": "Page decoder plus table enumeration/read surface",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E015"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/catalog/src/store.rs",
+      "sha256": "bc7137e46f63a9f9f70a0713272872019d910dfba6876d2fb1a5aa19bcdcde5f",
+      "lines": [
+        1,
+        40
+      ],
+      "observed": "Private catalog snapshot/log storage",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E016"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/engine/Cargo.toml",
+      "sha256": "22e294763f70bc06f68f7a64ea824279f379c067f7a26bfdfa01bf9e82a22121",
+      "lines": [
+        11,
+        43
+      ],
+      "observed": "PDF facade closure",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E017"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/engine/src/lib.rs",
+      "sha256": "c4a8500ee503227469173377c2361daa6a6215d7ed1bea430564d41c6d78e3fa",
+      "lines": [
+        2486,
+        2517
+      ],
+      "observed": "Actual save/full-save/rebase paths",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E018"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/cos/src/writer.rs",
+      "sha256": "9fc9c16b42c55f064071fd877c98e5d224a8769bc899f0f5958168639d1307b9",
+      "lines": [
+        175,
+        179
+      ],
+      "observed": "Correct full-save-required branch",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E019"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/dsp/src/offline.rs",
+      "sha256": "b6e53a23ab43bfafbafaa2f0f71c5dff35bbe55465faf76a461712a03c85cd68",
+      "lines": [
+        502,
+        520
+      ],
+      "observed": "Whole-buffer output/scratch and block plugin invocation",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E020"
+    },
+    {
+      "path": "../gov_runtime/tools/studio-craft-source-cache/soundcraft-eac0edd896cd6bdf27c0cdd0f9f9158c8956248a/crates/vst3-host/src/plugin.rs",
+      "sha256": "f6df47d506050dc860eff100406ed30a918e4fbeb3671a9d4dcc582a615eb6cb",
+      "lines": [
+        26,
+        85
+      ],
+      "observed": "Actual foreign plugin instance and buffers",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E021"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "sha256": "f1f94a231238ca8b0a88dfc5e10b64da59d42c8128e0eb82005bc3f1259cda60",
+      "lines": [
+        111,
+        112
+      ],
+      "observed": "Existing GUI family",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E022"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml",
+      "sha256": "f1f94a231238ca8b0a88dfc5e10b64da59d42c8128e0eb82005bc3f1259cda60",
+      "lines": [
+        337,
+        337
+      ],
+      "observed": "Existing wgpu family",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E023"
+    },
+    {
+      "path": "../wtc-native-editors-v1/src/backend/handshake_core/src/jobs.rs",
+      "sha256": "cd5d2ffc9515ef15841c7284dc6142723956aaa04dc4e800d87917f1ee1250c5",
+      "lines": [
+        21,
+        64
+      ],
+      "observed": "Existing job storage and FR consumer path",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E024"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/session.json",
+      "sha256": "b69d94f02785377c9ad993f89ba2b38184494a88481c94d88ba16e84cd6aaa28",
+      "lines": [
+        22,
+        25
+      ],
+      "observed": "Operator recorded approvals",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E025"
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "d2b7ecf139b3d0dc32e3133f63dcd1f4789491abe6a4494e943116229873dc57",
+      "lines": [
+        1343,
+        1343
+      ],
+      "observed": "Same-change manual and diagnostic posture",
+      "inspection": "DIRECT_FILE_READ_OR_BOUNDED_SEARCH",
+      "runtime": "NOT_RUN",
+      "evidence_id": "ADOPT-E026"
+    }
+  ],
+  "external_primary_sources": [
+    {
+      "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+      "checked_at": "2026-10-09",
+      "supports": "Distinct dependency-version types; lock resolution and feature selection are separate concerns. No build isolation inferred from package count."
+    },
+    {
+      "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "checked_at": "2026-10-09",
+      "supports": "Workspace members/default members/shared lockfile/configuration are explicit inputs to selective builds."
+    },
+    {
+      "url": "https://doc.rust-lang.org/cargo/reference/features.html",
+      "checked_at": "2026-10-09",
+      "supports": "Feature-enabled dependency closure must be verified for actual selected targets; optional declarations alone do not prove isolation."
+    }
+  ],
+  "handoff": "Root reconcile approved copy-first spec/typed MTs and mirror plan using findings; report is not activation, implementation, independent validator acceptance or runtime PASS.",
+  "verdicts": {
+    "tests": "NOT_RUN",
+    "requirement_alignment": "FAIL_PENDING_ROOT_CONTRACT_RECONCILIATION: first-domain sequence and skeleton proof do not satisfy all executable foundations first",
+    "code_quality": "SELECTIVE_SOURCE_ADAPTATION_ONLY: own writers/stores/facades and unreported fallbacks require replacement",
+    "environment_confidence": "Selected exact sources inspected and SHA256-bound; runtime/native GUI/external proprietary oracle unavailable",
+    "single_studio_engine": "FAIL: operator direction requires independent modular owners",
+    "final": "No acceptance PASS; root owns enrichment and independent validator owns eventual runtime verdict"
+  }
+}

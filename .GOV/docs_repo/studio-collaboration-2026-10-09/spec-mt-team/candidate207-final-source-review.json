@@ -1,0 +1,57 @@
+{
+  "file_id": "STUDIO-CANDIDATE207-FINAL-SOURCE-REVIEW-20261009",
+  "file_kind": "independent-source-review",
+  "updated_at": "2026-10-09",
+  "status": "SCOPED_CORRECTIONS_OBSERVED_DERIVATION_RECONCILIATION_PENDING",
+  "acceptance_boundary": "Source-only scoped reread. No whole-bundle, MT-migration, runtime, vendor-parity or implementation PASS.",
+  "snapshot_hashes": {
+    "14-studio-creative-suite.md": "3e53b96243dadec7553cee5fbe2b67eed0815c9a5cbf68cffbcf11f2086fd3b0",
+    "10-product-surfaces.md": "f205c5e40d9012235cffe600c5bcafcdd171d5d0affb72799662cc3e003644ab",
+    "STUDIO_MODULES.json": "7a07ffa9f40f44c7d4b241c77763a428eea580f1dc5c1e8f408961c154af475b"
+  },
+  "scoped_corrections_observed": [
+    {"prior_finding":"C207-TEAM-001","observed":"Architecture item1 now explicitly assigns integrated authority/API binding to core and domain implementations to ARC010 asset roots."},
+    {"prior_finding":"C207-TEAM-002","observed":"ARC019 preserves prior AI clauses/MTs as parked future scope, forbids their forced activation or false completion, and retains deterministic non-AI functionality."},
+    {"prior_finding":"C207-TEAM-003","observed":"SURF-SDB001 now qualifies additional databases/projection engines by prior explicit Operator approval; historical allowance does not authorize introduction."},
+    {"prior_finding":"C207-TEAM-004","observed":"SHL007 now contains correct em-dash punctuation in the reread text."},
+    {"prior_finding":"C207-TEAM-006","observed":"MAN003 now distinguishes asset-local ports and production consumers; required missing host wiring blocks embedding acceptance."},
+    {"anchor":"STU-ARC-020","observed":"Explicit authenticated idempotency context, changed-payload conflict, fresh authorization, outcome-unknown canonical reconciliation, postcommit cancellation and epoch/drain obligations added."},
+    {"anchor":"STU-ARC-021","observed":"Off-callback immutable plugin-state capture/retirement and exact actual sample/frame/duration/save-mode completeness obligations added."},
+    {"anchor":"STU-ARC-022","observed":"Append-only new units and exact ID/unit/AC reconciliation explicitly required; this does not itself supply amended local yield lists/counts."}
+  ],
+  "remaining_findings": [
+    {
+      "id":"C207-FINAL-001",
+      "severity":"HIGH",
+      "source":"14-studio-creative-suite.md:21196-21229 STU-IO-168/171/172",
+      "observed":"IO168 still says units are limited to its two enumerated classes and no other unit yields. IO172 still excludes IO186..189 from allowed anchor binding. IO171 still labels historical counts as measured output of current text. ARC022 states migration intent but leaves local mechanical instructions inconsistent.",
+      "required":"Extend local yield rule and binding ranges explicitly, and identify retained count table as its captured baseline until independently regenerated current counts exist. Preserve all old IDs/unit/AC payloads."
+    },
+    {
+      "id":"C207-FINAL-002",
+      "severity":"MEDIUM",
+      "source":"14-studio-creative-suite.md:21263 heading above STU-IO-001",
+      "observed":"Heading still states clauses carried forward unchanged from205 although IO001 is amended.",
+      "required":"Identify IO001 as revised while preserving unchanged-neighbor provenance."
+    },
+    {
+      "id":"C207-FINAL-003",
+      "severity":"HIGH",
+      "source":"STU-ARC-016/017/022; STUDIO_MODULES foundation barrier",
+      "observed":"Root is separately preparing explicit34-module plus workspace foundation fulfillment. No fresh exact comparison of actual migrated5484 originals or added-unit coverage was performed in this scoped reread.",
+      "required":"Independent canonical ID/unit/scope/AC reconstruction and all35 foundation MT/AC ownership bindings before migration or foundation-readiness claims. Brace-listed34 roots in ARC010 do not automatically become34 mechanical clause units."
+    }
+  ],
+  "minimal_replacement_text": {
+    "IO168_opening_replace": "**[STU-IO-168] Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses:",
+    "IO168_append_item3": "3. Each v02.207 interoperability amendment [STU-IO-186] through [STU-IO-189] yields one clause unit with an append-only, noncolliding MT ID and explicit acceptance mapping under [STU-ARC-022]. These clauses yield regardless of their physical section placement. Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof.",
+    "IO168_no_other_replace": "No other unit yields under this interoperability rule. The following six clauses yield no implementation unit: [STU-IO-100] and [STU-IO-168] through [STU-IO-172]. This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings.",
+    "IO168_final_replace": "Every other clause covered by this rule yields at least one unit. The explicit yielding classes and named no-yield set are reconciled against the captured source version; other Studio families use their own derivation contracts. Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered.",
+    "IO172_replace": "**[STU-IO-172] Anchor binding.** A microtask derived from this interoperability domain cites its clause anchor directly. A microtask staged before its source module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to [STU-IO-100] through [STU-IO-189], or a preserved [STU-IO-001] through [STU-IO-014], clears that status only after the exact source-unit and acceptance mapping is verified. New amendment units use append-only, noncolliding IDs under [STU-ARC-022]; binding alone does not prove scope or acceptance coverage. A microtask outside these anchor sets requires an explicit approved domain/source mapping or re-derivation before activation. Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor.",
+    "IO171_opening_replace": "**[STU-IO-171] Yields index (NORMATIVE).** The retained table below records the captured v02.206 derivation baseline and its original unit identities; it is not a measured count of amended v02.207 text. The current yields index MUST separately enumerate all baseline units and new amendment units under [STU-IO-168], bind exact source hashes, and report independently reconciled totals. Baseline counts MUST NOT be copied as current totals or used to suppress new units.",
+    "IO171_after_table_replace": "The retained baseline records 73 clauses, six non-yielding clauses and 71 units. Current v02.207 totals remain unverified until exact unit-set reconciliation completes; no baseline count constitutes current completeness proof.",
+    "carried_heading_replace": "### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract"
+  },
+  "replacement_note":"Proposed text only; root owns candidate authoring. IO171 is a necessary companion change because IO168/172 changes alone leave a current measured-count claim false. Retained baseline table is provenance, not a replacement for current independent extraction. This report does not verify new total counts.",
+  "residual_limits":["Root edits concurrently; findings bind recorded snapshots","Registry hash captured but revised registry body not fully reinspected in this final scoped pass","No actual migrated MT verdict","No build/test/GUI/proprietary decoder proof"]
+}

@@ -1,0 +1,77 @@
+---
+file_id: BUILDER-BRIEF-HSK-STUDIO-INTEROP-PSD
+file_kind: builder_brief
+updated_at: 2026-10-11T03:30:00Z
+wp: WP-KERNEL-STUDIO
+crate: hsk-studio-interop-psd
+---
+
+<topic id="identity" status="active" summary="module identity, edges">
+
+## Identity
+- Module `STUDIO-MODULE-INTEROP_PSD` / key `interop_psd` / crate `hsk-studio-interop-psd`; write scope `handshake-studio-assets/crates/hsk-studio-interop-psd/**` only.
+- Responsibility (verbatim): "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes."
+- Foundation capability: "Decode actual source structure into proposals and report every unmapped field; encode/edit/reopen minimal supported case."
+- Allowed deps (STUDIO_MODULES == root Cargo.toml `allowed`, verified identical): `hsk-studio-accord`, `hsk-studio-folio`, `hsk-studio-pigment`, `hsk-studio-prism`, `hsk-studio-type`, `hsk-studio-observe`. Slice uses accord, folio, pigment (tile geometry), prism (SHA-256 helpers only), observe; type unused.
+- Forbidden: handshake_core/native/SurrealDB (ENG-DAG-FORBID-001); no `package`, `composite`, `render-*` edges (not in `allowed`); no vendor runtime/Adobe SDK/FFI; no decompilation or code derived from Adobe software (public spec + black-box observation only); no private catalog or second authority (importer output = PROPOSAL, STU-CON-008).
+- Conventions: edition 2024, rust-version 1.97.1, path deps `{ path="../hsk-studio-x", version="=0.1.0", default-features=false }`, `pub const DESCRIPTOR: &str`, example `interop-psd-consumer` (`--descriptor`), tests in `tests/foundation_contract.rs` with 30 s `bounded_case` (copy from folio tests). Root `Cargo.toml` is steward-owned; dep needs go to `builders/dep-requests.jsonl`.
+
+</topic>
+
+<topic id="spec" status="active" summary="anchors for first slice">
+
+## Spec (`.GOV/spec/master-spec-v02.215/spec-modules/14-studio-creative-suite.md`)
+- STU-IO-006 matrix rows 1-2 (l.~21330): `.psd` / `.psb`, I·EP·X·RT, NRT: layers, groups, masks, adjustment/live-filter layers, linked/embedded objects, blend modes preserved; unrepresentable features baked WITH receipt.
+- STU-IO-004 (l.21294): five-artifact promotion gate (scope, fixtures, round-trip expectations, unsupported-feature receipts, recovery); STU-IO-005 (l.21304): unknown vendor structure = opaque preservation blob re-emitted on same-family export, receipt separates preserved-opaque vs semantically imported; STU-IO-008 NRT family list.
+- STU-IO-003: import is colour-explicit and unit-explicit (decode = conversion boundary, pixels for raster coords); STU-IO-002 four-part support contract. STU-RAS-043 (l.1861): preserve alpha/spot channels, groups, masks, adjustment/fill layers across import/export, report lost capability as inspectable state (STU-RAS-162). STU-IO-186: native editability is NOT satisfied by parse success/self-render/byte preservation.
+- STU-CON-008: use canonical Folio/Accord schema IDs, no reminting; importer output is a proposal. STU-ARC-016: real bounded capability + failure path; missing decoder paths are explicit (never silent skip).
+- Later scope: STU-IO-006 PSB beyond ceilings, adjustment/live-filter/smart-object mapping, ICC handling (STU-COL-*, `prism`), text layers (`type`), STU-IO-011/012 fixture and recovery harness. MT plan domain `_mt_plan_1213_raw_interop.json`: MT-441..446 (MT-446 = PSD/PSB family), MT-444 fixture harness.
+
+</topic>
+
+<topic id="minimal-slice" status="active" summary="1-3 h vertical slice">
+
+## Minimal slice (files per foundation MT-35548 `execution.implementation_steps`: `src/psd_decode.rs`, `src/psd_encode.rs`, `src/loss_map.rs`, `tests/psd_edit_roundtrip.rs`; plus `lib.rs`)
+PREP DECISION (visual-team `preparation.json#/representative_proposals[10]`, MT-35548): provider = "Photocraft PSD/IO candidate and Adobe format specification; structured unknown-mode refusal rather than silent Normal". Two options, builder takes A unless lead says otherwise:
+- **A (recommended, fastest): vendor the format-level parser** `photocraft-psd` from the pinned Craft cache `D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/tools/studio-craft-source-cache/photocraft-175603a644f10d2e8c61f82a63f7c2659c71dc47/crates/psd/src/` (MIT OR Apache-2.0, workspace licence verified; clean-room from the public Adobe spec; `forbid(unsafe_code)`; lossless byte-stable round trip, lazy channel decode for compression 0-3, PSD v1 + PSB v2; deps `thiserror` 2 + `flate2` rust backend). Vendor ONLY the subset `error, header, io, file, layer, tagged, resources, image_data, compression, pixels, blend, tree, builder, descriptor, metadata` (~5.6k LOC; skip abr/aco/ase/grd/hdr/patterns/slices/tiff/filter_effects/path) into `third-party/photocraft-psd-175603a/` using the SAME convention as `crates/hsk-studio-type/third-party/*` (LICENSE-MIT, LICENSE-APACHE, `source-provenance.json` with commit hash, file list + sha256, patches, licence) per STU-ARC-018, mounted as a private `mod vendored_psd` (`#[allow(clippy::all)]`, not re-exported). Operator rule: this is format-level code only; Craft's compositing/display of PSD is a known weak point, so NEVER use Craft output as parity proof (see oracle note) and never copy its blend/render code here.
+- B (fallback): own std-only reader/writer written from the Adobe spec (header, layer records, `lsct`, raw+PackBits) as described in capabilities 1-2 below.
+Public surface stays OURS in both options (`psd_decode.rs`, `psd_encode.rs`, `loss_map.rs`); the vendored/own parser is an implementation detail behind `read_psd`/`write_psd`.
+Reuse (verified by grep): `folio::{StudioDocument, StudioLayer, Payload::{Group,Raster{tiles},Unsupported{kind,schema_id,encoded_bytes,reason}}, TileRef, ContentDigest, Length, GeometryUnit, Budget, Unresolved, Snapshot (rename, encoded_bytes), validate_document(d, Budget, &CancellationToken, &dyn Resolver)}`; `pigment::{Rect{x,y,width,height}, Grid{origin_x,origin_y,tile_width,tile_height}.bounds(col,row)}` for tile bounds; `prism::{profile_hash(&[u8])->[u8;32], hash_hex(&[u8;32])->String}` (do NOT add sha2); `accord::{CancellationToken, DomainId, ValidationError::code}`; `observe::{Observe, Observation, Outcome, FailureCode, SinkPort}`. Pixel contract of pigment tiles (verified `ResolvedTile::validate_shape`): `rgb_f32le` colour plane (12 B/px) + SEPARATE straight `f32le` alpha plane, `linear_light`, stride multiple of 4.
+1. Bounded reader (PSD v1, header + 5 sections): `pub fn read_psd(bytes:&[u8], &Limits, &CancellationToken) -> Result<PsdDocument, PsdError>`; `Limits{max_input_bytes, max_layers, max_pixels, max_tagged_block_bytes, max_name_units}`. Header per Adobe spec: sig `8BPS`, version 1 (2 = PSB -> `PsdError::UnsupportedVersion` in slice, bytes kept), 6 reserved zero, channels 1..56, height/width 1..30000, depth, mode (3 RGB, 1 Gray in slice; others -> `Unmapped`). Every section length is checked against remaining bytes BEFORE slicing; u32 math is checked; truncated/oversized -> typed error, no panic, no unbounded alloc.
+2. Layer records + channel data: `PsdLayer{name:String (Pascal, overridden by `luni` UTF-16), rect:(top,left,bottom,right), blend_key:[u8;4], opacity:u8, clipping:u8, visible:bool (flags bit 1 SET = visible, per spec), channels:Vec<PsdChannel{id:i16, pixels:Vec<u8>}>, group:GroupRole::{None,OpenFolder,ClosedFolder,Divider} (tagged block `lsct` type 1/2/3), opaque:Vec<TaggedBlock{key:[u8;4], bytes:Vec<u8>}>}`. Channel ids: 0=R,1=G,(2=B, spec says "etc." - confirm with fixture), -1=transparency, -2/-3 user masks. Compression 0 (raw) and 1 (PackBits RLE: per-scanline 2-byte counts first). Compression 2/3 (ZIP) -> channel kept as `OpaqueChannel` + loss entry `ZipChannelNotDecoded` (later capability). Group hierarchy rebuilt from `lsct` bracket order (end marker = type 3, appears before the group's children in file order; verify against fixture - UNVERIFIED direction). Unknown tagged blocks and image resources are kept byte-exact in `opaque`/`resources` (preservation-blob law).
+3. Proposal mapping: `pub fn to_proposal(doc:&PsdDocument, mint:&mut dyn IdMint, budget:folio::Budget, cancel) -> Result<ImportProposal, PsdError>`; `trait IdMint{fn layer_id(&mut self)->String /*SLYR-uuid_v7*/; fn document_id(&mut self)->String; ...}` (host mints; tests use a counter like folio tests `identity("SLYR", n)`). `ImportProposal{snapshot:folio::Snapshot, tiles:Vec<TileBlob{object_key,String, bytes colour+alpha, sha256_hex}>, loss:LossReport, provenance:Provenance{source_sha256_hex, psd_version, byte_len}}`. Layers -> `kind:"raster"` + `Payload::Raster{tiles}` (one tile per layer rect via pigment `Grid`; 8-bit sRGB-encoded -> linear f32 with the IEC 61966-2-1 EOTF ONLY when no ICC resource (id 1039) is present, else loss entry `IccNotApplied` and tiles flagged `assumed_profile`); folders -> `Payload::Group`; anything unmapped (adjustment, text `TySh`, smart object, effects `lfx2`...) -> `Payload::Unsupported{kind,schema_id,encoded_bytes,reason}` AND a loss entry. Result MUST pass `folio::validate_document` (so IDs/parents/cycles are checked by folio, not re-implemented).
+4. Writer + reopen: `pub fn write_psd(doc:&PsdDocument, &Limits) -> Result<Vec<u8>, PsdError>` for the minimal case (RGB 8-bit, raw compression, flat layers + folders via `lsct`, merged image = raw straight composite or zero-length-compatible per spec, re-emitting `opaque` blocks verbatim). Edit loop proof: `to_proposal` -> `Snapshot::rename(layer, "x", rev, rev+1, ...)` -> apply the new name back onto `PsdDocument` -> `write_psd` -> `read_psd` shows the new name, all other bytes of untouched layers and all opaque blocks byte-identical.
+5. Loss report + observability: `LossReport{entries:Vec<LossEntry{path:String /* e.g. "layer[2]/tagged/TySh" */, kind:Loss::{Preserved,Transformed,Rasterized,PreservedOpaque,Unsupported}, code:&'static str}>}` (fixed codes, never source text); `pub fn report(&Result<ImportProposal,PsdError>, cancel, &mut Observe, &mut impl SinkPort)`: Ok with any `Unsupported` entry -> `Outcome::Failure(FailureCode::Loss)` only if caller policy `loss_is_error`, else Success + report; bad input -> `Failure(Validation)`; `DESCRIPTOR` JSON; example reads `--in X.psd` and prints loss report as hand-written JSON.
+Oracle note (Operator, black-box only): later check against Photoshop-exported references (Photoshop is installed on the operator machine): (a) layer visibility/opacity/blend-key/clipping and group nesting vs Photoshop's own flatten (merged image data vs recomposition from layers differ in Craft apps - known gap), (b) 8-bit sRGB vs ICC-tagged document colour, (c) RLE edge rows/odd widths, (d) 'pixel data irrelevant' flag. Fixture rule: operator/lead supplies Photoshop-authored 2-3 layer PSDs under `tests/fixtures/`; no decompilation, public Adobe file-format spec + observed outputs only. Without a fixture, parity is NOT_PROVEN (not PASS).
+
+</topic>
+
+<topic id="deps" status="active" summary="third-party deps (verified 2026-10-11)">
+
+## Deps
+- Option A adds (dep-request): `flate2` (Craft pin `default-features=false, features=["rust_backend"]` = miniz_oxide, pure Rust; crates.io 1.1.10 MIT OR Apache-2.0, 2026-08-28 verified) and `thiserror` 2 (UNVERIFIED current patch; Type/other crates avoid it, so the vendored module may replace `thiserror` derives with a hand `Display` impl to keep the dep set minimal). Option B: no new crate.
+- Prep refs: visual-team `preparation.json` finding VIS-PREP-005 (Craft `crates/io/tests/psd_structure.rs` normalises unknown blend modes to Normal; Craft composite helper exports+imports through its own code -> component evidence only, never parity proof) and MT-35548 oracle text; `.GOV/reference/studio_app_feature_research/05-studio-primitive-map.md` (import/export engine owns psd), `19-studio-local-first-rust-posture.md` (compatibility rule: explicit unsupported diagnostics over silent lossy conversion), `11-provider-posture-map.md` (no AI/cloud in this slice).
+- Evaluated and rejected as the engine: `psd` 0.3.5 (MIT/Apache-2.0, last release 2024-01-04, read-only; rawpsd author reports it cannot recover the exact layer-group hierarchy); `rawpsd` 0.2.2 (CC0, 2025-05-11, read-only, 8-bit RGB/CMYK/Gray only, no PSB, preserves group hierarchy, optional serde) = acceptable CROSS-CHECK reference only (not a dependency, to keep write path + unknown-block preservation ours); `ag-psd` 0.1.0 (read+write, Rust port of the TS library; author states most code AI-written and not hand-audited) = reference only.
+- Later (ZIP channel compression 2/3): `flate2` 1.1.10 (MIT OR Apache-2.0, 2026-08-28) with default `miniz_oxide` backend, pure-rust yes; `crc32fast` 1.5.2 not needed.
+- Build/test: `cd "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets" && source "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh" && cargo check -p hsk-studio-interop-psd --tests` (then `clippy`, `test`).
+
+</topic>
+
+<topic id="tests" status="active" summary="<=5 focused tests in tests/foundation_contract.rs">
+
+## Tests (<=5, `bounded_case`; MT-35548 target `tests/psd_edit_roundtrip.rs`, MT case names: `original_psd_edit_save_reopen_twice`, `psb_length_channel_overflow`, `opaque_layer_property_loss_explicit`, `cancel_stale_sanitized_export_no_hidden_original` - reuse these names where they match; synthetic PSD bytes from the vendored `PsdBuilder` (option A) or an in-test builder)
+1. `two_layers_and_folder_decode_to_valid_folio_document`: synthetic RGB 8-bit PSD (folder with 2 layers, one RLE, one raw); `to_proposal` snapshot validates in folio; layer names/visibility/opacity/blend key/parent mapping exact; tile pixels equal expected linear values (EOTF endpoints 0 -> 0.0, 255 -> 1.0, 128 -> 0.2158605 +- 1e-6).
+2. `unmapped_fields_all_reported_and_bytes_preserved`: layer with unknown tagged block + `TySh` text block + ZIP channel; loss report lists each by `path`+code, `Payload::Unsupported` carries the bytes, `write_psd(read_psd(x))` re-emits unknown blocks byte-identically.
+3. `rename_edit_roundtrip`: proposal -> `Snapshot::rename` -> apply -> `write_psd` -> `read_psd`: new name present, untouched layer pixel bytes identical.
+4. `hostile_inputs_rejected`: bad signature, version 3, layer count over limit, section length past EOF, RLE count overflow, width*height over `max_pixels`, truncated header, all -> distinct `PsdError::code()` with no panic and bounded allocation.
+5. `cancel_and_observe`: pre-cancelled token -> `Canceled`; `report()` into a `Vec` sink emits exactly one terminal frame (`Success` / `Failure(Validation)` / `Canceled`).
+
+</topic>
+
+<topic id="non-goals" status="active" summary="out of scope + pointers">
+
+## Non-goals / later scope
+- No PSB (v2) decode beyond rejecting it explicitly, no 16/32-bit, CMYK/Lab/indexed/duotone, ZIP-compressed channels, layer masks as `StudioMask`, adjustment/live-filter/smart-object/text/layer-effect mapping, linked objects, ICC conversion via prism `Prism::transform`, merged-image-as-preview, thumbnails, writing real Photoshop-compatible compression other than raw/RLE, rendering/compositing (composite/render-cpu own that), GUI, kernel/ArtifactService wiring, ID remap on host import (STU-IO-190).
+- INDD/IDML/FIG are other interop crates. Report READY_FOR_VALIDATION only; never self-PASS (CX-PROOF-002).
+
+</topic>

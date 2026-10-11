@@ -1,0 +1,151 @@
+{
+  "schema_id": "hsk.studio_candidate207_module_review@1",
+  "file_id": "STUDIO-CANDIDATE207-MODULE-REVIEW",
+  "updated_at": "2026-10-09T20:32:37.0317077+02:00",
+  "status": "SOURCE_REVIEW_COMPLETE_NOT_WHOLE_BUNDLE_OR_RUNTIME_VERDICT",
+  "scope": {
+    "repo_governance": "Owned candidate207-module-findings.json only",
+    "product": "Registry and ARC010..018 source review only"
+  },
+  "snapshots": [
+    {
+      "sha256": "bc3da3323e95a87bb5913ab70f8e764279360fafc4906f007940174d249fec49",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json"
+    },
+    {
+      "sha256": "5fe5afb2d97780fc76dcacb1d135fa171605e252cff920278e8af0a2e7456e66",
+      "path": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
+    }
+  ],
+  "observed": {
+    "barrier_includes_workspace": true,
+    "module_count": 34,
+    "unique_module_keys": 34,
+    "unknown_dependency_keys": 0,
+    "method": "Parsed registry and traversed bare-key dependency graph only, no Cargo invocation",
+    "declared_dependency_cycles": 0,
+    "barrier_count": 35,
+    "proof_limit": "Declared graph is not actual Cargo dependency/feature closure"
+  },
+  "retained_controls": [
+    {
+      "line": 215,
+      "anchor": "STU-ARC-010",
+      "observed": "All34 roots named, workspace distinct from Accord; asset bridge host-neutral; actual AppState/native/DB consumers later outside isolated workspace."
+    },
+    {
+      "line": 217,
+      "anchor": "STU-ARC-011",
+      "observed": "Property/target footprints and grants/revisions checked; accepted patch/heads/EventLedger/idempotency one Surreal transaction; CRDT draft separate."
+    },
+    {
+      "line": 219,
+      "anchor": "STU-ARC-012",
+      "observed": "Pending producers, retained results and byte leases bounded; cancellation reservation release and bounded completion paths explicit."
+    },
+    {
+      "line": 223,
+      "anchor": "STU-ARC-014",
+      "observed": "Shared Controls descriptors feed tools/AccessKit/manual/Argus; agent-local view/focus distinct."
+    },
+    {
+      "line": 227,
+      "anchor": "STU-ARC-016",
+      "observed": "All34 plus workspace before feature MTs; real bounded consumer/failure required; missing proprietary edit decoder remains blocked; no canned/no-op foundation proof."
+    },
+    {
+      "line": 229,
+      "anchor": "STU-ARC-017",
+      "observed": "Historical IDs/scope/acceptance/proof retained, compound owners and full HBR required."
+    }
+  ],
+  "findings": [
+    {
+      "id": "C207-MOD-001",
+      "observed": "depends_on arrays name module keys only. Registry claims optional native providers and selected closure but records no edge class, Cargo feature/default feature behavior, provider selection or proof selector. Bare-key DAG has no cycles, which does not establish optional native isolation.",
+      "status": "OPEN_PREPARATION_DETAIL_NOT_RUNTIME_FAILURE",
+      "severity": "MEDIUM",
+      "evidence": {
+        "spec_line": 227,
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "json_pointer": "/modules",
+        "spec_anchor": "STU-ARC-016"
+      },
+      "required_disposition": "Foundation contracts must classify normal/dev/build/interface/provider edges and exact package/features/target selections. Distinguish Reel→ReelNative injected provider from mandatory dependency, same for ScoreDevice/ScorePlugin and GPU. Keep declared DAG source-only until independent Cargo closure/compiler proof. No new code required in this preparation review."
+    },
+    {
+      "id": "C207-MOD-002",
+      "observed": "All modules repeat generic three contract_ports and generic inspection/manual/proof_targets strings. Harness selected providers, Web shared editor/preview and Press forms/prepress/accessibility are responsibilities, not exact typed provider/consumer identities. No executable consumer source exists yet and registry correctly says planned.",
+      "status": "OPEN_EXACT_CONSUMER_BINDINGS",
+      "severity": "MEDIUM",
+      "evidence": {
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "lines": [
+          731,
+          759,
+          786,
+          812
+        ],
+        "spec_anchors": [
+          "STU-ARC-007",
+          "STU-ARC-014",
+          "STU-ARC-018"
+        ],
+        "json_pointer": "/modules"
+      },
+      "required_disposition": "Map each meaningful foundation capability to its concrete typed input/output, dependency owner and consuming symbol/target before readiness. Controls consumes one descriptor grammar; Web and Press reuse declared shared component/render/inspection capability through explicitly typed ports, not hidden duplicate mechanics. Missing host Argus/manual/FR/internal_diagnostics/Palmistry consumer remains separately scheduled and blocked where required."
+    },
+    {
+      "id": "C207-MOD-003",
+      "observed": "Membership is complete34+workspace and meaningful per-module foundation operations are named, including actual native-device/plugin/GPU provider cases. Compiler/runner targets remain prose scheduled to materialize later. Optional provider unavailable outcomes are required, but cannot mean omitted native capability proof counted as accepted.",
+      "status": "OPEN_FOUNDATION_BARRIER_PROOF",
+      "severity": "MEDIUM",
+      "evidence": {
+        "line": 941,
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "json_pointer": "/foundation_barrier",
+        "spec_anchor": "STU-ARC-016",
+        "spec_line": 227
+      },
+      "required_disposition": "Bind barrier members to stable foundation MT IDs and independent acceptance state. A device-unavailable/error path alone cannot satisfy a foundation operation requiring actual GPU/readback/device/plugin execution. Record missing supported environment/provider as blocked, preserve all-members predecessor without fake PASS or reducing to stub existence."
+    },
+    {
+      "id": "C207-MOD-004",
+      "observed": "Mirror declares one writable canonical Studio worktree, preserved handpick siblings, independent destination comparison and no force overwrite. Status NOT_MATERIALIZED_NO_PRODUCT_CODE_YET honestly records absence. No source/destination commit/tree/hash manifest exists for future product content.",
+      "status": "OPEN_MIRROR_MATERIALIZATION",
+      "severity": "MEDIUM",
+      "evidence": {
+        "spec_line": 209,
+        "path": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+        "json_pointer": "/mirror",
+        "spec_anchor": "STU-ARC-009"
+      },
+      "required_disposition": "Before mirror/embedding claim, resolve canonical source branch commit and subtree digest, destination branch commit/file census, pins/patch provenance and divergence rejection/recovery. Mirror no governance/source-cache/runtime/output. The approved future mirror contract is not present content-equality proof."
+    }
+  ],
+  "scope_continuity": {
+    "observed": "34registry adds press/web/score_device/score_plugin/reel_native/interop_lrcat rather than silently omitting earlier unresolved owners. Foundations preserve missing proprietary decoder feature blocks; scope remains explicit.",
+    "not_certified": "All original5484 MT scope/AC payload mapping, remaining207modules, native format schema compatibility, manifest/index/changelog publication, actual runtime parity"
+  },
+  "counterfactuals": [
+    "If feature defaults silently enable ReelNative, bare-key acyclic dependency graph can remain unchanged while native FFI enters pure selected target.",
+    "If a common descriptor is copied instead of consumed by Web/Controls/Argus, registry text can remain identical while parameter semantics drift.",
+    "If all-members foundation status is inferred from directory existence, meaningful device/plugin/decode operations and failure consumers can be absent despite34crate scaffolds."
+  ],
+  "boundaries_inspected": [
+    "Host-neutral kernel_bindings versus later AppState/native/Surreal authority",
+    "Declared dependency key DAG versus future actual Cargo normal/dev/build/features",
+    "All34foundation membership versus separately pending proprietary/vendor/embedding features"
+  ],
+  "negative_paths": [
+    "Unavailable native/GPU/provider paths must be NOT_PROVEN, never skipped PASS perARC015/016",
+    "Missing proprietary decoder remains editable feature blocker perARC016",
+    "Divergent mirror blocks embedding perARC009"
+  ],
+  "runtime_proof": "NONE_AUTHORIZED_OR_EXECUTED",
+  "residual_uncertainty": [
+    "Candidate and registry can change after captured hashes.",
+    "No all-bundle PASS; this review inspected scoped clauses/registry only.",
+    "Current typed MTs edited concurrently by root were not assessed and no product implementation or HBR runtime proof inferred."
+  ]
+}

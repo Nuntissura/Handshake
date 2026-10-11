@@ -1,0 +1,159 @@
+{
+  "schema_id": "hsk.studio_backend_review_session@1",
+  "file_id": "STUDIO-BACKEND-REDTEAM-20261009",
+  "updated_at": "2026-10-09",
+  "status": "ALL_ASSIGNED_REVIEWS_COMPLETE_NO_RUNTIME_VERDICT",
+  "authority": "REFERENCE_ONLY_NOT_EXECUTION_OR_VALIDATOR_VERDICT",
+  "root_thread": "01a12168-a212-7991-8b69-454deae05b60",
+  "human_authorization": "Root read_thread human message 01a121c9-e8f3-7e51-84e3-09e7811104c1 authorizes new chats, subagents, shared docs and reporting back",
+  "owned_directory": ".GOV/docs_repo/studio-collaboration-2026-10-09/backend-redteam",
+  "gameplan": {
+    "path": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
+    "role": "kernel_builder",
+    "before_dispatch": "PASS 19/19; source-only preparation"
+  },
+  "lanes": [
+    {
+      "agent": "/root/pdf_audio",
+      "output": "pdf-audio-root-drill.json",
+      "scope": "PdfCraft and SoundCraft root execution paths"
+    },
+    {
+      "agent": "/root/pressure",
+      "output": "backpressure-architecture-review.json",
+      "scope": "Scheduling, transaction, realtime, privacy and recovery controls"
+    },
+    {
+      "agent": "/root/adoption",
+      "output": "independent-adoption-redteam.json",
+      "scope": "Modularity, native container, interop and asset mirror method"
+    }
+  ],
+  "monitor": {
+    "cadence_seconds": 60,
+    "first_output_minutes": 20,
+    "maximum_output_minutes": 30
+  },
+  "restrictions": [
+    "No product/spec/MT/root session/gameplan writes",
+    "No tests/builds/upstream execution/native GUI",
+    "No Git mutation or process control",
+    "No runtime or parity PASS"
+  ],
+  "outputs": [
+    {
+      "path": "pdf-audio-root-drill.json",
+      "sha256": "1c1e3807c7b38e1741412c64a932319080512527dde07da4063f7287fe2b6946",
+      "findings": 10,
+      "source_hash_rows": 24
+    },
+    {
+      "path": "independent-adoption-redteam.json",
+      "sha256": "15f5b9f00b0f06408e74ca15b3f15aa70cdbf72e4af0212772c98bd453d2fbac",
+      "findings": 12,
+      "source_hash_rows": 26
+    },
+    {
+      "path": "backpressure-architecture-review.json",
+      "sha256": "667fbb61d04fee7aef73cf0f033923cf74dc8ae1f3f1ce615f8722ee4af875c9",
+      "findings": 10,
+      "source_hash_rows": 11
+    }
+  ],
+  "parent_inspection": {
+    "reports": "Direct JSON reads of findings, contracts, tradeoffs, executable foundation capabilities and future proof plans",
+    "source_hash_reconciliation": "61 local source references independently reread; zero mismatches",
+    "spec_reconciliation": "All cited STU anchors found in canonical v02.206",
+    "direct_source_checks": [
+      "Sound playback command drain/channel creation",
+      "Sound recorder backlog/take",
+      "Sound audio/manifest save ordering",
+      "Sound bounce guard versus render sample clamp",
+      "Pdf doc_save receipt versus forced-full writer",
+      "WP012 coordinator lifetime/memory reservations"
+    ],
+    "primary_library_reads": "Tokio bounded mpsc, Tower load_shed, rtrb SPSC and ArcSwap limitations opened independently",
+    "runtime_tests_build_gui_parity": "NOT_RUN_NOT_PROVEN"
+  },
+  "root_actions_pending": [
+    "Publish approved spec/contracts with source-backed findings",
+    "Reconcile complete executable foundations gate preserving prior 5484 MT scope",
+    "Resolve PDF/web owners and native adapter capability gaps",
+    "Bind future independent runtime proofs to exact candidates and declared budgets"
+  ],
+  "candidate207_review": {
+    "path": "candidate207-review.json",
+    "sha256": "a490b23baf31a7d8a9d9e867c15565ec7cc0ba1d82652998126f560bbda80afb",
+    "disposition": "Root ARC020/021 core additions inspected; original five findings preserved with followup dispositions, exact MT/runtime proofs pending"
+  },
+  "plugin_platform_assignment": {
+    "owner_drill": {
+      "agent": "/root/pdf_audio",
+      "output": "plugin-owner-source-drill.json"
+    },
+    "host_research": {
+      "agent": "/root/pressure",
+      "output": "plugin-host-research.json"
+    },
+    "independent_reviewer": {
+      "agent": "/root/adoption",
+      "output": "plugin-platform-adversarial.json"
+    },
+    "parent_decision": "plugin-platform-decision.json",
+    "constraint": "Handshake-wide platform owner; ScorePlugin is domain adapter; embeddable host-neutral Studio ports; no native Rust ABI or WASM realtime safety promise; no product/spec/MT/rootstate/build/runtime/Git/process actions",
+    "preparation": "before_dispatch PASS22/22",
+    "outputs": [
+      {
+        "sha256": "917d62d60bbf4f1600dac11af9ebe33cf415fbb8521eac8866991ea43d9d641b",
+        "path": "plugin-owner-source-drill.json"
+      },
+      {
+        "sha256": "65890ce02ffef840ed9ae7b19a2043c20a95f8b8632e71d0d745492f2fe1affe",
+        "path": "plugin-host-research.json"
+      },
+      {
+        "sha256": "0fa214afe3a4ac9f45845d6baf5ddaf577f34d9bb605a4368202b930852d6296",
+        "path": "plugin-platform-adversarial.json"
+      },
+      {
+        "sha256": "3931f1eb47ab2e42c9121ca237f5ed9d489128421ccf3b8d76ea789fac3b31da",
+        "path": "plugin-platform-decision.json"
+      }
+    ],
+    "disposition": "19 proposed controls,5 actual owner chains,10 primary sources,53 local source hashes reconciled0mismatch; independent actual draft review and exact final correction reread complete; runtime NOT_RUN"
+  },
+  "restart": "All assigned source/plugin/open-contract/expression adoption reviews complete and sent to root with exact hashes. Root owns spec/MT/publication and implementation assignments. No repeated research or product/spec/MT/WP012/Git/process actions without new authorization. Reports are reference-only; runtime/platform/compatibility/wholebundle remain unproven.",
+  "original_open_contract_challenge": {
+    "path": "open-contract-independent-challenge.json",
+    "status": "COMPLETE_SOURCE_ONLY_NO_RUNTIME_VERDICT",
+    "other_device_WP012": "NO_RECORD_OR_POINTER_EDITS",
+    "findings": 6,
+    "sha256": "cba3c0ab45f08baea485f4ec7ec3f98b85522a254e2f29fcf941dcc270f93df1",
+    "preparation": "PASS24/24"
+  },
+  "expression_provider_assignment": {
+    "input": "adobe-original-team/open-expression-decisions.json",
+    "constraints": "Pinned source/cache only; no vendorexecution/build/product/spec/MT/WP012/Git/processactions",
+    "output": "expression-provider-adoption.json",
+    "status": "SOURCE_AND_INDEPENDENT_CONTRACT_REVIEW_COMPLETE",
+    "agents": {
+      "pdf_audio": "expression-provider-platform-drill.json",
+      "pressure": "expression-provider-runtime-drill.json",
+      "adoption": "expression-provider-adversarial.json"
+    },
+    "input_sha256": "921368a658a3abb3a6f5376f0af14ff5f99ba27e3fa681989be7aed3cff9d21c",
+    "preparation": "PASS25/25",
+    "final_sha256": "e262e8e9275717d88c88ca901e8050e4cc8bd3083eaeeae1efccd65bcdd2ee28",
+    "result": "14 proposed controls;57 localsourcehashes0mismatch; exactrquickjs0.14+QuickJS-NG0.16.2; 4targetintentionmatrix; independent actualdraft+finalcorrectionreread; allbuild/runtime/platform/compatibilityNOTPROVEN"
+  },
+  "final_root_normative_review": {
+    "findings": [
+      "HSKPLG020 assetminimum vs realhostactivation/embedding",
+      "MOT258 per-evaluation state reset within same trustscope",
+      "CON013 typed canonical acceptance for nonaudit promotion distinction"
+    ],
+    "wire_set_check": "22canonical22mapped22unique0differences",
+    "status": "COMPLETE_THREE_TARGETED_CONTROLS_REPORTED_TO_ROOT",
+    "proof": "SCOPED_SOURCE_ONLY_NO_RUNTIME_VERDICT"
+  }
+}

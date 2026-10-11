@@ -1,0 +1,408 @@
+{
+  "schema_id": "hsk.studio.independent_original_parity_redteam@1",
+  "file_id": "STUDIO-ORIGINAL-INDEPENDENT-20261009",
+  "updated_at": "2026-10-09",
+  "owner": "original_independent",
+  "risk_tier": "HIGH",
+  "authority": "REFERENCE_ONLY; parent retains publishing; no MT/spec edits or acceptance verdict",
+  "status": "SOURCE_REVIEW_COMPLETE_FULL_PARITY_NOT_PROVEN",
+  "scope": {
+    "handshake_product": "Independent static challenges to original-suite workflow parity proposals",
+    "repo_governance": "This report only"
+  },
+  "DIFF_ATTACK_SURFACES": [
+    "Reader reuse without caller checksum/commit preconditions",
+    "Compressed-input size versus total inflated allocation and canonical part identity",
+    "PDF visible output versus retained prior revisions and hidden content",
+    "Source feature coverage versus exact owning MT acceptance",
+    "Superseded composer acceptance and silent effective-engine substitution",
+    "Authority prohibition versus interoperable metadata export"
+  ],
+  "INDEPENDENT_CHECKS_RUN": [
+    {
+      "id": "ORIG-IND-CHECK-001",
+      "kind": "STATIC_CALLER_CALLEE_RECONCILIATION",
+      "target": "LightCraft lightroom_sqlite::Database::open_with_wal versus lightroom_catalog::committed_wal_len/read_with_progress",
+      "observed": "Reader overlays every supplied complete frame and does not calculate checksums. Caller validates the checksum chain, stops at invalid salt/checksum, retains last commit prefix, and supplies only wal[..wal_len]. File acquisition is bounded by MAX_FILE and take(MAX_FILE+1). Caller additionally compares file length/mtime before and after reads.",
+      "result": "Photo reuse claim requires caller-inclusive boundary; no missing-checksum upstream defect demonstrated",
+      "sources": [
+        "LC-SQLITE",
+        "LC-CATALOG"
+      ]
+    },
+    {
+      "id": "ORIG-IND-CHECK-002",
+      "kind": "STATIC_INFLATED_INPUT_AND_DUPLICATE_IDENTITY",
+      "target": "DesignCraft import_idml_with ZIP entries versus designmap includes and MT-462",
+      "observed": "Vec::with_capacity min(16MiB) limits reservation only; read_to_end remains unrestricted. HashMap insert overwrites duplicate paths. Missing include src/data continues. MT-462 already requires malformed IDML fail-closed and preservation/recovery.",
+      "result": "Existing adoption/proof gap confirmed; no executed exploit or memory measurement",
+      "sources": [
+        "DC-IDML",
+        "MT-462"
+      ]
+    },
+    {
+      "id": "ORIG-IND-CHECK-003",
+      "kind": "STATIC_MUTATOR_VERIFIER_AND_SCOPE_MAPPING",
+      "target": "PdfCraft redact apply versus current Studio spec and MT-33385",
+      "observed": "apply reuses process with Mode::Verify over selected pages then marks full save necessary. Current Studio module and all MT-*.json token search for redact/redaction/sanitiz returned no matches. MT-33385 owns complete PDF presets and has empty acceptance_criteria, not destructive redaction. Final media separates DELTA007 redaction and exact native-family scope gaps; prior mapping error corrected.",
+      "result": "Final mapping correction verified; missing Studio-scoped contract remains pending root enrichment",
+      "sources": [
+        "PDF-REDACT",
+        "STUDIO-SPEC",
+        "MT-33385"
+      ]
+    },
+    {
+      "id": "ORIG-IND-CHECK-004",
+      "kind": "STATIC_SPEC_SUPERSESSION_AND_ENGINE_BRANCH",
+      "target": "MT-200 versus STU-TYP-135/136 and DesignCraft composer branch",
+      "observed": "MT-200 asks four composers. Current spec explicitly requires independent axes and all six combinations. DesignCraft selects greedy for any tab or glyph count >4000 even outside SingleLine.",
+      "result": "Existing MT/spec drift and source adoption gap confirmed; preserve MT identity/scope while reconciling acceptance",
+      "sources": [
+        "MT-200",
+        "STUDIO-SPEC",
+        "DC-COMPOSE"
+      ]
+    },
+    {
+      "id": "ORIG-IND-CHECK-005",
+      "kind": "REPORT_SOURCE_IDENTITY",
+      "target": "cross-suite-control-semantics local_contracts",
+      "observed": "All five cited local SHA256 values match fresh file hashes case-insensitively; MT-013 contains uppercase F in an otherwise valid hex digest.",
+      "result": "No stale local hash found at inspection; external pages lack frozen body hashes and are independently checked here"
+    }
+  ],
+  "COUNTERFACTUAL_CHECKS": [
+    {
+      "id": "ORIG-IND-CF-001",
+      "statement": "If lightroom_catalog.rs read_with_progress passed the complete WAL instead of wal[..wal_len], lightroom_sqlite.rs parse_wal would overlay checksum-valid-looking uncommitted frames after the final commit and could import uncommitted catalog values.",
+      "status": "STATIC_COUNTERFACTUAL_NOT_EXECUTED"
+    },
+    {
+      "id": "ORIG-IND-CF-002",
+      "statement": "If import_idml_with treated Vec::with_capacity as a read limit, a ZIP part inflating beyond 16MiB would still grow through read_to_end and invalidate byte-budget admission.",
+      "status": "STATIC_COUNTERFACTUAL_NOT_EXECUTED"
+    },
+    {
+      "id": "ORIG-IND-CF-003",
+      "statement": "If PdfCraft redact::apply omitted require_full_save, an incremental save could retain the previous revision containing removed content; a rendered black rectangle would not detect this byte-level failure.",
+      "status": "STATIC_COUNTERFACTUAL_NOT_EXECUTED"
+    },
+    {
+      "id": "ORIG-IND-CF-004",
+      "statement": "If MT-200's four-value composer control were implemented as written, it could not independently represent world_ready plus single_line required by STU-TYP-135.",
+      "status": "SPEC_COUNTERFACTUAL_NOT_EXECUTED"
+    }
+  ],
+  "BOUNDARY_PROBES": [
+    {
+      "id": "ORIG-IND-BP-001",
+      "boundary": "Catalog file acquisition -> validated committed WAL -> page reader -> future promotion",
+      "observed": "Caller validation exists and must travel with parser reuse; sequential length/mtime checks are not a verified coherent live snapshot oracle.",
+      "professional_case": "A source application checkpoints or replaces the main file while an importer acquires the WAL. Freeze/hash a coherent acquired byte set and define unstable-source refusal; never terminate the source application.",
+      "proof_required": "Independent file-byte fixture with committed prefix, uncommitted tail, invalid checksum/salt and concurrent replacement; unchanged source hashes and canonical SurrealDB readback"
+    },
+    {
+      "id": "ORIG-IND-BP-002",
+      "boundary": "ZIP names/bytes -> IDML canonical parts -> editable layout",
+      "observed": "Duplicate entries are last-insert-wins and missing included parts are skipped in inspected path.",
+      "professional_case": "Publisher book has duplicate Stories/Story_u1.xml, a missing overset story and a highly compressible linked part. A normal-looking cover must not certify the complete book.",
+      "proof_required": "Production bounded byte admission and deterministic duplicate/missing-part refusal before promotion, loss receipts for explicit supported partial import, restart permit reclamation"
+    },
+    {
+      "id": "ORIG-IND-BP-003",
+      "boundary": "PDF redaction graph -> writer save mode -> saved bytes -> independent extraction",
+      "observed": "Internal verifier shares process. cos/writer.rs:175-181 routes full_save_required to write_full; :233-259 walks reachable objects. There is source support for full rewrite, so no actual incremental-leak defect is asserted; final artifact proof is still absent.",
+      "professional_case": "Confidential string exists in selected page text, ActualText, shared XObject, attachment and prior incremental revision.",
+      "proof_required": "Original fixture plus independent decoder/extractor and final saved-byte inspection; application and sanitization must have distinct scope/outcomes"
+    }
+  ],
+  "NEGATIVE_PATH_CHECKS": [
+    {
+      "id": "ORIG-IND-NP-001",
+      "input": "WAL with valid committed prefix followed by corrupt or uncommitted tail",
+      "observed_static": "committed_wal_len stops on invalid checksum/salt and updates cutoff only on nonzero commit; reader alone does not enforce this",
+      "runtime": "NOT_RUN"
+    },
+    {
+      "id": "ORIG-IND-NP-002",
+      "input": "IDML duplicate designmap/story path, missing included source and oversized decompressed part",
+      "observed_static": "Overwrite, continue and unlimited read branches exist; no production adoption proof supplied",
+      "runtime": "NOT_RUN"
+    },
+    {
+      "id": "ORIG-IND-NP-003",
+      "input": "Photoshop batch command refers to missing target despite structurally valid descriptor",
+      "observed_documentation": "Promise can resolve with an error descriptor; transport resolution cannot certify operation success. IDs remain stable only within Photoshop session, not across process restart.",
+      "runtime": "NOT_RUN",
+      "source": "OFFICIAL-BATCHPLAY"
+    }
+  ],
+  "INDEPENDENT_FINDINGS": [
+    {
+      "id": "ORIG-IND-FIND-001",
+      "severity": "HIGH",
+      "classification": "STUDIO_SCOPED_SPEC_COVERAGE_GAP_MAPPING_CORRECTED",
+      "finding": "Redaction/sanitization has no direct match in inspected current Studio14/current Studio MT token searches. MT-33385 owns complete presets, not destructive redaction. Final media DELTA005 now separates PDF preset/prepress/tagged/export proof, and DELTA007 correctly carries the genuine scope gap. Absence is scoped and does not prove no feature elsewhere in Handshake.",
+      "affected_report": "Final media-original hash59c910f29022889b2955749e1310280bc40a1cd31e147fe8b00327bb44c46167",
+      "disposition": "Correction inspected and accepted as reference accuracy only; root still must publish approved explicit scope/anchors and owning contracts. No runtime parity verdict.",
+      "sources": [
+        "STUDIO-SPEC",
+        "MT-33385",
+        "PDF-REDACT",
+        "OFFICIAL-REDACT"
+      ]
+    },
+    {
+      "id": "ORIG-IND-FIND-002",
+      "severity": "HIGH",
+      "classification": "EXISTING_SCOPE_ADOPTION_PROOF_GAP",
+      "finding": "IDML decompression is not bounded by initial capacity; duplicate canonical parts overwrite and missing parts skip. Design report correctly identifies source behavior. MT-462 already requires recovery and malformed fail-closed proof.",
+      "mitigation": "Enforce aggregate inflated/part/link budgets and duplicate identity policy before publication; test incomplete publisher document, cancel and restart through production importer, keeping all original preservation requirements.",
+      "sources": [
+        "DC-IDML",
+        "MT-462"
+      ]
+    },
+    {
+      "id": "ORIG-IND-FIND-003",
+      "severity": "HIGH",
+      "classification": "EXISTING_MT_SPEC_DRIFT",
+      "finding": "MT-200 retains superseded four-value composer acceptance; the active spec requires two independent fields and six combinations. Source greedy fallback further risks silent every-line substitution for long/tabbed paragraphs.",
+      "mitigation": "Preserve MT ID and original workflow intent; align representation and acceptance with current supersession, reconcile overlap with existing MT-30904/30905, and assert requested/effective compositor plus independent glyph/line/frame truth.",
+      "sources": [
+        "MT-200",
+        "STUDIO-SPEC",
+        "DC-COMPOSE"
+      ]
+    },
+    {
+      "id": "ORIG-IND-FIND-004",
+      "severity": "HIGH",
+      "classification": "UNRESOLVED_AUTHORITY_WORDING",
+      "finding": "Studio line20806 literally prohibits XMP sidecar files; STU-ASSET-019 line30701 inherits XMP read/write, and MT-411 repeats no sidecar. Photo final report now correctly labels interoperability-only exception as proposed clarification, not current authority.",
+      "mitigation": "Root publishes explicit approved ownership/interoperability wording before dependent sidecar adoption. Read-only .lrcat approval does not resolve XMP export ambiguity or authorize a SQL engine.",
+      "sources": [
+        "STUDIO-SPEC",
+        "MT-411",
+        "MT-34411"
+      ]
+    },
+    {
+      "id": "ORIG-IND-FIND-005",
+      "severity": "HIGH",
+      "classification": "CALLER_INCLUSIVE_REUSE_REQUIREMENT",
+      "finding": "A committed-WAL page reader is safe only under its documented checksum-validated prefix precondition. The current caller implements this. Reject any reduction of parser adoption to copying lightroom_sqlite.rs alone; do not misreport the existing caller as missing checksum validation.",
+      "mitigation": "Reuse validation, bounded acquisition and source-stability behavior together behind byte importer; strengthen snapshot/cancellation/global budget proof without adding SQL queries or durable foreign authority.",
+      "sources": [
+        "LC-SQLITE",
+        "LC-CATALOG",
+        "OFFICIAL-WAL"
+      ]
+    },
+    {
+      "id": "ORIG-IND-FIND-006",
+      "severity": "MEDIUM",
+      "classification": "PARITY_EVIDENCE_INSUFFICIENCY",
+      "finding": "Four reports provide valuable sampled workflow/source analysis, not a complete independent original-suite differential acceptance surface. External manuals, readable installed resources, enums, internally verified export and 5484 indexed MTs do not prove runtime parity.",
+      "mitigation": "Retain requirements and all MT IDs; bind original-authored fixtures to exact production import/edit/export/reopen routes, independent oracles, loss disposition, keyboard/pen/accessibility controls and shared HBR proof before any parity verdict."
+    }
+  ],
+  "official_sources": [
+    {
+      "id": "OFFICIAL-WAL",
+      "url": "https://www.sqlite.org/walformat.html",
+      "inspected": "body61-82,124-129; fileformat WAL section also opened",
+      "claim": "Main/WAL lifecycle and commit cutoff matter to coherent bytes; no SQL engine executed",
+      "body_hash": "NOT_CAPTURED"
+    },
+    {
+      "id": "OFFICIAL-BATCHPLAY",
+      "url": "https://developer.adobe.com/photoshop/uxp/ps_reference/media/batchplay/",
+      "inspected": "body264-266,296-362",
+      "claim": "Resolved command can contain error; silent/dontDisplay differ; ID lifetime is session-local",
+      "body_hash": "NOT_CAPTURED"
+    },
+    {
+      "id": "OFFICIAL-REDACT",
+      "url": "https://helpx.adobe.com/sg/acrobat/desktop/protect-documents/redact-pdfs/redact.html",
+      "inspected": "body975-988",
+      "claim": "Manual redaction Apply has optional hidden-information sanitization and saved output",
+      "body_hash": "NOT_CAPTURED"
+    }
+  ],
+  "RESIDUAL_UNCERTAINTY": [
+    "No native GUI, builds, upstream code, tests, SQL engine or writer execution performed; source-only review has no runtime/PASS authority.",
+    "No original-produced professional fixtures acquired or independently rendered in this review.",
+    "Full 5484 MT semantic coverage and other Master Spec modules were not exhaustively inspected; absence conclusions are explicitly scoped.",
+    "No imported canonical SurrealDB state, PDF saved output or real resource high-water measurement was available.",
+    "Final media and root audit re-read; Figma vertical-wrap assertion and other unselected detailed claims were not independently re-audited in this bounded review.",
+    "Two guessed paths (lightroom_snapshot.rs and crates/writer/src/lib.rs) were absent. Actual callers/writer discovered via rg and inspected; no finding depends on absent paths. Read output indexing errors after missing writer were discarded."
+  ],
+  "restart": {
+    "remaining": "Root publishes reconciled approved scope/proof deltas; independent runtime validator later",
+    "next_actor": "parent/root",
+    "product_changes": "NONE",
+    "commands_executed": "Bounded file reads, rg searches, local hashes and official documentation retrieval only"
+  },
+  "local_sources": [
+    {
+      "id": "LC-SQLITE",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_sqlite.rs",
+      "sha256": "7076939ba61b4d53f9e0a51e9d37d73272b8b79ff05d6e07d34640b8186d1c3a",
+      "line_anchors": [
+        82,
+        87,
+        405,
+        443
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "LC-CATALOG",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/lightcraft-88ea1a804b35709e1fe436e3792adf0428b97daa/crates/engine/src/lightroom_catalog.rs",
+      "sha256": "ef2de8174449d731f3aa8f5a2b9fe18e029dfd28ab490e8228f59590c465d17b",
+      "line_anchors": [
+        234,
+        246,
+        298,
+        368
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "DC-IDML",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/idml/src/import.rs",
+      "sha256": "f7b738aa8968dad814860cd7bb23657d6993882895cc015332178637e0c06ba3",
+      "line_anchors": [
+        40,
+        74
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "DC-COMPOSE",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/designcraft-66c7ce7e96ec286a091878cc2541ee8369aa79d6/crates/compose/src/lib.rs",
+      "sha256": "6872eb2c48a24bdc9683df5b902c205b0ead1bf2411e0088f13a1f11318586c0",
+      "line_anchors": [
+        605,
+        625
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "PDF-REDACT",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/redact/src/lib.rs",
+      "sha256": "c58e373786ea29f098120795d2e55b801c4ddabee71dcac4e0840510b5f9c03d",
+      "line_anchors": [
+        401,
+        422
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "PDF-WRITER",
+      "path": "../gov_runtime/tools/studio-craft-source-cache/pdfcraft-f626db25cca2c89f8fa3f7e30d22bf59faea65ec/crates/cos/src/writer.rs",
+      "sha256": "9fc9c16b42c55f064071fd877c98e5d224a8769bc899f0f5958168639d1307b9",
+      "line_anchors": [
+        175,
+        181,
+        233,
+        259
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "STUDIO-SPEC",
+      "path": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md",
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "line_anchors": [
+        7696,
+        8055,
+        8078,
+        20806,
+        20936,
+        30701
+      ],
+      "inspection": "DIRECT_SOURCE_BODY"
+    },
+    {
+      "id": "MT-462",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-462.json",
+      "sha256": "7677772f6d4af7c18892bdbb7a54a801a02534cb26b4f10a0c2f8fc7980cead9",
+      "line_anchors": [
+        35,
+        72
+      ],
+      "inspection": "DIRECT_SCOPE_ACCEPTANCE_BODY"
+    },
+    {
+      "id": "MT-33385",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-33385.json",
+      "sha256": "a04d2e34527d64e6a16c0be759af1dabb8e5b1890b24b4635d42129ae4d64729",
+      "line_anchors": [
+        35,
+        72
+      ],
+      "inspection": "DIRECT_SCOPE_ACCEPTANCE_BODY"
+    },
+    {
+      "id": "MT-200",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-200.json",
+      "sha256": "6c370a7923b4d0fff9b6d638d32c996211885d423efc1c9136c3b6c7cf761d6d",
+      "line_anchors": [
+        35,
+        72
+      ],
+      "inspection": "DIRECT_SCOPE_ACCEPTANCE_BODY"
+    },
+    {
+      "id": "MT-411",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-411.json",
+      "sha256": "adc527b8b4ff495e974e8320c4fe2ad2de0b64f4162d7f6abef364527883ed9a",
+      "line_anchors": [
+        35,
+        72
+      ],
+      "inspection": "DIRECT_SCOPE_ACCEPTANCE_BODY"
+    },
+    {
+      "id": "MT-34411",
+      "path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34411.json",
+      "sha256": "bc8cd93ff89ef175ee6e8a609fd05de49eb02e9d3cb5f3a6ec5141e14a8faeb6",
+      "line_anchors": [
+        35,
+        72
+      ],
+      "inspection": "DIRECT_SCOPE_ACCEPTANCE_BODY"
+    }
+  ],
+  "reviewed_reports": [
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/photo-original.json",
+      "sha256": "179d4d47b6ca2d534ec706d04b5cf9defb70e76527abc3cd895b877073538e35",
+      "status": "SOURCE_REVIEW_NOT_RUNTIME_PROOF"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/design-original.json",
+      "sha256": "6be464151168bde94c8ab6d3815b7e1123a4f985d09edbc30f0ddeb0f0c10033",
+      "status": "SOURCE_REVIEW_NOT_RUNTIME_PROOF"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/media-original.json",
+      "sha256": "59c910f29022889b2955749e1310280bc40a1cd31e147fe8b00327bb44c46167",
+      "status": "SOURCE_REVIEW_NOT_RUNTIME_PROOF"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/cross-suite-control-semantics.json",
+      "sha256": "922d1ea84a9c27a90d211d61f36ce811263a53d36572276931e9ef8a814321c0",
+      "status": "SOURCE_REVIEW_NOT_RUNTIME_PROOF"
+    },
+    {
+      "path": ".GOV/docs_repo/studio-collaboration-2026-10-09/adobe-original-team/original-suite-workflow-audit.json",
+      "sha256": "b5c57a9c37feff97c79d7ca777aa89811fede0da218dc7c9ee3e540d024c5a6e",
+      "status": "SOURCE_REVIEW_NOT_RUNTIME_PROOF"
+    }
+  ]
+}
