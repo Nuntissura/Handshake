@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T09:53:33Z",
+ "updated_at": "2026-10-11T09:57:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1930,11 +1930,15 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "prism R6 plausibles e26f623",
    "scope": "carry prism AbsoluteReport (media_white_rule, divergence) into psd receipts/losses; sweep other dropped receipt fields",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-receipt",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "1a088a9"
+   ],
+   "verdicts": [],
+   "candidate": "1a088a9",
+   "note": "prism absolute report carried to DisplayConversion.converter_absolute; divergence -> Transformed loss DIV-ABS-V2-DISPLAY-WTPT-001; BPC outcome + engine identity/options carried; absolute+BPC requested -> black_point_compensation_ignored_for_absolute_colorimetric; V4-06 22 receipt fields dispositioned; 37 of 37 green"
   },
   {
    "lane_id": "SMB-DEVELOP-JOBS",
@@ -1975,6 +1979,20 @@
    "candidate": null,
    "owner": "builder-blendif-adopt",
    "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "origin": "pigment 0d28c03 Blend-If clip refusals",
+   "scope": "typed losses blend_if_clip_base / blend_if_clipped_layer / clbl=0 not modelled",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "candidate": "29501d7",
+   "owner": "builder-psd-receipt",
+   "commits": [
+    "29501d7"
+   ],
    "verdicts": []
   }
  ],

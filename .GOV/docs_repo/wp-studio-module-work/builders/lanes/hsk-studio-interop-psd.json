@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported)",
+  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported) + SMB-INTEROP-PSD-RECEIPT complete (1a088a9: absolute/bpc/engine receipt fields carried) + SMB-INTEROP-PSD-CLIP-ROLES complete (29501d7: typed losses for Blend-If on clip roles and clbl=0)",
   "commits": [
     {
       "sha": "ee30d62",
@@ -71,6 +71,14 @@
     {
       "sha": "cbed946",
       "subject": "ADJ-2: adjustment layers are graph sources with a stack position (source op + input_ordinal edge); layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported; export keeps the clipping byte (pushed with two pigment commits that were local-only)"
+    },
+    {
+      "sha": "1a088a9",
+      "subject": "interop-psd: carry the Prism absolute colorimetric report into the import receipt and loss entries (SMB-INTEROP-PSD-RECEIPT); also bpc outcome and engine identity from the wide receipt"
+    },
+    {
+      "sha": "29501d7",
+      "subject": "interop-psd: typed losses for Blend-If on a clip base or clipped layer and for Blend Clipped Layers as Group off (SMB-INTEROP-PSD-CLIP-ROLES)"
     }
   ],
   "capabilities_done": [
@@ -107,29 +115,33 @@
     "ADJ-1 layer records: Blend-If gray/R/G/B -> StudioAdvancedBlending.blend_ranges (extra channels preserved), knko 0/1/2 (depth 2 = Enabled + knockout_depth_not_represented), infx/clbl/tsly, channel_blend assumed all enabled (recorded); mask density byte/255*100 and feather f64 px and invert flag -> StudioMaskParameters (vector parameters preserved)",
     "ADJ-1 effects: lfx2/lmfx object-effects version 0 + descriptor 16 via the bounded descriptor reader -> StudioEffectStack (drop/inner shadow, outer/inner glow, bevel/emboss without texture, satin, colour overlay, solid stroke); single slots and multi lists merged in descriptor order; gradient/pattern content, unmapped blend ids and unknown enumerations are typed losses; not rendered (layer_effects_not_rendered kept)",
     "ADJ-2 graph: every mapped adjustment layer has an image source operation (out: image, one, source) and an edge into its group with input_ordinal in Photoshop stack order (bottom 0); root adjustment layers are in graph.outputs in the same bottom-first order; validated by folio (ENG-6 0241877) in to_proposal and again by an independent validate_document call in the tests",
-    "ADJ-2 clip rule: Folio's base rule (nearest earlier stack input not itself clipped) is applied to every stack (group and root) from the clip flags as read; a layer or group whose base is an adjustment layer is written unclipped (whole run sharing that base) and gets the typed loss clip_to_adjustment_not_supported (Unsupported) whose path names the layer and base ids; a clipped adjustment layer is not a base; export compares clipping against the value written to Folio so an unedited export is byte-identical"
+    "ADJ-2 clip rule: Folio's base rule (nearest earlier stack input not itself clipped) is applied to every stack (group and root) from the clip flags as read; a layer or group whose base is an adjustment layer is written unclipped (whole run sharing that base) and gets the typed loss clip_to_adjustment_not_supported (Unsupported) whose path names the layer and base ids; a clipped adjustment layer is not a base; export compares clipping against the value written to Folio so an unedited export is byte-identical",
+    "RECEIPT (1a088a9): WideConverted/DisplayConversion carry the Prism wide receipt's absolute report (AbsoluteSummary: applied, media whites, scale, media_white_rule, divergence), bpc outcome (BpcSummary) and engine identity + options (EngineSummary); a divergence becomes one Transformed loss entry (code = registry id DIV-ABS-V2-DISPLAY-WTPT-001, path document/display/absolute_colorimetric/<rule>); absolute colorimetric with a requested black point compensation adds black_point_compensation_ignored_for_absolute_colorimetric",
+    "CLIP-ROLES (29501d7): Builder::note_clip_role_gaps per stack after the adjustment clip-base demotion; non-identity Blend-If recorded on a clip base or clipped layer -> Unsupported entry with code blend_if_clip_base | blend_if_clipped_layer (pigment keys, ranges stay in the record), clbl=0 on a clip base -> Unsupported entry blend_clipped_layers_as_group_off_not_modelled"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-interop-psd --tests --no-fail-fast",
     "exit": 0,
-    "sha": "cbed946",
-    "passed": 33,
+    "sha": "29501d7",
+    "passed": 37,
     "failed": 0,
     "files": [
       "tests/adjustment_graph_source.rs (3: adjustment_layer_between_raster_layers_keeps_its_stack_position, clipped_to_adjustment_layer_is_unclipped_with_a_typed_loss_and_exports_unchanged, root_stack_applies_the_clip_base_rule_and_a_clipped_adjustment_layer_is_no_base)",
       "tests/adjustment_records.rs (5: levels_block_maps_to_normalized_record_and_bad_blocks_stay_typed, curves_block_maps_composite_curve_and_refuses_bad_point_data, blending_ranges_mask_parameters_and_knockout_map_to_records, lfx2_stack_merges_single_and_multi_slots_in_source_order, hostile_descriptor_and_adjustment_sizes_are_typed_refusals)",
       "tests/foundation_contract.rs (5)",
       "tests/review_r2_regressions.rs (6: +unreadable_unicode_layer_name_is_a_typed_loss, +psd_blend_key_rows_match_the_specification_literally)",
-      "tests/precision_color_export.rs (14: +gray_black_point_compensation_is_applied_when_the_profile_black_is_not_zero, +rgb_intent_and_black_point_compensation_reach_prism_or_are_recorded, +apply_edits_is_all_or_nothing_and_export_keeps_untiled_cells, +non_finite_and_out_of_range_samples_are_typed_losses_on_import, +dims_u32_max_and_aggregate_over_budget_are_typed_errors; embedded_profiles_go_through_prism_and_refusals_are_typed_losses updated for the wide path refusal code)"
+      "tests/precision_color_export.rs (14: +gray_black_point_compensation_is_applied_when_the_profile_black_is_not_zero, +rgb_intent_and_black_point_compensation_reach_prism_or_are_recorded, +apply_edits_is_all_or_nothing_and_export_keeps_untiled_cells, +non_finite_and_out_of_range_samples_are_typed_losses_on_import, +dims_u32_max_and_aggregate_over_budget_are_typed_errors; embedded_profiles_go_through_prism_and_refusals_are_typed_losses updated for the wide path refusal code)",
+      "tests/precision_color_export.rs (+2 at 1a088a9: absolute_report_is_carried_to_the_receipt_and_a_divergence_becomes_a_loss_entry, absolute_report_without_divergence_adds_no_divergence_entry)",
+      "tests/clip_role_losses.rs (2 at 29501d7: blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal, blend_clipped_layers_as_group_off_is_a_typed_loss_on_a_clip_base)"
     ],
-    "clippy": "cargo clippy -p hsk-studio-interop-psd --tests --examples: no warnings in this crate (two too_many_arguments warnings are in hsk-studio-observe)",
+    "clippy": "cargo clippy -p hsk-studio-interop-psd --tests: no warnings in this crate at 29501d7 (two too_many_arguments warnings are in hsk-studio-observe); doctests: cargo test --doc -p hsk-studio-interop-psd, 0 tests",
     "synthetic_fixtures": "tests/common/icc.rs: closed-form CMYK mft2 printer (linear in inks), gray kTRC (gamma 2), CIELAB D50 -> linear sRGB reference; no C: or installed-profile dependency"
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle",
-  "updated_at": "2026-10-11T07:06:24Z",
+  "updated_at": "2026-10-11T09:56:29Z",
   "notes": {
     "mt": "MT-35548",
     "adj1": {
@@ -209,15 +221,51 @@
       "v4_06_class": "colour-management step silently skipped (a configured or assumed intent / black point compensation / embedded profile is dropped, hard-coded or bypassed without a typed loss entry)",
       "v4_06_regex": "black_point_compensation: (false|true)|intent: Intent::|&& kind !=|icc_profile_not_applied|_skipped|!wide_attempted (over crates/hsk-studio-interop-psd/src/**/*.rs)",
       "v4_06_sites_found_9_listed_9": [
-        {"site": "convert.rs:315 intent: Intent::RelativeColorimetric", "disposition": "fixed", "how": "legacy convert_rgb path; RGB and gray now use the wide path whenever the converter has one (PrismConverter does); a legacy-only converter records rendering_intent_not_applied_legacy_rgb"},
-        {"site": "convert.rs:317 black_point_compensation: false", "disposition": "fixed", "how": "same; records black_point_compensation_not_applied_legacy_rgb"},
-        {"site": "proposal.rs:1068 icc_profile_not_applied_for_mode (Lab)", "disposition": "not-applicable", "why": "Lab is PCS-native; the unused profile is a typed PreservedOpaque entry"},
-        {"site": "proposal.rs:1108 if !wide_attempted legacy inspect", "disposition": "not-applicable", "why": "bypass only when the wide path took or typed-refused the profile; no step skipped"},
-        {"site": "proposal.rs:1135 icc_profile_not_applied_for_mode (non RGB/8-16 bit)", "disposition": "not-applicable", "why": "typed PreservedOpaque entry"},
-        {"site": "proposal.rs:1209 retain(code != icc_profile_not_applied)", "disposition": "not-applicable", "why": "removes the base report's stale 'not applied' claim after the converter applied the profile (asserted in the CMYK/gray/RGB tests)"},
-        {"site": "proposal.rs:1224 retain(code != icc_profile_not_applied)", "disposition": "not-applicable", "why": "same, wide path"},
-        {"site": "proposal.rs:1287 icc_profile_not_applied note", "disposition": "not-applicable", "why": "typed entry when no converter exists"},
-        {"site": "loss.rs:192 icc_profile_not_applied", "disposition": "not-applicable", "why": "base report entry, typed"}
+        {
+          "site": "convert.rs:315 intent: Intent::RelativeColorimetric",
+          "disposition": "fixed",
+          "how": "legacy convert_rgb path; RGB and gray now use the wide path whenever the converter has one (PrismConverter does); a legacy-only converter records rendering_intent_not_applied_legacy_rgb"
+        },
+        {
+          "site": "convert.rs:317 black_point_compensation: false",
+          "disposition": "fixed",
+          "how": "same; records black_point_compensation_not_applied_legacy_rgb"
+        },
+        {
+          "site": "proposal.rs:1068 icc_profile_not_applied_for_mode (Lab)",
+          "disposition": "not-applicable",
+          "why": "Lab is PCS-native; the unused profile is a typed PreservedOpaque entry"
+        },
+        {
+          "site": "proposal.rs:1108 if !wide_attempted legacy inspect",
+          "disposition": "not-applicable",
+          "why": "bypass only when the wide path took or typed-refused the profile; no step skipped"
+        },
+        {
+          "site": "proposal.rs:1135 icc_profile_not_applied_for_mode (non RGB/8-16 bit)",
+          "disposition": "not-applicable",
+          "why": "typed PreservedOpaque entry"
+        },
+        {
+          "site": "proposal.rs:1209 retain(code != icc_profile_not_applied)",
+          "disposition": "not-applicable",
+          "why": "removes the base report's stale 'not applied' claim after the converter applied the profile (asserted in the CMYK/gray/RGB tests)"
+        },
+        {
+          "site": "proposal.rs:1224 retain(code != icc_profile_not_applied)",
+          "disposition": "not-applicable",
+          "why": "same, wide path"
+        },
+        {
+          "site": "proposal.rs:1287 icc_profile_not_applied note",
+          "disposition": "not-applicable",
+          "why": "typed entry when no converter exists"
+        },
+        {
+          "site": "loss.rs:192 icc_profile_not_applied",
+          "disposition": "not-applicable",
+          "why": "base report entry, typed"
+        }
       ],
       "plausible_items_fixed": [
         "export.rs apply_edits partial mutation on Err: now all-or-nothing (works on a clone, swaps on success)",
@@ -333,7 +381,135 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-INTEROP-PSD", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission eb7080d (not in bd8533f) queued for next round", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-INTEROP-PSD:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
-    ]
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-INTEROP-PSD",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission eb7080d (not in bd8533f) queued for next round",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-INTEROP-PSD:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
+    ],
+    "receipt_absolute": {
+      "lane": "SMB-INTEROP-PSD-RECEIPT",
+      "brief": "coordinator dispatch 2026-10-11 (prism e26f623 AbsoluteReport in wide receipts; carry it through, V4-06 sweep of other receipt fields)",
+      "status": "READY_FOR_VALIDATION on 1a088a9 (pushed), part of the claim of this lane file together with 29501d7 (V4-14): check, clippy and 37 tests green at 29501d7",
+      "claim": "the importer no longer keeps only receipt.clip: the absolute report reaches DisplayConversion::converter_absolute and a divergence is one loss entry; the receipt tests drive a synthetic ICC v2 display profile (mntr, wtpt D65-adapted) through PrismConverter with absolute colorimetric over two tile columns (two converter calls)",
+      "fields_carried": [
+        "absolute (AbsoluteReport): applied, source_media_white, destination_media_white, scale, media_white_rule, divergence -> AbsoluteSummary -> DisplayConversion.converter_absolute; divergence also a loss entry",
+        "bpc (BpcReport): requested, applied, rule, source/destination black L*, scale, engine_builtin_suppressed -> BpcSummary -> DisplayConversion.converter_bpc; absolute applied + bpc requested + not applied also the entry black_point_compensation_ignored_for_absolute_colorimetric",
+        "engine_name, engine_version, engine_build (features, simd, fma_contraction, interpolation, barycentric_weights, fixed_point), options (allow_use_cicp_transfer, prefer_fixed_point, allow_extended_range_rgb_xyz, precision_bits, clamped_output) -> EngineSummary -> DisplayConversion.converter_engine",
+        "clip (already carried before this slice) and destination_space (already checked: destination_not_rgb)"
+      ],
+      "aggregation": "WideEngine builds one plan per profile pair and intent, so every converter call of one import reports the same absolute, bpc and engine record: the first call's record stands and a divergence on any call is kept (test absolute_report_is_carried_to_the_receipt_and_a_divergence_becomes_a_loss_entry: two tile columns give one entry)",
+      "loss_entry": {
+        "divergence": "kind Transformed, code = Prism's registry id (DIV-ABS-V2-DISPLAY-WTPT-001, verbatim from AbsoluteReport.divergence), path document/display/absolute_colorimetric/<media_white_rule> (wtpt_as_written); exactly one per import. Photoshop's normative reading stays Operator decision D15.",
+        "bpc": "kind Transformed, code black_point_compensation_ignored_for_absolute_colorimetric, path document/black_point_compensation; added because the default (bpc assumed on) otherwise produced only black_point_compensation_assumed_on for an intent that ignores it (Prism rule absolute_ignores_bpc)"
+      },
+      "export_side": "NOT_APPLICABLE: export.rs and writer.rs contain no Prism call (grep hsk_studio_prism in src: proposal.rs hash_hex/profile_hash, convert.rs only), so an export has no absolute report to carry; edits of display-converted layers are already the typed export loss; the import receipt is Provenance::display",
+      "v4_06_sweep": {
+        "failure_class": "a Prism result record (receipt, delivery, diagnostic state, error record) reaches interop-psd and fields of it are dropped at the converter boundary",
+        "regex": "\\.receipt\\b|result\\.(pixels|delivery|diagnostic_state)|failure\\.|TransformResult|WideTransformResult",
+        "sites_in_src": "7, all in src/convert.rs (count verified by Grep at 29501d7; tests/examples have none)",
+        "per_site": [
+          {
+            "site": "convert.rs:401 convert_rgb Ok(result) => result.pixels (legacy TransformResult)",
+            "disposition": "not-applicable/justified: the legacy TransformReceipt (prism lib.rs:201-218) has no absolute, bpc-outcome or clip field; its fields are request echoes (intent fixed relative colorimetric, bpc fixed false: both already typed losses rendering_intent_not_applied_legacy_rgb and black_point_compensation_not_applied_legacy_rgb), profile ids and hashes (provenance holds icc_sha256_hex), icc_version, bit_depth, analytical, options, cache_hit, revision, correlation_id, pixel_count (operational)"
+          },
+          {
+            "site": "convert.rs:402 convert_rgb Err(failure) => failure.error.code()",
+            "disposition": "justified: the typed refusal code is the report (refusal_code maps it to a fixed loss code); operation_error, delivery and diagnostic_state describe Prism's own Observe frames, which Prism already sent to the caller's sink"
+          },
+          {
+            "site": "convert.rs:471 convert_wide Err(failure) => failure.error.code()",
+            "disposition": "justified: same as :402"
+          },
+          {
+            "site": "convert.rs:473 result.receipt.destination_space",
+            "disposition": "used (refusal destination_not_rgb)"
+          },
+          {
+            "site": "convert.rs:476 result.pixels",
+            "disposition": "used"
+          },
+          {
+            "site": "convert.rs:477 result.receipt.clip",
+            "disposition": "used (carried before this slice)"
+          },
+          {
+            "site": "convert.rs:491 result.receipt (absolute, bpc, engine_*, options)",
+            "disposition": "FIXED: carried (new)"
+          }
+        ],
+        "wide_receipt_fields_not_carried": [
+          {
+            "field": "source_profile_id, destination_profile_id",
+            "why": "echo of the host's PrismRoute ids; the destination id is already the tile colour_profile_id and the working_space_rgb binding"
+          },
+          {
+            "field": "source_sha256, destination_sha256",
+            "why": "echo of profile_hash of the bytes the importer passed; Provenance::icc_sha256_hex holds the source hash; the destination bytes belong to the host route"
+          },
+          {
+            "field": "source_kind, destination_kind (ProfileKind)",
+            "why": "derivable from the profile bytes whose hash is recorded; no loss claim depends on it"
+          },
+          {
+            "field": "source_space",
+            "why": "echo; DisplayConversion::source_space already says cmyk, lab, gray or rgb"
+          },
+          {
+            "field": "intent",
+            "why": "echo of the request; DisplayConversion::intent (+ intent_assumed) records what was asked"
+          },
+          {
+            "field": "cache_hit",
+            "why": "depends on call order inside the converter, not on the picture"
+          },
+          {
+            "field": "revision, correlation_id",
+            "why": "echo of the PrismRoute values"
+          },
+          {
+            "field": "pixel_count",
+            "why": "equals the submitted count; the importer checks converted.pixels.len() == raw.len() and counts pixels_converted"
+          },
+          {
+            "field": "chunks (WideChunkAccount)",
+            "why": "STU-CON-044 admission accounting for a caller's budget; PrismConverter uses WideEngine, not AdmittedWideEngine (routing decision still with the lead, open_plausible_review_items); sum it when that lands"
+          },
+          {
+            "field": "output_sha256",
+            "why": "digest of one call's unclamped f32 output; a per-call value has no single-valued fold over many tile calls without an invented combiner; the tile digests (colour_sha256_hex) cover the clamped result"
+          }
+        ],
+        "count_check": "WideReceipt has 22 fields (prism wide.rs:731-757): 8 carried or used (destination_space, engine_name, engine_version, engine_build, options, bpc, absolute, clip) + 14 justified (source_profile_id, destination_profile_id, source_sha256, destination_sha256, source_kind, destination_kind, source_space, intent, cache_hit, revision, correlation_id, pixel_count, chunks, output_sha256) = 22"
+      },
+      "red_proof": "in the shared tree (own crate, nothing depends on interop-psd; files touched after restore): the divergence note emitted whenever absolute colorimetric applied (instead of only on a divergence) failed absolute_report_without_divergence_adds_no_divergence_entry (v4 display, D65 white: entry present) and left the other test green; removing the entry entirely was not run separately (the present-case test asserts exactly one entry with the id as code)",
+      "retry_guard_route": "no block occurred: the deliberate red-proof runs (a mutation of src, then a restore) were each run once, and the green runs followed commits (HEAD changed). One focused run with a filter that matched no test (exit 4) was repeated with test-name filters. No gameplan step added (product test, not infrastructure).",
+      "unverified": [
+        "Photoshop's normative media-white reading for a v2 display profile (D15): the entry reports the divergence; it does not choose",
+        "whether a LittleCMS 2 or ICC.1:2022 reading is right for Studio"
+      ]
+    },
+    "clip_roles": {
+      "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+      "brief": "coordinator message 2026-10-11 during the receipt slice (pigment 0d28c03 refuses Blend-If on a clip base / clipped layer; clbl=0 not modelled); separate commit",
+      "status": "READY_FOR_VALIDATION on 29501d7 (pushed); check, clippy and 37 tests green",
+      "roles": "after unclip_adjustment_bases each stack (group children and root) is classified by the clip flag written to Folio, as pigment Group::clip_role: Clipped = carries the flag; Base = unclipped with a clipped layer directly above. A layer demoted because its base is an adjustment layer is Unclipped and its adjustment base is no Base",
+      "blend_if": "only ranges that reached the Folio record count (record.advanced_blending.blend_ranges non-empty = non-identity, same channel set pigment sees); the ranges stay in the record; entry kind Unsupported, code blend_if_clip_base | blend_if_clipped_layer (pigment keys), path layer[i]/blend_ranges(layer_id=ID) and, for a clipped layer, layer[i]/blend_ranges(layer_id=ID,base_layer_id=BASE). Groups and adjustment layers are stack entries and count. Ranges preserved only as opaque extra-channel bytes do not.",
+      "clbl": "clbl=0 on a clip base -> Unsupported entry blend_clipped_layers_as_group_off_not_modelled, path layer[i]/tagged/clbl(layer_id=ID); the record keeps blend_clipped_effects=false. Decision (OPEN, lead may widen): no entry where the setting changes nothing (no clipped layer above the layer, or set on the clipped layer itself); Photoshop writes clbl on layers generally, so an entry per clbl=0 layer would report non-effects",
+      "tests": "tests/clip_role_losses.rs (2); red-proof: with the note_clip_role_gaps call commented out both tests fail at their first assertion (clip_role_losses.rs:170 and :211), restored and touched",
+      "not_done": "composite lowering reporting of the two roles and render-gpu/render-cpu follow-ups are other lanes (diagnostics topic blend-if-clip-roles)"
+    }
   }
 }
