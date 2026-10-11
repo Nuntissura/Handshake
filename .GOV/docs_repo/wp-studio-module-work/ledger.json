@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:54:48Z",
+ "updated_at": "2026-10-11T07:59:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -101,6 +101,12 @@
     "to": "builder-develop-2",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r7_prereview": {
+    "result": "FIX_FIRST (stale 64-px claims in convert.rs + DESCRIPTOR, site list 26 vs 24)",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
    }
   },
   {
@@ -132,6 +138,12 @@
     "to": "rem-components",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r7_prereview": {
+    "result": "SAFE_TO_JUDGE",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
    }
   },
   {
@@ -556,6 +568,12 @@
     "to": "rem-controls",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r7_prereview": {
+    "result": "SAFE_TO_JUDGE",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
    }
   },
   {
@@ -1021,6 +1039,12 @@
     "to": "fixed after candidate in 65a08c9 (in R7 candidate 2074f5e)",
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
+   },
+   "r7_prereview": {
+    "result": "FIX_FIRST (paperwork: R6 fix notes, claim lists later prism commits)",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
    }
   },
   {
@@ -1485,7 +1509,13 @@
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
    },
-   "open_plausible": "R6 PLAUSIBLE not done: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT combos"
+   "open_plausible": "R6 PLAUSIBLE not done: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT combos",
+   "r7_prereview": {
+    "result": "FIX_FIRST (cancel doc claim false, chunk scratch record wrong, stale site list, flaky timing test)",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
+   }
   },
   {
    "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
@@ -1510,6 +1540,12 @@
     "to": "rem-components",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r7_prereview": {
+    "result": "SAFE_TO_JUDGE",
+    "at": "2026-10-11T07:59:09Z",
+    "ref": "validation/R7-prereview-a.json",
+    "head": "0e48167"
    }
   },
   {
@@ -1869,6 +1905,21 @@
    "status": null,
    "owner": "builder-psd-receipt",
    "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "origin": "V4-15 split (pre-review A): feature commits judged separately from the 2-FAIL SMB-DEVELOP lane",
+   "scope": "tile-parallel develop (f132843) + prism AdmittedWideJob adoption (78fd379)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-develop-jobs",
+   "commits": [
+    "f132843",
+    "78fd379"
+   ],
+   "candidate": "78fd379",
    "verdicts": []
   }
  ],

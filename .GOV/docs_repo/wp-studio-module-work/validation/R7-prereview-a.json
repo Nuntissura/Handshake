@@ -1,0 +1,357 @@
+{
+ "kind": "pre-review",
+ "id": "R7-prereview-a",
+ "rule_refs": [
+  "V4-13",
+  "V4-14",
+  "V4-06",
+  "V4-07",
+  "CX-EXEC-015(1)",
+  "lead decision 2026-10-11T07:30:00Z (V4 applies to code added/touched after 05:40Z)",
+  "lead decision 2026-10-11T07:19:59Z (STU-CON-044 provisional reading)"
+ ],
+ "repo": "wt-studio-assets, branch codex/handshake-studio-assets (committed blobs only; shared working tree ignored)",
+ "head": "0e481670efdd588b9d25d3c0166128de9985fe02",
+ "head_note": "Fetches: b555905 (07:29Z), 0f58c1c (07:48Z, no change to reviewed crates), 0e48167 (07:55Z). 0e48167 adds e26f623 to hsk-studio-prism (SMB-PRISM-ENG-6 R6 PLAUSIBLE items: wide_heap, non-invertible destination curves, absolute media-white rule; also edits ENG-5's tests/oracle_t1_lcms2.rs); reviewed below. develop, controls, components, folio, accord, observe, .config and tools are identical in all three. Line numbers cite 0e48167.",
+ "reviewer": "pre-reviewer A (read-only; no cargo, no sub-agents)",
+ "severity_rule": "CONFIRMED only with file:line at head (or the kernel file/key for process facts); else PLAUSIBLE",
+ "started_at": "2026-10-11T07:29:41Z",
+ "updated_at": "2026-10-11T07:58:05Z",
+ "status": "complete",
+ "lanes": [
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "last_fail": "STUDIO-R6 FAIL_V2 @bd8533f (corpus root); STUDIO-R5 FAIL_V1 @1d404f8 (machine-local C: profiles, SKIP green)",
+   "diff_reviewed": "bd8533f..head -- crates/hsk-studio-prism: 65a08c9 (ENG-5 R6 fix, committed under SMB-PRISM-ENG-7), 8634765 (SMB-PRISM-ENG-7 jobs), d7027c3 and e26f623 (SMB-PRISM-ENG-6; e26f623 also turns the T1 D50-wtpt attribution into an assertion in ENG-5's tests/oracle_t1_lcms2.rs:240-255)",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 FAIL_V1 t1-oracle-reads-machine-local-c-profiles-skip-green",
+     "verdict": "fixed",
+     "evidence": "No test reads a system dir: tests/oracle_t1_lcms2.rs:125 and tests/wide_profiles.rs:163 read installed profiles only through wide_support::corpus_read (tests/wide_support/mod.rs:421-428); absence -> not_proven (mod.rs:432-436) writes NOT_PROVEN to real stderr and asserts under require_corpus/HSK_PRISM_REQUIRE_CORPUS. t1_lcms2.json:10 default_locations is provenance read only by populate_corpus.py:77 and pinned (1 line) in .config/machine-paths.toml; step-0 regex over prism/develop/controls/components src+tests finds no other hit. Revert pin: step 0 exit 72 (drive-letter lines in tests) and run-round exit 73 (NOT_PROVEN)."
+    },
+    {
+     "finding": "R6 FAIL_V2 oracle-corpus-root-unresolved-from-exports",
+     "verdict": "fixed",
+     "evidence": "65a08c9: tests/wide_support/mod.rs:382-415 workspace_root() = CARGO_MANIFEST_DIR ancestors().nth(2); corpus_root() reads .config/oracle-corpus.toml search/max-ancestors (8) and takes the first ancestor A with A/search a dir; corpus.json:4 icc_subdir=icc; no icc_root, no env search path (HSK_PRISM_ORACLE_PROFILE_DIRS read by no .rs). From studio-round/src/handshake-studio-assets the walk reaches 'Handshake Worktrees' at ancestor 5 (<= 8); Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc exists (9 profiles + MANIFEST.json). ENG-7 lane notes.corpus_proof: export layout prism-eng6/src, HSK_PRISM_REQUIRE_CORPUS=1, T1 42/42, wide_profiles 3/3, 0 NOT_PROVEN; ENG-6 d7027c3 run 128 passed, 0 NOT_PROVEN. Revert pin is round-level only: installed cases would print NOT_PROVEN (run-round exit 73); no in-crate test exercises the walk from an export-shaped tree (see new_findings[4])."
+    }
+   ],
+   "v4_06_check": "No V4-06 class/regex/site list exists for the R6 class in any lane file (ENG-5 lane file has none; ENG-6 lists the R5 class machine_local_path_in_tests only). Own sweep at head, regex CARGO_MANIFEST_DIR|\\.\\./\\.\\./\\.\\./|env::var|split_paths|icc_root|override_env over crates/hsk-studio-prism: wide_support/mod.rs:384 (workspace root by the convention: not_applicable), :418 HSK_PRISM_REQUIRE_CORPUS (flag, not a path: not_applicable), corpus.json:5 (text), t1_lcms2.json:8 search_env_var (stale key, new_findings[1]), populate_corpus.py (tool, --root override): 0 test reads through a crate-relative or env root.",
+   "new_findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_06_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng5.json (commits end at baeecf3; status READY_FOR_VALIDATION, updated_at 05:27:27Z; no R6 remediation record); ledger.json lanes[39] note",
+     "evidence": "The R6 fix 65a08c9 is recorded only in ENG-7's lane file; ENG-5's lane file names no R6 failure class, regex or site list (V4-06: list/count blocks READY). Ledger claims '65a08c9 (+d7027c3)' but 8634765 (ENG-7) and e26f623 (ENG-6, 07:50Z, edits ENG-5's own tests/oracle_t1_lcms2.rs KNOWN_FINDINGS attribution) are later commits in the crate that the ENG-5 claim does not list (V4-14).",
+     "remediation": "ENG-5 lane file: claim 65a08c9 (+8634765, d7027c3, e26f623 in the judged tree), class regex + per-site verdicts"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stale_fixture_metadata",
+     "file_line": "crates/hsk-studio-prism/tests/oracle/t1_lcms2.json:8",
+     "evidence": "\"search_env_var\":\"HSK_PRISM_ORACLE_PROFILE_DIRS\" still advertises an env search path that 65a08c9 removed (no .rs reads it; ENG-7 notes keep it as generator output). Contradicts corpus.json:5 'no env-var paths'.",
+     "remediation": "Drop or mark the key retired in t1_generate.py output and the fixture"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_integrity_carried",
+     "file_line": "crates/hsk-studio-prism/tests/oracle_t1_lcms2.rs:340-341,358,366",
+     "evidence": "Carried from R5 and R6 (3rd round): the asserted T1 dE2000 maps Prism's and lcms2's device output through the engine's own destination->PCS leg (device_to_lab with WideEngine, :340-341); de_vs_lcms_lab_max / ref_consistency_max are only printed in the ORACLE_T1 line (:366). e26f623 asserted the D50-wtpt attribution (:240-255) but not this metric. Belongs in the 07:30Z PLAUSIBLE-carried register.",
+     "remediation": "Assert de_vs_lcms_lab against a stated threshold, or record a lead register decision"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "convention_gap",
+     "file_line": "crates/hsk-studio-prism/tests/wide_profiles.rs:163",
+     "evidence": "corpus_read(file, None): installed USWebCoatedSWOP/CoatedFOGRA39/Rec2100HLG203 are read without SHA-256 pin, while .config/oracle-corpus.toml:10 says a test pins every file it reads by sha256. Pre-adoption code (bac4790, 05:32Z) -> process note.",
+     "remediation": "Pass the sha256 recorded in t1_lcms2.json for these three files"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "regression_pin",
+     "file_line": "crates/hsk-studio-prism/tests/wide_support/mod.rs:382-415",
+     "evidence": "A revert of 65a08c9 turns no prism test red; it shows only as round NOT_PROVEN (exit 73) because run-round does not set HSK_PRISM_REQUIRE_CORPUS. Acceptable under V4-03, but the export-layout walk itself is untested in-crate.",
+     "remediation": "Optional: corpus_root(start) + unit test on a temp tree of round-export depth"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "No unfinished WIP: later prism commits 8634765 (SMB-PRISM-ENG-7, READY) and d7027c3 (SMB-PRISM-ENG-6, READY) are complete; only the V4-14 listing gap (new_findings[0]).",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Product code: both prior FAILs fixed at head. FIX_FIRST is paperwork only (new_findings[0]: lane record, V4-06 list, claim listing incl. e26f623 which edits this lane's test file); new_findings[1..4] optional. T1 installed cases will run in a round for the first time since ENG-6's evaluator rewrite; ENG-6 reports 137 green with the corpus required at e26f623.",
+   "reviewed_at": "2026-10-11T07:58:05Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "last_fail": "STUDIO-R6 FAIL_V1 @bd8533f (mab-input-count-slice-panic; descriptor-admission-scope-contradiction)",
+   "diff_reviewed": "bd8533f..head -- crates/hsk-studio-prism: d7027c3 (R6 remediation), e26f623 (R6 PLAUSIBLE items, listed in the lane file at 07:53:04Z); 8634765 (ENG-7 job route) in the same tree",
+   "prior_fail_fixed": [
+    {
+     "finding": "R6 mab-input-count-slice-panic (icc_eval.rs:655-660 @bd8533f)",
+     "verdict": "fixed",
+     "evidence": "src/icc_eval.rs:400-404 ICC_MAX_CLUT_INPUTS=16, mab_max_inputs(); :694 refuses inputs > min(16, grid_points.len()) as MalformedProfile before any index; :701 grid via get(..inputs); Clut::new :449 refuses inputs>8 / outputs>16 (UnsupportedProfile); no-CLUT arm :708 requires inputs==outputs (<=16), so every v[..inputs]/v[..outputs] on [f64; 16] in Table::eval :731-771 is bounded; mft1/mft2 bounded by Clut::new before eval. Test tests/wide_hostile.rs mab_input_channel_counts_beyond_the_icc_clut_array_are_refused_typed: A2B0 17/64/255 inputs with and without CLUT, B2A0 17/255, 9/16 -> Unsupported, 17/255 outputs -> Unsupported, 5 inputs -> Malformed, all through WideEngine transform; plan_error() panics on Ok. Revert reaches t.grid_points[..inputs] -> slice panic -> red (lane red proof: 'range end index 17 out of range for slice of length 16')."
+    },
+    {
+     "finding": "R6 descriptor-admission-scope-contradiction (wide.rs:1039 @bd8533f)",
+     "verdict": "fixed",
+     "evidence": "src/wide.rs:1176 not_in_scope now 'caller memory-ledger admission by the plain WideEngine ... the admitted route AdmittedWideEngine does charge it'; admitted_route cites tests/wide_admitted.rs, wide_hostile.rs and wide_job.rs tests and says byte counts are reasoned bounds, not measured heap. tests/wide_admitted.rs descriptor_scopes_the_ledger_not_in_scope_entry_to_the_plain_engine_and_cites_its_tests asserts the old entry is absent (red on revert) plus a JSON balance check. The same-class sweep is missing (new_findings[0..1])."
+    }
+   ],
+   "v4_06_check": "Lane class 'untrusted count indexes a fixed-size array/slice', regex in notes.remediation_R6.v4_06_sites, list recorded with d7027c3 line numbers, count_hits 177 = listed 177. At 0f58c1c (prism == d7027c3) the regex matched 181 lines (177 listed + 4 comment-only icc_eval.rs:373,429,707,769). At head (after e26f623) it matches 184 lines and 91 of the 177 listed file:line entries no longer point at a hit (icc_eval.rs sites after :249 moved +23, wide.rs sites after :185 moved +43): new_findings[3]. Spot-checked 9 regions at d7027c3 numbering, verdicts hold in substance: admitted.rs:94-98 (after b.len()<132 refusal :88), :115-124 (n<=8, chunks_exact(12)); icc_eval.rs 213/223/225/232 (len-guarded arms); Clut::new checked strides; Table::eval scratch bounded; wide.rs frame() (len, count<=MAX_WIDE_TAGS, table_end checked); compute chunks (64 x {1,3,4}); wide_job.rs:209-215. e26f623's own V4-06 lists (notes.r6_plausibles.v4_06_site_lists, 3 classes) checked: from_pcs guards at icc_eval.rs:956/968 cover every destination inverse. V4-01: deny(arithmetic_side_effects) in admitted, bpc, icc_eval, wide, wide_admitted, wide_job, wide_plan (not lib.rs, new_findings[5]). V4-04: no fault hooks, no env reads in src, features default=[].",
+   "new_findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "doc_contradiction_same_class_as_R6_FAIL_2",
+     "file_line": "crates/hsk-studio-prism/src/wide.rs:1176 (WIDE_DESCRIPTOR recovery 'canceled: nothing was produced') vs src/wide_job.rs:375-389, :418-432; tests/wide_chunks.rs:241-245",
+     "evidence": "The same descriptor's job_route/chunking say bands convert into caller buffers in 64-px chunks with a cancel check per chunk; a canceled convert_band leaves the converted prefix in `out`, and convert_band_in_place leaves the caller's INPUT buffer partly overwritten (prefix converted, rest original). tests/wide_chunks.rs:241-245 asserts exactly that prefix. 'nothing was produced' invites a retry from that buffer, which double-converts the prefix. Still present at head after e26f623 rewrote other descriptor keys.",
+     "remediation": "Scope recovery: transform/finish canceled = no result; canceled band = converted chunk prefix, redo from source"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_06",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng6.json notes.remediation_R6 (v4_06_class covers FAIL 1 only); item2_descriptor has no class/regex/site list",
+     "evidence": "R6 FAIL 2 (descriptor/doc claim contradicting behaviour or another key) got a point fix and a test but no class sweep; new_findings[0] and [2] are unswept sites of that class in the same descriptor/module docs.",
+     "remediation": "Add class + regex (WIDE_DESCRIPTOR keys, module docs: nothing|never|always|every|only) with per-site verdicts"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "accounting_doc_mismatch",
+     "file_line": "crates/hsk-studio-prism/src/wide.rs:46-49,71-79; src/wide_job.rs:23-24,375,418; tests/wide_chunks.rs:81-88",
+     "evidence": "WideChunkAccount.scratch_bytes = 64 x out_ch x 4 (768 B RGB, 256 B Gray) but every job band uses a [u8; CHUNK_STAGE_BYTES] = 1024 B stack stage; descriptor chunking ('stack staging buffer of scratch_bytes') and wide_job.rs:23-24 equate them; the test asserts the formula, not the buffer. Small and on the stack, but it is the STU-CON-044 'accounted lifetime' record the lead's 07:19:59Z reading relies on. (transform path wide.rs:1033 does allocate exactly scratch_bytes.) Unchanged by e26f623, whose admitted_route text says stack is not charged.",
+     "remediation": "Report CHUNK_STAGE_BYTES for job bands (or slice the stage to 64*out_ch*4) and fix the two docs"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "v4_06_count",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng6.json notes.remediation_R6.v4_06_sites (177 sites, d7027c3 line numbers) vs crates/hsk-studio-prism/src/*.rs at head",
+     "evidence": "The lane regex matches 184 lines at head; 91 listed file:line entries no longer hit (e26f623 inserted Curve::require_invertible at icc_eval.rs:249-270 and wide.rs fields/consts after :185) and 98 hits are unlisted (4 of them comment lines). The lane updated other V4-06 lists for e26f623 but not this one. A validator recount reports a mismatch.",
+     "remediation": "Re-run the FAIL-1 regex at e26f623 and relist with current line numbers (say whether comments count)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "flaky_test_false_red",
+     "file_line": "crates/hsk-studio-prism/tests/wide_chunks.rs:212-247",
+     "evidence": "cancellation_is_checked_between_chunks_of_at_most_64_pixels times a 2 Mi-px reference band, then cancels from a thread sleeping full/2 and asserts Err(Canceled) ('the band finished within half of its reference time'). If the reference run is slowed (round load, the 8-thread sibling test in this binary) and the canceled run is not, or the sleeper wakes late, the band completes and the test fails red. A false red here lands on a lane one FAIL from fix_budget_exhausted.",
+     "remediation": "Retry with shrinking delay until Canceled (bounded), or cancel deterministically (counted token / pre-cancel at chunk k)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_01_process",
+     "file_line": "crates/hsk-studio-prism/src/lib.rs:1-20 (no #![deny(clippy::arithmetic_side_effects)]; legacy parse_profile ~:405-450)",
+     "evidence": "lib.rs was touched after 05:40Z (8634765: mod/pub use lines) and decodes untrusted ICC bytes on the legacy route, but carries no deny; the lane reports 0 lint sites there, so the attribute is free. Mod-line-only touch -> process note.",
+     "remediation": "Add the module-level deny to lib.rs (0 sites per lane)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "residual_after_e26f623",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:262-270 (require_invertible)",
+     "evidence": "e26f623 closed the three R6 PLAUSIBLE items (gamma<=0 / constant table refused at plan time in from_pcs; tests/wide_heap.rs measures every lease kind; DIV-ABS attribution asserted in oracle_t1_lcms2.rs:240-255). Residual, disclosed by the lane: a non-monotonic, non-constant destination curv table is still accepted and inverted by table_inverse although ICC calls its inverse undefined.",
+     "remediation": "Refuse non-monotonic destination tables or record the choice in WIDE_DESCRIPTOR with a test"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "exactness_overclaim_lane_notes",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng6.json capabilities_done[4] vs crates/hsk-studio-prism/tests/wide_fusion.rs:81-82",
+     "evidence": "Lane notes claim fused pairs '100% bit-identical to the staged plan'; the test asserts max |diff| <= 2e-6 and >= 99% bit-identical. Source docs make no bit-identity claim for fusion, so only the lane record overclaims. No pigment exactness classes are reported by prism.",
+     "remediation": "Weaken the lane note to what the test asserts"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "e26f623 (07:50Z) was pushed after the d7027c3 READY but is listed in the lane commits (lane file updated 07:53:04Z) and is complete (137 passed per its message); it is the newest prism commit at head. V4-14 satisfied for this lane.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Both R6 FAILs fixed with red-on-revert tests; R6 PLAUSIBLEs closed in e26f623. Fix first: new_findings[0] (descriptor recovery contradicts partial band output: same class as the R6 descriptor FAIL, one string), [1] (class sweep record for FAIL 2), [2] (scratch_bytes vs 1024 B stage) and [3] (FAIL-1 site list stale at head); [4] strongly advised (false-red risk).",
+   "reviewed_at": "2026-10-11T07:58:05Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "last_fail": "STUDIO-R5 FAIL_V2 @1d404f8 (ljpeg-tiny-file-forces-frame-allocation); STUDIO-R3 FAIL_V1; STUDIO-R6 PASS_V3 @bd8533f (78fd379 queued)",
+   "diff_reviewed": "1d404f8..head -- crates/hsk-studio-develop: 5ef2dd9, f132843, 8962bbc (judged PASS in R6), 85fe452 (SMB-DEVELOP-WIDE), 78fd379 (SMB-DEVELOP-JOBS, not yet judged); dependency prism moved to d7027c3 after 78fd379",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 FAIL_V2 ljpeg-tiny-file-forces-frame-allocation (dng.rs:438-449 @1d404f8)",
+     "verdict": "fixed",
+     "evidence": "src/dng.rs:461-479 payload = sum of block byte counts capped by file length; needed = pixels.div_ceil(8) (compression 7) or pixels*bytes_per_sample (compression 1); needed > payload -> InvalidDimensions before vec! at :480. dng.rs unchanged since 8962bbc (no diff bd8533f..head). tests/develop_dng.rs:1002 dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload (<4 KiB file declaring 16384x16384, tracking allocator), :1033 dng_dims_u32_max_is_a_typed_refusal_without_allocation, :1063 dng_aggregate_over_budget_is_refused_before_allocating. Revert: old code allocates the 512 MiB frame and ends in invalid_container -> red (lane RED run; R6 reviewer confirmed)."
+    },
+    {
+     "finding": "R3 FAIL_V1 black-delta-i64-overflow-panic + corpus-default-path-mismatch",
+     "verdict": "fixed",
+     "evidence": "tests/develop_dng.rs:614 dng_black_level_delta_overflow_is_a_typed_refusal; tests/real_dng.rs:102 fetch_script_default_matches_test_default (both unchanged at head)."
+    },
+    {
+     "finding": "R6 PLAUSIBLE converter side effects depend on thread count on a failing run (f132843)",
+     "verdict": "fixed",
+     "evidence": "78fd379 design: pipeline.rs:1031-1052 prepares one job per window before any tile; bands charge nothing and calls/clip/Observe change only in PrismJob::finish (convert.rs:256-271), which an aborted run never reaches (job dropped). Not pinned by a failing-run side-effect assertion in tests/develop_parallel.rs."
+    }
+   ],
+   "v4_06_check": "Lane class 'declared size drives an allocation before the payload supports it', regex vec!\\[|with_capacity|\\.reserve\\(|\\.resize\\(|\\.to_vec\\( , list scoped 'at 8962bbc', 26 sites (R6 recount at bd8533f = 26). At head the regex matches 24 lines: convert.rs 0 (listed :192 is gone), curves 3, dng 3, ljpeg 3, par 3, pipeline 9 (361,447,532,824,847,848,849,1031,1144 vs listed 361,447,532,776,799,800,801,964,978,1096), tiff 3 -> count and line numbers stale (new_findings[1]). Spot-checked: dng.rs:480 (bound before, fixed), tiff.rs:99 (count <= MAX_ENTRIES_PER_IFD), tiff.rs:179/211 (data_of proves bytes present), ljpeg.rs:334 (checked total :272-283), pipeline.rs:824/847-849 (tile edge and Limits bounded, same sites as old 776/799-801), pipeline.rs:1031 (<= tile count): verdicts still hold in substance.",
+   "new_findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "stale_doc_vs_dependency",
+     "file_line": "crates/hsk-studio-develop/src/convert.rs:20-21; src/lib.rs:239 DESCRIPTOR pending[0]",
+     "evidence": "convert.rs says 'The 64-pixel chunk size of the spec text is still not used (a band is one develop tile...)' and DESCRIPTOR pending[0] says the wide route uses bands of up to 262144 pixels with enrichment pending. At head prism d7027c3 runs every band in <=64-px chunks with a cancel check per chunk and a chunk record (prism src/wide.rs:44, src/wide_job.rs:375-389,418-432), and lead decision 07:19:59Z reads STU-CON-044 as met by that. True when 78fd379 was pushed, false at head; flagged in ENG-6 lane next and ledger SMB-DEVELOP-WIDE note, not done. Same kind as the R6 CONFIRMED stale-descriptor FAIL.",
+     "remediation": "Update convert.rs doc + DESCRIPTOR pending/profile_transform to the 64-px chunking; cite prism tests/wide_chunks.rs"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_06_count",
+     "file_line": "kernel builders/lanes/hsk-studio-develop.json notes[12].v4_06_declared_size_allocations (26 sites at 8962bbc)",
+     "evidence": "Regex at head matches 24 lines, not 26; convert.rs:192 no longer exists and 7 pipeline.rs line numbers moved (78fd379 rewrote the converter route). V4-06: a count mismatch blocks READY_FOR_VALIDATION.",
+     "remediation": "Re-run the regex at 78fd379 and relist the 24 sites with verdicts"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "error_order",
+     "file_line": "crates/hsk-studio-develop/src/pipeline.rs:747-781 (band_window :761 return Err(pixel_limit())), :1034",
+     "evidence": "band_window scans ahead and returns pixel_limit for a LATER tile of the window (its band count > max_bands) before any tile of the window runs, masking an earlier tile's stage A/C error; lib.rs:10-12 and DESCRIPTOR threads.deterministic claim the lowest failing tile decides the error. Unreachable with default BandLimits (262144 x 65536) but reachable via a custom ProfileConverter::band_limits (public trait method, convert.rs:93-95).",
+     "remediation": "If end > start and count > max_bands, end the window (break); test with BandLimits{1,1}"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "corpus_convention_same_class_as_prism_R6",
+     "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:5-6,87-97",
+     "evidence": "corpus_dir() = env STUDIO_DNG_CORPUS else CARGO_MANIFEST_DIR + '../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/dng'; .config/oracle-corpus.toml:3,8-9 forbids env vars and says a CARGO_MANIFEST_DIR-relative root does not resolve from round exports (the class prism ENG-5 FAILed in R6). Test is #[ignore]d (no silent green) and untouched since 03:06Z -> process note.",
+     "remediation": "Resolve via .config/oracle-corpus.toml walk (subdir dng); update fetch-corpus.sh and its pin test"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_07",
+     "file_line": "crates/hsk-studio-develop/src/lib.rs:239 (DESCRIPTOR profile_transform '... else prism refuses (never clipped)')",
+     "evidence": "The DESCRIPTOR string was edited in 78fd379 (after 05:40Z); the never-claim cites no test in that clause (convert.rs:7-8 cites profile_transform_admitted).",
+     "remediation": "Append tests/develop_profile.rs profile_transform_admitted to the clause"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried",
+     "file_line": "crates/hsk-studio-develop/src/tiff.rs:1, src/ljpeg.rs:1 (no deny), ljpeg.rs:141-158 (RSTn)",
+     "evidence": "Carried from R3/R5/R6: untrusted-byte decoders without deny(arithmetic_side_effects) (untouched since adoption) and unremediated LJPEG restart fill/sequence handling. 3+ rounds -> lead register.",
+     "remediation": "deny on tiff.rs/ljpeg.rs; RSTn fill/sequence fix with hand-encoded KATs"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_15",
+     "file_line": "78fd379 (subject 'SMB-DEVELOP-JOBS'); kernel ledger.json lanes[3] candidate 78fd379",
+     "evidence": "A feature slice (job conversion in tile workers; public API change ProfileConverter::prepare/ConversionJob/BandLimits) is submitted as SMB-DEVELOP's candidate; pushed 06:41Z while SMB-DEVELOP's R5 FAIL_V2 was still unjudged (R6 recorded 06:47Z). Under V4-15 (07:30Z) it belongs on its own lane; as is, any defect in it consumes SMB-DEVELOP's last fix-budget FAIL.",
+     "remediation": "Lead: judge 78fd379 as lane SMB-DEVELOP-JOBS, SMB-DEVELOP on its R6-judged scope"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "78fd379 (READY) is the newest develop commit at head; the later dependency commit prism d7027c3 is READY (ENG-6), not WIP, but it made new_findings[0] stale. UNVERIFIED: no develop test run against prism d7027c3 is recorded in the develop lane (prism claims bit-identical output; develop reads no chunk fields).",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Prior FAILs fixed with red-on-revert tests. Fix first (cheap, doc + record only): new_findings[0] stale STU-CON-044 doc/DESCRIPTOR and [1] V4-06 relist. Lead decision advised on [6] (split SMB-DEVELOP-JOBS) before judging, since develop is one FAIL from fix_budget_exhausted.",
+   "reviewed_at": "2026-10-11T07:53:34Z"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "last_fail": "STUDIO-R5 FAIL_V2 @1d404f8 (integer-step-silent-noop-at-saturation); STUDIO-R3 FAIL_V1; STUDIO-R6 PASS_V3 @bd8533f",
+   "diff_reviewed": "1d404f8..head -- crates/hsk-studio-controls: fec865b only (no commit after it); deps accord/observe unchanged bd8533f..head; egui pinned =0.33.3",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 FAIL_V2 integer-step-silent-noop-at-saturation (descriptor.rs:688-691 @1d404f8)",
+     "verdict": "fixed",
+     "evidence": "src/descriptor.rs:680-706 step_value: integer arm saturating_add (:693), dir==0 refused (:702-705), result through moved() (:720-725) which returns StepNoEffect when next == current. tests/step_effect.rs:121-173 integer_and_directionless_steps_at_the_domain_edge_are_refused asserts Err(StepNoEffect) at i64::MAX +1 / MIN -1 for all 4 role combos, store untouched, domain-edge hard bound. Revert: Ok(i64::MAX) returned -> red (R6 reviewer: pre-fix MAX case returned Ok(MAX))."
+    },
+    {
+     "finding": "R3 FAIL_V1 fine-step-silent-noop-precision-9",
+     "verdict": "fixed",
+     "evidence": "tests/step_effect.rs:39, :68, :94 unchanged at head."
+    }
+   ],
+   "v4_06_check": "Lane regex (notes.remediation_R5.search_regex) over src+examples at head: 35 lines (descriptor 12, egui_adapter 11, report 6, store 6; projection/registry/value/lib 0; examples 0) = listed 35. Spot-checked descriptor.rs:274/277 (pointer clamp by spec), :680/:693 (fixed via moved), egui_adapter.rs:140-147 (slider arrows -> step_value, not egui value), report.rs:48-51 (Update None, Abort Canceled), store.rs:229 (Abort without gesture Ok(None) -> Canceled): all match.",
+   "new_findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_r6_api_semantics",
+     "file_line": "crates/hsk-studio-controls/src/report.rs:51; src/store.rs:210",
+     "evidence": "A stray End (no open gesture, store Ok(None)) still reports terminal Success while a stray Abort reports Canceled. Documented, carried from R6.",
+     "remediation": "Report a stray End as non-terminal (None) like a no-change Update, or record a lead decision"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "fec865b (READY) is the newest controls commit; nothing pushed to the crate or its path deps since R6.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Nothing changed since the R6 PASS_V3 verification; regression tests present and red-on-revert; V4-06 count matches. Only a carried PLAUSIBLE.",
+   "reviewed_at": "2026-10-11T07:54:47Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "last_fail": "STUDIO-R5 FAIL_V2 @1d404f8 (swap-switch-skip-variable-binding-type-check); STUDIO-R3 FAIL_V1; STUDIO-R6 PASS_V3 @bd8533f",
+   "diff_reviewed": "1d404f8..head -- crates/hsk-studio-components: ed9b130 only; dependency hsk-studio-folio changed after it (0241877, d0eb304, aa0351a); accord/observe unchanged",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 FAIL_V2 swap-switch-skip-variable-binding-type-check (instance_resolution.rs:473 @1d404f8)",
+     "verdict": "fixed",
+     "evidence": "build_overrides takes &VariableTable (no Option); check_shape uses design.variables() and checks bound-variable existence/type and alias targets; swap_component src/instance_resolution.rs:748-763 and switch_variant :765+ end in check_shape. tests/instance_resolution.rs:1710 swap_and_switch_check_the_variable_types_of_the_result (lane RED on 1d404f8: swap returned Ok instead of TypeMismatch(fills))."
+    },
+    {
+     "finding": "R3 FAIL_V1 classes (resolve path, dead actions, dup ids at Folio validate)",
+     "verdict": "fixed",
+     "evidence": "tests/instance_resolution.rs:1456, :1516, :1577, :1649 present and unchanged at head."
+    }
+   ],
+   "v4_06_check": "Class A regex ^\\s*pub(\\(crate\\))? fn [a-z_]+ = 41 lines and class B regex or_insert|\\.find\\(|\\.insert\\(|\\.position\\(|\\.first\\(\\)|\\.last\\(\\) = 31 lines over src/*.rs at head, equal to the listed 41/31. Spot-checked design.rs:87 (Design::new -> R<Self>), :255-274 property_definitions unique() -> Duplicate, instance_resolution.rs:124-144 VariableTable::new Duplicate, :748-763 swap_component check_shape, :381-390 select_member VariantAssignmentDuplicate, prototype.rs:96-105 inserts (ids unique by Design::new): all match.",
+   "dependency_check": "folio after ed9b130: additive Code::AdjustmentClipBase (components src/lib.rs:107-114 maps Code with a `_ =>` arm, no exhaustive match), 'adjustment' layer kind accepted in folio validate, new vector module + DESCRIPTOR; no type or function components imports (StudioDesignRecords, StudioLayer, Payload, NodeKind, LayerSchema, Parent, OVERRIDABLE_FIELDS, Diagnostic) changed signature in the diff. Build not run (no cargo): UNVERIFIED by compile, no breaking change found by reading.",
+   "new_findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_07",
+     "file_line": "crates/hsk-studio-components/src/design.rs:256; src/lib.rs:198 (DESCRIPTOR)",
+     "evidence": "design.rs:256 doc '... is Duplicate(name) (Folio refuses it too), never a pick' was added in ed9b130 (after 05:40Z) and cites no test (proof exists: design_refuses_repeated_ids property-twice case, tests/instance_resolution.rs:1822). DESCRIPTOR never-claims ('never zero', 'never a flattened subtree copy', 'never mutated') carried from R6 as PLAUSIBLE.",
+     "remediation": "Cite design_refuses_repeated_ids at design.rs:256; cite or weaken the DESCRIPTOR never-claims"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_r6",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:802-891 (OverrideProposal); :748-763 (swap_component)",
+     "evidence": "Carried: whole-instance proposal payload vs field-level write footprint (lost update if the host commits proposal.instance as a replacement); swap refuses instance properties the new main lacks instead of dropping them with a report (STU-DS-119; carried since R3 -> lead register).",
+     "remediation": "Carry edited fields as a delta or widen the footprint; decide STU-DS-119 drop-vs-refuse with a regression"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "ed9b130 (READY) is the newest components commit at head. Folio commits after it belong to folio lanes; included here only as a CX-VAL-009 input change.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Crate unchanged since the R6 PASS_V3 verification; regression red-on-revert; V4-06 counts match. Optional cheap V4-07 citation (design.rs:256) before the round.",
+   "reviewed_at": "2026-10-11T07:54:47Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "last_fail": "STUDIO-R5 FAIL_V1 @1d404f8 (design-new-accepts-duplicate-component-ids); STUDIO-R6 PASS_V2 @bd8533f",
+   "diff_reviewed": "same tree as SMB-COMPONENTS: ed9b130 only; folio dependency changes as listed there",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 FAIL_V1 design-new-accepts-duplicate-component-ids (design.rs:16-19,101-104,183-193 @1d404f8)",
+     "verdict": "fixed",
+     "evidence": "src/design.rs:87-163 Design::new returns R<Self> and refuses Duplicate for document node ids (artboards/spreads/layers one namespace), design entries, component/set ids, container layers; indexes filled after the checks. src/instance_resolution.rs:124-144 VariableTable::new refuses repeated collection/variable ids. tests/instance_resolution.rs:1822 design_refuses_repeated_ids (member id twice used to resolve the second definition; RED recorded on the 1d404f8 form)."
+    }
+   ],
+   "v4_06_check": "Shared with SMB-COMPONENTS (class A 41 = 41, class B 31 = 31 at head; design.rs:87/111-148 sites fixed).",
+   "new_findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_r6_consistency",
+     "file_line": "crates/hsk-studio-components/src/design.rs:87-163 vs hsk-studio-folio validate_design_records",
+     "evidence": "Uniqueness/namespace rules restated in components instead of delegated to Folio; folio changed again after ed9b130 (adjustment layers, vector records) without touching id namespaces, so no drift yet.",
+     "remediation": "Expose Folio's id-uniqueness pass and call it from Design::new"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "ed9b130 is the newest components commit at head.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Fix verified at head; no change since R6 PASS_V2.",
+   "reviewed_at": "2026-10-11T07:54:47Z"
+  }
+ ],
+ "completed_at": "2026-10-11T07:58:05Z",
+ "summary": {
+  "SMB-PRISM-ENG-5": "FIX_FIRST (paperwork only: lane record + V4-06 class list for the R6 corpus-root fix 65a08c9; list 8634765, d7027c3, e26f623 in the claim); code fix verified",
+  "SMB-PRISM-ENG-6": "FIX_FIRST: WIDE_DESCRIPTOR recovery 'canceled: nothing was produced' contradicts partial in-place band output (same class as the R6 descriptor FAIL, unswept); chunk scratch_bytes record != 1024 B job stage; FAIL-1 V4-06 list stale after e26f623 (184 hits vs 177 listed); timing-flaky cancel test",
+  "SMB-DEVELOP": "FIX_FIRST: convert.rs:20-21 + DESCRIPTOR pending[0] still say the 64-px chunk is unused (false since prism d7027c3); V4-06 list 26 vs 24 at head; lead should judge 78fd379 as SMB-DEVELOP-JOBS (V4-15)",
+  "SMB-CONTROLS": "SAFE_TO_JUDGE (unchanged since R6 PASS; 35 = 35 sites)",
+  "SMB-COMPONENTS": "SAFE_TO_JUDGE (unchanged since R6 PASS; 41/31 sites match; folio change additive)",
+  "SMB-COMPONENTS-FOLIO-MIGRATE": "SAFE_TO_JUDGE"
+ }
+}

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:54:48Z",
+ "updated_at": "2026-10-11T07:59:09Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1204,7 +1204,7 @@
     "validation/R7-prereview-a.json"
    ],
    "launched": "2026-10-11T07:30:00Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:59:09Z (controls, components SAFE; prism-eng-5/6, develop FIX_FIRST)"
   },
   {
    "name": "prereview-r7-b",
@@ -1248,7 +1248,7 @@
     "crates/hsk-studio-prism/**"
    ],
    "launched": "2026-10-11T07:54:48Z",
-   "status": "running"
+   "status": "running (pre-review FIX_FIRST prism-eng-5/6 first, then ENG-8) 2026-10-11T07:59:09Z"
   },
   {
    "name": "builder-psd-receipt",
@@ -1259,6 +1259,17 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T07:54:48Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-develop-prereview",
+   "agent_id": "a360c94cf0d5dbb21",
+   "model": "sonnet",
+   "role": "develop FIX_FIRST: stale 64-px claims, site list, lane split",
+   "owns": [
+    "crates/hsk-studio-develop/**"
+   ],
+   "launched": "2026-10-11T07:59:09Z",
    "status": "running"
   }
  ]
