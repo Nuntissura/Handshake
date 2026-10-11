@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T13:53:02Z (R9 candidate 4d80e50 already in sync; C14 exit 73 59/59)"
+   "status": "idle 2026-10-11T15:10:24Z (R10 candidate 62d8983 in sync; C15 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",
@@ -1868,6 +1868,29 @@
     "validation/R10-prereview-web.json"
    ],
    "launched": "2026-10-11T15:03:19Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r10",
+   "agent_id": "a728b1119e8fc2617",
+   "model": "opus",
+   "role": "WP validator STUDIO-R10 on 62d8983",
+   "owns": [
+    "validation/round-R10.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T15:10:24Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r10-a",
+   "agent_id": "af3879865af1a48bb",
+   "model": "opus",
+   "role": "R10 single reviewer (reel ENG-1, psd budget, reopen sweep)",
+   "owns": [
+    "validation/R10-review-a.json"
+   ],
+   "launched": "2026-10-11T15:10:24Z",
    "status": "running"
   }
  ]

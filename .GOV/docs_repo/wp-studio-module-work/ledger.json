@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T15:02:55Z",
+ "updated_at": "2026-10-11T15:09:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3005,5 +3005,29 @@
    "SMB-COMPOSITE-ADJ PASS_V3 (R8 FAIL closed)"
   ],
   "infra_notes": "idle sccache server pid 350388 left running (not started by validator; not stopped)"
+ },
+ "round_R10": {
+  "candidate": "62d8983",
+  "candidate_full": "62d8983b86417340399ed7c785c6b297debabbfd",
+  "opened_at": "2026-10-11T15:09:45Z",
+  "sync": "steward-5: already in sync (probe 46/46, licence OK)",
+  "canary": "C15 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "excluded": [
+   "SMB-RENDER-GPU (D20)",
+   "SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)",
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (R10 pre-review FIX_FIRST; canonical rewrite running)"
+  ],
+  "ready": [
+   "SMB-REEL-ENG-1 (claim 6d232da+2ddff00+bd5bd60+0474906; lead_scope_note PLR-062)",
+   "SMB-INTEROP-PSD-BUDGET (R9 FAIL_V1 remediation 5f5bbb2+ce22fa5)",
+   "SMB-WEB-PARITY (62d8983)",
+   "SMB-WEB-DIFFTEST"
+  ],
+  "two_fail_rechecks": {
+   "SMB-REEL-AV1-ROUTE": "validation/R10-prereview-reel-route.json SAFE at cc3eaae (no reel commit after 0474906)",
+   "SMB-WEB": "validation/R10-prereview-web.json (pending)"
+  },
+  "team": "1 validator (opus) + 1 reviewer (opus: reel ENG-1 + psd budget + reopen sweep); web lanes covered by the R10 web pre-review advisory section (pacing V4-17)"
  }
 }
