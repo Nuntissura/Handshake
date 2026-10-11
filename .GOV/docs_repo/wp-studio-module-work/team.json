@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:35:03Z",
+ "updated_at": "2026-10-11T11:51:26Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1525,7 +1525,7 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T11:27:36Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:51:26Z (SMB-FX-OPS-ADOPT READY at f6e5a49)"
   },
   {
    "name": "prereview-r8-press",

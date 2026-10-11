@@ -5,6 +5,10 @@
   "phase": "slice 5 (a6ac630): Blend-If agreement check against pigment evaluate_stack (adjustment layer + plain layer agree, clip-base ranges refused as blend_if_clip_base because pigment does not define them), layer effects waves 1+2 (drop shadow, colour overlay, stroke, inner shadow, outer glow, inner glow) as WGSL matte passes with frame margins, reported operator classes never above pigment's. Earlier: R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
   "commits": [
     {
+      "sha": "cdd0644",
+      "subject": "render-gpu (SMB-FX-OPS-ADOPT): declare EffectsNested supported and AlphaPremultiplied Unsupported; defence-in-depth refusals and the leaf-root class follow pigment's admission"
+    },
+    {
       "sha": "ba3e47d",
       "subject": "render-gpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
     },
@@ -80,7 +84,8 @@
     "slice 5 class discipline: extension_exactness = ExtOperator::intrinsic().lowest_of(Fitted) for every supported operator (adjustment layer, adjustment kinds, Blend-If, mask density, mask feather, six effect kinds); receipts unchanged",
     "slice 5 effects: new src/fx.rs + src/fx.wgsl (second compute module, entry point fx, bind group = 1 uniform block of 12080 bytes incl. up to 3004 blur taps + 4 storage buffers = the downlevel limit). Host: pigment shadow_split / shadow_offset / feather_kernel / effect_support_px are called, passes compiled per effect (INIT source plane, DILATE disc, BLUR_H/BLUR_V, SHIFT, FINISH combine) with per-effect buffers (T0/T1/T2 planes, matte into the mask buffer); WGSL transcribes pigment effect_math private helpers dilate/blur_ext/shift_ext/stroke_half and the combine steps of reference_matte; reads beyond the pass region = the constant a sample beyond pigment's reference plane reads (0 for shadow/glow/stroke-outside, 1 for inner effects)",
     "slice 5 execution: a plan with effects renders every chunk as a FRAME (chunk grown by frame_margin = largest sum of effect margins along nested layers); eval_effect_layer: layer content (mask applied to its alpha, Normal over transparent) into the level below, behind-content effects (matte -> mask buffer -> solid colour composite with effect mode and effect opacity * layer opacity), content composite with opacity*fill, over-content effects, list order; staging read-back crops the central rows; levels/src/mask are frame-sized, three f32 planes + parameter block reserved in residency; MaskView/FeatherPlane reads beyond the plane replicate the nearest texel (render-cpu clamped read)",
-    "slice 5 budgets before dispatch (V4-02): blur kernels charged to max_working_bytes as a running aggregate while compiling (BudgetExceeded), frame buffers out of the chunk budget (BudgetExceeded, 30000 px shadow distance tested), per-pass cost bound 2^31 window*pixels with chunk shrink (Unsupported{effect_cost}, 1000 px grown glow tested), effects together with Blend-If refused effects_with_blend_if (as render-cpu)"
+    "slice 5 budgets before dispatch (V4-02): blur kernels charged to max_working_bytes as a running aggregate while compiling (BudgetExceeded), frame buffers out of the chunk budget (BudgetExceeded, 30000 px shadow distance tested), per-pass cost bound 2^31 window*pixels with chunk shrink (Unsupported{effect_cost}, 1000 px grown glow tested), effects together with Blend-If refused effects_with_blend_if (as render-cpu)",
+    "SMB-FX-OPS-ADOPT (cdd0644): extension_exactness declares ExtOperator::EffectsNested supported (Approximate, pigment's class) and ExtOperator::AlphaPremultiplied Unsupported; fx_stack_mask_group_and_nesting_parity is admitted and green again; local refusals use ExtOperator::AlphaPremultiplied.key(), PASS_THROUGH_MASK_OPERATOR and ExtOperator::EffectsWithBlendIf.key(); leaf_root_class only records normal: fitted (the floor check is shared admission's RenderPlan::has_leaf_root)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-render-gpu --tests -- --nocapture (default features: 20 tests) and the same with --features test-faults (23 tests); HSK_STUDIO_TEST_GPU_BACKEND=auto (dx12) and vulkan; cargo test -p hsk-studio-render-gpu --doc (4 compile_fail doctests)",
@@ -92,8 +97,8 @@
   "blockers": [],
   "lock_wait_s": 772,
   "bg_pids": [],
-  "next": "SMB-REFUSAL-KEYS READY_FOR_VALIDATION on ba3e47d (new lane id; the claim of the top-level lane stays a6ac630, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on ba3e47d for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
-  "updated_at": "2026-10-11T11:02:48Z",
+  "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on cdd0644 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on cdd0644 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on ba3e47d (new lane id; the claim of the top-level lane stays a6ac630, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on ba3e47d for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+  "updated_at": "2026-10-11T11:50:57Z",
   "notes": {
     "refusal_keys": {
       "lane": "SMB-REFUSAL-KEYS",
@@ -816,6 +821,123 @@
         "extension_exactness now reports pigment's class for every supported operator (tightened beyond the effects the brief named, for CX-CAP-001 consistency with render-cpu 7274827); receipts unchanged",
         "effects nested in the content of a layer with effects and effect margins above 24 px are supported on the GPU; render-cpu refuses both (effects_nested, effect_margin), so the capabilities of the two backends differ"
       ]
+    },
+    "fx_ops_adopt": {
+      "lane": "SMB-FX-OPS-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "cdd0644",
+      "pigment": [
+        "d3ce607",
+        "fe5fde0",
+        "b2f5f81"
+      ],
+      "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/plan_sink.rs (extension_exactness, leaf_root_class, three defence-in-depth keys, imports)",
+        "src/lib.rs (DESCRIPTOR text only)",
+        "src/plan_sink/refusal_keys.rs (cfg(test): two cases in defence_in_depth_refusal_keys_are_pigments, two new tests)"
+      ],
+      "changes": [
+        {
+          "rule": "layer with effects whose content holds a layer with effects",
+          "before": "wildcard arm: EffectsNested Unsupported, so admission refused the plan fx_stack_mask_group_and_nesting_parity renders",
+          "after": "ExtOperator::EffectsNested in the supported arm (reported class Approximate = pigment's, never better)"
+        },
+        {
+          "rule": "premultiplied alpha",
+          "before": "wildcard Unsupported, local literal alpha_premultiplied (2 sites)",
+          "after": "explicit AlphaPremultiplied => false; local key ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "rule": "mask on a pass-through layer",
+          "before": "literal mask_on_pass_through",
+          "after": "PASS_THROUGH_MASK_OPERATOR (shared admission refuses first)"
+        },
+        {
+          "rule": "effects together with Blend-If",
+          "before": "literal effects_with_blend_if",
+          "after": "ExtOperator::EffectsWithBlendIf.key() (shared admission refuses first)"
+        },
+        {
+          "rule": "leaf root Normal class",
+          "before": "leaf_root_class checked the request floor after admit and recorded normal",
+          "after": "records normal only; pigment's admit_plan_rules checks the floor; the ledger and receipts are unchanged (test leaf_root_reports_the_blend_kernel_class)"
+        }
+      ],
+      "tests": {
+        "default_features": {
+          "argv": [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "hsk-studio-render-gpu",
+            "--no-fail-fast"
+          ],
+          "exit": 0,
+          "passed": 24,
+          "failed": 0
+        },
+        "test_faults": {
+          "argv": [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "hsk-studio-render-gpu",
+            "--features",
+            "test-faults",
+            "--no-fail-fast"
+          ],
+          "exit": 0,
+          "passed": 27,
+          "failed": 0,
+          "includes": "fx_stack_mask_group_and_nesting_parity PASS (adapter present on this host)"
+        },
+        "doctests": {
+          "argv": [
+            "cargo",
+            "test",
+            "--doc",
+            "-p",
+            "hsk-studio-render-gpu"
+          ],
+          "exit": 0,
+          "passed": 4,
+          "failed": 0
+        },
+        "clippy_fmt": "cargo clippy -p hsk-studio-render-gpu --tests --features test-faults: no warning in this crate; cargo fmt --check clean",
+        "added": [
+          "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments: cases 'coverage mask on a pass-through layer' and 'premultiplied alpha at the target' (admission error equals prepare error, built from pigment constants)",
+          "plan_sink::refusal_keys::fx_ops_declarations_and_nested_ledger_equal_pigments: EffectsNested Approximate, AlphaPremultiplied and EffectsWithBlendIf Unsupported; the admitted nested-effects ledger contains every operator of PlanExtensions::validate at the class pigment's intrinsic lowered by the declaration; flat effects are not nested",
+          "plan_sink::refusal_keys::effects_with_blend_if_refusal_is_pigments_in_admission_and_prepare"
+        ],
+        "no_adapter": "all three new tests run host-side (BackendChoice::None), no NOT_PROVEN"
+      },
+      "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+      "v4_06_sites": [
+        {
+          "file_line": "src/plan_sink.rs:318",
+          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:384",
+          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:531",
+          "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR"
+        },
+        {
+          "file_line": "src/plan_sink.rs:611",
+          "verdict": "FIXED: ExtOperator::EffectsWithBlendIf.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:1039",
+          "verdict": "FIXED: leaf_root_class records only"
+        }
+      ],
+      "unverified": "Photoshop parity of nested effects and of effects with Blend-If stays NOT_PROVEN (D5 cases 24-27); nesting is a composition of per-layer effect stacks as in pigment's render_layer_reference."
     }
   }
 }

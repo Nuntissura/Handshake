@@ -5,6 +5,10 @@
   "phase": "SMB-RENDER-CPU-FX2 pushed (8d46aa8): wave 2 effect kinds (inner shadow, outer glow, inner glow) enabled on the windowed API, 29 tests pass. SMB-RENDER-CPU-WINDOW pushed before it (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
   "commits": [
     {
+      "sha": "e8f5f98",
+      "subject": "render-cpu (SMB-FX-OPS-ADOPT): name EffectsNested and AlphaPremultiplied Unsupported in extension_exactness; defence-in-depth refusals use pigment's keys"
+    },
+    {
       "sha": "18607e5",
       "subject": "render-cpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
     },
@@ -86,7 +90,8 @@
     "ADJ-1 (49afca1): RenderBackend::extension_exactness (AdjustmentLayer, Adjustment(_), BlendIf, MaskDensity, MaskFeather = Exact so the receipt class is pigment's intrinsic Approximate; Knockout and unknown operators Unsupported) and execute_extended (Renderer::execute_extended_detailed): admit_extended first, ExtPrep::build (adjustments prepared once, identical feather radii share a kernel, resident tables charged as a running aggregate to max_working_bytes before allocation), then the existing chunked compositor. Adjustment layer: per pixel of the placeholder rect k = opacity*fill*mask*blend_if and adjust_math::composite_adjustment on the group running buffer (inside a clip run on the run buffer G only); Blend-If: coverage_math::blend_if_weight multiplies the source alpha (also the clip-run composite with the base layer's ranges; the source colour of an adjustment layer is its content f(backdrop), Studio rule); mask density/invert via coverage_math::mask_coverage (density 1 keeps the v1 inversion so v1 bytes are unchanged); mask feather: per-chunk separable blur with coverage_math::feather_kernel, feather_support margin, clamped at the mask plane border, before invert/density; per-worker feather scratch (chunk plane + horizontal pass with margin rows) is part of the reserved scratch (peak_working_bytes). Empty envelope without a density mask takes the v1 path (bytes and receipt identical); a density mask with an empty envelope takes the envelope admission (mask_density Approximate). V4-01: plan_sink.rs, plan_sink/extended.rs, px.rs deny clippy::arithmetic_side_effects.",
     "FX2 (8d46aa8, SMB-RENDER-CPU-FX2): wave 2 effect kinds inner shadow, outer glow and inner glow enabled through the windowed path (no kind-specific code); extension_exactness reports ExtOperator::intrinsic() (Approximate) for all six kinds; gradient glow, Precise technique, range below 100 % and jitter remain typed refusals by feature key at pigment admission before the first sink call; bit-identical to render_layer_reference (mixed six-effect stack, chunks 48/17/7/5 on 1-3 workers) and to the uncut windowed oracle (304 px margin); budget charged by the same frame_shape and layer_window_cost model, limit-1 refused with 0 sink calls (tests/cpu_effects_fx2.rs, 3 tests).",
     "WINDOW (be1836b, SMB-RENDER-CPU-WINDOW): effects wave 1 run on pigment effect_math::window (a797b67/379a56f): per chunk the effect window W = layer bounds grown by stack_support_px (the stack margin), clipped to the chunk; WindowGeometry::uncut(bounds, margin, W) with site_origin (0, 0); AlphaSource FrameAlpha over a content frame (frame_content: tile/solid/vector/isolated group times the mask with feather, density, invert; frame = W grown by the margin clipped to the layer bounds, so memory follows min(layer, chunk + 2 * margin)^2 and not a 64 px plane); render_layer_window composes the window over the running backdrop; the 24 px effect_margin refusal and the per-tile 64 x 64 recompute are gone, any margin renders. Budget: the per-worker frame (16 B per pixel per group level), frame feather scratch, window input arrays (28 B per window pixel) and pigment layer_window_cost peak of the largest window are part of the reserved scratch / peak_working_bytes and charged to max_working_bytes before the first sink call; the predicted peak is also WindowLimits.max_bytes, WindowLimits.max_work = MAX_EFFECT_WINDOW_WORK (1e9, new pub const); a layer whose largest window is predicted above it is Unsupported{effect_work_limit} before the first sink call. extension_exactness unchanged (pigment's intrinsic class). V4-01: effects.rs / extended.rs keep deny(arithmetic_side_effects).",
-    "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects."
+    "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects.",
+    "SMB-FX-OPS-ADOPT (e8f5f98): extension_exactness names ExtOperator::EffectsNested and ExtOperator::AlphaPremultiplied Unsupported explicitly; the local checks (alpha_premultiplied x2, mask_on_pass_through, effects_with_blend_if, effects_nested x2) are defence in depth under ExtOperator::*.key() / PASS_THROUGH_MASK_OPERATOR; descriptor says admission"
   ],
   "tests": {
     "argv": [
@@ -105,8 +110,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "SMB-REFUSAL-KEYS READY_FOR_VALIDATION on 18607e5 (new lane id; the claim of the top-level lane stays 8d46aa8, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 18607e5 for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on b10475d (separate lane id; the claim of SMB-RENDER-CPU-WINDOW/FX2 stays 8d46aa8, V4-14 lists this commit): Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
-  "updated_at": "2026-10-11T11:02:48Z",
+  "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on e8f5f98 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on e8f5f98 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on 18607e5 (new lane id; the claim of the top-level lane stays 8d46aa8, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 18607e5 for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on b10475d (separate lane id; the claim of SMB-RENDER-CPU-WINDOW/FX2 stays 8d46aa8, V4-14 lists this commit): Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
+  "updated_at": "2026-10-11T11:50:57Z",
   "notes": {
     "refusal_keys": {
       "lane": "SMB-REFUSAL-KEYS",
@@ -932,6 +937,92 @@
       "fix": "7274827: extension_exactness returns ExtOperator::intrinsic() for every supported operator (adjustment layer, the 8 adjustment kinds, Blend-If, mask density, mask feather, DropShadow/ColourOverlay/Stroke) and Unsupported otherwise. Earlier commit messages/notes that say 'Exact' for these (49afca1, c4bdaef, 5674e9c and the capabilities_done entries ADJ-1/EFFECTS-1) describe the superseded behaviour.",
       "tests": "cpu_extended refusals_stay_typed_and_the_v1_path_is_unchanged asserts backend class == op.intrinsic() for AdjustmentLayer, BlendIf, MaskDensity, MaskFeather and all AdjustmentKind::ALL (invert Exact, mask feather Approximate); cpu_effects effect_refusals_and_scratch_charge_stay_typed asserts the same for the wave 1 effect kinds (Approximate) and Unsupported for the others.",
       "reference_parity": "bit_identical to pigment's reference for adjustments (evaluate_stack) and effects (render_layer_reference) is a separate fact carried by the parity tests (notes.adj1.parity, notes.effects1.parity), not by the class."
+    },
+    "fx_ops_adopt": {
+      "lane": "SMB-FX-OPS-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "e8f5f98",
+      "pigment": [
+        "d3ce607",
+        "fe5fde0",
+        "b2f5f81"
+      ],
+      "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/plan_sink.rs (extension_exactness, verify_tile, prepare, imports)",
+        "src/plan_sink/effects.rs (run-time nesting guard key, import)",
+        "src/lib.rs (DESCRIPTOR text only)",
+        "src/plan_sink/refusal_keys.rs (cfg(test))"
+      ],
+      "changes": [
+        {
+          "rule": "nested effects",
+          "before": "wildcard Unsupported (implicit), literal effects_nested at plan_sink.rs prepare and effects.rs run-time guard",
+          "after": "explicit EffectsNested => Unsupported; both guards use ExtOperator::EffectsNested.key(); shared admission refuses before any sink call"
+        },
+        {
+          "rule": "premultiplied alpha",
+          "before": "wildcard Unsupported (implicit), literal alpha_premultiplied (tile and target)",
+          "after": "explicit AlphaPremultiplied => Unsupported; ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "rule": "effects together with Blend-If",
+          "before": "literal effects_with_blend_if",
+          "after": "ExtOperator::EffectsWithBlendIf.key() (pigment refuses first, intrinsic Unsupported)"
+        },
+        {
+          "rule": "mask on a pass-through layer",
+          "before": "literal mask_on_pass_through",
+          "after": "PASS_THROUGH_MASK_OPERATOR"
+        }
+      ],
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-render-cpu",
+          "--no-fail-fast"
+        ],
+        "exit": 0,
+        "passed": 32,
+        "failed": 0,
+        "clippy_fmt": "cargo clippy -p hsk-studio-render-cpu --tests: no warning; cargo fmt --check clean",
+        "added": [
+          "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments: cases 'coverage mask on a pass-through layer' and 'premultiplied alpha at the target'",
+          "plan_sink::refusal_keys::fx_ops_declarations_and_refusals_equal_pigments: the three operators declared Unsupported; nested effects and effects with Blend-If: admit_extended error equals prepare error, key = ExtOperator::*.key()"
+        ],
+        "kept_unchanged": "cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed (keys effects_with_blend_if, effects_nested, now reached through shared admission) and cpu_plan.rs premultiplied case pass without edits"
+      },
+      "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+      "v4_06_sites": [
+        {
+          "file_line": "src/plan_sink.rs:398",
+          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:451",
+          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:588",
+          "verdict": "FIXED: ExtOperator::EffectsWithBlendIf.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:591",
+          "verdict": "FIXED: ExtOperator::EffectsNested.key()"
+        },
+        {
+          "file_line": "src/plan_sink.rs:613",
+          "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR"
+        },
+        {
+          "file_line": "src/plan_sink/effects.rs:129",
+          "verdict": "FIXED: ExtOperator::EffectsNested.key()"
+        }
+      ],
+      "supersedes_note": "notes.v4_06_sites entry src/plan_sink/effects.rs:128 (NOT_APPLICABLE: backend-owned key 'effects_nested') no longer holds: pigment owns the key since d3ce607; the site is now effects.rs:129 and FIXED above. The earlier note was not edited."
     }
   }
 }

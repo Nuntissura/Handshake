@@ -5,6 +5,10 @@
   "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported) + SMB-INTEROP-PSD-RECEIPT complete (1a088a9: absolute/bpc/engine receipt fields carried) + SMB-INTEROP-PSD-CLIP-ROLES complete (29501d7: typed losses for Blend-If on clip roles and clbl=0) + remediation_R7 complete (2fa2202: R7 review B CONFIRMED finding, CgEd NaN/inf reached Folio and failed the whole import)",
   "commits": [
     {
+      "sha": "f6e5a49",
+      "subject": "interop-psd (SMB-FX-OPS-ADOPT): typed losses for effects with Blend-If on one layer and for a mask on a Pass Through group"
+    },
+    {
       "sha": "ee30d62",
       "subject": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"
     },
@@ -121,7 +125,8 @@
     "ADJ-2 graph: every mapped adjustment layer has an image source operation (out: image, one, source) and an edge into its group with input_ordinal in Photoshop stack order (bottom 0); root adjustment layers are in graph.outputs in the same bottom-first order; validated by folio (ENG-6 0241877) in to_proposal and again by an independent validate_document call in the tests",
     "ADJ-2 clip rule: Folio's base rule (nearest earlier stack input not itself clipped) is applied to every stack (group and root) from the clip flags as read; a layer or group whose base is an adjustment layer is written unclipped (whole run sharing that base) and gets the typed loss clip_to_adjustment_not_supported (Unsupported) whose path names the layer and base ids; a clipped adjustment layer is not a base; export compares clipping against the value written to Folio so an unedited export is byte-identical",
     "RECEIPT (1a088a9): WideConverted/DisplayConversion carry the Prism wide receipt's absolute report (AbsoluteSummary: applied, media whites, scale, media_white_rule, divergence), bpc outcome (BpcSummary) and engine identity + options (EngineSummary); a divergence becomes one Transformed loss entry (code = registry id DIV-ABS-V2-DISPLAY-WTPT-001, path document/display/absolute_colorimetric/<rule>); absolute colorimetric with a requested black point compensation adds black_point_compensation_ignored_for_absolute_colorimetric",
-    "CLIP-ROLES (29501d7): Builder::note_clip_role_gaps per stack after the adjustment clip-base demotion; non-identity Blend-If recorded on a clip base or clipped layer -> Unsupported entry with code blend_if_clip_base | blend_if_clipped_layer (pigment keys, ranges stay in the record), clbl=0 on a clip base -> Unsupported entry blend_clipped_layers_as_group_off_not_modelled"
+    "CLIP-ROLES (29501d7): Builder::note_clip_role_gaps per stack after the adjustment clip-base demotion; non-identity Blend-If recorded on a clip base or clipped layer -> Unsupported entry with code blend_if_clip_base | blend_if_clipped_layer (pigment keys, ranges stay in the record), clbl=0 on a clip base -> Unsupported entry blend_clipped_layers_as_group_off_not_modelled",
+    "SMB-FX-OPS-ADOPT (f6e5a49): Builder::note_clip_role_gaps also reports, per stack, Unsupported entries for (a) enabled effects together with non-identity Blend-If ranges on a layer that is neither clip base nor clipped (code ExtOperator::EffectsWithBlendIf.key() = effects_with_blend_if, path layer[i]/blend_ranges(layer_id=...)) and (b) an enabled layer mask on a Pass Through group (code PASS_THROUGH_MASK_OPERATOR = mask_on_pass_through, path layer[i]/mask(layer_id=...)); ranges, effect stack and mask stay in the records/document"
   ],
   "tests": {
     "argv": "cargo nextest run -p hsk-studio-interop-psd --tests --no-fail-fast",
@@ -145,8 +150,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle | R7 re-judge of remediation_R7 at 2fa2202",
-  "updated_at": "2026-10-11T11:15:57Z",
+  "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on f6e5a49 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on f6e5a49 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle | R7 re-judge of remediation_R7 at 2fa2202",
+  "updated_at": "2026-10-11T11:50:57Z",
   "notes": {
     "mt": "MT-35548",
     "adj1": {
@@ -770,6 +775,48 @@
       "docs_claims_V4_07": "adjust.rs module doc and proposal.rs:1674 comment now cite the test that proves the claim; DESCRIPTOR text unchanged (it states 'unreadable or out-of-range record keeps the layer a typed unsupported layer', now proven by the same tests)",
       "gameplan_route": "no gameplan step added: product failure fixed by a code commit (HEAD change); the scratch tree carries a .gameplan-active pointer to the same STUDIO-MODULE-BUILD gameplan so the hook resolves it (not a bypass: its two machine checks pass)",
       "recorded_at": "2026-10-11T11:15:57Z"
+    },
+    "fx_ops_adopt": {
+      "lane": "SMB-FX-OPS-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "f6e5a49",
+      "pigment": [
+        "d3ce607",
+        "fe5fde0",
+        "b2f5f81"
+      ],
+      "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/proposal.rs (note_clip_role_gaps and its doc, imports)",
+        "src/lib.rs (DESCRIPTOR capabilities)",
+        "tests/clip_role_losses.rs (Mint mints effect stack ids; descriptor builders; two tests)"
+      ],
+      "decisions": [
+        "(a) fires only for a stack that renders: enabled stack with at least one enabled effect (mirrors composite convert_effects); a clip base or clipped layer keeps only its clip-role entry because pigment names the clip role first (EffectClipRun precedes the Blend-If role)",
+        "(b) fires for isolation pass_through with an enabled mask as written to Folio and not clipped (mirrors composite appearance_block); a disabled mask is an authored no mask",
+        "codes come from pigment (ExtOperator::key, PASS_THROUGH_MASK_OPERATOR), not literals of this crate"
+      ],
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-interop-psd",
+          "--no-fail-fast"
+        ],
+        "exit": 0,
+        "passed": 41,
+        "failed": 0,
+        "clippy": "cargo clippy -p hsk-studio-interop-psd --tests: no warning (the crate was not rustfmt-clean before this lane; fmt is not a gate here)",
+        "added": [
+          "effects_with_blend_if_on_one_layer_is_a_typed_loss_and_both_stay_in_the_record (counterfactuals: effects alone, ranges alone, identity ranges, switched-off stack, clip base, group)",
+          "mask_on_a_pass_through_group_is_a_typed_loss_and_the_mask_stays_in_the_document (counterfactuals: isolated group, raster layer, no mask, disabled mask)"
+        ]
+      },
+      "v4_06_regex": "n/a: no refusal literals existed in this crate for the rules; the losses are new entries",
+      "v4_06_sites": [],
+      "unverified": "Photoshop behaviour for both combinations is open (D5 cases 24-29); the entries report that Studio does not render them, they do not assert Photoshop's result."
     }
   }
 }

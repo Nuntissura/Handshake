@@ -5,6 +5,10 @@
   "phase": "adjustments + mask parameters + Blend-If + knockout + effects waves 1/2 + real folio graph adjustment layers lowered; remediation_R6 (pass-through fill ledger); compiled, clippy clean, 22/22 on pushed b2cf5c6",
   "commits": [
     {
+      "sha": "7011298",
+      "subject": "composite (SMB-FX-OPS-ADOPT): ledgers record effects_with_blend_if and effects_nested like pigment's validate; a mask on a pass-through group is refused like the fill rule"
+    },
+    {
       "sha": "b7064fc",
       "subject": "composite: the pass-through clip-base refusal key is pigment's PlanError code, not a literal (SMB-REFUSAL-KEYS, PLR-006)"
     },
@@ -90,7 +94,8 @@
     "mask parameters: density/100 and inverted on the MaskInput, feather px in LayerExtension.mask_feather_px (enabled coverage mask only); Blend-If level/255 [black_start, black_end, white_start, white_end], source then destination, gray/red/green/blue, identity entries dropped; knockout Enabled (and Inherited resolved through containment) -> Knockout::Shallow, refused by pigment admit_extended as knockout_shallow, ledger Unsupported, eval_outcome Failure(Unsupported)",
     "effects wave 1 (drop shadow, colour overlay, solid stroke) and wave 2 (inner shadow, outer glow, inner glow, colour source) -> LayerExtension.effects in list order (percent/100; spread and choke read as percent of the size with a note; Global Light resolved into the angle); refusals (typed, evaluation and lowering agree): other kinds layer_effects_not_rendered, effect_stack_scale, effect_contour, effect_noise, effect_stroke_fill, effect_stroke_overprint, effect_global_light_unresolved, effect_colour_missing/_profile/_linear_light, effect_parameter, effect_limit, effect_on_adjustment_layer/_pass_through/_clipped_layer/_clip_base, pigment feature keys glow_gradient/glow_range/glow_technique_precise",
     "R6 remediation (remediation_R6): evaluation ledger agrees with pigment admission for a pass-through group with fill < 1: key PASS_THROUGH_FILL_OPERATOR, class Unsupported, step Unavailable, StepAppearance::exactness Unsupported; all v1 operator keys and classes in evaluation come from pigment Operator::key/intrinsic (test evaluation_ledger_keys_and_classes_are_pigments)",
-    "DESCRIPTOR v3 (extended lowering, proof map to tests, unsupported list shrunk only for what is lowered)"
+    "DESCRIPTOR v3 (extended lowering, proof map to tests, unsupported list shrunk only for what is lowered)",
+    "SMB-FX-OPS-ADOPT (7011298): blend_if_operator(role, has_effects) reports EffectsWithBlendIf for an unclipped layer with effects and a non-identity Blend-If; the evaluation ledger records EffectsNested (clip_roles returns the emitted inputs per group; lowering reads the nesting from pigment's validate of the whole envelope); a mask on a pass-through, unclipped layer is Unavailable under PASS_THROUGH_MASK_OPERATOR with ledger and StepAppearance::exactness Unsupported, like the fill rule"
   ],
   "tests": {
     "argv": [
@@ -109,8 +114,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
-  "updated_at": "2026-10-11T11:02:48Z",
+  "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on 7011298 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 7011298 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+  "updated_at": "2026-10-11T11:50:57Z",
   "notes": {
     "refusal_keys": {
       "lane": "SMB-REFUSAL-KEYS",
@@ -798,6 +803,61 @@
         "resolved_at": "2026-10-11T06:54:32Z",
         "summary": "Folio ENG-6 (0241877, option A) makes an adjustment layer a graph Source with a stack position from input_ordinal and refuses a layer clipped to it (Code::AdjustmentClipBase, matching pigment). Composite needed no change; adjustment_not_in_composition_graph now only covers an adjustment layer contained in a rendered group WITHOUT a graph operation. Test adjustment_layer_in_a_real_folio_graph_lowers_at_its_input_ordinal lowers a real snapshot and checks the lowered stack against pigment evaluate_stack: adjustment between = (0.5, 0.25, 0.0), on top = (0.5, 0.75, 1.0)."
       }
-    ]
+    ],
+    "fx_ops_adopt": {
+      "lane": "SMB-FX-OPS-ADOPT",
+      "status": "READY_FOR_VALIDATION",
+      "sha": "7011298",
+      "pigment": [
+        "d3ce607",
+        "fe5fde0",
+        "b2f5f81"
+      ],
+      "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+      "files": [
+        "src/lower_extensions.rs (blend_if_operator)",
+        "src/evaluate_static.rs (record_appearance, appearance_block, clip_roles, end-of-evaluation ledger block)",
+        "src/lower_plan.rs (StepAppearance::exactness)",
+        "src/lower_render_plan.rs (record_envelope: nested effects)",
+        "src/lib.rs (DESCRIPTOR: render_plan_mapping text, proof map entries effects_ops and pass_through_mask, unsupported list)",
+        "tests/render_plan_lowering.rs"
+      ],
+      "decisions": [
+        "effects with a non-identity Blend-If are CARRIED to pigment (not refused at lowering), exactly like the clip-role Blend-If: admission refuses them for every backend, both ledgers say Unsupported; the importer-side typed loss is in interop-psd",
+        "a mask on a pass-through, unclipped step makes the step Unavailable (pigment-keyed), same standing as fill below 1; the mask check comes right after the fill check and excludes clipped steps (their mask slot is the clip route, refused as clipped_with_mask_unsupported / clipped_pass_through_unsupported)",
+        "nested-effects accounting in evaluation uses the emitted inputs per group (visible, not empty, clipped only with a surviving base), the lowering's own emission rule"
+      ],
+      "tests": {
+        "argv": [
+          "cargo",
+          "nextest",
+          "run",
+          "-p",
+          "hsk-studio-composite",
+          "--no-fail-fast"
+        ],
+        "exit": 0,
+        "passed": 27,
+        "failed": 0,
+        "clippy": "cargo clippy -p hsk-studio-composite --tests: no warning (the crate was not rustfmt-clean before this lane; fmt is not a gate here)",
+        "added": [
+          "effects_with_blend_if_and_nested_effects_are_reported_like_pigment: validate (pigment) vs evaluation and lowering ledgers for effects+Blend-If (EffectsWithBlendIf instead of BlendIf), different layers, identity ranges, nested effects (root + layer 3), and counterfactuals inner only / outer only / hidden inner; admission by an all-Exact double (refuses effects_with_blend_if, admits nesting) and by a double declaring EffectsNested Unsupported (refuses effects_nested)",
+          "mask_on_a_pass_through_group_is_refused_like_the_fill_rule: step Unavailable, ledger and plan exactness Unsupported, lowering Unavailable; counterfactuals isolated group, no mask, disabled mask",
+          "refusal_keys_are_pigments (extended): pigment's admit on a hand-built pass-through layer with a mask returns PASS_THROUGH_MASK_OPERATOR, which the composite ledger contains"
+        ]
+      },
+      "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+      "v4_06_sites": [
+        {
+          "file_line": "src/evaluate_static.rs (record_appearance, appearance_block)",
+          "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR, no literal"
+        },
+        {
+          "file_line": "src/lower_extensions.rs (blend_if_operator)",
+          "verdict": "FIXED: ExtOperator::EffectsWithBlendIf"
+        }
+      ],
+      "unverified": "Photoshop behaviour of a mask on a Pass Through group and of effects with Blend-If is not defined by any public source (D5 cases 24-29); composite refuses/reports and never guesses."
+    }
   }
 }
