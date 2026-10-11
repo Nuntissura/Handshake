@@ -2,7 +2,7 @@
  "crate": "hsk-studio-press",
  "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
  "status": null,
- "phase": "D27 flatten + narrow (rem-press-flatten, started 2026-10-11T18:04:47Z): renderer research in progress; SMB-PRESS and SMB-PRESS-DIFFERENCES not ready (R11 pre-review FIX_FIRST at b8ce934, Operator decision D27)",
+ "phase": "D27 'Flatten + narrow' implemented by rem-press-flatten for SMB-PRESS and SMB-PRESS-DIFFERENCES (R11 pre-review FIX_FIRST at b8ce934): pages carrying a region are flattened, the needle search is narrowed and documented, R11-F1..F6 cheap fixes; claim d23fca4..d079292 (pushed); 114/114 nextest, doctests 0, clippy --tests --examples clean, 9 new tests + 2 new sub-cases red on b8ce934; NOT READY: awaiting steward pin of hayro-interpret 0.7.0 + kurbo 0.13.1",
  "commits": [
   {
    "sha": "70b4c74",
@@ -139,6 +139,38 @@
   {
    "sha": "b8ce934",
    "subject": "Press R10 (wip, lane status null): DESCRIPTOR and docs per V4-07 (canonical rewrite, geometry, codespace, normalisation); V4-02 bound tests for /W, inline extents and the canonical rewrite"
+  },
+  {
+   "sha": "d23fca4",
+   "subject": "Press D27 (wip, lane status null): flatten region pages to a raster (hayro-interpret 0.7.0 + own rasteriser), typed FlattenRefused, saved-file check"
+  },
+  {
+   "sha": "818ec3e",
+   "subject": "Press D27 (wip, lane status null): painted classes under a flattened region are painted_over, not refused; flatten tests (R8-R11 region cases, pixels, budgets, canonical neighbours)"
+  },
+  {
+   "sha": "6b611f5",
+   "subject": "Press D27 (wip, lane status null): proof tests read their subject on page two (split_region_page, selector_save, raster_doc2)"
+  },
+  {
+   "sha": "76707ce",
+   "subject": "Press D27 (wip, lane status null): split_region_page test helper for proof tests (subject on page two)"
+  },
+  {
+   "sha": "e053ebc",
+   "subject": "Press D27 (wip, lane status null): proof tests read their subject on page two (split_region_page, selector_save, raster_doc2)"
+  },
+  {
+   "sha": "d5562c6",
+   "subject": "Press D27 (wip, lane status null): proof tests read their subject on page two (split_region_page, selector_save, raster_doc2) [subject reused by mistake: this commit also lands the R11-F1..F6 cheap fixes in canon/cmap/font/pdf_edit/redaction/show_text/error and the new tests in tests/flatten_redaction.rs; see 4f04c29 message]"
+  },
+  {
+   "sha": "4f04c29",
+   "subject": "Press D27 (wip, lane status null): narrowed claim in DESCRIPTOR and docs, limitations with pre-review ids, region_flattened()"
+  },
+  {
+   "sha": "d079292",
+   "subject": "Press D27 (wip, lane status null): mark flatten oracle lines for the red copy"
   }
  ],
  "capabilities_done": [
@@ -197,20 +229,30 @@
   "R10 font reader shared by selector and proof (font.rs): codes split by the encoding CMap codespace (59 Table 116 codespaces from Adobe cmap-resources), /ToUnicode by code value, /W /DW widths, Adobe Core 14 AFM widths (std14_data.rs, licence notice kept), signed size, ink box /FontBBox united with the standard union box, RedactionClass::UnknownGlyphMetrics",
   "R10 encoding-CMap determination (determination.rs, cmap.rs): every /WMode spelling, usecmap name, /UseCMap, Identity-H/-V names, stray delimiters unresolved",
   "R10 resolved /Subtype, /Type, /S, /PatternType before reading (selector, walker, roles, fonts, text fields, sanitize)",
-  "R10 matching: every decoded stream matched as normalised text (ASCII included), drawn and byte text of remapped needles, full Default_Ignorable_Code_Point set, right-to-left override visual order, token exemption only with drawn adjacency"
+  "R10 matching: every decoded stream matched as normalised text (ASCII included), drawn and byte text of remapped needles, full Default_Ignorable_Code_Point set, right-to-left override visual order, token exemption only with drawn adjacency",
+  "D27 flatten: redact_and_save / redact_and_save_with replace every page carrying a region by its RGB raster (hayro-interpret 0.7.0 interpreting an isolated one-page document into the crate's own rasteriser src/paint.rs) with the regions painted opaque black; page rebuilt with /Type /Parent /MediaBox=/CropBox /Rotate /UserUnit /Resources(/HskFl0) /Contents only; annotations dropped; FlattenedPage notes for undrawn content; typed FlattenRefused(PixelBudget|PageGeometry|ImageBudget|RendererRefused|RendererPanicked); Limits::flatten_dpi (150) and max_flatten_pixels (2^24) checked before allocation; check_flattened re-reads the saved bytes (residual_in_region); RedactedOutput::flattened and region_flattened()",
+  "D27 selector in flattening mode: images, vectors, shadings and inline images under a region are RedactionReport::painted_over (not refused); text the selector cannot place still refuses / makes the region incomplete; PdfDoc::redact_region (selector alone) unchanged",
+  "D27 narrow: DESCRIPTOR proof.claim 'verified against Studio's own strict PDF reading', proof.supported_profile (NotProven outside it), proof.limitations with pre-review ids; docs and NotProven texts narrowed",
+  "R11 cheap fixes: F1 ExtGState /SMask /G is a content role; F2 inline image XObjects only from Table 91/92 keys (/Subtype set last); F3 /Widths without /FontDescriptor bounded [0, 1042] outside the array; F4 /Type /Page with /Kids and /Count mismatches refused at open (Malformed page_tree); F5 ambiguous inline data never rewritten (NotProven) and marked by the selector (RedactionClass::AmbiguousInlineImage); F6 /WMode leading integer read as pdf.js reads it, other number-like words unresolved"
  ],
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
   "exit": 0,
-  "sha": "b8ce934",
-  "passed": 99,
+  "sha": "12c632d (press tree = d079292)",
+  "passed": 114,
   "failed": 0
  },
- "blockers": [],
+ "blockers": [
+  {
+   "error": "awaiting steward pin: hayro-interpret 0.7.0 (features embed-fonts) and kurbo 0.13.1 (features std) are new normal dependencies of hsk-studio-press (builders/dep-requests.jsonl lines 58-59); until the registry pins + lock records + license gate land, tools/run-round.sh step 0 (cargo metadata --locked --offline, registry-sync check) refuses the candidate",
+   "file_line": "crates/hsk-studio-press/Cargo.toml:13-14",
+   "attempts": 0
+  }
+ ],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "rem-press-flatten: research renderer (hayro family), dep request, flatten pipeline, tests, red proofs",
- "updated_at": "2026-10-11T18:04:47Z",
+ "next": "Steward: pin hayro-interpret 0.7.0 + kurbo 0.13.1 for hsk-studio-press (dep-requests lines 58-59; 62-package windows closure listed in notes.d27_flatten.dependency), run the license gate. Then lead: set SMB-PRESS and SMB-PRESS-DIFFERENCES READY_FOR_VALIDATION at d079292 (claim d23fca4..d079292, nothing later touches the crate) or ask rem-press-flatten to do it; V4-13 pre-review suggested on the flatten design (renderer differential, painted_over semantics). Later lanes: SMB-PRESS-GEOMETRY, R11-P1..P4.",
+ "updated_at": "2026-10-11T19:04:58Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
@@ -3598,9 +3640,130 @@
   },
   "d27_flatten": {
    "builder": "rem-press-flatten",
-   "started_at": "2026-10-11T18:04:47Z",
    "decision": "START_LOG D27 (17:22:04Z) and D27 DECIDED (17:59:47Z): Flatten + narrow",
-   "status": "in progress"
+   "started_at": "2026-10-11T18:04:47Z",
+   "completed_at": "2026-10-11T19:04:58Z",
+   "lanes": {
+    "SMB-PRESS": {
+     "status": "null (awaiting steward pin)",
+     "findings": [
+      "R11-F1",
+      "R11-F2",
+      "R11-F3",
+      "R11-F4",
+      "R11-F5",
+      "R11-F6",
+      "R11-V1 (DESCRIPTOR/doc claims narrowed)"
+     ],
+     "open": [
+      "R11-P1",
+      "R11-P2",
+      "R11-P3",
+      "R11-P4 (pages without a region)"
+     ]
+    },
+    "SMB-PRESS-DIFFERENCES": {
+     "status": "null (awaiting steward pin)",
+     "findings": [
+      "R11-D1 (= R11-F1, F2, F5): closed by the same fixes"
+     ]
+    }
+   },
+   "research_basis": {
+    "sources_checked": [
+     "crates.io API pages (plain fetches, no personal data, V4-21): hayro versions (0.8.0 2026-10-04 = 7 days old; 0.7.1 2026-06-05), hayro 0.7.1 and 0.8.0 dependency lists (both depend on image 0.25), hayro-interpret versions (0.7.0 2026-05-15) and dependencies (image only as dev), hayro-syntax versions (0.7.2 2026-05-28)",
+     "docs.rs source listing of hayro 0.7.1 (src/lib.rs + src/renderer.rs, 1141 lines of vello_cpu glue: soft masks, patterns, images via pic-scale, layers)",
+     "local cargo registry sources (downloaded by cargo into ~/.cargo/registry for a scratch resolve under Handshake_Artifacts/WP-KERNEL-STUDIO/press-d27/research): hayro-interpret 0.7.0 lib.rs/device.rs/types.rs/soft_mask.rs/context.rs/interpret/mod.rs/x_object.rs/font/mod.rs/color.rs, hayro-syntax 0.7.2 page.rs/data.rs/pdf.rs/content, kurbo 0.13.1 stroke.rs/affine.rs/bezpath.rs, hayro-interpret assets/LICENSE_FOXIT + README (Foxit pfb from PDFium, BSD-3-Clause; CMYK profile CC0)",
+     "workspace rules: tools/workspace-probe.rs ALWAYS_FORBIDDEN (image), tools/license_gate.py OK set, builders/WORKSPACE_RULES.md crates-io-deps, .config/round-features.toml, .config/nextest.toml (120 s per test)"
+    ],
+    "patterns": "hayro = hayro-interpret (interpreter, Device trait) + vello_cpu glue + image (PNG export). The Device trait is small (paths with Paint, glyphs as outlines or Type 3 procedures, images as RGB/luma + alpha, clip paths in device space, transparency groups, soft masks via SoftMask::interpret).",
+    "reuse": "hayro-interpret for all PDF interpretation (fonts incl. CFF/TrueType/Type1 via skrifa and its own parsers, colour spaces via moxcms, image codecs DCT/JPX/JBIG2/CCITT); kurbo flatten/stroke for geometry; press's own reader/writer/filters for isolation and bounded decoding; miniz_oxide (already pinned) to deflate the raster.",
+    "rejected": [
+     "hayro (top crate) 0.7.1/0.8.0: depends on image 0.25, which tools/workspace-probe.rs rejects for every owner (ALWAYS_FORBIDDEN); also pic-scale SIMD and vello_cpu",
+     "hayro-interpret 0.8.0: 7 days old (rule: >= ~2 weeks unless required)",
+     "vello_cpu + vendoring hayro's 1141-line renderer glue: larger closure (vello_common, peniko, fearless_simd paths), pic-scale; more code to own than a coverage rasteriser for a redaction raster",
+     "embed-cmaps feature: 61 predefined CMaps; not needed for safety (text the renderer cannot draw is absent); left off to keep the closure lean",
+     "soft-mask rendering in the first slice: content under a soft mask is absent (FlattenNote::SoftMask) instead"
+    ],
+    "selected": "hayro-interpret 0.7.0 (default-features off, embed-fonts on) + kurbo 0.13.1 as NORMAL (non-optional) dependencies; press's own Device implementation src/paint.rs. Not a non-default feature: WORKSPACE_RULES crates-io-deps gives only the plain dependency form, the D27 redaction must be the same in every build, the round tests default features unless the steward adds a round-features unit, and no crate depends on press.",
+    "risks_and_mitigations": [
+     "hostile content exhausting the renderer: canvas size checked before allocation (PixelBudget), images declaring > max_decoded_bytes pixels refused (ImageBudget), every stream pre-decoded by the crate's bounded decoders (a Flate bomb never reaches the renderer), undecodable streams given empty, work/segment/element/memory caps in paint.rs, cancellation polled; residual: CPU time inside hayro (font parsing, codec decoding of DCT/JPX/JBIG2 whose internal dimensions are bounded by those decoders, not by press Limits)",
+     "renderer panics: caught (catch_unwind) -> FlattenRefused(RendererPanicked); the panic hook still prints to stderr",
+     "renderer/viewer differential: irrelevant inside a region (painted); outside a region a string the selector did not select that a viewer draws inside the region but the renderer draws outside it stays visible (DESCRIPTOR redaction.flatten.renderer_differential); mitigated by rendering the page after the selector removed every string whose box may touch the region",
+     "fidelity: patterns/shadings, soft masks, non-separable blend modes are absent/approximated (typed notes); text of non-embedded non-standard fonts is drawn with hayro's fallback standard font",
+     "proof cost: the raster image is a decoded stream the proof scans like any other (about 2 s per 150 dpi page in a debug build; tests flatten at 36 dpi)"
+    ],
+    "validation_plan": "unit tests (paint fill rules/coverage, region pixel rounding, raster size budgets incl. dims_u32_max, canonical raster content, renderer refusal); integration tests on the saved bytes read with hayro-syntax (not the crate's parser) and an independent zlib inflate; red proofs on a scratch copy of b8ce934 with its own STUDIO_OWNER; full press nextest + doctests + clippy --tests --examples"
+   },
+   "dependency": {
+    "requests": "builders/dep-requests.jsonl lines 58 (hayro-interpret 0.7.0, features [embed-fonts]) and 59 (kurbo 0.13.1, features [std]); appended by rem-press-flatten; steward pin PENDING",
+    "closure_windows": "62 crates.io packages for hsk-studio-press (normal+build, --filter-platform x86_64-pc-windows-msvc, workspace resolve): adler2 2.0.1, arrayvec 0.7.8, autocfg 1.5.1, bitflags 2.13.2, block-buffer 0.10.4, bytemuck 1.25.2, bytemuck_derive 1.12.1, cfg-if 1.0.5, cpufeatures 0.2.17, crc32fast 1.5.2, crypto-common 0.1.7, digest 0.10.7, euclid 0.22.14, fastrand 2.5.0, fearless_simd 0.4.1 + 1.1.0, flate2 1.1.10, font-types 0.11.3, generic-array 0.14.7, hayro-ccitt 0.3.0 + 0.4.0, hayro-cmap 0.1.0, hayro-interpret 0.7.0, hayro-jbig2 0.3.1, hayro-jpeg2000 0.3.5, hayro-postscript 0.1.0, hayro-syntax 0.7.2, kurbo 0.13.1, libm 0.2.16, memchr 2.8.3, miniz_oxide 0.9.1, moxcms 0.8.1, num-traits 0.2.19, phf/phf_generator/phf_macros/phf_shared 0.13.1, polycool 0.4.0, proc-macro2 1.0.107, pxfm 0.1.30, quote 1.0.47, read-fonts 0.39.2, rustc-hash 2.1.3, sha2 0.10.9, simd-adler32 0.3.10, siphasher 1.0.4, skrifa 0.42.1, smallvec 1.16.2, stable_deref_trait 1.2.1, syn 2.0.119 + 3.0.7, synstructure 0.14.0, typenum 1.20.1, unicode-ident 1.0.26, version_check 0.9.5, yoke 0.8.3, yoke-derive 0.8.4, zerofrom + zerofrom-derive 0.1.8, zlib-rs 0.6.8, zune-core 0.5.3, zune-jpeg 0.5.15",
+    "licences": "all within tools/license_gate.py OK: Apache-2.0 OR MIT (hayro-*, kurbo, fearless_simd, rustc-hash, fastrand, polycool...), MIT OR Apache-2.0, MIT (phf*, synstructure, simd-adler32, generic-array), Zlib (zlib-rs), BSD-3-Clause OR Apache-2.0 (moxcms, pxfm), Zlib OR Apache-2.0 OR MIT (bytemuck), MIT OR Apache-2.0 OR Zlib (zune-*), Unicode-3.0 (yoke, zerofrom), Unlicense OR MIT (memchr), 0BSD OR MIT OR Apache-2.0 (adler2), (MIT OR Apache-2.0) AND Unicode-3.0 (unicode-ident); embedded font data BSD-3-Clause (PDFium/Foxit), ICC CC0-1.0",
+    "pure_rust": "no -sys package, no links key, no FFI; zlib-rs, fearless_simd, bytemuck and hayro-syntax's 'unsafe' feature use unsafe Rust; hayro-interpret itself is forbid(unsafe_code); press stays forbid(unsafe_code)",
+    "versions_age": "hayro-interpret 0.7.0 2026-05-15, hayro-syntax 0.7.2 2026-05-28 (both > 4 months); transitive versions as resolved by cargo 1.97.1 (UNVERIFIED individually for the 2-week age rule)"
+   },
+   "design": {
+    "pipeline": "redact_and_save_with: selector per region (select_region, flattening mode) -> text-field pass (if requested) -> flatten_region_pages (per page index: visible box, raster_size budget, isolate, render, paint regions FLATTEN_FILL, deflate, new image XObject + canonical content, page dictionary rebuilt in place) -> canonicalize (other pages) -> save_full (old page content, resources, annotations unreachable -> dropped) -> verify_internal (second check) -> check_flattened per flattened page (residual_in_region)",
+    "files": "src/flatten.rs (pipeline, FlattenNote/FlattenCause/FlattenedPage, check_flattened), src/paint.rs (Device), src/sanitized_save.rs (integration, region_flattened), src/redaction.rs (select_region, painted_over), src/error.rs (Limits flatten_dpi/max_flatten_pixels, PressError::FlattenRefused, RedactionClass::AmbiguousInlineImage), src/lib.rs (exports, DESCRIPTOR)",
+    "annotations": "dropped from flattened pages (not rendered: render_annotations false and the isolated page has no /Annots); AcroForm widgets of such pages stay reachable through /AcroForm /Fields (not displayed; their text is read by the second check)",
+    "semantics_kept": "region_cleared/is_proven keep their conservative composition (whole-file determination reasons still withhold them); region_flattened() is the by-construction claim; RedactionReport::complete still false for text the selector cannot place",
+    "test_dpi": "test helpers flatten at 36 dpi (Limits::flatten_dpi) to keep debug runs fast; the pixel test runs at the default 150 dpi"
+   },
+   "limitations": "DESCRIPTOR proof.limitations: R11-F1 (mask effect not computed; read as content), R11-F2 closed, R11-F3 bounded, R11-F4 refused at open (plain verify_payload_absent of a foreign file reads such a node's page as a stray page), R11-F5 never rewritten + marked, R11-F6 leading integer, R11-P1/P2/P3/P4 open, R10-P3/P5 open, D27 renderer differential",
+   "tests_new": [
+    "prereview_region_pages_are_flattened (R11-F1a, F1b, F2, F3, F5, R10-F3, R9-F2a, R8-F4 sub-cases + F5 under Refuse)",
+    "flattened_region_pixels_are_opaque_and_the_rest_is_rendered",
+    "flatten_pixel_budget_is_a_typed_refusal (PixelBudget + ImageBudget dims_u32_max)",
+    "pages_without_regions_stay_canonical_text",
+    "descriptor_states_the_narrowed_claim_and_its_limitations",
+    "inline_image_keys_never_change_the_xobject (R11-F2, R11-F5 on a page without a region)",
+    "soft_mask_groups_are_content (R11-F1 without a region)",
+    "ambiguous_page_trees_are_refused (R11-F4)",
+    "widths_without_a_descriptor_are_bounded (R11-F3)",
+    "wmode_spellings_and_identity_names_are_read_as_viewers_do: sub-cases /WMode 1def, /WMode 1e (R11-F6)",
+    "unit: paint::fills_follow_the_fill_rule_and_clip, paint::spans_cover_partial_pixels, flatten::region_pixels_round_outwards_and_clamp, flatten::raster_size_is_checked_before_allocation, flatten::raster_content_is_canonical, flatten::renderer_refusal_is_typed"
+   ],
+   "tests_adapted": "26 existing pdf_delivery tests asserted on the region page's surviving content; adapted without weakening their subject: proof subjects moved to page two (split_region_page, with_page_two, raster_doc2), selector behaviour checked through PdfDoc::redact_region (selector_save), proof-side determination of the region's text checked on the input (verify_secret / verify_payload_absent), region-page oracles flipped to 'gone from the file' (marked D27-flatten where they would hide a red sub-case)",
+   "red_proof": {
+    "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/press-d27-redproof/src (git archive b8ce934 handshake-studio-assets; press Cargo.toml + hayro-interpret/kurbo so the test file compiles; tests copied with every line marked D27-new-api or D27-flatten dropped; files touched), STUDIO_OWNER=press-d27-redproof, CARGO_NET_OFFLINE=true",
+    "flatten_redaction": "9 run, 0 passed, 9 failed (red_flatten.log): prereview_region_pages_are_flattened names 25 failing sub-case checks incl. 'R11-F5 under Refuse: not refused'",
+    "wmode": "wmode_spellings_and_identity_names_are_read_as_viewers_do: only the new sub-cases fail: '/WMode 1def' and '/WMode 1e' (read as cleared, not marked, not refused) (red_wmode.log)",
+    "unit_tests": "the paint/flatten unit tests live in new modules: absent at b8ce934 (no red run possible)",
+    "green": "114/114 at 12c632d (press tree d079292); doctests 0; clippy --tests --examples clean"
+   },
+   "v4_06": {
+    "class": "R11 viewer-differential sites (soft-mask groups, inline image keys and data ends, widths without descriptor, page-tree node types and counts, CMap /WMode tokens, inline image names) and the new D27 class names",
+    "regex": "SMask|inline_ambiguous|MissingWidth|\"Kids\"|WMode\"|INLINE_IMAGE_KEYS|HskIm|leading_int|AmbiguousInlineImage",
+    "sha": "d079292",
+    "count": 38,
+    "sites": [
+     "canon.rs:16 doc HskImN: n/a (doc)",
+     "canon.rs:219,223,229 INLINE_IMAGE_KEYS: FIXED R11-F2",
+     "canon.rs:273 inline_ambiguous refused: FIXED R11-F5",
+     "canon.rs:398 HskImN candidate loop: OPEN R11-P1(b) (limitation)",
+     "cmap.rs:397,425 leading_int: FIXED R11-F6",
+     "cmap.rs:417 WMode token: FIXED R11-F6",
+     "content.rs:22,68,119 inline_ambiguous detection: n/a (source of the flag)",
+     "content.rs:521 unit test: n/a",
+     "determination.rs:209 CMap stream dictionary /WMode (an object value, not a program token): n/a",
+     "error.rs:112,155 AmbiguousInlineImage: FIXED R11-F5 (new class)",
+     "flatten.rs:73 doc, 318 isolated page tree, 538 raster check: n/a (D27 code)",
+     "font.rs:12 doc, 494-495 unit test (/MissingWidth with a descriptor): n/a",
+     "font.rs:241 missing width: FIXED R11-F3",
+     "lib.rs:93 DESCRIPTOR: n/a (claims updated)",
+     "pdf_edit.rs:238 walk_pages Kids: FIXED R11-F4",
+     "pdf_edit.rs:280 leaf_count: FIXED R11-F4",
+     "pdf_edit.rs:572 AcroForm field /Kids: n/a",
+     "redaction.rs:630,632 selector marks ambiguous inline data: FIXED R11-F5",
+     "redaction.rs:942,956 AcroForm field /Kids purge: n/a",
+     "show_text.rs:482,605 walker refuses / skips ambiguous inline data: n/a (already fail closed at b8ce934)",
+     "show_text.rs:1011 proof page enumeration: n/a for redaction outputs (tree validated at open); foreign files: a /Type /Page node with /Kids is read as a stray page by pages_outside_tree (UNVERIFIED by a test)",
+     "show_text.rs:1076,1078 SMask /G content role: FIXED R11-F1",
+     "text_fields.rs:1191,1480 AcroForm field /Kids: n/a"
+    ]
+   },
+   "gameplan_route": "retry guard blocked one identical nextest rerun after test edits: route (a) product/test fix committed (HEAD changed), then rerun; one command was blocked because it started outside the Studio tree (hook resolved WP-KERNEL-012's gameplan): rerun with cd first; no gameplan step added",
+   "notes": "commit d5562c6 reuses a test-only subject by mistake (it also carries the R11 source fixes); no amend per rules, explained in 4f04c29. The shared worktree's HEAD advanced with other lanes' commits in between (4462f7c, 12c632d web)."
   }
  }
 }
