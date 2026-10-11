@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:51:15Z",
+ "updated_at": "2026-10-11T06:51:39Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1602,11 +1602,15 @@
    "crate": "hsk-studio-motion-js",
    "origin": "R5 review group B CONFIRMED: SMB-MOTION-JS-WORKER undelivered scope split (lead decision)",
    "scope": "AST validator for admitted expression syntax + OS-level RSS/CPU cap for the worker process (Windows Job Objects; Linux rlimit/cgroup later); plus typed Budget(Stack/Memory) classification from an unforgeable host-side signal (worker-level watchdog/OS limit), currently NOT_PROVEN (rquickjs 0.14.0 gives no such signal)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-motion-js-sandbox",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "34a1713"
+   ],
+   "verdicts": [],
+   "candidate": "34a1713",
+   "note": "own token-level ProfileValidator (no parser dep: boa 60 / oxc 75 / swc native stacker deps), applied before realm/engine by default, exact line:col refusals, budget refusals; Windows Job Object caps (memory notice -> unforgeable Budget(Memory), per-request CPU via 5 ms job accounting polling, kill-on-close, one process); unsafe only job_object.rs; 44 green across 3 feature sets; native-abort test NOT_PROVEN branch when WER holds worker (2/4 runs) -> WER follow-up requested; windows-sys 0.61.2 pin needed"
   },
   {
    "lane_id": "SMB-PRISM-ENG-7",
@@ -1765,7 +1769,8 @@
  ],
  "steward_next_sync": [
   "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)",
-  "round-features: hsk-studio-render-gpu = [[\"test-faults\"]] (R6 V4-04 fix; 3 fault tests)"
+  "round-features: hsk-studio-render-gpu = [[\"test-faults\"]] (R6 V4-04 fix; 3 fault tests)",
+  "windows-sys 0.61.2 optional dep for hsk-studio-motion-js feature quickjs (already in Cargo.lock; native-ffi probe approval for motion-js)"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1837,7 +1842,8 @@
   "SMB-SESSION",
   "SMB-RENDER-CPU-ADJ",
   "SMB-RENDER-GPU-ADJ",
-  "SMB-CHRONICLE-TABLE"
+  "SMB-CHRONICLE-TABLE",
+  "SMB-MOTION-JS-SANDBOX-2"
  ],
  "round_R6": {
   "candidate": "bd8533f",

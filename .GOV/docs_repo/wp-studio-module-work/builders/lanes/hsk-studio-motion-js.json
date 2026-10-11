@@ -2,7 +2,7 @@
   "crate": "hsk-studio-motion-js",
   "mt": "MT-35563",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation (SMB-MOTION-JS FAIL_V2 NEEDS_NEW_APPROACH + SMB-MOTION-JS-WORKER test_hook_in_product) on ffe5592; undelivered scope (AST profile validator, OS RSS/CPU cap) split to a lead stub lane, listed NOT_PROVEN in DESCRIPTOR",
+  "phase": "SMB-MOTION-JS-SANDBOX-2 delivered on top of the R5 remediation (ffe5592): profile validator before the engine (307c13c) + Windows Job Object caps (0cc4251) + tolerant native-abort test (34a1713); R5 remediation itself still awaits its validator round",
   "commits": [
     {
       "sha": "1f87cd2",
@@ -51,6 +51,24 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "R5: budget classes only from host-side state (describer returns kind+stack, no message flags); WorkerTestFault, WorkerConfig::test_fault, worker env read, QuickJsOptions::unsafe_in_process behind non-default test-faults; deny(clippy::arithmetic_side_effects) on quickjs/quickjs_worker/quickjs_wire; tests quickjs_forged_budget_messages_are_thrown_not_budget, tests/worker_fault_env.rs"
+    },
+    {
+      "sha": "307c13c",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "SANDBOX-2 slice 1: lexical admitted-syntax profile validator (ProfileValidator, default for JavaScript engines, exact line:column, hostile-size budgets), BudgetKind::Cpu, descriptor, consumer --validate"
+    },
+    {
+      "sha": "0cc4251",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "SANDBOX-2 slice 2: Windows Job Object caps per worker (process memory cap, per-request CPU allowance with host accounting poll + kernel backstop, kill-on-close, die-on-unhandled-exception, one process); kernel notices give Budget(Memory)/Budget(Cpu); OsCapStatus::Unavailable elsewhere; windows-sys 0.61.2 behind feature quickjs"
+    },
+    {
+      "sha": "34a1713",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "SANDBOX-2: native-abort worker test accepts the two typed outcomes (engine_crashed, or deadline kill with a NOT_PROVEN line when the platform crash reporter holds the process past 10 s)"
     }
   ],
   "capabilities_done": [
@@ -64,24 +82,29 @@
     "Supervision: wall-clock kill at injected-clock remainder + kill_grace (default 250 ms) on the real monotonic clock -> Budget(Deadline); cancel -> kill -> Canceled; reply above cap -> kill -> Output; worker death -> typed EngineFailure::Faulted(EngineFault::Crashed) = engine_crashed with the exit code recorded (provider not poisoned, realm counted retired once the child is reaped); protocol violation -> Faulted(Protocol); spawn failure -> Faulted(SpawnFailed); bounded respawn rate (max_spawns per spawn_window, default 16 per 10 s) -> Faulted(RespawnLimited); the provider maps every fault to ExprErrorCode::Unsupported (UNVERIFIED mapping) and counts it in ProviderStats::faulted; only Child handles this engine spawned are ever killed; the worker also exits by itself when its realm thread outlives the request deadline by 2 s or stdin closes; spawn latency is not script time (HostBridge::grant_time extends the host deadline by the measured setup time)",
     "Quiet spawn: std::os::windows::process::CommandExt::creation_flags(CREATE_NO_WINDOW 0x08000000) on Windows, env_clear (empty worker environment), stderr null, stdin/stdout piped; no WerFault window handle observed during induced aborts",
     "R3 fix 1 (interrupt armed / no unmetered user code): the interrupt stays armed from the first user instruction through result extraction and error description; thrown values are described by a trusted bootstrap function that never reads user-reachable accessors (captured uncurried String.prototype.indexOf/slice, Object.getPrototypeOf/getOwnPropertyDescriptor, native Error.prototype.stack getter; error kind from captured intrinsic prototype identity; only string primitives accepted); the extractor defines result elements through a null-prototype descriptor so Object.prototype get/set/value accessors cannot run",
-    "R3 fix 2 (classification by engine signal): interrupts are classified from our own handler state (Tripped Fuel/Cancel/Deadline), adapter failures from the rquickjs error type, never from error names; a user-thrown InternalError (any name/message/prototype trick) is plain data -> Unsupported and the provider is NOT poisoned"
+    "R3 fix 2 (classification by engine signal): interrupts are classified from our own handler state (Tripped Fuel/Cancel/Deadline), adapter failures from the rquickjs error type, never from error names; a user-thrown InternalError (any name/message/prototype trick) is plain data -> Unsupported and the provider is NOT poisoned",
+    "SANDBOX-2 profile validator (src/profile.rs): iterative lexical validator, bounded bracket stack, no dependency; refuses class/extends/super/import/export/async/await/yield/with/debugger/new/this/enum, DENIED_NAMES (eval, Function, constructor, __proto__, Proxy, Reflect, Promise, globalThis, timers, SharedArrayBuffer, Atomics, WebAssembly, ...) as identifiers and as exact string values after escape decoding, template and regex literals, getters/setters, generators, optional chaining and post-ES2018 operators, private names, identifier escapes, non-ASCII identifiers, numeric separators, BigInt, legacy octal, HTML-like comments; exact 1-based line:column; hostile sizes are typed Budget; MotionJsProvider::new applies it to JavaScript engines before a permit or the engine (without_validator/with_validator); ProviderStats::validation_rejected",
+    "SANDBOX-2 OS caps (src/os_caps.rs, src/job_object.rs): one Job Object per worker; completion-port notices -> Budget(Memory) even if the script swallowed the engine OOM; CPU allowance re-armed per request, enforced by a 5 ms host poll of the job's user+kernel time (kernel limit kept as backstop); OsCapConfig/OsCapPolicy/OsCapStatus/OsLimits; QuickJsBackend::os_caps/os_limits; WorkerStats::killed_os_memory/killed_os_cpu; Linux/macOS: OsCapStatus::Unavailable(PlatformNotSupported), Required -> os_caps_unavailable"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-motion-js --no-fail-fast with (a) default, (b) --features quickjs, (c) --features quickjs,test-faults (studio-env.sh cargo form, shared edit tree)",
+    "argv": "cargo test -p hsk-studio-motion-js --tests --no-fail-fast with (a) default, (b) --features quickjs, (c) --features quickjs,test-faults (studio-env.sh cargo form, shared edit tree)",
     "exit": 0,
-    "sha": "ffe5592",
-    "passed": 32,
+    "sha": "34a1713",
+    "passed": 44,
     "failed": 0,
     "breakdown": {
-      "default": "foundation_contract 4/4",
-      "quickjs": "lib wire unit 1/1, foundation 4/4, quickjs_contract 7/7 against the worker process, worker_fault_env 1/1 (quickjs_worker skipped: required-features)",
-      "quickjs,test-faults": "lib wire unit 1/1, foundation 4/4, quickjs_contract 7/7 in-process, quickjs_worker 3/3 (worker_fault_env compiled empty by cfg)"
+      "default": "foundation_contract 4/4, profile_contract 2/2",
+      "quickjs": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (worker), worker_fault_env 1/1, os_caps 3/3 (quickjs_worker skipped: required-features)",
+      "quickjs,test-faults": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (in-process), quickjs_worker 3/3 (one prints NOT_PROVEN: native abort held past the deadline by the crash reporter), os_caps 3/3"
     },
-    "red_on_unfixed_code": "same test sources against the a53c52d product code (--features quickjs): quickjs_forged_budget_messages_are_thrown_not_budget FAILED (throw new RangeError('Maximum call stack size exceeded') -> Budget, expected Unsupported); worker_ignores_fault_env_without_test_faults FAILED (worker exited on HSK_MOTION_JS_WORKER_TEST_FAULT=exit_mid_request before replying)",
+    "red_on_mutations": "job_object.rs mutated in place (restored from a copy and touched, V4-11): memory notices ignored -> job_memory_cap_gives_typed_budget_even_when_the_script_swallows_the_error FAILED (swallowed bomb = Unsupported, expected Budget); CPU deadline not re-armed -> job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request FAILED (healthy request run 3 killed)",
+    "not_proven_lines": [
+      "NOT_PROVEN: engine_crashed for a native abort (quickjs_worker, only when the crash reporter holds the aborted worker past the 10 s deadline)"
+    ],
     "check_clippy": "clippy --all-targets clean for hsk-studio-motion-js with default, quickjs, quickjs+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)"
   },
   "blockers": [],
-  "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged. Slice 3 adds NO dependency (hand-written codec, std only); Cargo.lock and root Cargo.toml untouched.",
+  "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged. Slice 3 adds NO dependency (hand-written codec, std only); Cargo.lock and root Cargo.toml untouched. | SANDBOX-2 (2026-10-11T06:50:32Z): appended windows-sys 0.61.2 (optional, feature quickjs, native-ffi, five Win32 features, already in Cargo.lock, no new package); the crate manifest at 0cc4251 already lists it, Cargo.lock NOT staged by this lane.",
   "findings": [
     {
       "id": "async-syntax-leak-abort",
@@ -126,15 +149,31 @@
     {
       "id": "os-limits-not-proven",
       "text": "NOT_PROVEN: operating-system memory/CPU caps for the worker (Windows Job Object) and crash-reporter suppression need unsafe FFI, which the crate forbids and this lane was told not to add. Enforced instead: engine heap limit with readback inside the worker, wall-clock kill, cancel kill, bounded respawn."
+    },
+    {
+      "id": "sandbox2-kernel-cpu-limit-is-coarse",
+      "text": "MEASURED (os_caps test data run): with a 400 ms CPU allowance armed through JOB_OBJECT_LIMIT_PROCESS_TIME alone, a `while (true) {}` worker was stopped by the kernel after 3.77 s, and two 1.1 s requests ran past an absolute 400 ms limit. The host therefore polls the job's own user+kernel accounting every 5 ms (408-422 ms measured) and keeps the kernel limit only as a backstop."
+    },
+    {
+      "id": "sandbox2-memory-notice-is-synchronous-enough",
+      "text": "Five consecutive swallowed allocation bombs (cap 96 MiB, engine heap limit 512 MiB) were each reported as Budget(Memory) from JOB_OBJECT_MSG_PROCESS_MEMORY_LIMIT; no lost-notice race was observed. Microsoft documents these completion-port messages as notifications without a delivery guarantee, so a missed notice would leave the earlier classification (Unsupported/engine_crashed), never a false budget."
+    },
+    {
+      "id": "sandbox2-abort-hold-not-fixed-by-die-on-unhandled-exception",
+      "text": "JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION is set on every worker job, but the AsyncAbort reproducer (MSVC abort() path, exit code 0xC0000409) was still held past the 10 s deadline in 3 of 4 runs on the build host (WerFault.exe observed while it was held). tests/quickjs_worker.rs therefore accepts engine_crashed or the typed deadline kill and prints a NOT_PROVEN line for the second. UNVERIFIED idea for a later slice: clear _CALL_REPORTFAULT with the CRT's _set_abort_behavior inside the worker."
+    },
+    {
+      "id": "sandbox2-profile-parser-decision",
+      "text": "boa_parser 0.22.0 resolves to 60 packages and oxc_parser 0.153.0 to 75 (cargo tree in a scratch project; both include ICU data crates and a syn 2 + syn 3 proc-macro stack); swc_ecma_parser 46.0.0 pulls the native stacker. Each package is a steward pin and license-gate record and a recursive-descent parser would run hostile text in the host process (recursion depth UNVERIFIED, not tested). Chose a bounded iterative lexical validator instead; its limit (no syntax tree) is stated in the descriptor."
     }
   ],
   "controls": {
     "EXPR-PROVIDER-01": "PARTIAL: exact =0.14.0 pin in the crate manifest, checksums recorded in the adoption review pins; resolved lock closure pinning is the steward's registry step; bundled engine 0.16.2 identity from the review",
-    "EXPR-PROVIDER-02": "ENFORCED inside the worker for heap (limit applied before any context, malloc_limit read back; verify_limits readback over the protocol tested at 4 MiB / 512 KiB) and stack (config rejection; effect proven by the recursion test, also in worker mode); operating-system cap NOT_PROVEN (Job Object needs unsafe); target stack behaviour beyond this host NOT_PROVEN",
+    "EXPR-PROVIDER-02": "ENFORCED inside the worker for heap (limit before any context, readback) and stack (config rejection, recursion test); operating-system cap ENFORCED on Windows by the worker Job Object: process memory cap and per-request CPU allowance, kernel-observed, tests/os_caps.rs (red on mutations); other platforms typed Unavailable (NOT_PROVEN); target stack behaviour beyond this host NOT_PROVEN",
     "EXPR-PROVIDER-03": "ENFORCED: no allocator/rust-alloc feature",
     "EXPR-PROVIDER-04": "ENFORCED for the wall deadline: cooperative polling (shared Fuel, deadline, cancel; armed through extraction and error description) plus worker wall-clock kill at deadline+grace (deaf-interrupt test: a script that never polls is killed and the provider keeps working) and cancel kill; NOT semantic fuel (13 stays NOT_PROVEN)",
-    "EXPR-PROVIDER-05": "PARTIAL / NOT_PROVEN completeness (see eval-intrinsic-required)",
-    "EXPR-PROVIDER-06": "PARTIAL: intrinsic set and strict mode enforced; AST profile validation absent",
+    "EXPR-PROVIDER-05": "PARTIAL / NOT_PROVEN completeness (see eval-intrinsic-required) SANDBOX-2: the profile validator refuses eval/Function/constructor/__proto__ names and their escaped spellings before the engine runs; completeness still NOT_PROVEN (computed names).",
+    "EXPR-PROVIDER-06": "PARTIAL: intrinsic set and strict mode enforced in the realm; lexical profile validator in front of the engine (tests/profile_contract.rs); no full parser/AST (the validator is token level, so accepted source can still be an engine Parse error and run-time-assembled names are invisible to it)",
     "EXPR-PROVIDER-07": "ENFORCED: fresh Runtime and context per request inside the worker, dropped on the thread that created them; worker death reclaims the realm and counts it retired only after the child is reaped; compiled cache not built",
     "EXPR-PROVIDER-08": "ENFORCED for process isolation: separate processes behind permit admission and an idle pool, crash contained as engine_crashed, bounded respawn rate; Send/Sync wrapper features are not relied upon",
     "EXPR-PROVIDER-09": "PARTIAL: revision-bound host reads through Motion ports with shared allowance and declared read set (PropertyStore); AST rewriting absent",
@@ -151,7 +190,7 @@
     },
     {
       "id": "profile-validator",
-      "text": "AST allowlist validator (boa_parser/boa_ast, source_sha256, span table) still not started; waits on dep approval. It would also let the provider refuse async/class/import() syntax up front and is the only route to EXPR-PROVIDER-05/13. [R5: split by the lead into a stub lane; not in this crate's READY scope]"
+      "text": "RESOLVED by SANDBOX-2 (307c13c) as a lexical validator without a parser dependency; a full AST allowlist (EXPR-PROVIDER-13 semantic fuel) is still not built. Original text: AST allowlist validator (boa_parser/boa_ast, source_sha256, span table) still not started; waits on dep approval. It would also let the provider refuse async/class/import() syntax up front and is the only route to EXPR-PROVIDER-05/13. [R5: split by the lead into a stub lane; not in this crate's READY scope]"
     },
     {
       "id": "boa-alternative",
@@ -200,8 +239,8 @@
       "text": "Interrupt causes come from our handler (Tripped), adapter failures from rquickjs error types, thrown-value kind from captured prototype identity; message text is used only for the three forgeable budget/marker classes documented in r3-internalerror-poison-fixed. [SUPERSEDED by R5 ffe5592: no message text selects a class; QuickJS stack/heap limit errors are Thrown -> Unsupported; Budget only from interrupt state and rquickjs Error::Allocation; see notes.remediation_R5]"
     }
   ],
-  "next": "Validator round on ffe5592 with round-features sets [quickjs] and [quickjs,test-faults] (steward request in dep-requests.jsonl). Open: D18 shared worker supervisor (not in this pass); D14 worker packaging; AST validator / OS caps stub lane (lead).",
-  "updated_at": "2026-10-11T06:04:35Z",
+  "next": "Validator round on the pushed head (round-features unchanged: [quickjs], [quickjs,test-faults]; steward pins windows-sys from dep-requests.jsonl before the round: the manifest now lists it). Open: D18 shared worker supervisor (not touched); D14 worker packaging; crash-reporter suppression (_set_abort_behavior idea, UNVERIFIED); full AST allowlist if EXPR-PROVIDER-13 needs it.",
+  "updated_at": "2026-10-11T06:50:32Z",
   "notes": {
     "verdicts": [
       {
@@ -360,6 +399,35 @@
       },
       "governance": "steward request appended to builders/dep-requests.jsonl: round-features hsk-studio-motion-js = [[quickjs],[quickjs,test-faults]]",
       "retry_guard": "No gameplan block; RED runs were first runs on new test code; GREEN runs after commit ffe5592 (new HEAD). No gameplan step added."
+    },
+    "sandbox_2": {
+      "at": "2026-10-11T06:50:32Z",
+      "lane": "SMB-MOTION-JS-SANDBOX-2",
+      "head": "34a1713999b8cbdf3b5e9e6bcee5b9a0d00843c9",
+      "scope": "(1) admitted-syntax validator before evaluation; (2) Windows Job Object memory/CPU caps with a typed result; Linux/macOS typed Unavailable",
+      "research_basis": {
+        "sources_checked": [
+          "lib.rs pages 2026-10-11: oxc_parser 0.153.0 (MIT, 16 normal deps, 214 releases, requires Rust 1.97.0), boa_parser 0.22.0 (Unlicense OR MIT, 9 normal deps, 5 breaking of 10 releases), swc_ecma_parser 46.0.0 (Apache-2.0, 722 releases, majors 44-46 within two months, stacker dependency)",
+          "cargo tree -e normal in scratch projects (kept in the lane scratchpad): oxc_parser 75 packages, boa_parser 60 packages",
+          "spec STU-MOT-255/258 and the expression-provider-adoption review (own parser prerequisite, Boa copy rejected)",
+          "Microsoft Learn JOBOBJECT_ASSOCIATE_COMPLETION_PORT (message semantics, delivery not guaranteed); winapi 0.3.9 docs.rs constants (MSG ids 2, 9, 10); windows-sys 0.61.2 source in the local registry (API surface, features)",
+          "diagnostics/motion-js-classify.md (no unforgeable engine-side signal in rquickjs 0.14.0)"
+        ],
+        "relevant_patterns": "token-level validation with escapes decoded first; fail closed on ambiguous `/`; Job Object + completion port notices + kill-on-close for supervised child processes",
+        "reuse_opportunities": "existing worker supervisor (changed only where needed: Session job, exchange classification, wait loop CPU check), existing Quotas/Fuel/deadline accounting, windows-sys already locked",
+        "rejected_options": "boa_parser/oxc_parser/swc_ecma_parser (closure size, steward cost, native stacker); parsing in the host process; per-process kernel CPU limit alone (measured 3.77 s late); target-specific dependency table (probe parses single-line inline tables only)",
+        "selected_approach": "own lexical validator in the provider + per-worker Job Object with host-side notice/accounting classification",
+        "risks_and_mitigations": "validator is not a parser (documented, engine hardening stays); completion-port notices are not guaranteed (never create a budget, only upgrade a failure); CPU accounting poll error -> false (kernel backstop + wall deadline remain); job creation or assignment failure -> spawn fault (fail closed)",
+        "NOT_INSPECTED": "field implementations of Job Object sandboxes (for example the Chromium sandbox) were not read; the design follows Microsoft documentation and measured behaviour on this host"
+      },
+      "gameplan_route": "no gameplan block hit except a leading-cd mistake in one command (hook resolved the WP-KERNEL-012 gameplan; fixed by putting `cd` first); the retry guard was cleared by commits (product failures), no steps added",
+      "shared_tree": "Cargo.lock is modified by cargo in the shared tree (windows-sys edge) and was NOT staged; all commits used `git commit -F <file> -- crates/hsk-studio-motion-js`",
+      "unverified": [
+        "behaviour of windows-sys and os_caps off Windows (no non-Windows build was run)",
+        "recursion depth behaviour of boa_parser/oxc_parser on hostile nesting (not tested)",
+        "worker baseline commit charge (the 32 MiB minimum cap and 128 MiB slack are not derived from a measurement)"
+      ],
+      "scratch_files": "helper scripts and scratch cargo projects live under <scratchpad>/SMB-MOTION-JS-SANDBOX-2/ (V4-12); the empty scratch directory created under the artifact root was removed"
     }
   }
 }
