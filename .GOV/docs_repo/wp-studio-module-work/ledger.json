@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:23:08Z",
+ "updated_at": "2026-10-11T06:29:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -611,6 +611,11 @@
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r6_review_routed": {
+    "to": "builder-press-4 (message)",
+    "at": "2026-10-11T06:29:17Z",
+    "ref": "validation/R6-review-b.json"
    }
   },
   {
@@ -636,6 +641,11 @@
     "to": "rem-web",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r6_review_routed": {
+    "to": "rem-web-r6 (opus, new approach)",
+    "at": "2026-10-11T06:29:17Z",
+    "ref": "validation/R6-review-b.json"
    }
   },
   {
@@ -651,7 +661,12 @@
    ],
    "verdicts": [],
    "candidate": "d992b40",
-   "note": "caps 1-4 pure Rust (grant-checked port, preallocated atomic SPSC ring no unsafe, ClockedSoftwareDevice CloseReport, Observe report, DESCRIPTOR, consumer example) 1d8f1dd + cap 5 cpal-backend (default OFF, f32 output only, exact-format else Unavailable) d992b40; 5 tests + 1 ignored native; native smoke silence 8192/8192 frames reconciled (API-level, not hardware proof); open semantic: Full on try_push counts overrun+discontinuity with dropped_frames 0 under healthy backpressure (review); loopback oracle NOT_PROVEN"
+   "note": "caps 1-4 pure Rust (grant-checked port, preallocated atomic SPSC ring no unsafe, ClockedSoftwareDevice CloseReport, Observe report, DESCRIPTOR, consumer example) 1d8f1dd + cap 5 cpal-backend (default OFF, f32 output only, exact-format else Unavailable) d992b40; 5 tests + 1 ignored native; native smoke silence 8192/8192 frames reconciled (API-level, not hardware proof); open semantic: Full on try_push counts overrun+discontinuity with dropped_frames 0 under healthy backpressure (review); loopback oracle NOT_PROVEN",
+   "r6_review_routed": {
+    "to": "rem-score-r6",
+    "at": "2026-10-11T06:29:17Z",
+    "ref": "validation/R6-review-b.json"
+   }
   },
   {
    "lane_id": "SMB-SCORE-PLUGIN",
@@ -667,7 +682,12 @@
    ],
    "verdicts": [],
    "candidate": "6c45e64",
-   "note": "CLAP fixture via .config/oracle-corpus.toml MANIFEST (sha256 + source_sha256 tie), env var only optional override, absent -> NOT_PROVEN; 11 of 11 green with clap+test-faults features and no HSK_* env (absent/mismatch branches not exercised)"
+   "note": "CLAP fixture via .config/oracle-corpus.toml MANIFEST (sha256 + source_sha256 tie), env var only optional override, absent -> NOT_PROVEN; 11 of 11 green with clap+test-faults features and no HSK_* env (absent/mismatch branches not exercised)",
+   "r6_review_routed": {
+    "to": "rem-score-r6",
+    "at": "2026-10-11T06:29:17Z",
+    "ref": "validation/R6-review-b.json"
+   }
   },
   {
    "lane_id": "SMB-REEL-NATIVE",
@@ -1579,7 +1599,8 @@
   "prism corpus key if requested",
   "round-features: hsk-studio-motion-js = [[\"quickjs\"],[\"quickjs\",\"test-faults\"]] (fc7822b may already cover quickjs+test-faults)",
   "round-features: hsk-studio-reel-native = [[\"av1-worker\"],[\"av1-worker\",\"test-faults\"]] (replaces [[\"av1\"]]; av1 is now host-only)",
-  "workspace-probe: accept feature selector hsk-studio-reel/av1 inside reel-native feature av1-worker (edge reel-native->reel exists, rav1d approved for reel) and probe each matrix feature set during steward-sync"
+  "workspace-probe: accept feature selector hsk-studio-reel/av1 inside reel-native feature av1-worker (edge reel-native->reel exists, rav1d approved for reel) and probe each matrix feature set during steward-sync",
+  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (native tests ignored without STUDIO_NATIVE_AUDIO; R6 review B)"
  ],
  "round_R4": {
   "candidate": "2abb984",

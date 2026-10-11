@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:23:08Z",
+ "updated_at": "2026-10-11T06:29:17Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -957,7 +957,7 @@
     "validation/R6-review-b.json"
    ],
    "launched": "2026-10-11T06:04:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:29:17Z (COMPLETE: score PASS; score-device, score-plugin PASS_WITH_NOTES; press, web FAIL)"
   },
   {
    "name": "reviewer-r6-c",
@@ -1051,6 +1051,31 @@
     "diagnostics/stale-artifacts.md"
    ],
    "launched": "2026-10-11T06:23:08Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-web-r6",
+   "agent_id": "a0a357702923e8f01",
+   "model": "opus",
+   "role": "R6 remediation web (2nd FAIL, NEEDS_NEW_APPROACH: WHATWG tokenizer agreement; diagnosis web-tokenizer.md)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web.json",
+    "diagnostics/web-tokenizer.md"
+   ],
+   "launched": "2026-10-11T06:29:17Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-score-r6",
+   "agent_id": "a3ec1826380373652",
+   "model": "sonnet",
+   "role": "R6 remediation score-device (counters = data loss only, lead decision) + score-plugin (TOCTOU staging copy, bounded timeouts)",
+   "owns": [
+    "crates/hsk-studio-score-device/**",
+    "crates/hsk-studio-score-plugin/**"
+   ],
+   "launched": "2026-10-11T06:29:17Z",
    "status": "running"
   }
  ]

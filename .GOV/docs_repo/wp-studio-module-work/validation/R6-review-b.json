@@ -1,0 +1,305 @@
+{
+ "round": "STUDIO-R6",
+ "group": "B",
+ "reviewed_commit": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+ "reviewer": "independent adversarial reviewer (Opus), group B, read-only, committed blobs at bd8533f only (git archive into scratch), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T06:03:52Z",
+ "completed_at": "2026-10-11T06:27:07Z",
+ "summary": {
+  "lanes_reviewed": 5,
+  "confirmed_total": 9,
+  "plausible_total": 12,
+  "per_lane": {
+   "SMB-SCORE": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 2,
+    "recommendation": "PASS"
+   },
+   "SMB-SCORE-DEVICE": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 2,
+    "recommendation": "PASS_WITH_NOTES"
+   },
+   "SMB-SCORE-PLUGIN": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 3,
+    "recommendation": "PASS_WITH_NOTES"
+   },
+   "SMB-PRESS": {
+    "CONFIRMED": 3,
+    "PLAUSIBLE": 4,
+    "recommendation": "FAIL"
+   },
+   "SMB-WEB": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 1,
+    "recommendation": "FAIL"
+   }
+  },
+  "method": "git archive of bd8533f crates (score, score-device, score-plugin, press, web) + .config + root Cargo.toml into a scratch dir; line-numbered reads; fix commits checked with git show/diff 1d404f8..bd8533f; rubato 5.0.1 and clack-host 0.2.0 facts read from the local cargo registry cache; no cargo, no sub-agents",
+  "candidate_note": "bd8533f carries press 6e95976 (slice 5 engine WIP) beyond the ledger press candidate e75bd5a; press 5a91fd7/70c2ace/272909b/dd1df63 and score-plugin 6c45e64 are NOT in bd8533f"
+ },
+ "lanes": [
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "commit_scope": "2fe5f36 (bounce_resampled) + 70ce263 (streaming SRC) over R5 PASS_V2 @1d404f8",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "identity_after_render",
+     "file_line": "crates/hsk-studio-score/src/src_bounce.rs:341,461,473; src/bounce.rs:211; src/ramp.rs:60-66",
+     "evidence": "Carried R5 PLAUSIBLE, now also in the new streaming path. pre/post chain_identity and graph_identity hash Processor::identity() AFTER the stream ran. RampedGain identity contains `current`, which becomes `target` after the first block, so a 0->1 ramp bounce and a flat 1.0 bounce share graph_identity but differ in digest. The whole-clip oracle has the same order, so the equality test cannot catch it.",
+     "remediation": "Capture pre/post identity right after StageRunner::new/proc.reset(), before the first block",
+     "commit": "70ce263"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_r2_r3",
+     "file_line": "crates/hsk-studio-score/src/block.rs:41-66; src/dsp.rs; src/eq.rs",
+     "evidence": "Carried R2/R3 PLAUSIBLE items, unchanged in this scope. InputBlock::validate does not call ticks_per_sample, so run_block admits non-divisor rates. A f32::MAX gain can publish inf. Limiter and EQ reset on discard instead of restoring a commit snapshot.",
+     "remediation": "ticks_per_sample in validate; refuse non-finite output; snapshot/restore via commit",
+     "commit": "6e17a6a"
+    }
+   ],
+   "verified_fixes": [
+    "Bit-identity claim HOLDS by construction and by test. rubato 5.0.1 process_all_into_buffer (lib.rs:323-398, local registry) processes full chunks while frames_left > chunk, then the last chunk with partial_len = Some(frames_left), then pumps Some(0). A full chunk sent with Some(chunk) is identical to None, because asynchro.rs:651-655 reads min(partial, needed_input_size) and zero-fills only below needed_input_size. stream_resample.rs:238-310 makes the same call sequence: pad zeros first, process a chunk as soon as it fills, the partial tail at finish, then Some(0) pumps. It skips trim+drop (to_skip) and delivers exactly `requested`, so the delivered frames match the whole-clip path, which drops `drop` after rubato's own trim.",
+    "Test is independent, not echoed: tests/streaming_src.rs:139-171 compares to_bits of streaming against Engine::resample (whole clip). It covers 5 rate pairs x 53 lengths, including 1005 (1005+19 pad = 1024 = chunk at 44.1k->48k) and 1023/1024/1025, which hit the padded % chunk == 0 path. Pushes are 1/7/255/1000 frames, plus a 4 s clip with 4096/333 pushes. :214-241 shows the streaming bounce receipt equals the whole-clip oracle field by field (working_set_bytes excepted) with limiter latency 341 -> converter -> EQ at blocks 256 and 77.",
+    "Exact counts: requested_frames (resample.rs:206-214) is u128 div_ceil. Hand check: 13,230,000 x 48000/44100 = 14,400,000 exactly; 1000@44.1k->48k = ceil(1088.44) = 1089; 1000@48k->44.1k = ceil(918.75) = 919. The test asserts these against (frames*out).div_ceil(in) computed in the test. trimmed_tail = expected_raw - requested - drop is non-negative because begin_stream refuses expected_raw < requested + drop (stream_resample.rs:102-107).",
+    "Working-set claim is honest and scoped. working_set_bytes = 2 StageRunner staging blocks + stream_in + stream_out (src_bounce.rs:501, stage.rs:72,85, stream_resample.rs:82-84). It explicitly excludes rubato's internal history (src_bounce.rs:125-129). Mono, 256-block, chunk 1024: 2x1024 + 4096 + 4496 = 10,640 B. tests/streaming_src.rs:286-303 compares the 300 s run with a 2 s run of the same graph: equal working_set_bytes, equal allocation-call count, peak within 4 KiB. The ignored real-rate test carries an #[ignore] reason (V4-03).",
+    "Carried R5 cap_duplicate (layout.rs tick math) FIXED in 2fe5f36: ticks_per_sample and sample_to_ticks delegate to accord Timescale (layout.rs:69-89).",
+    "Arithmetic re-read: stage.rs:151 and src_bounce.rs:551 additions are bounded by plan() checks (input_start+frames+latency and output_start+requested+latency checked at src_bounce.rs:276-288). begin_stream checked_add on pad and needed. No untrusted-byte decoding in this crate (V4-01 n/a)."
+   ],
+   "confirmed_count": 0,
+   "plausible_count": 2,
+   "recommendation": "PASS",
+   "recommendation_note": "The streaming SRC is bit-identical by construction (same rubato call sequence; partial Some(chunk) == None verified in rubato source) and by an independent to_bits oracle test. Counts are exact u128 and the working-set claim is scoped and measured. Open items are carried PLAUSIBLEs."
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "crate": "hsk-studio-score-device",
+   "commit_scope": "1d8f1dd + d992b40 (first review)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "counter_semantics",
+     "file_line": "crates/hsk-studio-score-device/src/ring.rs:128-141 (Full -> add_overrun(0) at :136); src/counters.rs:59-60,97-101; tests/foundation_contract.rs:100-104,131-136",
+     "evidence": "try_push_block counts one overrun and one discontinuity when it refuses a Full offer, though the caller keeps the block and nothing is dropped. Counters documents discontinuities as 'points where the delivered stream is not contiguous with the offered stream'. foundation_contract proves the delivered stream IS contiguous (consumed == produced bit for bit, :131) while asserting discontinuities == 2 (:136). Under healthy backpressure the native smoke reported overruns=30 on a gap-free stream. A consumer cannot tell real gaps from retried offers. The brief's test 1 mandates this count, so the defect is shared with the brief.",
+     "remediation": "Count Full as a separate refused_offers counter; keep overrun/discontinuity for real drops; amend brief test 1",
+     "commit": "1d8f1dd"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "round_coverage_gap",
+     "file_line": ".config/round-features.toml:14-19 (no hsk-studio-score-device entry); crates/hsk-studio-score-device/src/lib.rs:19-20,33-34 (cfg cpal-backend)",
+     "evidence": "Capability 5 (CpalProvider, cpal_backend.rs) compiles only with feature cpal-backend, and round-features.toml declares no score-device feature set. The round never builds, clippy-checks or doc-tests cpal_backend.rs. Its only compile evidence is the builder's own run. The registry pin exists (Cargo.toml metadata registry.hsk-studio-score-device direct cpal 0.18.2).",
+     "remediation": "Add hsk-studio-score-device = [[\"cpal-backend\"]] to round-features (build/clippy; native test stays #[ignore])",
+     "commit": "d992b40"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-score-device/src/cpal_backend.rs:267,360-364",
+     "evidence": "Cancel is checked once in prepare. open_output then blocks on ready_rx.recv_timeout(OPEN_WAIT = 15 s) with no cancel poll. On timeout, dropping CpalBackend joins the owner thread, which can block further while build_output_stream hangs (limitation disclosed in the lane notes).",
+     "remediation": "Wait for readiness in short slices polling cancel; on cancel request_stop and return Canceled",
+     "commit": "d992b40"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_drift",
+     "file_line": "crates/hsk-studio-score-device/src/provider.rs:15-16,41-57",
+     "evidence": "Admission::acquire says it takes 'ring_bytes of ring budget, or refuses with AdmissionDenied', but it only refuses on max_open_streams. bytes_in_flight is counted and never bounded. The total is bounded only implicitly (max_open_streams x max_ring_bytes, plus loopback).",
+     "remediation": "Add Limits.max_bytes_in_flight checked in acquire, or reword the doc to the implicit bound",
+     "commit": "1d8f1dd"
+    }
+   ],
+   "verified_fixes": [
+    "Realtime callback no-alloc/no-lock HOLDS. render_callback/capture_callback (callback.rs:12-33) call only Consumer::pop_into / Producer::push_frames and relaxed counter fetch_adds (ring.rs, counters.rs). They have no Mutex, no allocation and no I/O. tests/callback_alloc.rs:62-130 runs 10,000 iterations under a per-thread counting allocator, and its self-check (:82-89) proves the allocator is not blind. The source scan bans locks, push, format and sleep in callback/ring/counters. The cpal data callback is only render_callback (cpal_backend.rs:120-122); the error callback only swaps an AtomicBool and bumps a counter (:123-127).",
+    "Ring correctness HOLDS. Cursors run in [0, 2*capacity) and index = cursor % capacity. occupied() handles the wrap (ring.rs:30-36); the producer's tail+len and the consumer's head+take are reduced mod wrap and cannot overflow (len <= capacity). config.rs:73-75 checks capacity*2. The producer writes data Relaxed and then publishes tail with Release; the consumer Acquire-loads tail. The consumer frees space with a Release store on head; the producer Acquire-loads head. Occupancy is always a whole number of frames (block_samples or take*channels). foundation_contract.rs:85-136 checks wrap order bit for bit.",
+    "Underrun output is safe silence: render_callback zero-fills out[copied..] and counts underrun_frames (callback.rs:12-25). Device loss is checked before WrongLength/Full and counts nothing (ring.rs:129-131). CloseReport::reconciles is submitted == consumed + residual (provider.rs:138-140), and residual is re-read after the backend quiesced (provider.rs:210,267).",
+    "cpal backend gating HOLDS. cpal is optional (Cargo.toml:9,15), mod and re-exports sit behind cfg(feature=cpal-backend) (lib.rs:19-20,33-34), forbid(unsafe_code) covers the whole crate in both builds, the example --cpal returns feature_cpal_backend_off without the feature, and tests/native_cpal.rs is cfg-gated, #[ignore]d and panics NOT_PROVEN unless STUDIO_NATIVE_AUDIO=1 (V4-03). Open order is cancel > grant > config > permit, and the permit is released by the owner thread only after the stream is paused and dropped (cpal_backend.rs:151-176).",
+    "No D18 supervision code: the crate spawns only its own clock/owner threads (no Command); no 4th supervisor copy."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 2,
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Callback, ring and gating claims hold. The Full->overrun+discontinuity count is a real semantic defect, but the brief's test 1 mandates it; route it as a brief amendment (lead decision) rather than a builder FAIL. Add cpal-backend to the round feature matrix so capability 5 is at least compiled by the validator."
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "crate": "hsk-studio-score-plugin",
+   "commit_scope": "ccc9c9a, 8a6bc23, 35f197e, 67fdd10 (first review; lane-file commit 6c45e64 is NOT in bd8533f, so clap_fixture still uses the env var)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "security_toctou",
+     "file_line": "crates/hsk-studio-score-plugin/src/clap_backend.rs:126-128,140-159 (verify_file then load_entry), :68 (PluginEntry::load by path); src/backend.rs:70-87; src/lib.rs:56 (DESCRIPTOR authorization.content_check)",
+     "evidence": "The authorization rule is that foreign code runs only when its SHA-256 equals the hash the grant names. The worker hashes the file through one open (backend.rs:77-81 fs::read), then the dynamic loader opens the same PATH again (clap_backend.rs:68). Whoever can write the plugin path between the two opens gets unapproved code run in a worker with the user's full privileges (env_clear only, no sandbox). This is disclosed at clap_backend.rs:20-21 and in the lane's known_limits, but the DESCRIPTOR still says 'the worker checks again before use' without naming the window.",
+     "remediation": "Load from a private staging copy hashed in place (or hash the opened handle); disclose the window in DESCRIPTOR now",
+     "commit": "8a6bc23"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "unchecked_time_arithmetic",
+     "file_line": "crates/hsk-studio-score-plugin/src/supervisor.rs:394,453,467 (Instant + Duration); src/host.rs:287-297 (only is_zero checked), :497,:629-641 (shutdown_grace passed as deadline/patience)",
+     "evidence": "Per-call deadlines are bounded by MAX_DEADLINE (60 s, host.rs:220-226), but HostLimits.spawn_timeout and shutdown_grace are only checked non-zero. supervisor.rs computes Instant::now() + spawn_timeout and Instant::now() + patience, and std's Instant + Duration panics on overflow. With spawn_timeout = Duration::MAX the first spawn panics in the host. That contradicts the lane note 'deadlines are bounded by MAX_DEADLINE (60 s) before they reach it'. supervisor.rs is not under deny(arithmetic_side_effects) (the lane's known_limits acknowledge this).",
+     "remediation": "Bound spawn_timeout/shutdown_grace (<= MAX_DEADLINE) in IsolatedHost::new or use Instant::checked_add",
+     "commit": "67fdd10"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-score-plugin/src/supervisor.rs:56-69; src/host.rs:298-303",
+     "evidence": "Third instance of the R5 PLAUSIBLE seen in motion-js and reel-native. With no explicit program, score-plugin-worker[.exe] is also accepted from the PARENT of the running executable's directory. A planted binary there runs as the worker, and HELLO checks only a self-reported identity and ABI.",
+     "remediation": "Search only the executable directory, or require HostOptions.program outside tests",
+     "commit": "67fdd10"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "unbounded_buffer",
+     "file_line": "crates/hsk-studio-score-plugin/src/host.rs:246-263 (verify_content), :65 (max_plugin_file_bytes 512 MiB); src/backend.rs:17,77-81",
+     "evidence": "Host and worker each hash the plugin file with std::fs::read into one buffer of up to 512 MiB by default. This allocation is not charged to the admission budget (max_in_flight_bytes counts only block and state bytes), and it repeats on every probe and activate.",
+     "remediation": "Hash with a streaming SHA-256 over a fixed buffer (O(1) memory) in both host and worker",
+     "commit": "ccc9c9a"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "trust_boundary",
+     "file_line": "crates/hsk-studio-score-plugin/src/host.rs:791-795, 827-829, 867",
+     "evidence": "The host adopts state versions reported by the worker, which runs foreign code: E_STALE detail, ParamSet.version and State.version are not checked to be monotonic or equal to the host's own. A misbehaving plugin process can rewind state_version so process_expecting accepts a block prepared under an older state. The stale-state guard therefore relies on worker honesty.",
+     "remediation": "Host owns the version counter; accept only version == host_version + 1 from ParamSet and equality elsewhere",
+     "commit": "ccc9c9a"
+    }
+   ],
+   "verified_fixes": [
+    "Process isolation HOLDS. The host crate never loads foreign code. verify_content is a bounded fs::read plus SHA-256 (host.rs:246-263), and only the worker binary contains clap_backend (lib.rs:24-26 cfg(feature=clap)). Every call goes through Supervisor sessions (env_clear, null stderr, piped stdio, CREATE_NO_WINDOW: supervisor.rs:348-355). Every error path after spawn drops the Session, which kills and reaps (:534-539), and the Permit is the last field so it is released after the reap (:228-229).",
+    "D18 / no 4th copy: Command::new, creation_flags, env_clear, try_wait, kill and Stdio in score-plugin product code occur only in src/supervisor.rs. A grep over src/ and examples/ of score-plugin, score-device, score, press and web at bd8533f finds no other site, matching .config/duplicate-fingerprints.toml D18 allowed (exact file supervisor.rs). The HELLO wait now polls cancel in WAIT_SLICE steps (supervisor.rs:394-400 via wait :410-426), which removes the uncancellable-HELLO PLAUSIBLE of the two older copies.",
+    "test-faults gating HOLDS (V4-04). mod faults and FAULT_EXIT_CODE sit behind cfg(feature=test-faults) (lib.rs:28-29,40-41), as do HostOptions.test_args and args.extend (host.rs:96-97,314-315) and the worker --fault arm (worker.rs:92-93). The default worker uses the no-op no_faults stub (worker.rs:29-47), so --fault is an unknown flag (exit 2). The example returns fault_flags_need_feature_test_faults without the feature. Cargo.toml has no dev-dependency that enables test-faults. round-features.toml runs [test-faults] and [clap, test-faults] units.",
+    "CLAP unsafe surface: forbid(unsafe_code) without clap and deny with it (lib.rs:20-21). Only clap_backend has #[allow(unsafe_code)] (:25-26), and it contains one unsafe block, PluginEntry::load, with a SAFETY comment (clap_backend.rs:64-68). Dropping the local `entry` after configure is sound: clack-host 0.2.0 PluginInstance stores a clone of the PluginEntry ('Keep the DLL/.SO alive', registry clack-host-0.2.0/src/plugin/instance.rs:20,48).",
+    "Wire V4-01/02: deny(arithmetic_side_effects) on wire/host/backend/worker/clap_backend. read_frame refuses length > cap before reading (wire.rs:138-149) and reads incrementally through take(). samples() bounds frames and channels before checked_mul (:243-255). decode_* requires done() (no trailing bytes). Tests dims_u32_max (:853) and aggregate_over_budget (:907) exist. The host checks Processed replies for version, frames, channels, sample count, completeness and latency before copying (host.rs:760-769), and non-finite output is refused with silence written (:770-773)."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 3,
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Isolation, single-module supervision (no 4th copy), test-faults gating and the CLAP unsafe surface are as claimed. Two CONFIRMED items need cheap fixes: bound HostLimits durations, and disclose or close the hash-then-load window (disclosed in code, not in DESCRIPTOR). FAIL only if the lead treats the disclosed TOCTOU as blocking for the CLAP scope."
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "commit_scope": "R5 fix 03fb753 + slice 3 cb38b86 + slice 4 e75bd5a; bd8533f ALSO carries 6e95976 'Press slice 5 (wip)' (engine only, tests in 5a91fd7, not in candidate); dd1df63/272909b/5a91fd7/70c2ace not in candidate",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:247-254 (looks_like_content), :371, :402-421 (collision rule) vs doc :259-262; src/show_text.rs:177-205 (content_resources)",
+     "evidence": "The doc limits the kept-text-collision exemption to page and form content streams. The code applies it to ANY decoded stream without /Subtype (or /Subtype /Form) whose /Type is not XRef/ObjStm/Metadata/EmbeddedFile. A reachable non-content stream such as the R5 test's catalog /Hidden stream, but Flate-encoded and holding `BT (SECRET-ALPHA) Tj ET`, has its needle classed as a collision, not a hit. Its raw bytes count as covered, residual_in_region is 0, and is_proven() is true while the removed string survives in the saved file. content_resources already knows the real content streams.",
+     "remediation": "Apply the collision rule only to streams in content_resources (page /Contents, form XObjects); scan the rest strictly",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:82-84, 385-387 (opaque_text_streams listed, not blocking), :104-110 (is_clean), :488-495 (region_cleared)",
+     "evidence": "At the candidate, content and appearance streams that draw composite-font text without a usable /ToUnicode are only listed. is_clean, region_cleared and is_proven ignore them, so a removed word redrawn in an annotation appearance under other glyph codes reads proven. The lane's own lead correction ('proven while some text was never checked', NotProven::OpaqueText, dd1df63) confirms this class is a defect. That fix is NOT in bd8533f.",
+     "remediation": "Land dd1df63 (opaque text blocks the proof when needles were searched) in the next candidate",
+     "commit": "6e95976"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "candidate_wip_untested",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:13-16 (cites test raster_class_is_listed_and_region_images_are_removed); tests/pdf_delivery.rs (no such fn at bd8533f); src/raster.rs; src/show_text.rs",
+     "evidence": "bd8533f contains 6e95976, whose message says 'Engine for slice 5, tests follow in the next commit'. raster.rs (non-blocking raster class), show_text.rs (ToUnicode proof), RemoveImages, file_targets and the normalising matcher (~1100 changed lines) run with no test of their own at the candidate. The module doc cites a test that does not exist in tests/pdf_delivery.rs, a V4-07 violation. The ledger names e75bd5a as the press candidate, but the tree under test is e75bd5a + 6e95976.",
+     "remediation": "Judge press on a candidate that includes 5a91fd7/70c2ace/dd1df63; never push engine-only WIP to the shared branch",
+     "commit": "6e95976"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "r5_class_reopened",
+     "file_line": "crates/hsk-studio-press/src/raster.rs:49-55, 90-99; src/sanitized_save.rs:345-366",
+     "evidence": "Take the R5 regression shape and add /Subtype /Image to the stream: an image XObject with /Filter /JBIG2Decode (or DCTDecode) holding zlib bytes of the removed string. raster_tail classes it raster, and decode_prefix with an empty head scans only the compressed bytes, so there is no hit, no streams_not_decodable entry, and is_proven reads true. The lead approved the raster class for needles drawn as pixels; it also admits hidden encoded payloads.",
+     "remediation": "Require codec magic on the prefix-decoded bytes (JPEG FFD8FF, JP2/J2K) or report raster streams as typed NotProven",
+     "commit": "6e95976"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "proof_independence",
+     "file_line": "crates/hsk-studio-press/src/redaction.rs:95-101 (bbox f64::min/max drops NaN); src/sanitized_save.rs:548-557",
+     "evidence": "Carried R5 PLAUSIBLE, unchanged. residual_in_region re-runs the same redact_region selector, so a selector miss repeats undetected. A NaN glyph box (CTM overflow) is dropped by min/max, so touches() is false.",
+     "remediation": "Treat non-finite glyph boxes as unredacted marks; add an independent per-region text extraction check",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:305-308",
+     "evidence": "Carried R5 PLAUSIBLE, unchanged. scan(output, &vars) (naive find per variant over up to 64 MiB) and the windows(6) endobj count run before the per-object loop with no cancel check.",
+     "remediation": "Check cancel inside scan per variant/chunk, or use a multi-pattern matcher with cancel polling",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_drift",
+     "file_line": "crates/hsk-studio-press/src/filters.rs:1-3, 362",
+     "evidence": "Carried R5 PLAUSIBLE, unchanged. The header still lists LZW as an unsupported filter. ascii85 truncates an overflowing final partial group with `v as u32`.",
+     "remediation": "Fix the filters.rs header; refuse an overflowing final ASCII85 group as Malformed",
+     "commit": "d1bb2ff"
+    }
+   ],
+   "verified_fixes": [
+    "R5 FAIL is-proven-ignores-undecodable-streams FIXED (03fb753). PayloadProof::is_clean requires fully_decoded() (sanitized_save.rs:104-110). region_cleared requires proof.fully_decoded() (:488-495), so is_proven = region_cleared && hits.is_empty() (:476-478) inherits it. TextRedactedOutput::is_proven = report.complete && proof.is_clean() (text_fields.rs:248-250). All four claim sites route through fully_decoded. tests/pdf_delivery.rs:1170-1201 builds a control document that is proven, then a catalog-reachable /JBIG2Decode stream holding zlib bytes of the needle. An independent inflate shows the needle survives, and the test asserts streams_not_decodable == [(20, JBIG2Decode)] and !is_clean, !region_cleared, !is_proven.",
+    "The raster exception does not undo the R5 test: raster_tail requires /Subtype /Image (raster.rs:50-55), so the R5 test's non-image stream still blocks. Inline images with Crypt/unknown or misplaced raster filters are Blocking (raster.rs:67-88).",
+    "Name-tree rebuild re-read (text_fields.rs:1056-1196). DestRename seeds `taken` with every existing Dests, EmbeddedFiles and legacy /Dests key, so an issued HskRdN never collides (:614-642, 1158-1163). Matching keys are renamed, all values are kept, and the result is sorted by raw bytes (PDF lexical order) and written as one root leaf without /Limits (:1139-1145). edit_at follows indirect /Names and tree roots (:1021-1052), and the old Kids become unreachable and are dropped by the reachable-only writer. Minor: dedup_by (:1141) silently drops a duplicated key of a malformed tree.",
+    "Per-class completeness gaps are not soundness gaps: every string/name object, decoded non-content stream and raw byte outside decoded spans is scanned (sanitized_save.rs:330-342, 407-411, 442-446). So an uncovered carrier (page labels, OCG names, JavaScript names) surfaces as a proof hit, not a false proven, apart from the content-stream exemption in finding 1.",
+    "V4-01 on the post-V4 slice-5 modules: cmap, content, raster, redaction, sanitized_save, show_text, text_codec and text_fields carry deny(clippy::arithmetic_side_effects). syntax.rs and pdf_edit.rs were last touched in cb38b86 (05:15Z, before V4 adoption at 05:40Z)."
+   ],
+   "confirmed_count": 3,
+   "plausible_count": 4,
+   "recommendation": "FAIL",
+   "recommendation_note": "The R5 FAIL is fixed for non-image streams. At bd8533f is_proven still has a concrete false positive: a removed string as a Tj operand in any reachable non-content stream (finding 1, new and not addressed by later lane commits). The opaque-text gap is fixed only after the candidate, and the candidate carries untested slice-5 WIP with a doc citing an absent test."
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "commit_scope": "R5 remediation 5518980 + V4-06 sweep 8682e6f over 7cd898d",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "r5_remediation_incomplete",
+     "file_line": "crates/hsk-studio-web/src/charref.rs:94-109 (named ref without ';' left verbatim), :11-12 (claim); src/cssurl.rs:143-171, 244-247; src/assets.rs:384-391, 426",
+     "evidence": "Per the WHATWG named character reference state, a browser decodes the legacy semicolon-less names (&quot, &QUOT, &amp, &lt, &gt, ...) inside an attribute value unless the next character is '=' or alphanumeric. charref.rs keeps them verbatim and claims they 'never produce URL-structural characters', but &quot yields '\"', the CSS string delimiter. Payload: <p style='font-family:\"a&quot ;background-image:url(https://evil.example/b.png)'>. The browser reads font-family:\"a\" ;background-image:url(https://evil.example/b.png) and fetches the URL. css_references sees an unterminated string running to EOF, so the external URL is neither denied nor reported. Same failure class as R5 (raw text classified before browser decoding); no test covers semicolon-less named references.",
+     "remediation": "Decode the legacy no-semicolon names per the attribute rule (or deny values holding one); add an &quot test",
+     "commit": "5518980"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "spec_divergence",
+     "file_line": "crates/hsk-studio-web/src/dom.rs:496-525 (svg/math subtree parsed as foreign, no HTML integration points); src/assets.rs:446-452 (Text style children charref-decoded)",
+     "evidence": "Inside an HTML integration point (svg foreignObject/desc/title, MathML mi/mo/mn/ms/mtext, annotation-xml) a browser parses <style> as HTML RAWTEXT, where character references are NOT decoded. The parser has no integration points: it parses that <style> as foreign content with Text children, and style_children charref-decodes them. Payload: <svg><foreignObject><style>a{x:&quot;}b{background:url(https://evil.example/x.png)}</style>... (one line). The code decodes &quot; to '\"', opening a phantom string to EOF that hides the url(). The browser tokenizes &quot; as plain characters and fetches the URL.",
+     "remediation": "Model integration points (style under them is raw text, no charref decode), or refuse style text whose two readings disagree",
+     "commit": "5518980"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-web/src/assets.rs:125-146 (attr_kind); src/lib.rs:34 (DESCRIPTOR not_scanned)",
+     "evidence": "SVG SMIL <set>/<animate> with attributeName=href|xlink:href carry URLs in to/from/values/by (for example <image href=ok.png><set attributeName=href to=https://evil.example/a.png/></image>). These attributes are not scanned, and DESCRIPTOR not_scanned does not list them, so the report again under-states its scope (R5 FAIL #2 class). Browser fetch on animated href is per SVG animatable-href semantics, not re-verified online in this review.",
+     "remediation": "Scan to/from/values/by of set/animate whose attributeName is href/xlink:href/src, or list them in not_scanned",
+     "commit": "5518980"
+    }
+   ],
+   "verified_fixes": [
+    "R5 FAIL css-escape-bypasses-url-classification FIXED for CSS escapes. cssurl.rs implements CSS Syntax 3 tokenization: escapes are decoded first (4.3.7, :100-123; hex 1-6 digits + one whitespace, 0/surrogate/>10FFFF -> U+FFFD); ident sequences are decoded (:125-141), so u\\72l(, \\75rl( and URL( are url functions (:271-291); url-token handles whitespace and bad-url (:185-233); strings handle escaped newline continuation and bad-string on a raw newline (:143-171); comments, strings, numbers with units (1url( is a dimension) and hash names are skipped (:243-270). classify maps '\\' to '/' only on the decoded value (assets.rs:149-182). tests/source_dom_patch.rs:641-676 and :679-714 cover escape, decoy (comment, string, url/**/(, url (, xurl(, 1url() and case/whitespace: the V4-08 three classes.",
+    "R5 FAIL base-href-and-url-attributes-unscanned FIXED as listed. has_base_href scans every node (assets.rs:319-330); with any <base href> every relative reference is Denied(BaseHref) before the port (:348-350), and the base itself is reported (:402-410). attr_kind (:125-146) adds href/xlink:href on every element (svg image/use/a), frame src, formaction, background, poster, object data/codebase/classid/archive, ping, srcset/imagesrcset candidates, cite, longdesc/lowsrc/manifest, iframe srcdoc -> Denied(InlineDocument), and meta refresh whose http-equiv is compared after charref decoding (:486-490). DESCRIPTOR scanned/not_scanned is updated (lib.rs:34). Tests are at :750-781 and :784-831.",
+    "Numeric character references decode with or without ';' and with any digit count (charref.rs:67-85), matching the test at :717-747. A well-formed unknown &name; denies the value (Denied(UndecodableReference)) before the port (assets.rs:388-390). <style> RAWTEXT in HTML is correctly not charref-decoded (assets.rs:445).",
+    "R5 PLAUSIBLE relative-ref containment partly addressed: backslash and %2e/%2f/%5c in the path are Denied(AmbiguousPath) before the port (assets.rs:184-192, 351-353). Plain .. is documented as the port's containment duty (:29-35).",
+    "V4-06 count matches: the lane's class regex over src/ at bd8533f yields exactly 37 matches at the same 37 file:line sites the lane lists. The site 'charref.rs:60 decode_value definition = fixed' is inaccurate per finding 1."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 1,
+   "recommendation": "FAIL",
+   "recommendation_note": "The listed R5 items are fixed and the CSS tokenizer is faithful to CSS Syntax 3. But the decode-before-classify contract still breaks in two places: legacy semicolon-less &quot in attributes, and over-decoding of style under HTML integration points. Both let an external url() reach a browser without being collected or denied."
+  }
+ ],
+ "pending_lanes": []
+}
