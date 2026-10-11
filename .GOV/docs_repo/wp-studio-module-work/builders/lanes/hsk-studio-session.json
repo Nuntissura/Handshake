@@ -2,7 +2,7 @@
   "crate": "hsk-studio-session",
   "mt": "MT-35554",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 PLAUSIBLE remediation complete: receipt eviction policy, operator discard/resync of a diverged commit, V4-01/02/07 on the crate, negative-path tests; chronicle property table still mirrored (cross-crate request recorded)",
+  "phase": "CX-CAP-001: session consumes chronicle's exported addressability table (local copy deleted); R5 PLAUSIBLE remediation complete before it",
   "commits": [
     {
       "sha": "371ac82",
@@ -63,6 +63,12 @@
       "subject": "Session: cite the diverged-resolution test at the one remaining unqualified doc claim (V4-07), comment only",
       "pushed": true,
       "slice": "r5-plausible-doc"
+    },
+    {
+      "sha": "b77518c",
+      "subject": "Session: consume chronicle's addressability table, delete the local copy (CX-CAP-001)",
+      "pushed": true,
+      "slice": "cap-chronicle-table"
     }
   ],
   "capabilities_done": [
@@ -77,7 +83,8 @@
     "R5 receipt eviction (82a97b4): Budgets::receipt_policy ReceiptPolicy::{EvictAcknowledged (default), RefuseWhenFull}; the table never exceeds max_receipts; the oldest ACKNOWLEDGED committed receipt (handed to the caller by a submit result, a replay or acknowledge_receipt) is evicted when a new key arrives, typed in Applied::receipts_evicted and Session::receipt_stats() {held, capacity, pending, unacknowledged, evicted}; a pending receipt and a committed one adopted by reconcile/drain that no result has handed over are NOT evictable, a table full of those answers receipts_full before any work starts; room is checked before the provider runs and the eviction happens when the receipt is stored, so a failing submit evicts nothing; an evicted key replays as stale_revision (the revision moved), never a second application; Session::acknowledge_receipt(key) hands an adopted receipt over (receipt_not_held / outcome_unknown / receipt_mismatch typed otherwise)",
     "R5 diverged commit (82a97b4): a receipt that disagrees (binding / revision / base, type Disagreement) keeps the commit pending, listed by Session::diverged() and ReconcileReport::diverged_keys, and reconcile, drain and retries never resolve it; operator commands Session::discard_diverged(key) (drops the draft, document untouched, possibly behind the authority so the next commit answers stale_revision) and Session::resync_diverged(key, authority_document_bytes) (replaces the document with the authority document at the receipt revision: bytes bounded by the folio input and node budgets, parsed by folio, must be this document at the receipt revision with every raster asset present in the source manifest; typed AuthorityFault TooLarge / Invalid / ReadOnly / WrongDocument / WrongRevision / MissingAsset; property revision vector restarts at 0); both re-look the authority up first and answer not_diverged / receipt_not_held / outcome_unknown / grant_revoked / canceled without changing anything; one Observe frame each; DivergenceReport {resolution Discarded|Resynced, revision_before/after, draft_revision, authority receipt, disagreement}",
     "R5 V4 on the crate (82a97b4): crate-level deny(clippy::arithmetic_side_effects) with all 16 flagged sites made checked/saturating (V4-01); set_previews total uses checked_add against the running aggregate before keeping an image, resync_diverged bounds bytes before parsing (V4-02); seed_revisions and mask_property are exhaustive over chronicle Property x folio NodeKind with no wildcard (a new variant fails to compile) and chronicle_property_table_matches_the_session_seed compares the seed with what chronicle itself accepts for every node/property pair including a page spread and an unsupported layer; DESCRIPTOR v4 qualifies the streaming-save memory claim to RAW assets (codec assets are read and encoded whole by the package writer: stream.rs read_blob + encode_blob) and cites a test for each strong claim (V4-07)",
-    "R5 negative paths (82a97b4): receipts_full (RefuseWhenFull and all-unacknowledged), receipt_mismatch + diverged, proposal_inconsistent (foreign document id, forged property revision), drain(0) abandoned-not-dropped, not_diverged, receipt_not_held, authority_document_* refusals"
+    "R5 negative paths (82a97b4): receipts_full (RefuseWhenFull and all-unacknowledged), receipt_mismatch + diverged, proposal_inconsistent (foreign document id, forged property revision), drain(0) abandoned-not-dropped, not_diverged, receipt_not_held, authority_document_* refusals",
+    "CX-CAP-001 (b77518c, chronicle 549e46d): seed_revisions and mask_property now come from hsk-studio-chronicle; session-side PROPERTIES, addressable, seed_revisions and mask_property deleted (-82 lines); behaviour identical (19/19 session tests); chronicle_property_table_matches_the_session_seed replaced by session_consumes_the_chronicle_addressability_table (seed == chronicle::seed_revisions; for each node x property an addressable pair commits through the session, a pair chronicle marks non-addressable is refused wrong_type and the unsupported layer invalid_target with revision, bytes and revision vector unchanged; a successor with an extra unrevisioned artboard rename is refused proposal_not_derived through chronicle's mask)"
   ],
   "tests": {
     "passed": 19,
@@ -118,7 +125,7 @@
       "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "82a97b4",
+    "sha": "b77518c",
     "r5_new": [
       "receipt_table_is_bounded_and_evicts_only_acknowledged_receipts",
       "unacknowledged_and_pending_receipts_are_kept_and_a_full_table_refuses_typed",
@@ -127,7 +134,14 @@
       "chronicle_property_table_matches_the_session_seed"
     ],
     "r5_note": "19 = 14 existing (all still green) + 5 new, run on the worktree content committed as 82a97b4; dad971d changes one comment only (no re-run needed: GLOBAL-VALIDATION-018). clippy -p hsk-studio-session --tests --examples clean (only the two pre-existing hsk-studio-observe too_many_arguments warnings); rustfmt --check clean; dependents: check -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests exit 0 in the shared tree (including another builder's uncommitted edits there)",
-    "r5_red_proof": "scratch copy of 82a97b4 (accord, observe, folio, chronicle, package, session) at Handshake_Artifacts/WP-KERNEL-STUDIO/session-redproof/src, own target; mutations: (M1+M4) oldest_evictable without the acknowledged filter and newest-first -> receipt_table_is_bounded... fails (an evicted key replays: replayed true) and unacknowledged_and_pending... fails (edit-0003 commits with receipts_evicted 1 instead of receipts_full); (M2) resolve_pending adopts a disagreeing receipt -> diverged_pending... fails (reconcile adopted (1,0,0,0) instead of diverged (0,0,0,1)); (M5) property-revision check removed in propose_checked -> inconsistent_proposals... fails (forged-revision provider commits revision 8 instead of proposal_inconsistent); (M3) addressable(Artboard|PageSpread, Visible) = true -> chronicle_property_table_matches_the_session_seed fails (disagree on Artboard Visible; this mutation also made every chronicle submit wrong_type, so the other four failures of that first run are not attributed to it; M3 was reverted and the second run above gives the attributable M1+M4, M2, M5 failures with chronicle_property... passing); scratch left in place (no deletion of non-temp paths)"
+    "r5_red_proof": "scratch copy of 82a97b4 (accord, observe, folio, chronicle, package, session) at Handshake_Artifacts/WP-KERNEL-STUDIO/session-redproof/src, own target; mutations: (M1+M4) oldest_evictable without the acknowledged filter and newest-first -> receipt_table_is_bounded... fails (an evicted key replays: replayed true) and unacknowledged_and_pending... fails (edit-0003 commits with receipts_evicted 1 instead of receipts_full); (M2) resolve_pending adopts a disagreeing receipt -> diverged_pending... fails (reconcile adopted (1,0,0,0) instead of diverged (0,0,0,1)); (M5) property-revision check removed in propose_checked -> inconsistent_proposals... fails (forged-revision provider commits revision 8 instead of proposal_inconsistent); (M3) addressable(Artboard|PageSpread, Visible) = true -> chronicle_property_table_matches_the_session_seed fails (disagree on Artboard Visible; this mutation also made every chronicle submit wrong_type, so the other four failures of that first run are not attributed to it; M3 was reverted and the second run above gives the attributable M1+M4, M2, M5 failures with chronicle_property... passing); scratch left in place (no deletion of non-temp paths)",
+    "cap_table_new": [
+      "session_consumes_the_chronicle_addressability_table"
+    ],
+    "cap_table_removed": [
+      "chronicle_property_table_matches_the_session_seed"
+    ],
+    "cap_table_note": "19 = 18 unchanged + 1 replaced; cargo test -p hsk-studio-chronicle -p hsk-studio-session --tests exit 0 (chronicle 20, session 19); clippy clean; dependents check -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests exit 0; red proof in notes.cap_chronicle_table"
   },
   "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo3: rev 7 -> 9, saved, checkpoint, source_bytes_read 17298 and resident_bytes 2178 printed, independent read matches",
   "blockers": [],
@@ -150,7 +164,8 @@
     "R5: 'unacknowledged' is the only coherent meaning of the review's 'never silent loss of an unacknowledged receipt': a pending receipt, or a committed one the caller was never handed (adopted by reconcile/drain). Everything handed back through a submit result, replay or acknowledge_receipt is acknowledged and evictable, oldest first",
     "R5: evicting a committed receipt cannot cause a second application: a changed commit advances the revision so a late retry fails the expected-revision check (stale_revision) before the authority is asked, and a no-change key re-evaluates to no-change",
     "R5: 'resolve' for a diverged commit is resync to the authority document (host supplies the bytes, session validates), not 'adopt the draft': CommitReceipt carries no document digest, so adopting a draft against a receipt whose binding or revision disagrees could silently fork content from the authority; discard is the other explicit path. The CommitPort trait was not extended (would break kernel-bindings' port implementation)",
-    "R5: chronicle-exported revision seeding: the session brief does not specify it and chronicle (not editable by this lane) exports no property table. Mitigation inside the crate: exhaustive matches plus a cross-check test against chronicle's own acceptance. Request to the chronicle owner: export the addressable (NodeKind, Property) table or a seed/mask helper so the session mirror can be deleted (CX-CAP-001)"
+    "R5: chronicle-exported revision seeding: the session brief does not specify it and chronicle (not editable by this lane) exports no property table. Mitigation inside the crate: exhaustive matches plus a cross-check test against chronicle's own acceptance. Request to the chronicle owner: export the addressable (NodeKind, Property) table or a seed/mask helper so the session mirror can be deleted (CX-CAP-001)",
+    "CX-CAP-001 resolved (supersedes the R3 'mirrored locally' and R5 'chronicle-exported revision seeding' decisions): chronicle owns the addressability table (PROPERTIES, addressable, seed_revisions, mask_property); the session keeps no copy. The session -> chronicle edge was already allowed (root Cargo.toml metadata) and already a dependency, so no Operator edge decision was needed"
   ],
   "known_gaps": [
     "open is O(file) in I/O: PackageReader::open CRC-verifies every entry (bounded memory); no way to skip it with the current package API",
@@ -159,12 +174,11 @@
     "cancel-acknowledgement bound is not separately timed (operations are synchronous, cancel is polled at entry, in provider/read loops and before commit)",
     "resolver in session-consumer grants everything: example stand-in only",
     "export_checkpoint buffers the whole package (in-memory Checkpoint by contract); a zstd or shuffle_zstd source asset is read and encoded whole by the package writer in both passes, so save peak grows with the largest codec blob (claim qualified in DESCRIPTOR v4; no memory bound tested for codec assets)",
-    "seed_revisions / mask_property / addressable still mirror chronicle's addressable-property table (compile-time exhaustive + cross-check test, but a copy); needs a chronicle export (cross-crate request)",
     "resync_diverged trusts the host to pass the authority's real document bytes: it checks document id, receipt revision, folio validity, budgets and asset presence, but a receipt carries no document digest to compare content",
     "session-consumer example does not exercise acknowledge_receipt / discard_diverged / resync_diverged (library tests do)"
   ],
-  "next": "Validator round on dad971d (code identical to 82a97b4). Next slice candidates: multi-output delivery capture behind the JobPort, lazy opaque-entry handling for very large unknown records, chronicle export of the property table (cross-crate) then delete the session mirror, optional CommitReceipt document digest (would let resync/adopt compare content; port change coordinated with kernel-bindings).",
-  "updated_at": "2026-10-11T06:34:51Z",
+  "next": "Validator round on b77518c (session; chronicle 549e46d). Next slice candidates: multi-output delivery capture behind the JobPort, lazy opaque-entry handling for very large unknown records, optional CommitReceipt document digest (port change coordinated with kernel-bindings).",
+  "updated_at": "2026-10-11T06:50:45Z",
   "notes": {
     "verdicts": [
       {
@@ -204,7 +218,23 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-SESSION", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission 82a97b4 (not in bd8533f) queued for next round", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-SESSION:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-SESSION",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission 82a97b4 (not in bd8533f) queued for next round",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-SESSION:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
     ],
     "r3_remediation": {
       "round": "STUDIO-R3",
@@ -256,6 +286,21 @@
       "hygiene_v4_12": "no helper scripts in the shared scratchpad besides this lane's own subfolder (commit message files and this update script under scratchpad/hsk-studio-session/); a stray 'cp' with an empty destination variable early in the session created nothing (verified git status and scratchpad listing); no file outside crates/hsk-studio-session and this lane file edited; red-proof copy is under Handshake_Artifacts/WP-KERNEL-STUDIO/session-redproof",
       "retry_guard_route": "no hook block occurred; the one failing focused run (chronicle_property_table test: a revision vector containing unaddressable pairs is itself refused by chronicle) was a product test bug fixed in the test, then rerun (route a: product failure -> fix)",
       "lesson": "chronicle::prepare validates EVERY entry of the revision vector it is given, so a probe of 'can chronicle address X' must pass a vector holding only X"
+    },
+    "cap_chronicle_table": {
+      "commits": [
+        "549e46d",
+        "b77518c"
+      ],
+      "edge_check": "ALLOWED: hsk-studio-session allowed list in root Cargo.toml contains hsk-studio-chronicle; session Cargo.toml already depends on it",
+      "removed_from_session": "PROPERTIES, addressable, seed_revisions, mask_property (session.rs); unused imports NodeKind, NodeRef, Payload dropped",
+      "red_proof": {
+        "where": "scratch workspace (accord, observe, folio, package, chronicle, session) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-chronicle-table-redproof, own target dir; mutation applied to a fresh copy of chronicle src/lib.rs for each run; baseline in the same workspace 20 + 19 passed; deliberate-failure runs launched in the background (no exit code recorded by the hook), the shared tree was never mutated",
+        "M1": "addressable(Artboard|PageSpread, Visible) = true -> chronicle exported_table_is_the_table_prepare_enforces fails (table says true, prepare refuses value_conflict) and session session_consumes_the_chronicle_addressability_table + open_edit_undo_save_reopen_round_trip fail (seed 6 entries, expected 5)",
+        "M2": "seed_revisions without the unsupported-layer filter -> chronicle table test fails (seed contains the unsupported layer's pair) and session_consumes_the_chronicle_addressability_table fails (seeded where chronicle refuses)",
+        "M3": "mask_property returns true without masking -> chronicle table test fails (masked documents differ) and 17 of 19 session tests fail (honest provider successors become proposal_not_derived, including session_consumes_the_chronicle_addressability_table)"
+      },
+      "hygiene_v4_12": "see hsk-studio-chronicle.json notes"
     }
   },
   "lock_wait_s": 0,

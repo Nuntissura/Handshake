@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:49:55Z",
+ "updated_at": "2026-10-11T06:51:15Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1100,7 +1100,7 @@
     "crates/hsk-studio-session/**"
    ],
    "launched": "2026-10-11T06:37:43Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:51:15Z (SMB-CHRONICLE-TABLE READY at b77518c)"
   },
   {
    "name": "builder-reel-v4",
