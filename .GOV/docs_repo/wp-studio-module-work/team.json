@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:20:46Z",
+ "updated_at": "2026-10-11T07:25:36Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1123,7 +1123,7 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T06:40:19Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:25:36Z (SMB-PIGMENT-WINDOW READY at 379a56f)"
   },
   {
    "name": "builder-render-gpu-fx",
