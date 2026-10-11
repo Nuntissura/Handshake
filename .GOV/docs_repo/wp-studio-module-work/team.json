@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:16:47Z",
+ "updated_at": "2026-10-11T10:18:58Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1363,7 +1363,7 @@
     "workflow/plausible-register.json"
    ],
    "launched": "2026-10-11T09:51:51Z",
-   "status": "running"
+   "status": "idle (tick 4 done 2026-10-11T10:18:58Z; V4-17..20 adopted)"
   },
   {
    "name": "steward-4",

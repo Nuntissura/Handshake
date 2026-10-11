@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-WORKFLOW-REVIEW-TICKS
 file_kind: workflow_tick_reviews
-updated_at: 2026-10-11T07:40:00Z
+updated_at: 2026-10-11T10:15:31Z
 ---
 
 <topic id="tick-1" status="active" updated_at="2026-10-11T02:14:00Z" summary="Interval 01:20Z-02:10Z; lock-fix challenge">
@@ -214,5 +214,144 @@ Every R5 and R6 FAIL was a reviewer-CONFIRMED defect (tick-log 05:40Z, 06:49Z). 
     - Prevents: review effort re-spent every round, and fixes that never get judged.
     - Lives in: lead procedure, reviewer prompt.
     - Enforcement: count of carried PLAUSIBLE without a disposition per round = 0.
+
+</topic>
+
+<topic id="tick-4" status="active" updated_at="2026-10-11T10:15:31Z" summary="Plausible register, usage cut-off resilience, V4 gaps, R7 rerun plan">
+
+## Tick 4 — 2026-10-11T10:15Z (workflow-2; sources: R5/R6 reviews, R7 pre-reviews, `ledger.json`, `team.json`, `builders/lanes/*.json`, `journal/tick-log.jsonl`, product git at efda89a → 8a9ef31, `get_usage` at 10:01Z and 10:09Z)
+
+**(1) Plausible register.** Written to `workflow/plausible-register.json`.
+- 122 raw PLAUSIBLE entries deduplicate to 52 open items: 34 FIX_LANE, 13 LEAD_DECISION, 4 OPERATOR_DECISION, 1 REVIEW. Another 34 items have closed since their review. Every entry was re-read at origin (9b66924 or 1f99350), and its file:line is given there.
+- 10 items have been carried for 3 or more rounds. Three of them have been carried for 4:
+  - PLR-005 pigment `PlanLimits` (R2–R6);
+  - PLR-015 score block admission (R2–R6);
+  - PLR-017 develop LJPEG restart markers (R3–R7).
+- 11 open items are one-line or doc-only fixes.
+- `lead_decisions: []` is left empty for the lead to fill in.
+- There are no R7 review files. R7 wrote no durable output before it was stopped.
+
+**(2) Usage cut-off: facts**
+- **Timing.** The cut-off came at about 08:06Z, not 09:50Z.
+  - Evidence: `round_R7.stopped_at` is 08:06:27Z, and the last pushes before the cut-off were c8fb9c3 at 08:07:44Z and efda89a at 08:08:02Z.
+  - 09:50Z is when the limit reset; the current 5-hour window resets at 14:50Z. The team was idle for 1 h 44 min.
+- **Burn rate.** The previous window (about 04:50Z to 09:50Z) ran out 3 h 16 min in, which is about 31% per hour. A full window lasts only at 20% per hour or less.
+  - The current window was at 6% at 10:01Z and 8% at 10:09Z. That is about 17% per hour after the resume burst.
+  - Weekly usage is 56%, and it resets 2026-10-13T11:00Z.
+- **Lead context.** `get_usage(self)` called from this sub-agent reports 827k of 1M tokens (83%), with auto-compact at 97%.
+  - Sub-agent contexts are far smaller, so this is most likely the lead's window. That is UNVERIFIED.
+  - V4-16 does not cover the lead.
+- **What the cut-off cost.**
+  - No product WIP was lost. Develop (4 files) and interop-psd (2 files) were edited 08:06–08:08Z, stayed in the shared tree, and were committed as 60b0e47 and 29501d7 at 09:54–09:56Z.
+  - R7 produced nothing. Validator and 3 reviewers (Opus) were launched at 08:04:23Z and stopped at 08:06:27Z. There is no `validation/R7-review-*.json`, and `studio-round/ROUND_IDENTITY.json` is still the R6 identity.
+  - In the 2 minutes before the limit, 7 agents were launched (5 Opus) without a budget reading.
+  - Both usage cut-offs landed on a round: R4 at 04:50Z after 72 min, and R7.
+- **Conclusion.** Commit cadence is not the weak point. Launching without pacing is, together with Opus review work that is duplicated.
+
+**(3) V4 rules not followed**
+- **V4-06 is the most broken rule.** The R7 pre-reviews found stale or mismatched site lists in 4 lanes:
+  - develop, 26 vs 24, and prism-eng-6, stale list: both were part of the FIX_FIRST reason (2 of the 5 FIX_FIRST results);
+  - press, 8 listed vs 25 regex hits, and motion-js-worker, 4 vs 8: both PLAUSIBLE.
+  - Two Opus pre-reviewers counted these sites by hand.
+  - The lists live under at least 5 key shapes, so no script can count them:
+    - `notes.remediation_R5.v4_06_sites` (motion-js);
+    - `notes.remediation_R5.v4_06.class_A.sites` (components);
+    - `notes.r5_plausible_remediation.v4_06_sites` (session);
+    - `notes.r6_plausibles.v4_06_site_lists` (prism-eng6);
+    - `notes.remediation_R6.class_sites` (press).
+- **V4-13, V4-14 and V4-15 have state gaps.**
+  - FIX_FIRST is recorded only in the ledger's `r7_prereview` field. The lane files for press (READY a1c9747), prism-eng5 and prism-eng6 still say READY_FOR_VALIDATION. The validator template takes its input from "READY_FOR_VALIDATION in builders/lanes/*.json".
+  - Lane files are one per crate, so a crate cannot hold two lane ids. `hsk-studio-interop-vector.json` shows 'SMB-INTEROP-VECTOR-1' READY c8fb9c3, which is the work of SMB-INTEROP-VECTOR-RECORDS (ledger status null). The ledger itself shows SMB-INTEROP-VECTOR READY 42fba02.
+- **The ledger is stale.**
+  - `updated_at` is 08:06:27Z, and 13 product commits have landed since.
+  - SMB-INTEROP-PSD-RECEIPT, SMB-INTEROP-VECTOR-RECORDS, SMB-BLENDIF-CLIP-ADOPT and SMB-PRISM-ENG-8 have status null although their work is pushed.
+- **V4-07.**
+  - components `design.rs:256` gained a 'never a pick' claim after the V4 adoption, with no test cited (PLR-048).
+  - prism (8a9ef31) and develop (60b0e47) each needed a doc-claim sweep after pre-review.
+  - Doc claims account for 2 of the 5 FIX_FIRST results.
+- **V4-16.**
+  - steward-3 was retired at about 580k (08:02Z, after the 07:30Z adoption), and the workflow agent at about 410k.
+  - The lead has no refresh rule.
+- **WF2-017/018 never landed.** v2 recorded them as adopted (START_LOG workflow-v2-adoption: "resume + lead-restart prompts in DISPATCH_TEMPLATES"). DISPATCH_TEMPLATES has no `resume` or `lead-restart` topic, and the 09:51Z resume used ad-hoc prompts.
+- **Followed:**
+  - V4-01 on decoders touched after the adoption: the only reviewer-flagged gap is prism `lib.rs`. A scan of 184 touched `src` files also found interop-fig `import.rs` and `semantic_decode.rs` without the lint; NOT_INSPECTED whether they parse bytes.
+  - V4-10 counts: 6 Opus and 13 agents running at the cut-off, per the `team.json` timestamps.
+  - V4-13 routing.
+
+**(4) R7 rerun plan.** The next steward sync is on or after 8a9ef31.
+- **What changed.**
+  - 10 crates changed after the R7 candidate 0e48167: composite, develop, interop-psd, interop-vector, kernel-bindings, motion-js, pigment, prism, render-cpu and render-gpu.
+  - 11 crates changed between bd8533f and 0e48167 and have never been reviewed: chronicle, folio, harness, interop-fig, press, reel, reel-native, score-device, score-plugin, session and web.
+- **Before the sync:**
+  - The steward adds `hsk-studio-kernel-bindings = [["test-faults"]]`. It is still absent from `.config/round-features.toml` at HEAD.
+  - The lead refreshes the ledger.
+- **Judge these as crate units:**
+  - a. **Pigment and its consumers.** The Blend-If clip refusal 0d28c03 and its adoption commits b10475d, 2aeeeba and 1f99350 have all landed. Lanes: PIGMENT-ENG-2, EFFECTS-WAVE-1/2, PIGMENT-WINDOW, PIGMENT-BLENDIF-CLIP, BLENDIF-CLIP-ADOPT, COMPOSITE-ADJ, RENDER-CPU-ADJ/WINDOW/FX2 and RENDER-GPU-ADJ.
+    - Record the render-gpu crate result as D20 evidence for SMB-RENDER-GPU, without changing its status.
+  - b. **interop-psd:** PSD, PSD-ADJ and PSD-WIDE, plus PSD-RECEIPT (1a088a9, 29501d7).
+  - c. **interop-vector:** VECTOR 42fba02, FOLIO-MIGRATE and VECTOR-RECORDS c8fb9c3 as one claim.
+  - d. **kernel-bindings:** 111f4ed, once the test-faults matrix is in.
+  - e. **develop:** DEVELOP 60b0e47 and DEVELOP-JOBS 78fd379 together. The reviewer re-checks only the 3 FIX_FIRST items plus PLR-018 and PLR-020.
+  - f. **motion-js:** MOTION-JS, WORKER and SANDBOX-2 at 1d972f1.
+    - N1 was fixed in 961c301. Pre-review B said WORKER is SAFE once judged together with that fix.
+    - The reviewer re-checks only N1 and PLR-036.
+  - g. **Validator only:** controls, components, components-folio-migrate and web. These crates are unchanged since their SAFE_TO_JUDGE pre-review at 0e48167, so the pre-review stands as their review.
+  - h. **One reviewer for the 11-crate delta** (bd8533f..0e48167), without web or press.
+- **Keep out of R7:**
+  - RENDER-GPU and ROUND-ENTRYPOINT (D20).
+  - INTEROP-MEDIA (D9).
+  - PRESS: at 10:14Z it had 9 uncommitted files and nothing pushed since a1c9747.
+  - The whole prism crate. ENG-6 fixes are still landing (8a9ef31), the ENG-5 FIX_FIRST paperwork lane file is unchanged since 05:27Z, and ENG-8 1f6a3d0 is not READY. Judge prism as one unit at the following sync.
+- **Size.** 1 validator plus 2 reviewers (one for a–f, one for h), instead of 1 + 3.
+
+**Proposals**
+1. **Pace launches by measured usage.**
+   - Prevents: cut-offs during a round (R4, R7) and idle outages.
+   - Rule: the lead calls `get_usage` at every tick and before every Opus launch or round. Take the line = 100 × the elapsed fraction of the 5-hour window.
+     - Usage above the line + 10, or at 70% or more: verdict agents only, no new slices.
+     - 80% or more: no round or Opus launch that cannot finish before the reset (R5 took 38 min, R6 46 min).
+     - 90% or more: broadcast "commit what is green and set `next` in the lane file", then launch nothing.
+     - Weekly: at most about 22% per remaining day.
+   - Lives in: lead procedure (new V4-17 in DISPATCH_TEMPLATES).
+   - Enforcement: every tick-log line carries `usage_5h` and `usage_week`. A dispatch with no reading from the last 15 min counts as a violation at the workflow tick.
+2. **A pre-review stands as the review when the tree is unchanged; reviewers read diffs only.**
+   - Prevents: duplicated Opus review. Pre-reviews A and B covered 10 lanes that R7 then sent to 3 more reviewers.
+   - Rule: if `git diff --quiet <last reviewed sha> <candidate> -- crates/<c>` holds, the crate gets no new review. Reviewers get only crates that changed, plus the diff base. A round is 1 validator and at most 2 reviewers.
+   - Lives in: round dispatch (V4-10 amendment).
+   - Enforcement: the dispatch lists `review_base` per crate.
+3. **One V4-06 key and a mechanical count.**
+   - Prevents: FIX_FIRST caused by stale site lists (2 of 5 at R7, plus 2 PLAUSIBLE mismatches) and hand counting by Opus.
+   - Rule: site lists live only under `notes.v4_06: [{finding, regex, sha, sites:[{file_line, status}]}]` in the lane file.
+   - Enforcement: the admission script (proposal 5) runs `git grep -c -E <regex> <sha> -- crates/<c>/src` and compares the count with `len(sites)`. The builder runs it before READY. A mismatch means the lane is not admitted.
+4. **Lane state per lane id, with FIX_FIRST written into it.**
+   - Prevents: FIX_FIRST lanes that still read READY, and per-crate files that cannot represent V4-15 lanes.
+   - Rule: use one file per lane id, or the per-crate `lanes:{<id>:{status, ready_sha}}` shape that `hsk-studio-prism-eng.json` already uses. A pre-review writes `FIX_FIRST` there. The validator template takes its inputs from the dispatch's admission list, never from lane-file status.
+   - Lives in: builder template STATE, validator template.
+   - Enforcement: the admission script refuses a lane whose ledger and lane-file status or SHA disagree.
+5. **Crate-unit admission script** (refines V4-14).
+   - Prevents: a crate judged with an unjudged lane's commits inside it, for example prism ENG-6/ENG-8 commits within ENG-3/ENG-7, or VECTOR-RECORDS within SMB-INTEROP-VECTOR.
+   - Rule: a crate enters a round only when every lane with commits in it since its last verdict is READY and not FIX_FIRST. Those lanes are judged together. No round runs while `ledger.updated_at` is older than the newest commit in an admitted crate.
+   - Lives in: one lead-owned kernel script, `wp-studio-module-work/tools/round-admission.py`, which also runs the checks in proposals 3, 4 and 9. A new script is justified: `steward-sync.sh` belongs to the steward's sync, and `run-round.sh` is product code that may not read `.GOV` (CX-211).
+   - Enforcement: the round dispatch attaches the script's output, and the validator judges only that list.
+6. **Lead refresh and the missing templates.**
+   - Prevents: the lead's context compacting mid-round. The Operator noted that the lead drifts first; it is at about 83%.
+   - Rule: the lead refreshes at 85% or at a round boundary, whichever comes first, once the ledger and `resume_plan` are current. Add the adopted WF2-017 (`resume`) and WF2-018 (`lead-restart`) topics to DISPATCH_TEMPLATES now.
+   - Enforcement: the tick line records the lead's context %.
+7. **Clear the register this tick.**
+   - Prevents: PLAUSIBLE items carried 2–4 rounds, re-reported by every reviewer.
+   - Rule:
+     - The lead fills `lead_decisions` for the 13 LEAD_DECISION items, one line each.
+     - FIX_LANE items go as one batch per crate to that owner's next slice. Examples: PLR-034 and PLR-035 to reel-native, copying the score-plugin 7d5641c and motion-js 961c301 pattern now rather than waiting for D18; PLR-014 and PLR-015 to score; PLR-011 to PLR-013 to nib.
+     - Reviewers receive the register and re-check only the entries for their crates.
+   - Lives in: `workflow/plausible-register.json`, reviewer prompt.
+   - Enforcement: entries with `rounds_carried` of 3 or more and no decision = 0.
+8. **A FIX_FIRST fix is re-checked by Sonnet.**
+   - Prevents: an Opus re-review of the whole lane after paperwork or doc fixes.
+   - Rule: when a lane goes back from FIX_FIRST to READY, a Sonnet reader checks only the named FIX_FIRST items at the new SHA, then the lane enters the next round.
+   - Enforcement: a `notes.prereview_recheck {sha, items, result}` entry is required for admission.
+9. **Doc-claim list before READY** (V4-07 made mechanical).
+   - Prevents: false doc claims (2 of 5 FIX_FIRST, and PLR-048).
+   - Rule: the builder greps its crate's doc comments and DESCRIPTOR for never/always/guarantee/cannot/refuses/every where no test is cited in the same doc block. Each hit goes into `notes.v4_07` as cite or weaken. Prism's `tests/wide_doc_claims.rs`, which pins the DESCRIPTOR claim text, is optional.
+   - Enforcement: the admission script prints the hit count, and the reviewer receives the list.
 
 </topic>

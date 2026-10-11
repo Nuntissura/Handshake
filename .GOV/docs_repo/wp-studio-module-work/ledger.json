@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T10:16:47Z",
+ "updated_at": "2026-10-11T10:18:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1996,11 +1996,70 @@
     "29501d7"
    ],
    "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PIGMENT-PLANLIMITS",
+   "crate": "hsk-studio-pigment",
+   "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
+   "scope": "stub: admit with caller PlanLimits (PLR-005)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REFUSAL-KEYS",
+   "crate": "composite + render-cpu + render-gpu",
+   "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
+   "scope": "backend defence-in-depth refusals use pigment's exported keys/constants (PLR-006)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-SCORE-GUARDS",
+   "crate": "hsk-studio-score",
+   "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
+   "scope": "non-divisor sample-rate refusal + non-finite output refusal (PLR-015)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-COMPONENTS-FOOTPRINT",
+   "crate": "hsk-studio-components",
+   "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
+   "scope": "widened write footprint for whole-instance replacement (PLR-046)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FOLIO-UNIQUENESS",
+   "crate": "hsk-studio-folio + hsk-studio-components",
+   "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
+   "scope": "folio exposes uniqueness/namespace pass; components uses it (PLR-049)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
  "dispatch_queue": [
-  "SMB-WEB-DIFFTEST"
+  "SMB-WEB-DIFFTEST",
+  "SMB-REFUSAL-KEYS",
+  "SMB-SCORE-GUARDS",
+  "SMB-COMPONENTS-FOOTPRINT",
+  "SMB-FOLIO-UNIQUENESS"
  ],
  "consolidation_candidates": [
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
