@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:35:45Z",
+ "updated_at": "2026-10-11T06:36:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1614,13 +1614,7 @@
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
  "steward_next_sync": [
-  "fc7822b motion-js quickjs+test-faults matrix (already pushed)",
-  "reel miniz_oxide dep-request (requested from reel builder)",
-  "prism corpus key if requested",
-  "round-features: hsk-studio-motion-js = [[\"quickjs\"],[\"quickjs\",\"test-faults\"]] (fc7822b may already cover quickjs+test-faults)",
-  "round-features: hsk-studio-reel-native = [[\"av1-worker\"],[\"av1-worker\",\"test-faults\"]] (replaces [[\"av1\"]]; av1 is now host-only)",
-  "workspace-probe: accept feature selector hsk-studio-reel/av1 inside reel-native feature av1-worker (edge reel-native->reel exists, rav1d approved for reel) and probe each matrix feature set during steward-sync",
-  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (native tests ignored without STUDIO_NATIVE_AUDIO; R6 review B)"
+  "round-features: hsk-studio-score-device = [[\"cpal-backend\"]] (R6 review B)"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1713,5 +1707,13 @@
    "press slice 5 5a91fd7/70c2ace",
    "steward fc7822b motion-js quickjs+test-faults matrix"
   ]
+ },
+ "round_R7_candidate": {
+  "sha": "2074f5e",
+  "sync_parent": "231115f",
+  "prepared_at": "2026-10-11T06:36:35Z",
+  "canary": "C9 exit 0, 53 units, NOT_PROVEN 0, absent 0, timed_out 0; step 0 clean",
+  "matrices": "reel-native [[av1-worker],[av1-worker,test-faults]]; motion-js [[quickjs],[quickjs,test-faults]]; score-device cpal-backend NOT yet (request came after sync)",
+  "launch_rule": "open after R6 completes (no concurrent rounds in studio-round)"
  }
 }

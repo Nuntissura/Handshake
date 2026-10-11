@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:35:45Z",
+ "updated_at": "2026-10-11T06:36:35Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -980,7 +980,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T06:08:06Z",
-   "status": "running"
+   "status": "idle (sync 2074f5e = R7 candidate, canary C9 green 53 units; steward-sync.sh probes every matrix set) 2026-10-11T06:36:35Z"
   },
   {
    "name": "builder-press-4",

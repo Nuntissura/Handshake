@@ -1,30 +1,55 @@
 #!/usr/bin/env bash
 # Steward sync commit (WP-KERNEL-STUDIO workspace steward only; never part of the round path).
 # From an in-place export of HEAD (== origin) at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export:
-#   optional allowed-edge additions (edges.py), derive Cargo.lock offline from HEAD's committed manifests
-#   (`cargo metadata --offline`: minimal, pins kept; never cargo update), registry-sync --write (pins + probe
-#   APPROVED; dep-requests gate), license gate, verify `cargo metadata --locked --offline` + registry-sync check +
-#   probe per package, then commit ONLY Cargo.lock / root Cargo.toml / tools/workspace-probe.rs with parent = HEAD
-#   via a temp index and publish with compare-and-swap update-ref + push. The shared index and working files are
-#   never touched (builders commit with pathspec). Prints SYNC_SHA (= round candidate) and writes the export's
+#   optional steward-owned root files overlaid from the shared edit tree (--overlay), optional allowed-edge
+#   additions (edges.py), derive Cargo.lock offline from HEAD's committed manifests (`cargo metadata --offline`:
+#   minimal, pins kept; never cargo update), registry-sync --write (pins + probe APPROVED; dep-requests gate over
+#   the request lines that name a dep), license gate, verify `cargo metadata --locked --offline` + registry-sync
+#   check + probe per package AND per .config/round-features.toml feature set (any reject fails the sync), then
+#   commit ONLY Cargo.lock / root Cargo.toml / tools/workspace-probe.rs / overlays with parent = HEAD via a temp
+#   index and publish with compare-and-swap update-ref + push (lanes that pushed meanwhile: re-parent onto the
+#   tip when no derivation input changed, else exit 3). Builders' files are never touched: after the
+#   commit only the committed root paths are reconciled in the shared tree (index entry -> new blob when it still
+#   held the base blob; working file -> committed content when it held the base or overlay content; the working
+#   Cargo.lock stays builders' local state). Prints SYNC_SHA (= round candidate) and writes the export's
 #   ROUND_IDENTITY.json for it.
-# Usage: steward-sync.sh [--add-edge crate=dep]... [--remove-edge crate=dep]... [--allow-unrequested] [--no-push]
+# Usage: steward-sync.sh [--overlay RELPATH]... [--add-edge crate=dep]... [--remove-edge crate=dep]...
+#                        [--allow-unrequested] [--no-push] [--dry-run]
+# --overlay: steward-owned path relative to the workspace root (.config/*, tools/run-round.sh,
+#   tools/workspace-probe.rs, tools/registry-sync.py) copied from the shared edit tree into the export first.
 # --allow-unrequested only after reviewing every "unrequested" pair (license gate still runs); report them to the lead.
-# Exit: 0 ok, 3 HEAD moved / not pushed (redo), 4 edge error, 5 registry-sync, 6 verify failed, 8 license gate,
+# --dry-run: everything up to and including the probes; prints the paths that would be committed; no commit.
+# Exit: 0 ok, 2 usage, 3 HEAD moved / not pushed (redo), 4 edge error, 5 registry-sync, 6 verify failed,
+#       7 probe rejected a package or feature set, 8 license gate, 9 committed but push failed,
 #       75 offline lock derivation failed (crate missing from local cargo cache).
 set -uo pipefail
 TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 WORK=$(cd "$TOOLS/.." && pwd)
 WT=$(cd "$TOOLS/../../../../.." && pwd)
 REPO="$WT/wt-studio-assets"
+SUB=handshake-studio-assets
 ART="$WT/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev"
 EX="$ART/sync-export"
-W="$EX/src/handshake-studio-assets"
+W="$EX/src/$SUB"
 BR=codex/handshake-studio-assets
 REQ="$WORK/builders/dep-requests.jsonl"
-edges=() push=1 allow=()
+edges=() push=1 allow=() overlays=() dry=0
 while [ $# -gt 0 ]; do
-  case "$1" in --add-edge) edges+=("${2:?}"); shift ;; --remove-edge) edges+=("remove:${2:?}"); shift ;; --no-push) push=0 ;; --allow-unrequested) allow=(--allow-unrequested) ;; *) echo "unknown arg $1" >&2; exit 2 ;; esac
+  case "$1" in
+    --add-edge) edges+=("${2:?}"); shift ;;
+    --remove-edge) edges+=("remove:${2:?}"); shift ;;
+    --overlay)
+      case "${2:?}" in
+        .config/*.toml|tools/run-round.sh|tools/workspace-probe.rs|tools/registry-sync.py) overlays+=("$2") ;;
+        *) echo "overlay not steward-owned: $2" >&2; exit 2 ;;
+      esac
+      case "$2" in *..*) echo "overlay path may not contain ..: $2" >&2; exit 2 ;; esac
+      shift ;;
+    --no-push) push=0 ;;
+    --dry-run) dry=1 ;;
+    --allow-unrequested) allow=(--allow-unrequested) ;;
+    *) echo "unknown arg $1" >&2; exit 2 ;;
+  esac
   shift
 done
 lockpk() {
@@ -43,6 +68,14 @@ BASE=$(git rev-parse HEAD)
 mkdir -p "$EX"
 bash "$TOOLS/export-refresh.sh" "$EX" "$BASE" --no-identity || exit 1
 rm -f "$EX/ROUND_IDENTITY.json"   # identity is written only for the published sync commit
+declare -A ovblob=()
+for rel in ${overlays[@]+"${overlays[@]}"}; do
+  [ -f "$REPO/$SUB/$rel" ] || { echo "overlay source missing: $rel" >&2; exit 2; }
+  mkdir -p "$(dirname "$W/$rel")"
+  cp "$REPO/$SUB/$rel" "$W/$rel"
+  ovblob[$rel]=$(git hash-object --path="$SUB/$rel" "$W/$rel")
+  echo "OVERLAY $rel ${ovblob[$rel]:0:12}"
+done
 cd "$W" || exit 1
 source "$WORK/builders/studio-env.sh"
 cp Cargo.lock "$EX/committed-Cargo.lock"
@@ -61,8 +94,16 @@ edged=$(LC_ALL=C comm -12 <(LC_ALL=C comm -13 "$EX/lock-committed.tsv" "$EX/lock
   <(LC_ALL=C comm -12 <(cut -f1 "$EX/lock-committed.tsv") <(cut -f1 "$EX/lock-derived.tsv")) | paste -sd' ')
 echo "LOCK_DIFF added=[${added}] removed=[${removed}] dependency_lists_changed=[${edged}]" | tee "$EX/lock-diff.txt"
 
-python -X utf8 -I tools/registry-sync.py . --write --requests "$REQ" ${allow[@]+"${allow[@]}"} >"$EX/registry.json" || { cat "$EX/registry.json"; exit 5; }
-python -X utf8 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("REGISTRY approved_added=%s spec_defects=%s" % (d["approved_added"], d["spec_defects"]))' "$EX/registry.json"
+# The request log also carries steward items without a dep (round-features requests); the gate reads dep lines only.
+python -X utf8 -I -c 'import json,sys
+out = open(sys.argv[2], "w", encoding="utf-8")
+for line in open(sys.argv[1], encoding="utf-8"):
+    if line.strip():
+        r = json.loads(line)
+        if r.get("crate") and r.get("dep"):
+            out.write(json.dumps({"crate": r["crate"], "dep": r["dep"]}) + "\n")' "$REQ" "$EX/dep-requests.deps.jsonl" || exit 5
+python -X utf8 -I tools/registry-sync.py . --write --requests "$EX/dep-requests.deps.jsonl" ${allow[@]+"${allow[@]}"} >"$EX/registry.json" || { cat "$EX/registry.json"; exit 5; }
+python -X utf8 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("REGISTRY approved_added=%s approved_removed=%s unrequested=%s spec_defects=%s" % (d["approved_added"], d["approved_removed"], d["unrequested"], d["spec_defects"]))' "$EX/registry.json"
 python -X utf8 -I "$TOOLS/license_gate.py" . || exit 8
 cargo metadata --locked --offline --format-version 1 >/dev/null 2>"$EX/verify.err" || { cat "$EX/verify.err"; exit 6; }
 python -X utf8 -I tools/registry-sync.py . >/dev/null || { echo "registry-sync check not clean after write"; exit 6; }
@@ -71,33 +112,98 @@ mkdir -p "$ART/probe"
 rustc --edition=2024 -O tools/workspace-probe.rs -o "$ART/probe/workspace-probe.exe" || exit 6
 TREE=$(git -C "$REPO" rev-parse "$BASE^{tree}")
 python -X utf8 -I "$TOOLS/probe_provenance.py" "$W" "$BASE" "$TREE" "$EX/probe-provenance.toml" $(ls crates) >/dev/null
-: >"$EX/probe-rejects.txt"
-for p in $(ls crates); do
-  r=$("$ART/probe/workspace-probe.exe" --root "$W" --provenance "$EX/probe-provenance.toml" --revision "$BASE" --tree "$TREE" --package "$p")
-  case "$r" in *'"accepted"'*) ;; *) echo "$p $(echo "$r" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')" >>"$EX/probe-rejects.txt" ;; esac
-done
-echo "PROBE accepted=$(( $(ls crates | wc -l) - $(wc -l <"$EX/probe-rejects.txt") ))/$(ls crates | wc -l) rejects=[$(paste -sd',' "$EX/probe-rejects.txt")]"
+# Selections: every package with no features, then every (crate, feature set) of .config/round-features.toml.
+{ for p in $(ls crates); do echo "$p"; done
+  python -X utf8 -I -c 'import sys, tomllib
+for crate, sets in tomllib.load(open(sys.argv[1], "rb")).get("crates", {}).items():
+    for s in sets:
+        print(" ".join([crate] + s))' .config/round-features.toml | tr -d '\r'
+  [ "${PIPESTATUS[0]}" -eq 0 ] || echo "MATRIX_UNREADABLE"
+} >"$EX/probe-selections.txt"
+: >"$EX/probe-rejects.txt"; : >"$EX/probe-results.jsonl"
+while read -r p feats; do
+  [ "$p" = MATRIX_UNREADABLE ] && { echo "round-features matrix unreadable" >>"$EX/probe-rejects.txt"; continue; }
+  fa=(); for f in $feats; do fa+=(--feature "$p/$f"); done
+  r=$("$ART/probe/workspace-probe.exe" --root "$W" --provenance "$EX/probe-provenance.toml" --revision "$BASE" --tree "$TREE" --package "$p" ${fa[@]+"${fa[@]}"})
+  echo "$r" >>"$EX/probe-results.jsonl"
+  case "$r" in *'"status":"accepted"'*) ;; *) echo "$p${feats:+[$feats]} $(echo "$r" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')" >>"$EX/probe-rejects.txt" ;; esac
+done <"$EX/probe-selections.txt"
+total=$(wc -l <"$EX/probe-selections.txt"); bad=$(wc -l <"$EX/probe-rejects.txt")
+echo "PROBE accepted=$(( total - bad ))/$total (packages $(ls crates | wc -l), feature sets $(( total - $(ls crates | wc -l) ))) rejects=[$(paste -sd',' "$EX/probe-rejects.txt")]"
+[ "$bad" -eq 0 ] || exit 7
 
 cd "$REPO"
-paths=() blobs=()
-for f in Cargo.lock Cargo.toml tools/workspace-probe.rs; do
-  b=$(git hash-object -w --path="handshake-studio-assets/$f" "$W/$f")
-  [ "$b" = "$(git rev-parse "$BASE:handshake-studio-assets/$f")" ] || { paths+=("handshake-studio-assets/$f"); blobs+=("$b"); }
+files=(Cargo.lock Cargo.toml tools/workspace-probe.rs)
+for rel in ${overlays[@]+"${overlays[@]}"}; do case " ${files[*]} " in *" $rel "*) ;; *) files+=("$rel") ;; esac; done
+paths=() blobs=() modes=()
+for f in "${files[@]}"; do
+  wflag=-w; [ $dry -eq 1 ] && wflag=
+  b=$(git hash-object $wflag --path="$SUB/$f" "$W/$f")
+  [ "$b" = "$(git rev-parse -q --verify "$BASE:$SUB/$f" 2>/dev/null)" ] && continue
+  m=$(git ls-tree "$BASE" -- "$SUB/$f" | cut -d' ' -f1); paths+=("$SUB/$f"); blobs+=("$b"); modes+=("${m:-100644}")
 done
+if [ $dry -eq 1 ]; then echo "DRY_RUN base=$BASE would_commit=[${paths[*]}]"; exit 0; fi
 if [ ${#paths[@]} -eq 0 ]; then NEW=$BASE; echo "already in sync at $BASE"
 else
-  printf 'Steward sync: lock, registry pins and probe approvals for %s\n\nDerived offline from the committed manifests of %s (pins kept).\nLock added: %s\nLock removed: %s\nDependency lists changed: %s\nAllowed edge changes: %s\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' \
-    "${BASE:0:7}" "$BASE" "${added:-none}" "${removed:-none}" "${edged:-none}" "${edges[*]:-none}" >"$EX/msg.txt"
-  export GIT_INDEX_FILE="$EX/commit-index"
-  rm -f "$GIT_INDEX_FILE"
-  git read-tree "$BASE"
-  for i in "${!paths[@]}"; do git update-index --cacheinfo "100644,${blobs[$i]},${paths[$i]}"; done
-  NT=$(git write-tree)
-  NEW=$(git commit-tree "$NT" -p "$BASE" -F "$EX/msg.txt")
-  unset GIT_INDEX_FILE
-  git update-ref "refs/heads/$BR" "$NEW" "$BASE" || { echo "CAS failed: $BR moved past $BASE; redo"; exit 3; }
-  echo "committed $NEW (${paths[*]})"
-  if [ $push -eq 1 ]; then git push origin "$BR" 2>&1 | tail -n1; fi
+  msg() {  # $1 = parent; a re-parent line is added when the parent is not BASE
+    local rp=""; [ "$1" = "$BASE" ] || rp="Re-parented onto ${1:0:7}: no derivation input changed after ${BASE:0:7}.
+"
+    printf "Steward sync: lock, registry pins and probe approvals for %s
+
+Derived offline from the committed manifests of %s (pins kept).
+${rp}Lock added: %s
+Lock removed: %s
+Dependency lists changed: %s
+Allowed edge changes: %s
+Steward root files overlaid: %s
+Probe: %s selections accepted (packages and round-features sets)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+"       "${BASE:0:7}" "$BASE" "${added:-none}" "${removed:-none}" "${edged:-none}" "${edges[*]:-none}" "${overlays[*]:-none}" "$total" >"$EX/msg.txt"
+  }
+  # Re-parent instead of redoing when lanes pushed during the sync: allowed only when no derivation input changed
+  # between BASE and the current tip (root Cargo.toml/Cargo.lock, rust-toolchain.toml, any crate manifest, the
+  # steward tools and .config files, or a committed path); the derived blobs are then identical for the tip.
+  inputs_re="^$SUB/(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|crates/[^/]+/Cargo\.toml|tools/|\.config/)"
+  NEW="" PARENT=""
+  for attempt in 1 2 3 4 5 6 7 8; do
+    PARENT=$(git rev-parse "refs/heads/$BR")
+    if [ "$PARENT" != "$BASE" ]; then
+      git merge-base --is-ancestor "$BASE" "$PARENT" || { echo "tip $PARENT does not descend from $BASE; redo"; exit 3; }
+      moved=$(git diff --name-only "$BASE" "$PARENT" | grep -E "$inputs_re" | paste -sd' ')
+      [ -z "$moved" ] || { echo "derivation inputs changed since $BASE ($moved); redo"; exit 3; }
+    fi
+    msg "$PARENT"
+    export GIT_INDEX_FILE="$EX/commit-index"
+    rm -f "$GIT_INDEX_FILE"
+    git read-tree "$PARENT"
+    for i in "${!paths[@]}"; do git update-index --add --cacheinfo "${modes[$i]},${blobs[$i]},${paths[$i]}"; done
+    NT=$(git write-tree)
+    NEW=$(git commit-tree "$NT" -p "$PARENT" -F "$EX/msg.txt")
+    unset GIT_INDEX_FILE
+    if git update-ref "refs/heads/$BR" "$NEW" "$PARENT" 2>/dev/null; then break; fi
+    echo "CAS attempt $attempt: $BR moved past $PARENT"; NEW=""
+  done
+  [ -n "$NEW" ] || { echo "CAS failed 8 times; redo"; exit 3; }
+  echo "committed $NEW parent $PARENT (${paths[*]})"
+  pushed=0
+  if [ $push -eq 1 ]; then git push origin "$BR" 2>&1 | tail -n1; pushed=${PIPESTATUS[0]}; fi
+  [ "$pushed" -eq 0 ] || echo "PUSH FAILED (exit $pushed): $NEW is committed locally only; push before naming it a candidate"
+  # Shared-tree reconcile for the committed root paths only (see header).
+  for i in "${!paths[@]}"; do
+    p=${paths[$i]} nb=${blobs[$i]} rel=${paths[$i]#"$SUB/"}
+    ob=$(git rev-parse -q --verify "$BASE:$p" 2>/dev/null || echo none)
+    ib=$(git ls-files -s -- "$p" | cut -d' ' -f2)
+    if [ "${ib:-none}" = "$ob" ] || [ -z "$ib" ]; then
+      git update-index --add --cacheinfo "${modes[$i]},$nb,$p" || echo "RECONCILE index entry not updated: $p"
+    else echo "RECONCILE index entry left (staged by someone else): $p"; fi
+    [ "$rel" = Cargo.lock ] && continue
+    wb=$(git hash-object --path="$p" "$p" 2>/dev/null || echo none)
+    if [ "$wb" = "$ob" ] || [ "$wb" = "${ovblob[$rel]:-x}" ] || [ "$wb" = none ]; then
+      cp "$W/$rel" "$p"
+    elif [ "$wb" != "$nb" ]; then echo "RECONCILE working file left (edited during sync): $p"; fi
+  done
 fi
 bash "$TOOLS/export-refresh.sh" "$EX" "$NEW" || exit 1
 echo "SYNC_SHA=$NEW"
+[ "${pushed:-0}" -eq 0 ] || exit 9
