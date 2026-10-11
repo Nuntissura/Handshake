@@ -9036,7 +9036,6 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "mt014_selection_post_rejects_embedding_role_before_swap".to_string(),
         "mt014_selection_post_integrity_failure_occurs_before_swap".to_string(),
         "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
-        "mt014_embedding_role_row_has_no_default_switch_action".to_string(),
         "model_runtime_registry_behaviors_have_canonical_manual_coverage".to_string(),
         "user_manual_names_only_surfaces_that_exist_in_compiled_product_code".to_string(),
         "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
