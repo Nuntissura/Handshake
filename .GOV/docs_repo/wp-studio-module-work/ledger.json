@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T14:26:28Z",
+ "updated_at": "2026-10-11T14:34:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -979,7 +979,8 @@
    "brief": "builders/briefs/lane-reel-eng-1.md",
    "candidate": "0474906",
    "note": "R9 pre-review fixes 0474906: MXF non-permutation temporal offsets -> Err(Corrupt mxf-temporal-offset) before any essence read (Preview and Export); elst-zero-duration refusal per track (TrackIndex::unsupported; seek/probe/select_track refuse); NotExact.nearest of an edit-trimmed first sample = next whole presented sample; PLR-057 export exact-start check before the decoder session opens (Fake.opens observed); 6 tests red on scratch 60b3f63 + 7 single-fix mutations red; nextest 60 default / 65 av1, doctests, clippy, fmt; reel-native check clean; routing (registry.rs, choose(), Forward) untouched. Residual: edit-media-rate-not-1 still file-wide Unsupported; default_track() may return a refused track. Claim 6d232da + 2ddff00 + bd5bd60 + 0474906. Crate changed after R9-prereview-reel -> new V4-13 pre-review for AV1-ROUTE before R10",
-   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json"
+   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json",
+   "lead_scope_note": "lead 2026-10-11T14:34:04Z: PLR-057 fix 0474906 covers the export START check only (pre-check before session open); an in-range start with a count past the end still opens a session before Incomplete (isobmff.rs:1980-1992, R10-prereview-reel-route advisory). Claim is limited to the start check; end-of-range pre-check registered as PLR-062. No test drives Export through the in-process rav1d arm (PLR-062)."
   },
   {
    "lane_id": "SMB-REEL-ENG-2",
@@ -1789,6 +1790,12 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "a024461",
     "at": "2026-10-11T13:47:18Z"
+   },
+   "r10_prereview": {
+    "ref": "validation/R10-prereview-reel-route.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "cc3eaae",
+    "at": "2026-10-11T14:34:04Z"
    }
   },
   {

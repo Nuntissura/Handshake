@@ -1090,6 +1090,21 @@
    "verified_at": "a024461",
    "disposition": "FIX_LANE",
    "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-062",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/isobmff.rs:1980-1992 (+ video_route test comment)",
+   "finding": "export pre-check covers the start only: an in-range start with a count past the end still opens a decoder session before Incomplete; lane note/test comment say more; no test drives Export through the in-process rav1d arm",
+   "first_seen": "R10-prereview-reel-route",
+   "seen_in": [
+    "R10-prereview-reel-route"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "cc3eaae",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane (crate frozen for R10 to keep the AV1-ROUTE pre-review valid)"
   }
  ],
  "process_items": [

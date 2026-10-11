@@ -1834,7 +1834,7 @@
     "validation/R10-prereview-reel-route.json"
    ],
    "launched": "2026-10-11T14:25:45Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:34:04Z (SAFE_TO_JUDGE)"
   },
   {
    "name": "prereview-r10-press",
