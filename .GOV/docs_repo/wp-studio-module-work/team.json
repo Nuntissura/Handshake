@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T17:06:51Z (R11 sync 6956d3f + C16b exit 73 59/59)"
+   "status": "running 2026-10-11T19:08:49Z (pin hayro-interpret + kurbo)"
   },
   {
    "name": "research-reel-eng",
@@ -2031,7 +2031,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T18:00:23Z",
-   "status": "running"
+   "status": "done 2026-10-11T19:08:49Z (d079292; awaiting steward pin)"
   },
   {
    "name": "prereview-r12-web",

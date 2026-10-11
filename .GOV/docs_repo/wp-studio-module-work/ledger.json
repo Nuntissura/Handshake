@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T18:32:40Z",
+ "updated_at": "2026-10-11T19:08:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -699,7 +699,7 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "build: Operator D27 = flatten + narrow (rem-press-flatten)",
+   "phase": "D27 flatten built (d23fca4..d079292); awaiting steward pin of hayro-interpret 0.7.0 + kurbo 0.13.1 (dep-requests 58-59), then V4-13 pre-review",
    "status": null,
    "owner": "builder-press",
    "brief": null,
@@ -728,7 +728,15 @@
     "cc3eaae",
     "054037c",
     "47f1588",
-    "b8ce934"
+    "b8ce934",
+    "d23fca4",
+    "818ec3e",
+    "6b611f5",
+    "76707ce",
+    "e053ebc",
+    "d5562c6",
+    "4f04c29",
+    "d079292"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
@@ -753,8 +761,9 @@
    },
    "blockers": [
     {
-     "kind": "Operator D27 decided: flatten + narrow; implementation in progress",
-     "recorded_at": "2026-10-11T17:59:47Z"
+     "kind": "awaiting steward pin",
+     "ref": "builders/dep-requests.jsonl lines 58-59",
+     "recorded_at": "2026-10-11T19:08:49Z"
     }
    ]
   },
@@ -2513,7 +2522,7 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "build: Operator D27 = flatten + narrow (rem-press-flatten)",
+   "phase": "D27 flatten built (d23fca4..d079292); awaiting steward pin of hayro-interpret 0.7.0 + kurbo 0.13.1 (dep-requests 58-59), then V4-13 pre-review",
    "status": null,
    "owner": "builder-press-differences",
    "commits": [
@@ -2529,7 +2538,15 @@
     "cc3eaae",
     "054037c",
     "47f1588",
-    "b8ce934"
+    "b8ce934",
+    "d23fca4",
+    "818ec3e",
+    "6b611f5",
+    "76707ce",
+    "e053ebc",
+    "d5562c6",
+    "4f04c29",
+    "d079292"
    ],
    "verdicts": [],
    "candidate": "b8ce934",
@@ -2541,8 +2558,9 @@
    },
    "blockers": [
     {
-     "kind": "Operator D27 decided: flatten + narrow; implementation in progress",
-     "recorded_at": "2026-10-11T17:59:47Z"
+     "kind": "awaiting steward pin",
+     "ref": "builders/dep-requests.jsonl lines 58-59",
+     "recorded_at": "2026-10-11T19:08:49Z"
     }
    ]
   },
