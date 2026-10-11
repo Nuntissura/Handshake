@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: session
 assignment: STUDIO-MODULAR-AUTHORING
 parent: null
-generation: 82
+generation: 84
 expensive_actions: []
 steps:
 - {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
@@ -100,3 +100,5 @@ steps:
 - {id: GP-084, role: orchestrator, at: before_submit, do: verify inserted spec clauses use canonical LF before manifest hashing and Git staging, check: {type: confirm}, source: 'infra: inserted CRLF clauses normalized by Git; native blob hash differed', state: active}
 - {id: GP-085, role: orchestrator, at: on_resume, do: require wait_threads snapshot or typed read_thread final extraction; forbid raw thread serialization, check: {type: confirm}, source: 'infra: resumed read_thread returned unbounded command history despite message character limit', state: active}
 - {id: GP-086, role: orchestrator, at: on_resume, do: require recipe tuple field projection; forbid full fallback resource provenance serialization, check: {type: confirm}, source: 'infra: fallback positive-case records included full resources and truncated combined oracle read', state: active}
+- {id: GP-087, role: any, at: before_merge, do: verify kernel tree clean before integration merge of origin/gov_kernel, check: {type: git, clean: true}, source: 'Operator 2026-10-11: resolve our work with other agents'' work, no gov_kernel branching', state: active}
+- {id: GP-088, role: any, at: before_merge, do: confirm path overlap == 0 vs merge-base and local commits on origin before merge, check: {type: confirm}, source: 'risk: diverged gov_kernel (12 remote WP-KERNEL-012 commits vs local Studio commits)', state: active}
